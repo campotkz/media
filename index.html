@@ -2,966 +2,251 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Календарь съёмок</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>GULYWOOD ERP | Calendar</title>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    /* =========================================================
-       Apple-ish structure: system font, consistent spacing,
-       clear hierarchy, comfortable hit targets.
-       ========================================================= */
-
-    :root{
-      /* --- Typography (system-first) --- */
-      --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-                   system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-
-      /* macOS UI often feels like: body ~13, titles 15–17+ */
-      --fs-title: 17px;
-      --fs-subtitle: 15px;
-      --fs-body: 13px;
-      --fs-callout: 12px;
-      --fs-caption: 11px;
-
-      --lh-tight: 1.25;
-      --lh-normal: 1.38;
-      --lh-relaxed: 1.45;
-
-      --w-regular: 400;
-      --w-medium: 500;
-      --w-semibold: 600;
-      --w-bold: 700;
-
-      /* --- Spacing scale (4pt-ish) --- */
-      --s-1: 4px;
-      --s-2: 8px;
-      --s-3: 12px;
-      --s-4: 16px;
-      --s-5: 24px;
-      --s-6: 32px;
-
-      /* --- Hit area (Apple general rule 44x44) --- */
-      --hit: 44px;
-
-      /* --- Radii --- */
-      --r-1: 12px;
-      --r-2: 16px;
-      --r-3: 20px;
-      --r-pill: 999px;
-
-      /* --- Colors / Materials (dark, glassy) --- */
-      --text: rgba(255,255,255,.92);
-      --muted: rgba(255,255,255,.68);
-      --muted2: rgba(255,255,255,.52);
-
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
       --accent: rgba(122,162,255,1);
-      --accent-fill: rgba(122,162,255,.20);
-      --accent-stroke: rgba(122,162,255,.62);
-
-      --warn-stroke: rgba(255,204,102,.55);
-
       --bg-0: #070812;
-      --bg-1: #0a0b10;
-
-      --glass: rgba(20,22,30,.38);
-      --glass2: rgba(20,22,30,.26);
-      --stroke: rgba(255,255,255,.12);
-      --stroke2: rgba(255,255,255,.09);
-      --sep: rgba(255,255,255,.08);
-
-      --shadow: 0 18px 60px rgba(0,0,0,.45);
-      --inset: inset 0 1px 0 rgba(255,255,255,.07);
-
-      --ease: cubic-bezier(.2,.8,.2,1);
+      --glass: rgba(255,255,255,0.06);
+      --text: rgba(255,255,255,0.92);
+      --radius: 16px;
     }
 
-    *{ box-sizing:border-box; }
-    html{ font-size: 16px; }
-    body{
-      margin:0;
-      font-family: var(--font-sans);
-      color: var(--text);
-      font-size: var(--fs-body);
-      line-height: var(--lh-normal);
-      letter-spacing: -0.01em;
-
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      text-rendering: optimizeLegibility;
-
-      /* Tabular numbers feel more "system" for times/dates */
-      font-variant-numeric: tabular-nums;
-
-      background:
-        radial-gradient(900px 650px at 20% 15%, rgba(122,162,255,.25) 0%, rgba(122,162,255,0) 58%),
-        radial-gradient(900px 650px at 85% 25%, rgba(255,204,102,.18) 0%, rgba(255,204,102,0) 60%),
-        radial-gradient(1100px 900px at 60% 82%, rgba(168,106,255,.16) 0%, rgba(168,106,255,0) 62%),
-        linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
-      min-height:100vh;
-      overflow-x:hidden;
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: var(--font-sans); color: var(--text);
+      background: radial-gradient(circle at top right, rgba(122,162,255,0.15), var(--bg-0));
+      min-height: 100vh; font-size: 14px; -webkit-font-smoothing: antialiased;
     }
 
-    /* subtle noise / texture */
-    body::after{
-      content:"";
-      position:fixed; inset:0;
-      pointer-events:none;
-      background-image:
-        radial-gradient(circle at 10% 20%, rgba(255,255,255,.05) 0 1px, rgba(255,255,255,0) 2px),
-        radial-gradient(circle at 70% 80%, rgba(255,255,255,.04) 0 1px, rgba(255,255,255,0) 2px);
-      background-size: 240px 240px, 280px 280px;
-      opacity:.18;
-      mix-blend-mode: overlay;
-      z-index:0;
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
+    @media (max-width: 850px) { .wrap { grid-template-columns: 1fr; } }
+
+    .card {
+      background: rgba(20, 22, 30, 0.6); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius); padding: 16px; backdrop-filter: blur(20px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
-    /* Layout margin ~16 (Apple often uses 16pt margins in components) */
-    .wrap{
-      position:relative;
-      z-index:1;
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: var(--s-4);
-      display:grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: var(--s-4);
-    }
-    @media (max-width: 980px){
-      .wrap{ grid-template-columns:1fr; }
-    }
+    .title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .title { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
 
-    .card{
-      position:relative;
-      border-radius: var(--r-3);
-      overflow:hidden;
-      border: 1px solid var(--stroke2);
-      background: var(--glass);
-      box-shadow: var(--shadow), var(--inset);
-      transform: translateZ(0);
+    /* Calendar Grid */
+    .month-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .dow { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 10px; color: gray; margin-bottom: 5px; }
+    
+    .day {
+      aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.2s; position: relative;
     }
+    .day:hover { background: rgba(255,255,255,0.05); }
+    .day.sel { border-color: var(--accent); background: rgba(122,162,255,0.15); box-shadow: 0 0 15px rgba(122,162,255,0.2); }
+    .day.out { opacity: 0.3; }
+    .badge { position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
 
-    @supports ((-webkit-backdrop-filter: blur(18px)) or (backdrop-filter: blur(18px))){
-      .card{
-        -webkit-backdrop-filter: blur(22px) saturate(1.22);
-        backdrop-filter: blur(22px) saturate(1.22);
-      }
-      .head, .footer, form, .item, .day, .seg{
-        -webkit-backdrop-filter: blur(14px) saturate(1.12);
-        backdrop-filter: blur(14px) saturate(1.12);
-      }
+    /* Form & UI */
+    form { display: grid; gap: 10px; margin-top: 15px; }
+    input, textarea {
+      width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15);
+      color: white; padding: 12px; border-radius: 10px; font-size: 14px; outline: none;
     }
+    input:focus { border-color: var(--accent); }
+    .btn-group { display: flex; gap: 8px; margin-top: 10px; }
+    button {
+      padding: 12px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s;
+    }
+    button.primary { background: var(--accent); color: #000; width: 100%; }
+    button.secondary { background: rgba(255,255,255,0.1); color: white; }
+    
+    .event-item {
+      padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.03);
+      margin-bottom: 8px; border-left: 3px solid var(--accent); cursor: pointer;
+    }
+    .event-item:hover { background: rgba(255,255,255,0.08); }
 
-    .card::before{
-      content:"";
-      position:absolute; inset:0;
-      pointer-events:none;
-      background:
-        linear-gradient(120deg,
-          rgba(255,255,255,.12) 0%,
-          rgba(255,255,255,.03) 24%,
-          rgba(255,255,255,0) 46%,
-          rgba(255,255,255,.04) 74%,
-          rgba(255,255,255,.10) 100%);
-      opacity:.25;
-      z-index:0;
-    }
-    .card > *{ position:relative; z-index:1; }
-
-    /* Header */
-    .head{
-      padding: var(--s-3) var(--s-4); /* 12 / 16 */
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: var(--s-3);
-      background: var(--glass2);
-      border-bottom: 1px solid var(--sep);
-      position:relative;
-      overflow:hidden;
-    }
-
-    .title{
-      font-size: var(--fs-title);
-      font-weight: var(--w-semibold);
-      line-height: var(--lh-tight);
-      letter-spacing: -0.015em;
-    }
-
-    /* Right card “soft light” */
-    #dayCard .dayHeadGlow{
-      position:absolute;
-      inset:-44px -44px auto -44px;
-      height: 150px;
-      pointer-events:none;
-      opacity:.26;
-      transition: opacity .18s var(--ease), filter .18s var(--ease);
-      background:
-        radial-gradient(560px 160px at 18% 68%, rgba(122,162,255,.24), transparent 62%),
-        radial-gradient(420px 160px at 82% 62%, rgba(168,106,255,.18), transparent 64%),
-        radial-gradient(520px 160px at 50% -10%, rgba(255,255,255,.06), transparent 55%);
-      filter: saturate(1.05);
-    }
-    #dayCard.hasEvents .dayHeadGlow{ opacity:.52; }
-    #dayCard.isTodaySel .dayHeadGlow{
-      opacity:.55;
-      background:
-        radial-gradient(560px 160px at 18% 68%, rgba(122,162,255,.22), transparent 62%),
-        radial-gradient(420px 160px at 82% 62%, rgba(255,204,102,.18), transparent 64%),
-        radial-gradient(520px 160px at 50% -10%, rgba(255,255,255,.06), transparent 55%);
-    }
-
-    /* Segmented control */
-    .seg{
-      display:inline-flex;
-      gap: 2px;
-      padding: 2px;
-      border-radius: var(--r-pill);
-      border: 1px solid var(--stroke);
-      background: rgba(255,255,255,.06);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-    }
-    .seg button{
-      min-height: var(--hit);
-      min-width: var(--hit);
-      padding: 0 var(--s-3);
-      border:0;
-      border-radius: var(--r-pill);
-      background: transparent;
-      color: var(--text);
-      font: inherit;
-      font-size: var(--fs-body);
-      font-weight: var(--w-semibold);
-      letter-spacing: -0.01em;
-      cursor:pointer;
-      transition: background .14s var(--ease), transform .06s ease, box-shadow .14s var(--ease);
-      outline:none;
-    }
-    .seg button:hover{ background: rgba(255,255,255,.10); }
-    .seg button:active{ transform: scale(.99); }
-    .seg button:focus-visible{ box-shadow: 0 0 0 4px rgba(122,162,255,.14); }
-    .seg button.isActive{
-      background: rgba(122,162,255,.20);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
-    }
-
-    /* Buttons (44x44 target) */
-    button{
-      min-height: var(--hit);
-      min-width: var(--hit);
-      padding: 0 var(--s-3);
-      border-radius: var(--r-pill);
-      border: 1px solid var(--stroke);
-      background: rgba(255,255,255,.06);
-      color: var(--text);
-      font: inherit;
-      font-size: var(--fs-body);
-      font-weight: var(--w-semibold);
-      letter-spacing: -0.01em;
-      cursor:pointer;
-      transition: background .14s var(--ease), border-color .14s var(--ease), transform .06s ease, box-shadow .14s var(--ease);
-      outline:none;
-    }
-    button:hover{
-      background: rgba(255,255,255,.10);
-      border-color: rgba(255,255,255,.16);
-    }
-    button:active{ transform: scale(.99); }
-    button:focus-visible{
-      box-shadow: 0 0 0 4px rgba(122,162,255,.14);
-      border-color: rgba(122,162,255,.65);
-    }
-    button.primary{
-      border-color: var(--accent-stroke);
-      background: var(--accent-fill);
-    }
-    button.primary:hover{
-      background: rgba(122,162,255,.26);
-      border-color: rgba(122,162,255,.72);
-    }
-
-    /* Calendar */
-    .calendar{ padding: var(--s-4); } /* 16 */
-
-    .monthBar{
-      display:flex;
-      justify-content:space-between;
-      align-items:baseline;
-      gap: var(--s-3);
-      margin-bottom: var(--s-3);
-    }
-    .month{
-      font-size: var(--fs-title);
-      font-weight: var(--w-semibold);
-      letter-spacing: -0.015em;
-      text-transform: capitalize;
-      line-height: var(--lh-tight);
-    }
-    .hint{
-      color: var(--muted);
-      font-size: var(--fs-callout);
-      line-height: var(--lh-normal);
-    }
-
-    .dow, .grid{
-      display:grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: var(--s-2); /* 8 */
-    }
-    .dow{
-      margin-bottom: var(--s-2);
-      color: var(--muted2);
-      font-size: var(--fs-caption);
-      font-weight: var(--w-semibold);
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      user-select:none;
-    }
-
-    .day{
-      min-height: 76px;
-      padding: var(--s-3); /* 12 */
-      border-radius: var(--r-2);
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(255,255,255,.05);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-      cursor:pointer;
-      user-select:none;
-      transition: background .14s var(--ease), border-color .14s var(--ease), transform .06s ease, box-shadow .14s var(--ease);
-    }
-    .day:hover{
-      background: rgba(255,255,255,.07);
-      border-color: rgba(255,255,255,.16);
-    }
-    .day:active{ transform: scale(.99); }
-    .out{ opacity:.45; }
-
-    .num{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      font-weight: var(--w-semibold);
-      line-height: var(--lh-tight);
-    }
-    .badge{
-      font-size: var(--fs-caption);
-      font-weight: var(--w-semibold);
-      padding: 2px 8px;
-      border-radius: var(--r-pill);
-      border: 1px solid rgba(122,162,255,.55);
-      background: rgba(122,162,255,.18);
-    }
-
-    .sel{
-      border-color: rgba(122,162,255,.82);
-      background:
-        radial-gradient(160px 120px at 30% 20%, rgba(122,162,255,.18), transparent 58%),
-        rgba(255,255,255,.05);
-      box-shadow:
-        0 10px 30px rgba(122,162,255,.12),
-        0 0 0 4px rgba(122,162,255,.10),
-        inset 0 1px 0 rgba(255,255,255,.08);
-    }
-    .today{
-      outline: 2px dashed var(--warn-stroke);
-      outline-offset: 2px;
-    }
-
-    /* Right side */
-    .side{
-      padding: var(--s-4);
-      display:flex;
-      flex-direction:column;
-      gap: var(--s-4);
-    }
-
-    .list{
-      border:1px solid rgba(255,255,255,.10);
-      border-radius: var(--r-3);
-      overflow:hidden;
-      background: rgba(255,255,255,.04);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-    }
-    .item{
-      padding: var(--s-3) var(--s-4);
-      border-bottom:1px solid rgba(255,255,255,.08);
-      cursor:pointer;
-      background: rgba(255,255,255,.03);
-      transition: background .14s var(--ease);
-    }
-    .item:last-child{ border-bottom:0; }
-    .item:hover{ background: rgba(255,255,255,.06); }
-
-    /* Form */
-    form{
-      border:1px solid rgba(255,255,255,.10);
-      border-radius: var(--r-3);
-      padding: var(--s-4);
-      background: rgba(255,255,255,.04);
-      display:grid;
-      gap: var(--s-3);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-    }
-
-    label{
-      display:grid;
-      gap: var(--s-2);
-      font-size: var(--fs-caption);
-      font-weight: var(--w-semibold);
-      letter-spacing: -0.01em;
-    }
-
-    input, textarea{
-      width:100%;
-      min-height: var(--hit);
-      border-radius: var(--r-2);
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.18);
-      color: var(--text);
-      padding: 10px var(--s-3);
-      font: inherit;
-      font-size: var(--fs-body);
-      letter-spacing: -0.01em;
-      outline:none;
-      transition: border-color .14s var(--ease), box-shadow .14s var(--ease), background .14s var(--ease);
-    }
-    textarea{
-      min-height: 120px;
-      resize: vertical;
-      padding: 10px var(--s-3);
-      line-height: var(--lh-relaxed);
-    }
-    input::placeholder, textarea::placeholder{ color: rgba(255,255,255,.42); }
-
-    input:focus, textarea:focus{
-      border-color: rgba(122,162,255,.75);
-      box-shadow: 0 0 0 4px rgba(122,162,255,.12);
-      background: rgba(0,0,0,.24);
-    }
-
-    .row2{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--s-3);
-    }
-    @media (max-width:980px){ .row2{ grid-template-columns: 1fr; } }
-
-    .actions{
-      display:flex;
-      justify-content:flex-end;
-      gap: var(--s-2);
-      flex-wrap:wrap;
-    }
-
-    .footer{
-      padding: var(--s-3) var(--s-4);
-      border-top: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.03);
-      display:flex;
-      justify-content:space-between;
-      gap: var(--s-3);
-      flex-wrap:wrap;
-    }
-
-    pre{
-      margin:0;
-      padding: var(--s-4);
-      border-radius: var(--r-3);
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.18);
-      color: rgba(255,255,255,.78);
-      font-family: var(--font-mono);
-      font-size: 12px;
-      line-height: 1.45;
-      white-space: pre-wrap;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-    }
-
-    @media (prefers-reduced-motion: reduce){
-      *{ scroll-behavior:auto !important; transition:none !important; }
+    .loading-overlay {
+      position: fixed; inset: 0; background: var(--bg-0); display: flex; 
+      align-items: center; justify-content: center; z-index: 100; transition: 0.5s;
     }
   </style>
 </head>
 
 <body>
+  <div id="loader" class="loading-overlay">🎥 GULYWOOD...</div>
+
   <div class="wrap">
-    <!-- LEFT: Calendar -->
     <div class="card">
-      <div class="head">
-        <div class="title">🎬 Календарь съёмок</div>
-
-        <div class="seg" role="group" aria-label="Навигация по календарю">
-          <button id="prevBtn" aria-label="Предыдущий месяц">◀</button>
-          <button id="todayBtn" aria-label="Сегодня">Сегодня</button>
-          <button id="nextBtn" aria-label="Следующий месяц">▶</button>
-        </div>
+      <div class="title-row">
+        <div class="title">🎬 Смена</div>
+        <div id="userName" style="font-size:12px; opacity:0.6;"></div>
+      </div>
+      
+      <div class="month-nav">
+        <button class="secondary" onclick="moveMonth(-1)">◀</button>
+        <div id="monthDisplay" style="font-weight:600; font-size:16px;"></div>
+        <button class="secondary" onclick="moveMonth(1)">▶</button>
       </div>
 
-      <div class="calendar">
-        <div class="monthBar">
-          <div class="month" id="monthLabel">—</div>
-          <div class="hint" id="monthStat">0 съёмок</div>
-        </div>
-
-        <div class="dow">
-          <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
-        </div>
-
-        <div class="grid" id="grid"></div>
-      </div>
-
-      <div class="footer">
-        <button class="primary" id="copyDayBtn">Скопировать выгрузку дня</button>
-        <button id="downloadTxtBtn">Скачать .txt</button>
-      </div>
+      <div class="dow"><div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>ВС</div></div>
+      <div class="grid" id="calendarGrid"></div>
     </div>
 
-    <!-- RIGHT: Day + form -->
-    <div class="card" id="dayCard">
-      <div class="head">
-        <div class="dayHeadGlow" aria-hidden="true"></div>
-        <div class="title">📅 <span id="selectedLabel">—</span></div>
-        <button id="newBtn">Новая</button>
+    <div class="card">
+      <div class="title-row">
+        <div class="title">📅 <span id="selectedDateText"></span></div>
+        <button class="secondary" onclick="resetForm()">Новая</button>
       </div>
 
-      <div class="side">
-        <div>
-          <div class="title" style="margin-bottom:8px;">Съёмки в этот день</div>
-          <div class="hint">Нажми на пункт, чтобы отредактировать. Можно хранить несколько проектов в один день.</div>
+      <div id="dayEvents"></div>
+
+      <form id="shootForm">
+        <input id="project" placeholder="Проект (напр. Medetfilm)" required />
+        <input id="location" placeholder="Локация" />
+        <div style="display:flex; gap:10px;">
+          <input id="callTime" type="time" title="Call Time" />
+          <input id="wrapTime" type="time" title="Wrap Time" />
         </div>
-
-        <div class="list" id="eventList"></div>
-
-        <form id="form">
-          <div class="row2">
-            <label>
-              Проект/клиент
-              <input id="project" placeholder="Напр: Fujifilm / TRAVELMORE" />
-            </label>
-            <label>
-              Локация
-              <input id="location" placeholder="Кафе / офис / студия" />
-            </label>
-          </div>
-
-          <div class="row2">
-            <label>
-              Call
-              <input id="callTime" type="time" />
-            </label>
-            <label>
-              Wrap
-              <input id="wrapTime" type="time" />
-            </label>
-          </div>
-
-          <label>
-            Адрес/линк
-            <input id="address" placeholder="2GIS/Google Maps или текстом" />
-          </label>
-
-          <label>
-            Контакт
-            <input id="contact" placeholder="Имя + телефон" />
-          </label>
-
-          <label>
-            Техническое задание
-            <textarea id="deliverables" placeholder="Опиши задачу:&#10;— формат / хронометраж&#10;— ключевые смыслы&#10;— референсы&#10;— дедлайны"></textarea>
-          </label>
-
-          <label>
-            Команда (по строкам)
-            <textarea id="crew" placeholder="Оператор: ...&#10;Звук: ..."></textarea>
-          </label>
-
-          <label>
-            План/тайминг (по строкам)
-            <textarea id="schedule" placeholder="10:00 — интервью&#10;11:30 — b-roll"></textarea>
-          </label>
-
-          <label>
-            Техника
-            <textarea id="gear" placeholder="Камера, оптика, свет, звук..."></textarea>
-          </label>
-
-          <label>
-            Примечания
-            <textarea id="notes" placeholder="Парковка, пропуск, ограничения..."></textarea>
-          </label>
-
-          <div class="actions">
-            <button type="button" id="deleteBtn">Удалить</button>
-            <button class="primary" type="submit">Сохранить</button>
-          </div>
-
-          <div class="hint">
-            Данные хранятся в браузере (localStorage). Если копирование не сработает (иногда в режиме file://), текст всё равно будет в «Превью выгрузки».
-          </div>
-        </form>
-
-        <div>
-          <div class="title" style="margin-bottom:8px;">Превью выгрузки</div>
-          <pre id="preview">—</pre>
-        </div>
-      </div>
+        <textarea id="crew" placeholder="Команда (по строкам)" rows="3"></textarea>
+        <textarea id="notes" placeholder="Заметки / Техника" rows="2"></textarea>
+        
+        <button type="submit" class="primary">СОХРАНИТЬ В ОБЛАКО</button>
+        <button type="button" id="delBtn" style="background:rgba(255,50,50,0.2); color:#ff5e5e; display:none;" onclick="deleteRecord()">Удалить запись</button>
+      </form>
     </div>
   </div>
 
   <script>
-    const STORAGE_KEY = "shootCalendarData_simple_v2";
+    // 1. ПОДКЛЮЧЕНИЕ ТВОИХ КЛЮЧЕЙ
+    const S_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
+    const S_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
+    const supabaseClient = supabase.createClient(S_URL, S_KEY);
 
-    const pad2 = n => String(n).padStart(2,"0");
-    const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-    const parseISO = s => { const [y,m,dd]=s.split("-").map(Number); return new Date(y,m-1,dd); };
-    const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
-    const startMonth = d => new Date(d.getFullYear(), d.getMonth(), 1);
+    // Telegram Init
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    if(tg.initDataUnsafe.user) {
+      document.getElementById('userName').textContent = tg.initDataUnsafe.user.first_name;
+    }
 
-    const niceDate = d => d.toLocaleDateString("ru-RU",{day:"2-digit",month:"long",year:"numeric"});
-    const weekday = d => d.toLocaleDateString("ru-RU",{weekday:"long"});
-    const monthName = d => d.toLocaleDateString("ru-RU",{month:"long",year:"numeric"});
-
-    const uid = () => Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
-
-    const load = () => {
-      try{
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if(raw){
-          const parsed = JSON.parse(raw);
-          if(parsed && Array.isArray(parsed.events)) return parsed;
-        }
-      }catch(e){}
-      const oldKeys = ["shootCalendarData_simple_v1", "shootCalendarData_simple_v1 ", "shootCalendarData_simple_v1\t"];
-      for(const k of oldKeys){
-        try{
-          const rawOld = localStorage.getItem(k);
-          if(!rawOld) continue;
-          const parsedOld = JSON.parse(rawOld);
-          if(parsedOld && Array.isArray(parsedOld.events)){
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedOld));
-            return parsedOld;
-          }
-        }catch(e){}
-      }
-      return { events: [] };
-    };
-
-    let data = load();
-    const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-
-    let currentMonth = startMonth(new Date());
+    let events = [];
+    let viewMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     let selectedDate = new Date();
-    let selectedId = null;
+    let editingId = null;
 
-    const grid = document.getElementById("grid");
-    const monthLabel = document.getElementById("monthLabel");
-    const monthStat = document.getElementById("monthStat");
-    const selectedLabel = document.getElementById("selectedLabel");
-    const eventList = document.getElementById("eventList");
-    const preview = document.getElementById("preview");
-    const dayCard = document.getElementById("dayCard");
+    const fmtISO = d => d.toISOString().split('T')[0];
 
-    const btnPrev = document.getElementById("prevBtn");
-    const btnToday = document.getElementById("todayBtn");
-    const btnNext = document.getElementById("nextBtn");
-
-    const f = {
-      project: document.getElementById("project"),
-      location: document.getElementById("location"),
-      callTime: document.getElementById("callTime"),
-      wrapTime: document.getElementById("wrapTime"),
-      address: document.getElementById("address"),
-      contact: document.getElementById("contact"),
-      deliverables: document.getElementById("deliverables"),
-      crew: document.getElementById("crew"),
-      schedule: document.getElementById("schedule"),
-      gear: document.getElementById("gear"),
-      notes: document.getElementById("notes"),
-    };
-
-    const eventsByDate = iso =>
-      data.events
-        .filter(e => e.date===iso)
-        .sort((a,b)=>(a.callTime||"").localeCompare(b.callTime||""));
-
-    const countEventsInMonth = d => {
-      const y=d.getFullYear(), m=d.getMonth();
-      return data.events.filter(e => {
-        const dd = parseISO(e.date);
-        return dd.getFullYear()===y && dd.getMonth()===m;
-      }).length;
-    };
-
-    function normalizeBullets(text){
-      const lines = (text||"")
-        .split("\n")
-        .map(s => s.trim())
-        .filter(Boolean);
-
-      if(lines.length === 0) return "";
-      return lines.map(s => "• " + s).join("\n");
-    }
-
-    function buildExportText(){
-      const iso = toISO(selectedDate);
-      const list = eventsByDate(iso);
-
-      const lines = [];
-      lines.push(`🎬 СЪЁМОЧНЫЙ ДЕНЬ — ${niceDate(selectedDate)} (${weekday(selectedDate)})`);
-      lines.push(`Город/часовой пояс: Алматы (Asia/Almaty)`);
-      lines.push("");
-
-      if(list.length===0){
-        lines.push("Съёмок в этот день нет.");
-        return lines.join("\n");
-      }
-
-      list.forEach((e,i)=>{
-        lines.push("— — —");
-        lines.push(`🎥 Проект #${i+1}`);
-
-        if(e.project) lines.push(`Проект/клиент: ${e.project}`);
-        if(e.callTime) lines.push(`Call: ${e.callTime}`);
-        if(e.wrapTime) lines.push(`Wrap: ${e.wrapTime}`);
-        if(e.location) lines.push(`Локация: ${e.location}`);
-        if(e.address) lines.push(`Адрес/ориентир: ${e.address}`);
-        if(e.contact) lines.push(`Контакт: ${e.contact}`);
-
-        if(e.deliverables){
-          const b = normalizeBullets(e.deliverables);
-          lines.push("");
-          lines.push("Техническое задание:");
-          lines.push(b || e.deliverables);
-        }
-
-        if(e.crew){
-          const b = normalizeBullets(e.crew);
-          lines.push("");
-          lines.push("Команда:");
-          lines.push(b || e.crew);
-        }
-
-        if(e.schedule){
-          const b = normalizeBullets(e.schedule);
-          lines.push("");
-          lines.push("План / тайминг:");
-          lines.push(b || e.schedule);
-        }
-
-        if(e.gear){
-          const b = normalizeBullets(e.gear);
-          lines.push("");
-          lines.push("Техника:");
-          lines.push(b || e.gear);
-        }
-
-        if(e.notes){
-          lines.push("");
-          lines.push("Примечания:");
-          lines.push(e.notes);
-        }
-
-        lines.push("");
-      });
-
-      lines.push("✅ Если меняется план — пишем в общий чат сразу.");
-      return lines.join("\n");
-    }
-
-    async function copyText(text){
-      try{
-        await navigator.clipboard.writeText(text);
-        alert("Скопировано 👍 Вставляй в чат команды.");
-      }catch(e){
-        preview.textContent = text;
-        alert("Браузер не дал скопировать автоматически. Текст уже в «Превью выгрузки» — выдели и скопируй вручную.");
+    // 2. ЗАГРУЗКА ДАННЫХ
+    async function fetchData() {
+      const { data, error } = await supabaseClient.from('shoots').select('*');
+      if (!error) {
+        events = data || [];
+        render();
+        document.getElementById('loader').style.opacity = '0';
+        setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
       }
     }
 
-    function downloadText(filename, text){
-      const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-
-    function clearForm(){
-      selectedId = null;
-      Object.values(f).forEach(el => el.value = "");
-    }
-
-    function fillForm(e){
-      f.project.value = e.project||"";
-      f.location.value = e.location||"";
-      f.callTime.value = e.callTime||"";
-      f.wrapTime.value = e.wrapTime||"";
-      f.address.value = e.address||"";
-      f.contact.value = e.contact||"";
-      f.deliverables.value = e.deliverables||"";
-      f.crew.value = e.crew||"";
-      f.schedule.value = e.schedule||"";
-      f.gear.value = e.gear||"";
-      f.notes.value = e.notes||"";
-    }
-
-    function setSegTodayActive(isActive){
-      btnToday.classList.toggle("isActive", !!isActive);
-    }
-
-    function render(){
-      monthLabel.textContent = monthName(currentMonth);
-      monthStat.textContent = `${countEventsInMonth(currentMonth)} съёмок`;
-      selectedLabel.textContent = `${niceDate(selectedDate)} (${weekday(selectedDate)})`;
-
-      preview.textContent = buildExportText();
-
-      const today = new Date();
-      const dayIso = toISO(selectedDate);
-      const dayList = eventsByDate(dayIso);
-
-      dayCard.classList.toggle("hasEvents", dayList.length > 0);
-      dayCard.classList.toggle("isTodaySel", sameDay(selectedDate, today));
-      setSegTodayActive(sameDay(selectedDate, today));
-
-      grid.innerHTML = "";
-      const first = startMonth(currentMonth);
-      const offset = (first.getDay()+6)%7; // Monday first
-      const start = new Date(first);
-      start.setDate(first.getDate()-offset);
-
-      for(let i=0;i<42;i++){
-        const d = new Date(start);
-        d.setDate(start.getDate()+i);
-        const iso = toISO(d);
-
-        const inMonth = d.getMonth()===currentMonth.getMonth();
-        const isSel = sameDay(d, selectedDate);
-        const isToday = sameDay(d, today);
-        const count = eventsByDate(iso).length;
-
-        const cell = document.createElement("div");
-        cell.className = "day" + (inMonth?"":" out") + (isSel?" sel":"") + (isToday?" today":"");
-        cell.innerHTML = `
-          <div class="num">
-            <span>${d.getDate()}</span>
-            ${count?`<span class="badge">${count}</span>`:""}
-          </div>
-        `;
-        cell.onclick = () => {
-          selectedDate = d;
-          selectedId = null;
-          clearForm();
-          render();
-        };
-        grid.appendChild(cell);
-      }
-
-      eventList.innerHTML = "";
-
-      if(dayList.length===0){
-        const empty = document.createElement("div");
-        empty.className="item";
-        empty.style.color="var(--muted)";
-        empty.textContent = "В этот день пока нет съёмок.";
-        eventList.appendChild(empty);
-      }else{
-        dayList.forEach(e=>{
-          const item=document.createElement("div");
-          item.className="item";
-
-          const title = (e.project || "Без названия").trim();
-          const metaParts = [];
-          metaParts.push(e.callTime ? ("Call: " + e.callTime) : "Call: —");
-          if(e.location) metaParts.push(e.location);
-
-          item.innerHTML = `
-            <div style="font-weight:600; letter-spacing:-0.01em;">${title.replaceAll("<","&lt;").replaceAll(">","&gt;")}</div>
-            <div style="color:var(--muted); font-size:12px; margin-top:6px;">${metaParts.join(" • ")}</div>
-          `;
-
-          item.onclick=()=>{
-            selectedId=e.id;
-            fillForm(e);
-          };
-
-          eventList.appendChild(item);
-        });
-      }
-    }
-
-    btnPrev.onclick = () => {
-      currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()-1, 1);
-      render();
-    };
-    btnNext.onclick = () => {
-      currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 1);
-      render();
-    };
-    btnToday.onclick = () => {
-      selectedDate = new Date();
-      currentMonth = startMonth(new Date());
-      clearForm();
-      render();
-    };
-
-    document.getElementById("newBtn").onclick = () => { clearForm(); };
-
-    document.getElementById("copyDayBtn").onclick = async () => {
-      await copyText(buildExportText());
-    };
-
-    document.getElementById("downloadTxtBtn").onclick = () => {
-      const iso = toISO(selectedDate);
-      downloadText(`shoot-day_${iso}.txt`, buildExportText());
-    };
-
-    document.getElementById("form").addEventListener("submit",(ev)=>{
-      ev.preventDefault();
+    // 3. СОХРАНЕНИЕ
+    document.getElementById('shootForm').onsubmit = async (e) => {
+      e.preventDefault();
+      tg.MainButton.showProgress();
 
       const payload = {
-        id: selectedId || uid(),
-        date: toISO(selectedDate),
-        project: f.project.value.trim(),
-        location: f.location.value.trim(),
-        callTime: f.callTime.value,
-        wrapTime: f.wrapTime.value,
-        address: f.address.value.trim(),
-        contact: f.contact.value.trim(),
-        deliverables: f.deliverables.value.trim(),
-        crew: f.crew.value.trim(),
-        schedule: f.schedule.value.trim(),
-        gear: f.gear.value.trim(),
-        notes: f.notes.value.trim(),
+        id: editingId || Math.random().toString(36).substring(2, 15),
+        date: fmtISO(selectedDate),
+        project: document.getElementById('project').value,
+        location: document.getElementById('location').value,
+        callTime: document.getElementById('callTime').value,
+        wrapTime: document.getElementById('wrapTime').value,
+        crew: document.getElementById('crew').value,
+        notes: document.getElementById('notes').value
       };
 
-      const idx = data.events.findIndex(e=>e.id===payload.id);
-      if(idx>=0) data.events[idx]=payload;
-      else data.events.push(payload);
+      const { error } = await supabaseClient.from('shoots').upsert(payload);
 
-      save();
-      render();
-      alert("Сохранено ✅");
-    });
-
-    document.getElementById("deleteBtn").onclick = () => {
-      if(!selectedId){
-        alert("Нечего удалять: не выбрана съёмка из списка.");
-        return;
+      if (!error) {
+        tg.HapticFeedback.notificationOccurred('success');
+        resetForm();
+        await fetchData();
+      } else {
+        alert("Ошибка: " + error.message);
       }
-      if(!confirm("Удалить выбранную съёмку?")) return;
-
-      data.events = data.events.filter(e=>e.id!==selectedId);
-      save();
-      clearForm();
-      render();
     };
 
-    render();
+    // 4. УДАЛЕНИЕ
+    async function deleteRecord() {
+      if(!editingId || !confirm("Удалить смену?")) return;
+      const { error } = await supabaseClient.from('shoots').delete().eq('id', editingId);
+      if(!error) {
+        resetForm();
+        await fetchData();
+      }
+    }
+
+    // 5. ОТРИСОВКА
+    function render() {
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+      
+      document.getElementById('monthDisplay').textContent = viewMonth.toLocaleString('ru', { month: 'long', year: 'numeric' });
+      document.getElementById('selectedDateText').textContent = selectedDate.toLocaleDateString('ru');
+
+      const start = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
+      const offset = (start.getDay() + 6) % 7;
+      const dateIter = new Date(start);
+      dateIter.setDate(start.getDate() - offset);
+
+      for(let i=0; i<42; i++) {
+        const current = new Date(dateIter);
+        const iso = fmtISO(current);
+        const hasEvent = events.some(e => e.date === iso);
+        
+        const dayEl = document.createElement('div');
+        dayEl.className = `day ${current.getMonth() !== viewMonth.getMonth() ? 'out' : ''} ${iso === fmtISO(selectedDate) ? 'sel' : ''}`;
+        dayEl.innerHTML = `<span>${current.getDate()}</span>${hasEvent ? '<div class="badge"></div>' : ''}`;
+        dayEl.onclick = () => { selectedDate = current; resetForm(); render(); };
+        grid.appendChild(dayEl);
+        dateIter.setDate(dateIter.getDate() + 1);
+      }
+
+      // Список событий дня
+      const dayBox = document.getElementById('dayEvents');
+      const todayEvents = events.filter(e => e.date === fmtISO(selectedDate));
+      dayBox.innerHTML = todayEvents.length ? '' : '<div style="opacity:0.4; padding:10px;">Смен нет</div>';
+      
+      todayEvents.forEach(ev => {
+        const item = document.createElement('div');
+        item.className = 'event-item';
+        item.innerHTML = `<b>${ev.project}</b><br><small>${ev.callTime || '??:??'} | ${ev.location || 'Нет локации'}</small>`;
+        item.onclick = () => {
+          editingId = ev.id;
+          document.getElementById('project').value = ev.project;
+          document.getElementById('location').value = ev.location;
+          document.getElementById('callTime').value = ev.callTime;
+          document.getElementById('wrapTime').value = ev.wrapTime;
+          document.getElementById('crew').value = ev.crew;
+          document.getElementById('notes').value = ev.notes;
+          document.getElementById('delBtn').style.display = 'block';
+        };
+        dayBox.appendChild(item);
+      });
+    }
+
+    function moveMonth(dir) { viewMonth.setMonth(viewMonth.getMonth() + dir); render(); }
+    function resetForm() {
+      editingId = null;
+      document.getElementById('shootForm').reset();
+      document.getElementById('delBtn').style.display = 'none';
+    }
+
+    fetchData();
   </script>
 </body>
 </html>
