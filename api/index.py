@@ -16,21 +16,19 @@ def webhook():
     bot.process_new_updates([update])
     return ''
 
-# Обрабатываем команду /start или любое слово
-@bot.message_handler(func=lambda message: True)
-def send_calendar_button(message):
-    # 1. Создаем Inline-кнопку (она разрешена в группах для Mini App)
+# Команда /start - теперь с поддержкой топиков
+@bot.message_handler(commands=['start'])
+def start_command(message):
+    # Создаем инлайн-меню, как в твоем файле main.py
     markup = types.InlineKeyboardMarkup()
     btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", web_app=types.WebAppInfo(url=APP_URL))
     markup.add(btn)
-    
-    # 2. Определяем ID топика (thread_id), если он есть
-    thread_id = message.message_thread_id if message.is_topic_message else None
 
-    # 3. Отвечаем именно в тот топик, откуда пришел запрос
+    # Ключевой момент: передаем message_thread_id
     bot.send_message(
         message.chat.id, 
-        "График съемок GULYWOOD ERP готов к работе:", 
+        "🦾 **GULYWOOD ERP: СИСТЕМА АКТИВИРОВАНА**\n\nИспользуй кнопку ниже для работы с графиком:", 
         reply_markup=markup,
-        message_thread_id=thread_id  # Тот самый ключ для топиков
+        message_thread_id=message.message_thread_id, # Чтобы кнопка была в топике
+        parse_mode="Markdown"
     )
