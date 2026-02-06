@@ -3,8 +3,8 @@ import telebot
 from telebot import types
 from flask import Flask, request
 
-# Берем токен СТРОГО из Environment Variables (Сейф Vercel)
-TOKEN = os.environ.get('BOT_TOKEN')
+# Теперь используем твое название переменной из Vercel
+TOKEN = os.environ.get('BOT_KEY')
 APP_URL = "https://campotkz.github.io/media/"
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
@@ -17,24 +17,22 @@ def webhook():
         update = telebot.types.Update.de_json(json_string)
         bot.process_new_updates([update])
         return ''
-    else:
-        return 'Error', 403
+    return 'Forbidden', 403
 
-# Реагируем на всё, чтобы проверить, слышит ли бот топик
-@bot.message_handler(func=lambda message: True)
-def handle_all(message):
+# Команда для топиков (логика из твоего aiogram бота)
+@bot.message_handler(commands=['start', 'cal'])
+def send_calendar(message):
     markup = types.InlineKeyboardMarkup()
-    # Инлайн-кнопка — как в твоем main.py
     btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", web_app=types.WebAppInfo(url=APP_URL))
     markup.add(btn)
 
-    # ЛОГИКА ТОПИКОВ (message_thread_id)
-    # Если это сообщение в теме, бот ответит В ЭТУ ЖЕ ТЕМУ
+    # Определяем ID темы, чтобы кнопка не улетела в General
     thread_id = message.message_thread_id if message.is_topic_message else None
 
     bot.send_message(
         message.chat.id, 
-        "🦾 GULYWOOD ERP в эфире!", 
+        "🦾 **GULYWOOD ERP: СИСТЕМА АКТИВИРОВАНА**\nГрафик съемок доступен по кнопке:", 
         reply_markup=markup,
-        message_thread_id=thread_id  # Тот самый ключ для тем
+        message_thread_id=thread_id,
+        parse_mode="Markdown"
     )
