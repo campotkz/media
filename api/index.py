@@ -3,7 +3,7 @@ import telebot
 from telebot import types
 from flask import Flask, request
 
-# Берем токен из Environment Variables на Vercel
+# Токен в сейфе Vercel
 TOKEN = os.environ.get('BOT_TOKEN')
 APP_URL = "https://campotkz.github.io/media/"
 
@@ -19,17 +19,17 @@ def webhook():
 
 @bot.message_handler(commands=['start'])
 def start_command(message):
-    # Как в твоем main.py: создаем Инлайн-кнопку
+    # Создаем Inline-меню (как в твоем эталоне)
     markup = types.InlineKeyboardMarkup()
     btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", web_app=types.WebAppInfo(url=APP_URL))
     markup.add(btn)
 
-    # МАГИЯ ТОПИКОВ: отвечаем строго в ту ветку, где написали команду
+    # МАГИЯ ТОПИКОВ: отвечаем в ту же ветку, используя message_thread_id
     bot.send_message(
         message.chat.id, 
-        "🦾 **GULYWOOD ERP: СИСТЕМА АКТИВИРОВАНА**\n\nНажми кнопку ниже для работы с графиком:", 
+        "🦾 **GULYWOOD ERP: СИСТЕМА АКТИВИРОВАНА**\n\nИспользуйте кнопку ниже для работы с графиком:", 
         reply_markup=markup,
-        message_thread_id=message.message_thread_id, # ЭТО ДЛЯ ТОПИКОВ
+        message_thread_id=message.message_thread_id,
         parse_mode="Markdown"
     )
 
@@ -39,4 +39,4 @@ def on_added(update):
         markup = types.InlineKeyboardMarkup()
         btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", web_app=types.WebAppInfo(url=APP_URL))
         markup.add(btn)
-        bot.send_message(update.chat.id, "🎬 GULYWOOD активирован в этой группе!", reply_markup=markup)
+        bot.send_message(update.chat.id, "🎬 GULYWOOD активирован!", reply_markup=markup)
