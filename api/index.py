@@ -16,11 +16,21 @@ def webhook():
     bot.process_new_updates([update])
     return ''
 
-# Реагируем на ЛЮБОЕ сообщение в группе (чтобы точно проверить связь)
+# Обрабатываем команду /start или любое слово
 @bot.message_handler(func=lambda message: True)
-def work_in_group(message):
+def send_calendar_button(message):
+    # 1. Создаем Inline-кнопку (она разрешена в группах для Mini App)
     markup = types.InlineKeyboardMarkup()
-    # Inline-кнопка — ЕДИНСТВЕННЫЙ вариант для Mini App в группах
     btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", web_app=types.WebAppInfo(url=APP_URL))
     markup.add(btn)
-    bot.reply_to(message, "GULYWOOD ERP готов к работе. Жми на кнопку под этим сообщением:", reply_markup=markup)
+    
+    # 2. Определяем ID топика (thread_id), если он есть
+    thread_id = message.message_thread_id if message.is_topic_message else None
+
+    # 3. Отвечаем именно в тот топик, откуда пришел запрос
+    bot.send_message(
+        message.chat.id, 
+        "График съемок GULYWOOD ERP готов к работе:", 
+        reply_markup=markup,
+        message_thread_id=thread_id  # Тот самый ключ для топиков
+    )
