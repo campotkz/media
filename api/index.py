@@ -3,7 +3,7 @@ import telebot
 from telebot import types
 from flask import Flask, request
 
-# Токен в сейфе Vercel
+# Берем токен СТРОГО из Environment Variables (Сейф Vercel)
 TOKEN = os.environ.get('BOT_TOKEN')
 APP_URL = "https://campotkz.github.io/media/"
 
@@ -12,31 +12,29 @@ app = Flask(__name__)
 
 @app.route('/api', methods=['POST'])
 def webhook():
-    json_string = request.get_data().decode('utf-8')
-    update = telebot.types.Update.de_json(json_string)
-    bot.process_new_updates([update])
-    return ''
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return ''
+    else:
+        return 'Error', 403
 
-@bot.message_handler(commands=['start'])
-def start_command(message):
-    # Создаем Inline-меню (как в твоем эталоне)
+# Реагируем на всё, чтобы проверить, слышит ли бот топик
+@bot.message_handler(func=lambda message: True)
+def handle_all(message):
     markup = types.InlineKeyboardMarkup()
+    # Инлайн-кнопка — как в твоем main.py
     btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", web_app=types.WebAppInfo(url=APP_URL))
     markup.add(btn)
 
-    # МАГИЯ ТОПИКОВ: отвечаем в ту же ветку, используя message_thread_id
+    # ЛОГИКА ТОПИКОВ (message_thread_id)
+    # Если это сообщение в теме, бот ответит В ЭТУ ЖЕ ТЕМУ
+    thread_id = message.message_thread_id if message.is_topic_message else None
+
     bot.send_message(
         message.chat.id, 
-        "🦾 **GULYWOOD ERP: СИСТЕМА АКТИВИРОВАНА**\n\nИспользуйте кнопку ниже для работы с графиком:", 
+        "🦾 GULYWOOD ERP в эфире!", 
         reply_markup=markup,
-        message_thread_id=message.message_thread_id,
-        parse_mode="Markdown"
+        message_thread_id=thread_id  # Тот самый ключ для тем
     )
-
-@bot.my_chat_member_handler()
-def on_added(update):
-    if update.new_chat_member.status in ["member", "administrator"]:
-        markup = types.InlineKeyboardMarkup()
-        btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", web_app=types.WebAppInfo(url=APP_URL))
-        markup.add(btn)
-        bot.send_message(update.chat.id, "🎬 GULYWOOD активирован!", reply_markup=markup)
