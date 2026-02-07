@@ -3,7 +3,7 @@ import telebot
 from telebot import types
 from flask import Flask, request
 
-# Теперь используем твое название переменной из Vercel
+# Используем именно BOT_KEY, как ты прописал в Vercel 
 TOKEN = os.environ.get('BOT_KEY')
 APP_URL = "https://campotkz.github.io/media/"
 
@@ -19,20 +19,36 @@ def webhook():
         return ''
     return 'Forbidden', 403
 
-# Команда для топиков (логика из твоего aiogram бота)
+# Команда /start с поддержкой топиков (логика из твоего main.py) 
 @bot.message_handler(commands=['start', 'cal'])
-def send_calendar(message):
+def handle_start(message):
     markup = types.InlineKeyboardMarkup()
     btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", web_app=types.WebAppInfo(url=APP_URL))
     markup.add(btn)
 
-    # Определяем ID темы, чтобы кнопка не улетела в General
+    # Определяем ID темы (thread), чтобы ответить в ту же ветку 
     thread_id = message.message_thread_id if message.is_topic_message else None
 
     bot.send_message(
         message.chat.id, 
-        "🦾 **GULYWOOD ERP: СИСТЕМА АКТИВИРОВАНА**\nГрафик съемок доступен по кнопке:", 
+        "🦾 **GULYWOOD ERP: СИСТЕМА АКТИВИРОВАНА**\n\nИспользуй кнопку ниже для работы с графиком:", 
         reply_markup=markup,
         message_thread_id=thread_id,
         parse_mode="Markdown"
+    )
+
+# Обработка любого текста в топиках, если выключен Privacy Mode
+@bot.message_handler(func=lambda message: True)
+def echo_all(message):
+    thread_id = message.message_thread_id if message.is_topic_message else None
+    # Если кто-то пишет в топик, бот просто напомнит про кнопку
+    markup = types.InlineKeyboardMarkup()
+    btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", web_app=types.WebAppInfo(url=APP_URL))
+    markup.add(btn)
+    
+    bot.send_message(
+        message.chat.id, 
+        "Система готова. Нажми кнопку для входа:", 
+        reply_markup=markup,
+        message_thread_id=thread_id
     )
