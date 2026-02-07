@@ -1,8 +1,9 @@
 import os
 import telebot
 from telebot import types
-from flask import Flask, request  # ЗДЕСЬ СТРОГО МАЛЕНЬКАЯ 'f'
+from flask import Flask, request
 
+# Твой ключ из настроек Vercel
 TOKEN = os.environ.get('BOT_KEY')
 APP_URL = "https://campotkz.github.io/media/"
 
@@ -20,16 +21,19 @@ def webhook():
 
 @bot.message_handler(commands=['start', 'cal'])
 def handle_commands(message):
+    # Создаем клавиатуру
     markup = types.InlineKeyboardMarkup()
-    btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", web_app=types.WebAppInfo(url=APP_URL))
+    
+    # Используем стандартный URL-тип кнопки — он самый надежный для групп
+    btn = types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", url=APP_URL)
     markup.add(btn)
 
-    # ЛОГИКА ТОПИКОВ: если сообщение из темы, отвечаем в ту же тему
+    # ЛОГИКА ТОПИКОВ: берем ID из сообщения
     thread_id = message.message_thread_id if message.is_topic_message else None
 
     bot.send_message(
         message.chat.id, 
-        "🦾 **GULYWOOD ERP: СИСТЕМА АКТИВИРОВАНА**", 
+        "🦾 **GULYWOOD ERP: СИСТЕМА АКТИВИРОВАНА**\n\nГрафик съемок готов к работе:", 
         reply_markup=markup,
         message_thread_id=thread_id,
         parse_mode="Markdown"
