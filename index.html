@@ -575,8 +575,9 @@
           <label>Техника<textarea id="gear" placeholder="Камера, свет..."></textarea></label>
           <label>Примечания<textarea id="notes" placeholder="Парковка, пропуск..."></textarea></label>
           <div class="actions">
+            <button type="button" id="copyBtn" style="color:#7aa2ff; border-color:#7aa2ff;">Копировать</button>
             <button type="button" id="deleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
-            <button class="primary" type="submit">Сохранить в облако</button>
+            <button class="primary" type="submit">Сохранить</button>
           </div>
         </form>
         <pre id="preview">—</pre>
@@ -729,7 +730,30 @@
           renderCrewTags();
         }
       }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = crewInput.value.trim();
+        if (val) addCrewTag(val);
+      }
     });
+
+    // Copy Single Shoot
+    document.getElementById('copyBtn').onclick = () => {
+      const txt = `🎥 **${f.project.value}**\n` +
+        `📍 ${f.location.value} (${f.address.value})\n` +
+        `⏰ Call: ${f.callTime.value} | Wrap: ${f.wrapTime.value}\n` +
+        `👥 Команда: ${f.crew.value}\n` +
+        `📝 Задачи: ${f.deliverables.value}\n` +
+        `⚙️ Техника: ${f.gear.value}\n` +
+        `⚠️ Инфо: ${f.notes.value}\n` +
+        `📞 Контакт: ${f.contact.value}`;
+
+      navigator.clipboard.writeText(txt);
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      const originalText = document.getElementById('copyBtn').textContent;
+      document.getElementById('copyBtn').textContent = "Скопировано!";
+      setTimeout(() => document.getElementById('copyBtn').textContent = originalText, 1500);
+    };
 
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.input-wrap')) projDropdown.style.display = 'none';
