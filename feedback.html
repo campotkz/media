@@ -389,14 +389,22 @@
 
             // 2. Trigger Backend Report
             try {
-                await fetch('/api/report', {
+                // Using absolute URL because frontend is on GitHub Pages, backend on Vercel
+                const resp = await fetch('https://media-seven-eta.vercel.app/api/report', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(inserted[0])
                 });
+
+                if (!resp.ok) {
+                    console.error("Server error:", await resp.text());
+                }
             } catch (err) {
                 console.error("Report generation failed:", err);
             }
+
+            tg.showAlert("Спасибо! Отчет отправлен.");
+            tg.close();
 
             tg.showAlert("Спасибо! Отчет отправлен.");
             tg.close();

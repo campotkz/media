@@ -23,8 +23,17 @@ def webhook():
         return ''
     return 'Forbidden', 403
 
-@app.route('/api/report', methods=['POST'])
+@app.route('/api/report', methods=['POST', 'OPTIONS'])
 def submit_report():
+    if request.method == 'OPTIONS':
+        # CORS preflight
+        response = app.make_response('')
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        return response
+
+    # Handle POST
     try:
         data = request.json
         chat_id = data.get('chat_id')
@@ -85,9 +94,14 @@ def submit_report():
             message_thread_id=thread_id, 
             parse_mode="Markdown"
         )
-        return jsonify({'status': 'ok'})
+        
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        response = jsonify({'error': str(e)})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
 @bot.message_handler(commands=['start', 'cal'])
 def handle_start(message):
