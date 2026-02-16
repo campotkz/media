@@ -708,15 +708,17 @@
       crewDropdown.style.display = 'none';
     }
 
-    crewInput.addEventListener('input', () => {
+    function renderCrewDropdown() {
       const val = crewInput.value.toLowerCase();
       crewDropdown.innerHTML = '';
-      if (!val) { crewDropdown.style.display = 'none'; return; }
 
-      const matches = teamData.filter(t =>
-        (t.full_name && t.full_name.toLowerCase().includes(val)) ||
-        (t.username && t.username.toLowerCase().includes(val))
-      );
+      // Show all (top 20?) if empty, or filter
+      let matches = val
+        ? teamData.filter(t => (t.full_name && t.full_name.toLowerCase().includes(val)) || (t.username && t.username.toLowerCase().includes(val)))
+        : teamData;
+
+      // Limit to 50 to avoid huge lists
+      matches = matches.slice(0, 50);
 
       if (!matches.length) { crewDropdown.style.display = 'none'; return; }
 
@@ -728,6 +730,13 @@
         crewDropdown.appendChild(div);
       });
       crewDropdown.style.display = 'block';
+    }
+
+    crewInput.addEventListener('input', renderCrewDropdown);
+    crewInput.addEventListener('focus', renderCrewDropdown);
+    crewInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+      renderCrewDropdown();
     });
 
     crewInput.addEventListener('keydown', (e) => {
