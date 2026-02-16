@@ -94,6 +94,22 @@
             }
         }
 
+        /* Custom Select Arrow */
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '▼';
+            font-size: 10px;
+            color: #F92A1F;
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
         select.input-style {
             -webkit-appearance: none;
             appearance: none;
@@ -111,6 +127,177 @@
         const S_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
         const supabase = window.supabase.createClient(S_URL, S_KEY);
         const tg = window.Telegram.WebApp;
+
+        // --- COMPONENTS DEFINED OUTSIDE APP TO PREVENT RE-RENDERS ---
+
+        const Header = () => (
+            <div className="mb-8">
+                <h1 className="text-3xl font-black italic tracking-tighter uppercase">CAMPOT <span className="campot-red">ANALYTICS</span></h1>
+                <div className="h-1 w-10 bg-campot-red mt-2"></div>
+            </div>
+        );
+
+        const Step0_Contacts = ({ form, update, setStep }) => (
+            <div className="step-anim space-y-6">
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">01. Контакты</h2>
+                <input className="input-style" placeholder="Instagram @аккаунт" value={form.instagram} onChange={e => update('instagram', e.target.value)} />
+                <input className="input-style" placeholder="Ваше Имя" value={form.client_name} onChange={e => update('client_name', e.target.value)} />
+                <input className="input-style" placeholder="Телефон" value={form.phone} onChange={e => update('phone', e.target.value)} />
+                <button onClick={() => setStep(1)} disabled={!form.instagram} className="btn-campot">Далее</button>
+            </div>
+        );
+
+        const Step1_Metrics = ({ form, update, setStep }) => (
+            <div className="step-anim space-y-6">
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">02. Метрики</h2>
+                <div>
+                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Новых лидов за месяц</label>
+                    <input className="input-style" type="number" placeholder="0" value={form.leads_count} onChange={e => update('leads_count', e.target.value)} />
+                </div>
+                <div>
+                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Основной источник</label>
+                    <div className="select-wrapper">
+                        <select className="input-style" value={form.lead_source} onChange={e => update('lead_source', e.target.value)}>
+                            <option value="Direct Instagram">Direct Instagram</option>
+                            <option value="WhatsApp / Taplink">WhatsApp / Taplink</option>
+                            <option value="Комментарии">Комментарии</option>
+                            <option value="Сарафанка">Сарафанка</option>
+                            <option value="Другое">Другое</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Реальных продаж (шт)</label>
+                    <input className="input-style" type="number" placeholder="0" value={form.sales_count} onChange={e => update('sales_count', e.target.value)} />
+                </div>
+                <div>
+                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Средний чек</label>
+                    <input className="input-style" placeholder="Напр: 15 000" value={form.average_check} onChange={e => update('average_check', e.target.value)} />
+                </div>
+                <div className="flex gap-3 pt-4">
+                    <button onClick={() => setStep(0)} className="btn-secondary w-1/3">Назад</button>
+                    <button onClick={() => setStep(2)} className="btn-campot flex-1">Далее</button>
+                </div>
+            </div>
+        );
+
+        const Step2_Quality = ({ form, update, setStep }) => (
+            <div className="step-anim space-y-6">
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">03. Качество</h2>
+
+                <div className="space-y-4">
+                    <label className="text-[10px] uppercase text-zinc-600 block">Оценка качества заявок (1-5)</label>
+                    <div className="flex justify-between gap-1">
+                        {[1, 2, 3, 4, 5].map(v => (
+                            <button key={v} onClick={() => update('quality_score', v)}
+                                className={`flex-1 p-3 font-bold border ${form.quality_score === v ? 'bg-campot-red text-white border-campot-red' : 'border-zinc-800 text-zinc-600'}`}>
+                                {v}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <textarea className="input-style h-24" placeholder="Что говорят клиенты? (Цитаты)" value={form.client_source_quotes} onChange={e => update('client_source_quotes', e.target.value)}></textarea>
+                <textarea className="input-style h-24" placeholder="Жалобы или частые вопросы" value={form.customer_pain_points} onChange={e => update('customer_pain_points', e.target.value)}></textarea>
+
+                <div className="flex gap-3 pt-4">
+                    <button onClick={() => setStep(1)} className="btn-secondary w-1/3">Назад</button>
+                    <button onClick={() => setStep(3)} className="btn-campot flex-1">Далее</button>
+                </div>
+            </div>
+        );
+
+        const Step3_Process = ({ form, update, setStep }) => (
+            <div className="step-anim space-y-6">
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">04. Процессы</h2>
+
+                <div>
+                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Скорость ответа в Direct</label>
+                    <div className="select-wrapper">
+                        <select className="input-style" value={form.response_speed} onChange={e => update('response_speed', e.target.value)}>
+                            <option value="5-15 мин">⚡ 5-15 мин (Супер)</option>
+                            <option value="1 час">🕐 В течение часа</option>
+                            <option value="День">📅 В течение дня</option>
+                            <option value="Долго">🐢 Иногда пропускаем</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Узнаваемость Offline</label>
+                    <div className="select-wrapper">
+                        <select className="input-style" value={form.brand_awareness_offline} onChange={e => update('brand_awareness_offline', e.target.value)}>
+                            <option value="Да, говорят">🗣 Да, говорят об Инстаграм</option>
+                            <option value="Партнеры">🤝 Упоминают партнеры</option>
+                            <option value="Нет">😶 Пока тихо</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                    <button onClick={() => setStep(2)} className="btn-secondary w-1/3">Назад</button>
+                    <button onClick={() => setStep(4)} className="btn-campot flex-1">Далее</button>
+                </div>
+            </div>
+        );
+
+        const Step4_Content = ({ form, update, setStep }) => (
+            <div className="step-anim space-y-6">
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">05. Контент</h2>
+                <textarea className="input-style h-20" placeholder="Какой контент понравился ВАМ?" value={form.favorite_content} onChange={e => update('favorite_content', e.target.value)}></textarea>
+                <input className="input-style" placeholder="Чего не хватает? (Лайв / Польза)" value={form.missing_content_needs} onChange={e => update('missing_content_needs', e.target.value)} />
+
+                <div className="space-y-4">
+                    <label className="text-[10px] uppercase text-zinc-600 block">Охват и шум в городе (1-5)</label>
+                    <div className="flex justify-between gap-1">
+                        {[1, 2, 3, 4, 5].map(v => (
+                            <button key={v} onClick={() => update('reach_score', v)}
+                                className={`flex-1 p-3 font-bold border ${form.reach_score === v ? 'bg-campot-red text-white border-campot-red' : 'border-zinc-800 text-zinc-600'}`}>
+                                {v}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                    <button onClick={() => setStep(3)} className="btn-secondary w-1/3">Назад</button>
+                    <button onClick={() => setStep(5)} className="btn-campot flex-1">Далее</button>
+                </div>
+            </div>
+        );
+
+        const Step5_Plan = ({ form, update, setStep, submit, loading, errorMsg }) => (
+            <div className="step-anim space-y-6">
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">06. План</h2>
+
+                <textarea className="input-style h-24" placeholder="Новые акции / Продукты?" value={form.new_campaigns} onChange={e => update('new_campaigns', e.target.value)}></textarea>
+
+                <div>
+                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Главный фокус месяца</label>
+                    <div className="select-wrapper">
+                        <select className="input-style" value={form.next_month_focus} onChange={e => update('next_month_focus', e.target.value)}>
+                            <option value="Лиды">🔥 Лиды (Заявки)</option>
+                            <option value="Имидж">💎 Имидж / Визуал</option>
+                            <option value="Подписчики">👥 Подписчики</option>
+                            <option value="Охваты">📢 Охваты</option>
+                        </select>
+                    </div>
+                </div>
+
+                <textarea className="input-style h-24" placeholder="Пожелания и идеи для нас?" value={form.general_suggestions} onChange={e => update('general_suggestions', e.target.value)}></textarea>
+
+                {errorMsg && <div className="p-3 bg-red-900/30 border border-red-500 text-red-200 text-xs">{errorMsg}</div>}
+
+                <div className="flex gap-3 pt-4">
+                    <button onClick={() => setStep(4)} className="btn-secondary w-1/3">Назад</button>
+                    <button onClick={submit} disabled={loading} className="btn-campot flex-1">
+                        {loading ? "Отправка..." : "ОТПРАВИТЬ ОТЧЕТ 🚀"}
+                    </button>
+                </div>
+            </div>
+        );
+
+        // --- MAIN APP COMPONENT ---
 
         const App = () => {
             const [step, setStep] = useState(0);
@@ -136,12 +323,20 @@
                 chat_id: params.get('cid'), thread_id: params.get('tid')
             });
 
+            // Prevent zoom on focus for iOS
             useEffect(() => {
-                tg.expand();
-                tg.MainButton.hide(); // key handling custom buttons
+                const metaViewport = document.querySelector('meta[name=viewport]');
+                metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
             }, []);
 
-            const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+            useEffect(() => {
+                tg.expand();
+                tg.MainButton.hide();
+            }, []);
+
+            const update = (field, value) => {
+                setForm(prev => ({ ...prev, [field]: value }));
+            };
 
             const submit = async () => {
                 setLoading(true);
@@ -166,8 +361,6 @@
                     if (!resp.ok) {
                         const txt = await resp.text();
                         console.error("Backend Error:", txt);
-                        // We don't fail the UI flow if only the report fails, but we log it.
-                        // Optionally show a warning.
                     }
 
                     setStep(100); // Success screen
@@ -179,166 +372,6 @@
                 }
                 setLoading(false);
             };
-
-            const Header = () => (
-                <div className="mb-8">
-                    <h1 className="text-3xl font-black italic tracking-tighter uppercase">CAMPOT <span className="campot-red">ANALYTICS</span></h1>
-                    <div className="h-1 w-10 bg-campot-red mt-2"></div>
-                </div>
-            );
-
-            // Step Components
-            const Step0_Contacts = () => (
-                <div className="step-anim space-y-6">
-                    <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">01. Контакты</h2>
-                    <input className="input-style" placeholder="Instagram @аккаунт" value={form.instagram} onChange={e => update('instagram', e.target.value)} />
-                    <input className="input-style" placeholder="Ваше Имя" value={form.client_name} onChange={e => update('client_name', e.target.value)} />
-                    <input className="input-style" placeholder="Телефон" value={form.phone} onChange={e => update('phone', e.target.value)} />
-                    <button onClick={() => setStep(1)} disabled={!form.instagram} className="btn-campot">Далее</button>
-                </div>
-            );
-
-            const Step1_Metrics = () => (
-                <div className="step-anim space-y-6">
-                    <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">02. Метрики</h2>
-                    <div>
-                        <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Новых лидов за месяц</label>
-                        <input className="input-style" type="number" placeholder="0" value={form.leads_count} onChange={e => update('leads_count', e.target.value)} />
-                    </div>
-                    <div>
-                        <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Основной источник</label>
-                        <select className="input-style" value={form.lead_source} onChange={e => update('lead_source', e.target.value)}>
-                            <option value="Direct Instagram">Direct Instagram</option>
-                            <option value="WhatsApp / Taplink">WhatsApp / Taplink</option>
-                            <option value="Комментарии">Комментарии</option>
-                            <option value="Сарафанка">Сарафанка</option>
-                            <option value="Другое">Другое</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Реальных продаж (шт)</label>
-                        <input className="input-style" type="number" placeholder="0" value={form.sales_count} onChange={e => update('sales_count', e.target.value)} />
-                    </div>
-                    <div>
-                        <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Средний чек</label>
-                        <input className="input-style" placeholder="Напр: 15 000" value={form.average_check} onChange={e => update('average_check', e.target.value)} />
-                    </div>
-                    <div className="flex gap-3 pt-4">
-                        <button onClick={() => setStep(0)} className="btn-secondary w-1/3">Назад</button>
-                        <button onClick={() => setStep(2)} className="btn-campot flex-1">Далее</button>
-                    </div>
-                </div>
-            );
-
-            const Step2_Quality = () => (
-                <div className="step-anim space-y-6">
-                    <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">03. Качество</h2>
-
-                    <div className="space-y-4">
-                        <label className="text-[10px] uppercase text-zinc-600 block">Оценка качества заявок (1-5)</label>
-                        <div className="flex justify-between gap-1">
-                            {[1, 2, 3, 4, 5].map(v => (
-                                <button key={v} onClick={() => update('quality_score', v)}
-                                    className={`flex-1 p-3 font-bold border ${form.quality_score === v ? 'bg-campot-red text-white border-campot-red' : 'border-zinc-800 text-zinc-600'}`}>
-                                    {v}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <textarea className="input-style h-24" placeholder="Что говорят клиенты? (Цитаты)" value={form.client_source_quotes} onChange={e => update('client_source_quotes', e.target.value)}></textarea>
-                    <textarea className="input-style h-24" placeholder="Жалобы или частые вопросы" value={form.customer_pain_points} onChange={e => update('customer_pain_points', e.target.value)}></textarea>
-
-                    <div className="flex gap-3 pt-4">
-                        <button onClick={() => setStep(1)} className="btn-secondary w-1/3">Назад</button>
-                        <button onClick={() => setStep(3)} className="btn-campot flex-1">Далее</button>
-                    </div>
-                </div>
-            );
-
-            const Step3_Process = () => (
-                <div className="step-anim space-y-6">
-                    <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">04. Процессы</h2>
-
-                    <div>
-                        <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Скорость ответа в Direct</label>
-                        <select className="input-style" value={form.response_speed} onChange={e => update('response_speed', e.target.value)}>
-                            <option value="5-15 мин">⚡ 5-15 мин (Супер)</option>
-                            <option value="1 час">🕐 В течение часа</option>
-                            <option value="День">📅 В течение дня</option>
-                            <option value="Долго">🐢 Иногда пропускаем</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Узнаваемость Offline</label>
-                        <select className="input-style" value={form.brand_awareness_offline} onChange={e => update('brand_awareness_offline', e.target.value)}>
-                            <option value="Да, говорят">🗣 Да, говорят об Инстаграм</option>
-                            <option value="Партнеры">🤝 Упоминают партнеры</option>
-                            <option value="Нет">😶 Пока тихо</option>
-                        </select>
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
-                        <button onClick={() => setStep(2)} className="btn-secondary w-1/3">Назад</button>
-                        <button onClick={() => setStep(4)} className="btn-campot flex-1">Далее</button>
-                    </div>
-                </div>
-            );
-
-            const Step4_Content = () => (
-                <div className="step-anim space-y-6">
-                    <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">05. Контент</h2>
-                    <textarea className="input-style h-20" placeholder="Какой контент понравился ВАМ?" value={form.favorite_content} onChange={e => update('favorite_content', e.target.value)}></textarea>
-                    <input className="input-style" placeholder="Чего не хватает? (Лайв / Польза)" value={form.missing_content_needs} onChange={e => update('missing_content_needs', e.target.value)} />
-
-                    <div className="space-y-4">
-                        <label className="text-[10px] uppercase text-zinc-600 block">Охват и шум в городе (1-5)</label>
-                        <div className="flex justify-between gap-1">
-                            {[1, 2, 3, 4, 5].map(v => (
-                                <button key={v} onClick={() => update('reach_score', v)}
-                                    className={`flex-1 p-3 font-bold border ${form.reach_score === v ? 'bg-campot-red text-white border-campot-red' : 'border-zinc-800 text-zinc-600'}`}>
-                                    {v}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
-                        <button onClick={() => setStep(3)} className="btn-secondary w-1/3">Назад</button>
-                        <button onClick={() => setStep(5)} className="btn-campot flex-1">Далее</button>
-                    </div>
-                </div>
-            );
-
-            const Step5_Plan = () => (
-                <div className="step-anim space-y-6">
-                    <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">06. План</h2>
-
-                    <textarea className="input-style h-24" placeholder="Новые акции / Продукты?" value={form.new_campaigns} onChange={e => update('new_campaigns', e.target.value)}></textarea>
-
-                    <div>
-                        <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Главный фокус месяца</label>
-                        <select className="input-style" value={form.next_month_focus} onChange={e => update('next_month_focus', e.target.value)}>
-                            <option value="Лиды">🔥 Лиды (Заявки)</option>
-                            <option value="Имидж">💎 Имидж / Визуал</option>
-                            <option value="Подписчики">👥 Подписчики</option>
-                            <option value="Охваты">📢 Охваты</option>
-                        </select>
-                    </div>
-
-                    <textarea className="input-style h-24" placeholder="Пожелания и идеи для нас?" value={form.general_suggestions} onChange={e => update('general_suggestions', e.target.value)}></textarea>
-
-                    {errorMsg && <div className="p-3 bg-red-900/30 border border-red-500 text-red-200 text-xs">{errorMsg}</div>}
-
-                    <div className="flex gap-3 pt-4">
-                        <button onClick={() => setStep(4)} className="btn-secondary w-1/3">Назад</button>
-                        <button onClick={submit} disabled={loading} className="btn-campot flex-1">
-                            {loading ? "Отправка..." : "ОТПРАВИТЬ ОТЧЕТ 🚀"}
-                        </button>
-                    </div>
-                </div>
-            );
 
             if (step === 100) return (
                 <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-black">
@@ -352,12 +385,12 @@
             return (
                 <div className="max-w-md mx-auto min-h-screen p-6 flex flex-col justify-center">
                     <Header />
-                    {step === 0 && <Step0_Contacts />}
-                    {step === 1 && <Step1_Metrics />}
-                    {step === 2 && <Step2_Quality />}
-                    {step === 3 && <Step3_Process />}
-                    {step === 4 && <Step4_Content />}
-                    {step === 5 && <Step5_Plan />}
+                    {step === 0 && <Step0_Contacts form={form} update={update} setStep={setStep} />}
+                    {step === 1 && <Step1_Metrics form={form} update={update} setStep={setStep} />}
+                    {step === 2 && <Step2_Quality form={form} update={update} setStep={setStep} />}
+                    {step === 3 && <Step3_Process form={form} update={update} setStep={setStep} />}
+                    {step === 4 && <Step4_Content form={form} update={update} setStep={setStep} />}
+                    {step === 5 && <Step5_Plan form={form} update={update} setStep={setStep} submit={submit} loading={loading} errorMsg={errorMsg} />}
 
                     <footer className="mt-20 text-center opacity-30">
                         <p className="text-[8px] uppercase tracking-[4px]">Campot Analytics / 2026</p>

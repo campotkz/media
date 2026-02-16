@@ -68,24 +68,43 @@ def submit_report():
         sales_icon = "🟢" if diff_sales >= 0 else "🔴"
         
         # 3. Format Message
+        def get_val(key, default='-'):
+            v = data.get(key)
+            return str(v) if v else default
+
         msg = f"""📊 **ОТЧЕТ ЗА МЕСЯЦ**
         
-🔥 **ЛИДЫ (ЗАЯВКИ): {curr_leads}**
-Динамика: {diff_leads:+} {leads_icon} (было {prev_leads})
-Источник: {data.get('lead_source', '-')}
+👤 **КОНТАКТЫ**
+Имя: {get_val('client_name')}
+Inst: {get_val('instagram')}
+Tel: {get_val('phone')}
 
-💰 **ПРОДАЖИ: {curr_sales}**
-Динамика: {diff_sales:+} {sales_icon} (было {prev_sales})
-Чек: {data.get('average_check', '-')}
+🔥 **ЦИФРЫ**
+Лиды (Заявки): {curr_leads} (Динамика: {diff_leads:+} {leads_icon})
+Продажи: {curr_sales} (Динамика: {diff_sales:+} {sales_icon})
+Источник: {get_val('lead_source')}
+Средний чек: {get_val('average_check')}
 
-🎯 **КАЧЕСТВО: {data.get('quality_score')}/5**
-"{data.get('client_source_quotes', 'Без комментариев')}"
+🎯 **КАЧЕСТВО**
+Оценка: {get_val('quality_score')}/5
+Цитаты клиентов:
+"{get_val('client_source_quotes')}"
+Боли/Вопросы:
+"{get_val('customer_pain_points')}"
 
-⚡ **СКОРОСТЬ**: {data.get('response_speed', '-')}
-📢 **ОХВАТ**: {data.get('reach_score')}/5
+⚡ **ПРОЦЕССЫ**
+Скорость ответа: {get_val('response_speed')}
+Узнаваемость (Offline): {get_val('brand_awareness_offline')}
 
-🚀 **ПЛАН НА СЛЕДУЮЩИЙ МЕСЯЦ**:
-{data.get('next_month_focus', '-')}
+📢 **КОНТЕНТ**
+Понравилось: {get_val('favorite_content')}
+Не хватает: {get_val('missing_content_needs')}
+Ощущение охвата: {get_val('reach_score')}/5
+
+🚀 **ПЛАН**
+Акции/Продукты: {get_val('new_campaigns')}
+Фокус месяца: {get_val('next_month_focus')}
+Идеи/Пожелания: {get_val('general_suggestions')}
 """
         # 4. Send to Telegram
         bot.send_message(
