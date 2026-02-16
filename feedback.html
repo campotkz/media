@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campot Media Feedback</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg: #000000;
+            --card: #111111;
+            --text: #ffffff;
+            --lime: #ccff00;
+            --red: #ff3b30;
+            --gray: #333333;
+            --input-bg: #1a1a1a;
+
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin: 0 0 10px;
+            font-weight: 700;
+        }
+
+        h1 {
+            color: var(--lime);
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 18px;
+            color: var(--text);
+            border-left: 3px solid var(--lime);
+            padding-left: 10px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        .desc {
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--gray);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #ddd;
+        }
+
+        .help {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--gray);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: var(--lime);
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: var(--lime);
+            color: black;
+            font-weight: 800;
+            text-transform: uppercase;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            width: 100%;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        .nav {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .nav .back {
+            background: var(--gray);
+            color: white;
+        }
+
+        /* Custom Radio Buttons */
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .radio-opt {
+            background: var(--input-bg);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--gray);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .radio-opt.selected {
+            border-color: var(--lime);
+            background: rgba(204, 255, 0, 0.05);
+        }
+
+        .circle {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .radio-opt.selected .circle {
+            border-color: var(--lime);
+        }
+
+        .radio-opt.selected .circle::after {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: var(--lime);
+            border-radius: 50%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Campot Analytics</h1>
+    <div class="desc">Ежемесячная сверка метрик. Пожалуйста, заполните честно — это топливо для стратегии.</div>
+
+    <form id="form">
+        <!-- БЛОК 0: КОНТАКТЫ -->
+        <div class="card">
+            <h2>0. Контакты</h2>
+            <div style="margin-bottom:15px">
+                <label>Instagram (Login)</label>
+                <input type="text" id="instagram" placeholder="@username" required>
+            </div>
+            <div style="margin-bottom:15px">
+                <label>Ваше Имя</label>
+                <input type="text" id="client_name" placeholder="Иван" required>
+            </div>
+            <div>
+                <label>Телефон</label>
+                <input type="text" id="phone" placeholder="+7..." required>
+            </div>
+        </div>
+
+        <!-- БЛОК 1: ЦИФРЫ -->
+        <div class="card">
+            <h2>1. Главные цифры</h2>
+
+            <label>Сколько ВСЕГО новых лидов (заявок)?</label>
+            <span class="help">Direct + WhatsApp + Звонки</span>
+            <input type="number" id="leads_count" placeholder="0" required>
+
+            <br>
+            <label>Откуда больше обращений?</label>
+            <!-- Custom Select Implementation or Standard -->
+            <select id="lead_source">
+                <option value="Direct Instagram">Direct Instagram</option>
+                <option value="WhatsApp / Taplink">WhatsApp / Taplink</option>
+                <option value="Комментарии">Комментарии</option>
+                <option value="Сарафанка">Сарафанка</option>
+                <option value="Другое">Другое</option>
+            </select>
+
+            <br><br>
+            <label>Сколько РЕАЛЬНЫХ продаж?</label>
+            <span class="help">Сколько людей заплатили денег?</span>
+            <input type="number" id="sales_count" placeholder="0" required>
+
+            <br>
+            <label>Средний чек (Тенге)</label>
+            <input type="text" id="average_check" placeholder="Напр: 15 000">
+        </div>
+
+        <!-- БЛОК 2: КАЧЕСТВО -->
+        <div class="card">
+            <h2>2. Качество аудитории</h2>
+            <label>Оценка качества заявок (1-5)</label>
+            <select id="quality_score">
+                <option value="5">5 — Идеальные клиенты</option>
+                <option value="4">4 — Хорошие</option>
+                <option value="3">3 — Нормально</option>
+                <option value="2">2 — Много "пустых"</option>
+                <option value="1">1 — Спам/Мусор</option>
+            </select>
+
+            <br><br>
+            <label>Что чаще всего говорят клиенты?</label>
+            <span class="help">"Увидел рилс", "Посоветовали"...</span>
+            <textarea id="client_source_quotes"></textarea>
+
+            <br>
+            <label>Частые жалобы или вопросы (Боли)</label>
+            <textarea id="customer_pain_points"></textarea>
+        </div>
+
+        <!-- БЛОК 3: ПРОЦЕССЫ -->
+        <div class="card">
+            <h2>3. Скорость и Процессы</h2>
+            <label>Как быстро отвечаете в Direct?</label>
+            <select id="response_speed">
+                <option value="5-15 мин">⚡ 5-15 мин (Супер)</option>
+                <option value="1 час">🕐 В течение часа</option>
+                <option value="День">📅 В течение дня</option>
+                <option value="Долго">🐢 Иногда пропускаем</option>
+            </select>
+
+            <br><br>
+            <label>Узнаваемость бренда offline?</label>
+            <select id="brand_awareness_offline">
+                <option value="Да, говорят">Да, новые люди говорят об Инсте</option>
+                <option value="Партнеры">Партнеры упоминают</option>
+                <option value="Нет">Пока не ощущаю</option>
+            </select>
+        </div>
+
+        <!-- БЛОК 4: КОНТЕНТ -->
+        <div class="card">
+            <h2>4. Взгляд владельца</h2>
+            <label>Какой контент зашел ВАМ больше всего?</label>
+            <textarea id="favorite_content"></textarea>
+
+            <br>
+            <label>Чего не хватает?</label>
+            <input type="text" id="missing_content_needs" placeholder="Больше лайва / пользы / эстетики...">
+
+            <br><br>
+            <label>Ощущение охвата (1-5)</label>
+            <span class="help">Насколько "громко" мы звучим в городе?</span>
+            <select id="reach_score">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+            </select>
+        </div>
+
+        <!-- БЛОК 5: ПЛАН -->
+        <div class="card">
+            <h2>5. План на месяц</h2>
+            <label>Новые продукты / Акции?</label>
+            <textarea id="new_campaigns"></textarea>
+
+            <br>
+            <label>Фокус на следующий месяц?</label>
+            <select id="next_month_focus">
+                <option value="Лиды">🔥 Гнать заявки (Лиды)</option>
+                <option value="Имидж">💎 Имидж и Дорогой визуал</option>
+                <option value="Подписчики">👥 Набирать подписчиков</option>
+                <option value="Охваты">📢 Охваты (Просмотры)</option>
+            </select>
+
+            <br><br>
+            <label>Пожелания / Идеи</label>
+            <textarea id="general_suggestions"></textarea>
+        </div>
+
+        <button type="button" class="btn" id="submitBtn">ОТПРАВИТЬ ОТЧЕТ 🚀</button>
+    </form>
+
+    <script>
+        const S_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
+        const S_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
+        const supabase = window.supabase.createClient(S_URL, S_KEY);
+        const tg = window.Telegram.WebApp;
+
+        tg.expand();
+
+        // Parse URL params
+        const params = new URLSearchParams(window.location.search);
+        const chatId = params.get('cid');
+        const threadId = params.get('tid');
+
+        document.getElementById('submitBtn').onclick = async () => {
+            const btn = document.getElementById('submitBtn');
+            btn.textContent = "Секунду...";
+            btn.disabled = true;
+
+            const data = {
+                instagram: document.getElementById('instagram').value,
+                client_name: document.getElementById('client_name').value,
+                phone: document.getElementById('phone').value,
+                leads_count: document.getElementById('leads_count').value || 0,
+                lead_source: document.getElementById('lead_source').value,
+                sales_count: document.getElementById('sales_count').value || 0,
+                average_check: document.getElementById('average_check').value,
+                quality_score: document.getElementById('quality_score').value,
+                client_source_quotes: document.getElementById('client_source_quotes').value,
+                customer_pain_points: document.getElementById('customer_pain_points').value,
+                response_speed: document.getElementById('response_speed').value,
+                brand_awareness_offline: document.getElementById('brand_awareness_offline').value,
+                favorite_content: document.getElementById('favorite_content').value,
+                missing_content_needs: document.getElementById('missing_content_needs').value,
+                reach_score: document.getElementById('reach_score').value,
+                new_campaigns: document.getElementById('new_campaigns').value,
+                next_month_focus: document.getElementById('next_month_focus').value,
+                general_suggestions: document.getElementById('general_suggestions').value,
+                chat_id: chatId,
+                thread_id: threadId
+            };
+
+            // 1. Save to Supabase
+            const { data: inserted, error } = await supabase
+                .from('client_feedback')
+                .insert(data)
+                .select();
+
+            if (error) {
+                alert('Ошибка: ' + error.message);
+                btn.textContent = "Попробовать снова";
+                btn.disabled = false;
+                return;
+            }
+
+            // 2. Trigger Backend Report
+            try {
+                await fetch('/api/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(inserted[0])
+                });
+            } catch (err) {
+                console.error("Report generation failed:", err);
+            }
+
+            tg.showAlert("Спасибо! Отчет отправлен.");
+            tg.close();
+        };
+    </script>
+</body>
+
+</html>
