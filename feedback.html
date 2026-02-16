@@ -332,6 +332,25 @@
             useEffect(() => {
                 tg.expand();
                 tg.MainButton.hide();
+
+                // Auto-fill Client Name if tid exists
+                if (params.get('tid')) {
+                    const tid = params.get('tid');
+                    supabase
+                        .from('clients')
+                        .select('name')
+                        .eq('thread_id', tid)
+                        .single()
+                        .then(({ data, error }) => {
+                            if (data && data.name) {
+                                // Remove "Topic " prefix if it's default
+                                const cleanName = data.name.replace(/^Topic \d+$/, "");
+                                if (cleanName) {
+                                    setForm(prev => ({ ...prev, client_name: cleanName }));
+                                }
+                            }
+                        });
+                }
             }, []);
 
             const update = (field, value) => {

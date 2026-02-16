@@ -149,3 +149,58 @@ def handle_feedback(message):
         message_thread_id=message.message_thread_id,
         parse_mode="Markdown"
     )
+
+# --- AUTO-DISCOVERY HANDLERS ---
+
+@bot.message_handler(commands=['rename'])
+def handle_rename(message):
+    if not message.is_topic_message:
+        bot.reply_to(message, "Эта команда работает только внутри топика (проекта).")
+        return
+
+    new_name = message.text.replace("/rename", "").strip()
+    thread_id = message.message_thread_id
+
+    if not new_name:
+        bot.reply_to(message, "Укажите новое имя.\nПример: `/rename ЖК Ривьера`", parse_mode="Markdown")
+        return
+
+    try:
+        # Upsert client name
+        data = {"thread_id": thread_id, "name": new_name}
+        supabase.from_("clients").upsert(data, on_conflict="thread_id").execute()
+        bot.reply_to(message, f"✅ Проект переименован в: **{new_name}**", parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, f"Ошибка сохранения: {e}")
+
+@bot.message_handler(content_types=['text'])
+def handle_text(message):
+    try:
+        # 1. Team Discovery
+        user = message.from_user
+        if user and not user.is_bot:
+            team_data = {
+                "telegram_id": user.id,
+                "username": user.username or "",
+                "full_name": user.full_name or message.from_user.first_name
+            }
+            # Upsert team member
+            supabase.from_("team").upsert(team_data, on_conflict="telegram_id").execute()
+
+        # 2. Project (Client) Discovery
+        if message.is_topic_message:
+            thread_id = message.message_thread_id
+            # Check if exists, if not insert placeholder
+            # We use 'select' first to avoid overwriting existing names with placeholders
+            existing = supabase.from_("clients").select("id").eq("thread_id", thread_id).execute()
+            
+            if not existing.data:
+                # New topic detected
+                client_data = {
+                    "thread_id": thread_id,
+                    "name": f"Topic {thread_id}" 
+                }
+                supabase.from_("clients").insert(client_data).execute()
+                
+    except Exception as e:
+        print(f"Auto-discovery error: {e}") # Non-blocking error logging
