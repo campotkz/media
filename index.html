@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="ru">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
@@ -10,64 +11,364 @@
 
   <style>
     /* ПОЛНОСТЬЮ ТВОИ ОРИГИНАЛЬНЫЕ СТИЛИ */
-    :root{
+    :root {
       --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
       --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
-      --fs-title: 17px; --fs-subtitle: 15px; --fs-body: 13px; --fs-callout: 12px; --fs-caption: 11px;
-      --lh-tight: 1.25; --lh-normal: 1.38; --lh-relaxed: 1.45;
-      --w-regular: 400; --w-medium: 500; --w-semibold: 600; --w-bold: 700;
-      --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
-      --hit: 44px; --r-1: 12px; --r-2: 16px; --r-3: 20px; --r-pill: 999px;
-      --text: rgba(255,255,255,.92); --muted: rgba(255,255,255,.68); --muted2: rgba(255,255,255,.52);
-      --accent: rgba(122,162,255,1); --accent-fill: rgba(122,162,255,.20); --accent-stroke: rgba(122,162,255,.62);
-      --warn-stroke: rgba(255,204,102,.55); --bg-0: #070812; --bg-1: #0a0b10;
-      --glass: rgba(20,22,30,.38); --glass2: rgba(20,22,30,.26); --stroke: rgba(255,255,255,.12);
-      --stroke2: rgba(255,255,255,.09); --sep: rgba(255,255,255,.08);
-      --shadow: 0 18px 60px rgba(0,0,0,.45); --inset: inset 0 1px 0 rgba(255,255,255,.07);
-      --ease: cubic-bezier(.2,.8,.2,1);
+      --fs-title: 17px;
+      --fs-subtitle: 15px;
+      --fs-body: 13px;
+      --fs-callout: 12px;
+      --fs-caption: 11px;
+      --lh-tight: 1.25;
+      --lh-normal: 1.38;
+      --lh-relaxed: 1.45;
+      --w-regular: 400;
+      --w-medium: 500;
+      --w-semibold: 600;
+      --w-bold: 700;
+      --s-1: 4px;
+      --s-2: 8px;
+      --s-3: 12px;
+      --s-4: 16px;
+      --s-5: 24px;
+      --s-6: 32px;
+      --hit: 44px;
+      --r-1: 12px;
+      --r-2: 16px;
+      --r-3: 20px;
+      --r-pill: 999px;
+      --text: rgba(255, 255, 255, .92);
+      --muted: rgba(255, 255, 255, .68);
+      --muted2: rgba(255, 255, 255, .52);
+      --accent: rgba(122, 162, 255, 1);
+      --accent-fill: rgba(122, 162, 255, .20);
+      --accent-stroke: rgba(122, 162, 255, .62);
+      --warn-stroke: rgba(255, 204, 102, .55);
+      --bg-0: #070812;
+      --bg-1: #0a0b10;
+      --glass: rgba(20, 22, 30, .38);
+      --glass2: rgba(20, 22, 30, .26);
+      --stroke: rgba(255, 255, 255, .12);
+      --stroke2: rgba(255, 255, 255, .09);
+      --sep: rgba(255, 255, 255, .08);
+      --shadow: 0 18px 60px rgba(0, 0, 0, .45);
+      --inset: inset 0 1px 0 rgba(255, 255, 255, .07);
+      --ease: cubic-bezier(.2, .8, .2, 1);
     }
-    *{ box-sizing:border-box; }
-    html{ font-size: 16px; }
-    body{
-      margin:0; font-family: var(--font-sans); color: var(--text); font-size: var(--fs-body);
-      line-height: var(--lh-normal); letter-spacing: -0.01em; -webkit-font-smoothing: antialiased;
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 16px;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      color: var(--text);
+      font-size: var(--fs-body);
+      line-height: var(--lh-normal);
+      letter-spacing: -0.01em;
+      -webkit-font-smoothing: antialiased;
       font-variant-numeric: tabular-nums;
-      background: radial-gradient(900px 650px at 20% 15%, rgba(122,162,255,.25) 0%, rgba(122,162,255,0) 58%), radial-gradient(900px 650px at 85% 25%, rgba(255,204,102,.18) 0%, rgba(255,204,102,0) 60%), radial-gradient(1100px 900px at 60% 82%, rgba(168,106,255,.16) 0%, rgba(168,106,255,0) 62%), linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
-      min-height:100vh; overflow-x:hidden;
+      background: radial-gradient(900px 650px at 20% 15%, rgba(122, 162, 255, .25) 0%, rgba(122, 162, 255, 0) 58%), radial-gradient(900px 650px at 85% 25%, rgba(255, 204, 102, .18) 0%, rgba(255, 204, 102, 0) 60%), radial-gradient(1100px 900px at 60% 82%, rgba(168, 106, 255, .16) 0%, rgba(168, 106, 255, 0) 62%), linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
     }
-    .wrap{ position:relative; z-index:1; max-width: 1120px; margin: 0 auto; padding: var(--s-4); display:grid; grid-template-columns: 1.2fr 1fr; gap: var(--s-4); }
-    @media (max-width: 980px){ .wrap{ grid-template-columns:1fr; } }
-    .card{ position:relative; border-radius: var(--r-3); overflow:hidden; border: 1px solid var(--stroke2); background: var(--glass); box-shadow: var(--shadow), var(--inset); transform: translateZ(0); backdrop-filter: blur(22px) saturate(1.22); }
-    .head{ padding: var(--s-3) var(--s-4); display:flex; align-items:center; justify-content:space-between; gap: var(--s-3); background: var(--glass2); border-bottom: 1px solid var(--sep); }
-    .title{ font-size: var(--fs-title); font-weight: var(--w-semibold); }
-    .seg{ display:inline-flex; gap: 2px; padding: 2px; border-radius: var(--r-pill); border: 1px solid var(--stroke); background: rgba(255,255,255,.06); }
-    .seg button{ min-height: var(--hit); padding: 0 var(--s-3); border:0; border-radius: var(--r-pill); background: transparent; color: var(--text); font: inherit; cursor:pointer; }
-    .seg button.isActive{ background: rgba(122,162,255,.20); }
-    button{ min-height: var(--hit); padding: 0 var(--s-3); border-radius: var(--r-pill); border: 1px solid var(--stroke); background: rgba(255,255,255,.06); color: var(--text); font: inherit; font-weight: var(--w-semibold); cursor:pointer; }
-    button.primary{ border-color: var(--accent-stroke); background: var(--accent-fill); }
-    .calendar{ padding: var(--s-4); }
-    .monthBar{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom: var(--s-3); }
-    .month{ font-size: var(--fs-title); font-weight: var(--w-semibold); text-transform: capitalize; }
-    .hint{ color: var(--muted); font-size: var(--fs-callout); }
-    .dow, .grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap: var(--s-2); }
-    .dow{ margin-bottom: var(--s-2); color: var(--muted2); font-size: var(--fs-caption); font-weight: var(--w-semibold); text-transform: uppercase; }
-    .day{ min-height: 76px; padding: var(--s-3); border-radius: var(--r-2); border: 1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.05); cursor:pointer; position:relative; }
-    .day.sel{ border-color: rgba(122,162,255,.82); background: radial-gradient(160px 120px at 30% 20%, rgba(122,162,255,.18), transparent 58%), rgba(255,255,255,.05); }
-    .day.out{ opacity:.45; }
-    .day.today{ outline: 2px dashed var(--warn-stroke); outline-offset: 2px; }
-    .num{ display:flex; align-items:center; justify-content:space-between; font-weight: var(--w-semibold); }
-    .badge{ font-size: var(--fs-caption); padding: 2px 8px; border-radius: var(--r-pill); border: 1px solid rgba(122,162,255,.55); background: rgba(122,162,255,.18); }
-    .side{ padding: var(--s-4); display:flex; flex-direction:column; gap: var(--s-4); }
-    .list{ border:1px solid rgba(255,255,255,.10); border-radius: var(--r-3); overflow:hidden; background: rgba(255,255,255,.04); }
-    .item{ padding: var(--s-3) var(--s-4); border-bottom:1px solid rgba(255,255,255,.08); cursor:pointer; background: rgba(255,255,255,.03); }
-    form{ border:1px solid rgba(255,255,255,.10); border-radius: var(--r-3); padding: var(--s-4); background: rgba(255,255,255,.04); display:grid; gap: var(--s-3); }
-    label{ display:grid; gap: var(--s-2); font-size: var(--fs-caption); font-weight: var(--w-semibold); }
-    input, textarea{ width:100%; border-radius: var(--r-2); border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.18); color: var(--text); padding: 10px var(--s-3); font: inherit; outline:none; }
-    textarea{ min-height: 120px; resize: vertical; }
-    .row2{ display:grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
-    .actions{ display:flex; justify-content:flex-end; gap: var(--s-2); }
-    .footer{ padding: var(--s-3) var(--s-4); border-top: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); display:flex; justify-content:space-between; }
-    pre{ margin:0; padding: var(--s-4); border-radius: var(--r-3); border: 1px solid rgba(255,255,255,.10); background: rgba(0,0,0,.18); color: rgba(255,255,255,.78); font-family: var(--font-mono); font-size: 12px; white-space: pre-wrap; }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: var(--s-4);
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: var(--s-4);
+    }
+
+    @media (max-width: 980px) {
+      .wrap {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      position: relative;
+      border-radius: var(--r-3);
+      overflow: hidden;
+      border: 1px solid var(--stroke2);
+      background: var(--glass);
+      box-shadow: var(--shadow), var(--inset);
+      transform: translateZ(0);
+      backdrop-filter: blur(22px) saturate(1.22);
+    }
+
+    .head {
+      padding: var(--s-3) var(--s-4);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s-3);
+      background: var(--glass2);
+      border-bottom: 1px solid var(--sep);
+    }
+
+    .title {
+      font-size: var(--fs-title);
+      font-weight: var(--w-semibold);
+    }
+
+    .seg {
+      display: inline-flex;
+      gap: 2px;
+      padding: 2px;
+      border-radius: var(--r-pill);
+      border: 1px solid var(--stroke);
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .seg button {
+      min-height: var(--hit);
+      padding: 0 var(--s-3);
+      border: 0;
+      border-radius: var(--r-pill);
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .seg button.isActive {
+      background: rgba(122, 162, 255, .20);
+    }
+
+    button {
+      min-height: var(--hit);
+      padding: 0 var(--s-3);
+      border-radius: var(--r-pill);
+      border: 1px solid var(--stroke);
+      background: rgba(255, 255, 255, .06);
+      color: var(--text);
+      font: inherit;
+      font-weight: var(--w-semibold);
+      cursor: pointer;
+    }
+
+    button.primary {
+      border-color: var(--accent-stroke);
+      background: var(--accent-fill);
+    }
+
+    .calendar {
+      padding: var(--s-4);
+    }
+
+    .monthBar {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: var(--s-3);
+    }
+
+    .month {
+      font-size: var(--fs-title);
+      font-weight: var(--w-semibold);
+      text-transform: capitalize;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: var(--fs-callout);
+    }
+
+    .dow,
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: var(--s-2);
+    }
+
+    .dow {
+      margin-bottom: var(--s-2);
+      color: var(--muted2);
+      font-size: var(--fs-caption);
+      font-weight: var(--w-semibold);
+      text-transform: uppercase;
+    }
+
+    .day {
+      min-height: 76px;
+      padding: var(--s-3);
+      border-radius: var(--r-2);
+      border: 1px solid rgba(255, 255, 255, .10);
+      background: rgba(255, 255, 255, .05);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .day.sel {
+      border-color: rgba(122, 162, 255, .82);
+      background: radial-gradient(160px 120px at 30% 20%, rgba(122, 162, 255, .18), transparent 58%), rgba(255, 255, 255, .05);
+    }
+
+    .day.out {
+      opacity: .45;
+    }
+
+    .day.today {
+      outline: 2px dashed var(--warn-stroke);
+      outline-offset: 2px;
+    }
+
+    .num {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: var(--w-semibold);
+    }
+
+    .badge {
+      font-size: var(--fs-caption);
+      padding: 2px 8px;
+      border-radius: var(--r-pill);
+      border: 1px solid rgba(122, 162, 255, .55);
+      background: rgba(122, 162, 255, .18);
+    }
+
+    .side {
+      padding: var(--s-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-4);
+    }
+
+    .list {
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: var(--r-3);
+      overflow: hidden;
+      background: rgba(255, 255, 255, .04);
+    }
+
+    .item {
+      padding: var(--s-3) var(--s-4);
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+      cursor: pointer;
+      background: rgba(255, 255, 255, .03);
+    }
+
+    form {
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: var(--r-3);
+      padding: var(--s-4);
+      background: rgba(255, 255, 255, .04);
+      display: grid;
+      gap: var(--s-3);
+    }
+
+    label {
+      display: grid;
+      gap: var(--s-2);
+      font-size: var(--fs-caption);
+      font-weight: var(--w-semibold);
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border-radius: var(--r-2);
+      border: 1px solid rgba(255, 255, 255, .12);
+      background: rgba(0, 0, 0, .18);
+      color: var(--text);
+      padding: 10px var(--s-3);
+      font: inherit;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s-3);
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--s-2);
+    }
+
+    .footer {
+      padding: var(--s-3) var(--s-4);
+      border-top: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(255, 255, 255, .03);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    pre {
+      margin: 0;
+      padding: var(--s-4);
+      border-radius: var(--r-3);
+      border: 1px solid rgba(255, 255, 255, .10);
+      background: rgba(0, 0, 0, .18);
+      color: rgba(255, 255, 255, .78);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 600px) {
+      :root {
+        --s-4: 12px;
+        --s-3: 10px;
+        --s-2: 6px;
+        --fs-caption: 9px;
+      }
+
+      .wrap {
+        padding: var(--s-3);
+        gap: var(--s-3);
+      }
+
+      .dow,
+      .grid {
+        gap: 2px;
+      }
+
+      .day {
+        min-height: 56px;
+        padding: 4px;
+      }
+
+      .num {
+        font-size: 13px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+      }
+
+      .badge {
+        font-size: 9px;
+        padding: 1px 4px;
+      }
+
+      .month {
+        font-size: 20px;
+      }
+
+      .start-btn {
+        font-size: 14px;
+        padding: 0 12px;
+        height: 40px;
+      }
+    }
   </style>
 </head>
 
@@ -87,7 +388,15 @@
           <div class="month" id="monthLabel">—</div>
           <div class="hint" id="monthStat">0 съёмок</div>
         </div>
-        <div class="dow"><div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div></div>
+        <div class="dow">
+          <div>Пн</div>
+          <div>Вт</div>
+          <div>Ср</div>
+          <div>Чт</div>
+          <div>Пт</div>
+          <div>Сб</div>
+          <div>Вс</div>
+        </div>
         <div class="grid" id="grid"></div>
       </div>
       <div class="footer">
@@ -137,8 +446,10 @@
     const supabaseClient = window.supabase.createClient(S_URL, S_KEY);
 
     // Telegram Init
-    const tg = window.Telegram.WebApp;
-    tg.expand();
+    const tg = window?.Telegram?.WebApp;
+    if (tg) {
+      tg.expand();
+    }
 
     // ПЕРЕМЕННЫЕ
     let allEvents = [];
@@ -146,12 +457,12 @@
     let currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
     let selectedId = null;
 
-    const pad2 = n => String(n).padStart(2,"0");
-    const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    const pad2 = n => String(n).padStart(2, "0");
+    const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
     const startMonth = d => new Date(d.getFullYear(), d.getMonth(), 1);
-    const niceDate = d => d.toLocaleDateString("ru-RU",{day:"2-digit",month:"long",year:"numeric"});
-    const weekday = d => d.toLocaleDateString("ru-RU",{weekday:"long"});
-    const monthName = d => d.toLocaleDateString("ru-RU",{month:"long",year:"numeric"});
+    const niceDate = d => d.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
+    const weekday = d => d.toLocaleDateString("ru-RU", { weekday: "long" });
+    const monthName = d => d.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
 
     const f = {
       project: document.getElementById("project"),
@@ -168,11 +479,18 @@
     };
 
     // 2. ЗАГРУЗКА ИЗ ОБЛАКА
+    // 2. ЗАГРУЗКА ИЗ ОБЛАКА
     async function loadFromCloud() {
-      const { data, error } = await supabaseClient.from('shoots').select('*');
-      if (!error) {
-        allEvents = data || [];
-        render();
+      try {
+        const { data, error } = await supabaseClient.from('shoots').select('*');
+        if (!error) {
+          allEvents = data || [];
+          render();
+        } else {
+          console.error("Supabase Error:", error);
+        }
+      } catch (err) {
+        console.error("Network/Other Error:", err);
       }
     }
 
@@ -197,31 +515,32 @@
 
       const { error } = await supabaseClient.from('shoots').upsert(payload);
       if (!error) {
-        tg.HapticFeedback.notificationOccurred('success');
-        clearForm();
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        toggleForm(false);
         await loadFromCloud();
       }
     };
 
+
     // 4. УДАЛЕНИЕ
     document.getElementById("deleteBtn").onclick = async () => {
-      if(!selectedId || !confirm("Удалить съемку?")) return;
+      if (!selectedId || !confirm("Удалить съемку?")) return;
       const { error } = await supabaseClient.from('shoots').delete().eq('id', selectedId);
-      if(!error) {
-        clearForm();
+      if (!error) {
+        toggleForm(false);
         await loadFromCloud();
       }
     };
 
     // 5. ЛОГИКА КАЛЕНДАРЯ (42 ЯЧЕЙКИ)
-    function render(){
+    function render() {
       const grid = document.getElementById("grid");
       grid.innerHTML = "";
       const today = new Date();
-      
+
       document.getElementById("monthLabel").textContent = monthName(currentMonth);
       document.getElementById("selectedLabel").textContent = `${niceDate(selectedDate)} (${weekday(selectedDate)})`;
-      
+
       const monEvents = allEvents.filter(e => {
         const d = new Date(e.date);
         return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
@@ -229,28 +548,28 @@
       document.getElementById("monthStat").textContent = `${monEvents.length} съёмок`;
 
       const first = startMonth(currentMonth);
-      const offset = (first.getDay()+6)%7;
+      const offset = (first.getDay() + 6) % 7;
       const start = new Date(first);
-      start.setDate(first.getDate()-offset);
+      start.setDate(first.getDate() - offset);
 
-      for(let i=0; i<42; i++){
+      for (let i = 0; i < 42; i++) {
         const d = new Date(start);
-        d.setDate(start.getDate()+i);
+        d.setDate(start.getDate() + i);
         const iso = toISO(d);
         const count = allEvents.filter(e => e.date === iso).length;
-        
+
         const cell = document.createElement("div");
-        cell.className = "day" + (d.getMonth()!==currentMonth.getMonth()?" out":"") + (iso===toISO(selectedDate)?" sel":"") + (iso===toISO(today)?" today":"");
-        cell.innerHTML = `<div class="num"><span>${d.getDate()}</span>${count?`<span class="badge">${count}</span>`:""}</div>`;
-        cell.onclick = () => { selectedDate = d; selectedId = null; clearForm(); render(); };
+        cell.className = "day" + (d.getMonth() !== currentMonth.getMonth() ? " out" : "") + (iso === toISO(selectedDate) ? " sel" : "") + (iso === toISO(today) ? " today" : "");
+        cell.innerHTML = `<div class="num"><span>${d.getDate()}</span>${count ? `<span class="badge">${count}</span>` : ""}</div>`;
+        cell.onclick = () => { selectedDate = d; selectedId = null; toggleForm(false); render(); };
         grid.appendChild(cell);
       }
 
       // Список проектов дня
       const listDiv = document.getElementById("eventList");
-      const dayList = allEvents.filter(e => e.date === toISO(selectedDate)).sort((a,b)=>a.callTime.localeCompare(b.callTime));
+      const dayList = allEvents.filter(e => e.date === toISO(selectedDate)).sort((a, b) => a.callTime.localeCompare(b.callTime));
       listDiv.innerHTML = dayList.length ? "" : '<div class="item" style="color:gray">Нет съёмок</div>';
-      
+
       dayList.forEach(e => {
         const item = document.createElement("div");
         item.className = "item";
@@ -263,6 +582,7 @@
           f.deliverables.value = e.deliverables; f.crew.value = e.crew;
           f.schedule.value = e.schedule; f.gear.value = e.gear; f.notes.value = e.notes;
           document.getElementById("deleteBtn").style.display = "block";
+          toggleForm(true);
         };
         listDiv.appendChild(item);
       });
@@ -271,26 +591,55 @@
     }
 
     // ЭКСПОРТ
-    function buildExportText(){
+    function buildExportText() {
       const list = allEvents.filter(e => e.date === toISO(selectedDate));
-      if(!list.length) return "Смен нет.";
+      if (!list.length) return "Смен нет.";
       let lines = [`🎬 СЪЁМОЧНЫЙ ДЕНЬ — ${niceDate(selectedDate)}`];
-      list.forEach((e,i) => {
-        lines.push(`\n— — —\n🎥 Проект #${i+1}\nПроект: ${e.project}\nCall: ${e.callTime}\nЛокация: ${e.location}\nКоманда: ${e.crew}\nЗаметки: ${e.notes}`);
+      list.forEach((e, i) => {
+        lines.push(`\n— — —\n🎥 Проект #${i + 1}\nПроект: ${e.project}\nCall: ${e.callTime}\nЛокация: ${e.location}\nКоманда: ${e.crew}\nЗаметки: ${e.notes}`);
       });
       return lines.join("\n");
     }
 
-    function clearForm() { selectedId = null; document.getElementById("form").reset(); document.getElementById("deleteBtn").style.display = "none"; }
-    function moveMonth(n) { currentMonth.setMonth(currentMonth.getMonth()+n); render(); }
+    function toggleForm(show) {
+      const form = document.getElementById("form");
+      const btn = document.getElementById("newBtn");
+
+      if (show === undefined) {
+        // Toggle
+        const isHidden = form.style.display === "none";
+        form.style.display = isHidden ? "grid" : "none";
+        btn.textContent = isHidden ? "Свернуть" : "Новая";
+        if (isHidden) {
+          selectedId = null;
+          form.reset();
+          document.getElementById("deleteBtn").style.display = "none";
+          form.scrollIntoView({ behavior: "smooth" });
+        }
+      } else {
+        // Force state
+        form.style.display = show ? "grid" : "none";
+        btn.textContent = show ? "Свернуть" : "Новая";
+        if (!show) {
+          form.reset();
+          selectedId = null;
+        }
+      }
+    }
+
+    function moveMonth(n) { currentMonth.setMonth(currentMonth.getMonth() + n); render(); }
 
     document.getElementById("prevBtn").onclick = () => moveMonth(-1);
     document.getElementById("nextBtn").onclick = () => moveMonth(1);
     document.getElementById("todayBtn").onclick = () => { selectedDate = new Date(); currentMonth = startMonth(selectedDate); render(); };
-    document.getElementById("newBtn").onclick = clearForm;
+    document.getElementById("newBtn").onclick = () => toggleForm();
     document.getElementById("copyDayBtn").onclick = () => { navigator.clipboard.writeText(buildExportText()); alert("Скопировано!"); };
 
-    loadFromCloud();
+    // Init
+    document.getElementById("form").style.display = "none"; // Hide initially
+    render(); // Render immediately with empty data
+    loadFromCloud(); // Fetch data and re-render
   </script>
 </body>
+
 </html>
