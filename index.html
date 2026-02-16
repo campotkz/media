@@ -408,6 +408,96 @@
         justify-content: flex-end;
       }
     }
+
+    /* Autocomplete Styles */
+    .input-wrap,
+    .multi-select-wrap {
+      position: relative;
+    }
+
+    .multi-select-wrap {
+      background: rgba(0, 0, 0, .18);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: var(--r-2);
+      padding: 5px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      min-height: 42px;
+    }
+
+    .tags {
+      display: contents;
+    }
+
+    .tag {
+      background: rgba(122, 162, 255, .20);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: var(--r-pill);
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(122, 162, 255, .3);
+    }
+
+    .tag-remove {
+      cursor: pointer;
+      opacity: 0.6;
+      font-weight: bold;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .tag-remove:hover {
+      opacity: 1;
+      color: #ff6b6b;
+    }
+
+    #crewInput {
+      border: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      flex: 1;
+      min-width: 80px;
+      height: 30px;
+      outline: none;
+    }
+
+    .dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #15161c;
+      border: 1px solid rgba(255, 255, 255, .15);
+      border-radius: var(--r-2);
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      margin-top: 4px;
+    }
+
+    .dropdown-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255, 255, 255, .05);
+      font-size: 13px;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(122, 162, 255, .15);
+    }
+
+    .dropdown-item small {
+      display: block;
+      opacity: 0.5;
+      font-size: 10px;
+    }
   </style>
 </head>
 
@@ -456,7 +546,12 @@
         <div class="list" id="eventList"></div>
         <form id="form">
           <div class="row2">
-            <label>Проект/клиент<input id="project" placeholder="Напр: Fujifilm" /></label>
+            <label>Проект/клиент
+              <div class="input-wrap">
+                <input id="project" autocomplete="off" placeholder="Напр: Fujifilm" />
+                <div id="projectDropdown" class="dropdown"></div>
+              </div>
+            </label>
             <label>Локация<input id="location" placeholder="Студия / Офис" /></label>
           </div>
           <div class="row2">
@@ -466,7 +561,16 @@
           <label>Адрес/линк<input id="address" placeholder="2GIS / Google Maps" /></label>
           <label>Контакт<input id="contact" placeholder="Имя + телефон" /></label>
           <label>ТЗ<textarea id="deliverables" placeholder="Опиши задачу..."></textarea></label>
-          <label>Команда<textarea id="crew" placeholder="Оператор, звук..."></textarea></label>
+
+          <label>Команда
+            <div class="multi-select-wrap" id="crewWrapper">
+              <div id="crewTags" class="tags"></div>
+              <input id="crewInput" placeholder="Добавить..." autocomplete="off" />
+              <div id="crewDropdown" class="dropdown"></div>
+            </div>
+            <textarea id="crew" style="display:none"></textarea>
+          </label>
+
           <label>План/тайминг<textarea id="schedule" placeholder="10:00 — интервью..."></textarea></label>
           <label>Техника<textarea id="gear" placeholder="Камера, свет..."></textarea></label>
           <label>Примечания<textarea id="notes" placeholder="Парковка, пропуск..."></textarea></label>
@@ -525,8 +629,121 @@
       notes: document.getElementById("notes"),
     };
 
+    // --- AUTOCOMPLETE LOGIC ---
+    let clientsData = [];
+    let teamData = [];
+
+    async function fetchAutocompleteData() {
+      const { data: cData } = await supabaseClient.from('clients').select('name');
+      if (cData) clientsData = cData;
+      const { data: tData } = await supabaseClient.from('team').select('full_name, username');
+      if (tData) teamData = tData;
+    }
+
+    // Project Dropdown
+    const projInput = document.getElementById('project');
+    const projDropdown = document.getElementById('projectDropdown');
+
+    projInput.addEventListener('input', () => {
+      const val = projInput.value.toLowerCase();
+      projDropdown.innerHTML = '';
+      if (!val) { projDropdown.style.display = 'none'; return; }
+
+      const matches = clientsData.filter(c => c.name.toLowerCase().includes(val));
+      if (!matches.length) { projDropdown.style.display = 'none'; return; }
+
+      matches.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.textContent = c.name;
+        div.onclick = () => { projInput.value = c.name; projDropdown.style.display = 'none'; };
+        projDropdown.appendChild(div);
+      });
+      projDropdown.style.display = 'block';
+    });
+
+    // Crew Tags & Dropdown
+    const crewInput = document.getElementById('crewInput');
+    const crewDropdown = document.getElementById('crewDropdown');
+    const crewTags = document.getElementById('crewTags');
+    const crewHidden = document.getElementById('crew');
+
+    function renderCrewTags() {
+      const val = crewHidden.value;
+      const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
+      crewTags.innerHTML = '';
+      names.forEach(name => {
+        const tag = document.createElement('div');
+        tag.className = 'tag';
+        tag.innerHTML = `<span>${name}</span> <span class="tag-remove">×</span>`;
+        tag.querySelector('.tag-remove').onclick = () => {
+          const newNames = names.filter(n => n !== name);
+          crewHidden.value = newNames.join(', ');
+          renderCrewTags();
+        };
+        crewTags.appendChild(tag);
+      });
+    }
+
+    function addCrewTag(name) {
+      const val = crewHidden.value;
+      const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
+      if (!names.includes(name)) {
+        names.push(name);
+        crewHidden.value = names.join(', ');
+        renderCrewTags();
+      }
+      crewInput.value = '';
+      crewDropdown.style.display = 'none';
+    }
+
+    crewInput.addEventListener('input', () => {
+      const val = crewInput.value.toLowerCase();
+      crewDropdown.innerHTML = '';
+      if (!val) { crewDropdown.style.display = 'none'; return; }
+
+      const matches = teamData.filter(t =>
+        (t.full_name && t.full_name.toLowerCase().includes(val)) ||
+        (t.username && t.username.toLowerCase().includes(val))
+      );
+
+      if (!matches.length) { crewDropdown.style.display = 'none'; return; }
+
+      matches.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.innerHTML = `${t.full_name} <small>@${t.username}</small>`;
+        div.onclick = () => addCrewTag(t.full_name);
+        crewDropdown.appendChild(div);
+      });
+      crewDropdown.style.display = 'block';
+    });
+
+    crewInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !crewInput.value) {
+        const val = crewHidden.value;
+        const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
+        if (names.length) {
+          names.pop();
+          crewHidden.value = names.join(', ');
+          renderCrewTags();
+        }
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.input-wrap')) projDropdown.style.display = 'none';
+      if (!e.target.closest('.multi-select-wrap')) crewDropdown.style.display = 'none';
+    });
+
+    // Focus wrapper clicks
+    document.getElementById('crewWrapper').onclick = (e) => {
+      if (e.target === document.getElementById('crewWrapper')) crewInput.focus();
+    };
+
     // 2. ЗАГРУЗКА ИЗ ОБЛАКА
     async function loadFromCloud() {
+      await fetchAutocompleteData();
       try {
         const { data, error } = await supabaseClient.from('shoots').select('*');
         if (!error) {
@@ -696,6 +913,7 @@
           f.address.value = e.address; f.contact.value = e.contact;
           f.deliverables.value = e.deliverables; f.crew.value = e.crew;
           f.schedule.value = e.schedule; f.gear.value = e.gear; f.notes.value = e.notes;
+          renderCrewTags(); // Init tags
           document.getElementById("deleteBtn").style.display = "block";
           toggleForm(true);
         };
@@ -731,13 +949,14 @@
         if (isHidden) {
           selectedId = null;
           form.reset();
+          renderCrewTags();
           document.getElementById("deleteBtn").style.display = "none";
           form.scrollIntoView({ behavior: "smooth" });
         }
       } else {
         form.style.display = show ? "grid" : "none";
         btn.textContent = show ? "Свернуть" : "Новая";
-        if (!show) { form.reset(); selectedId = null; }
+        if (!show) { form.reset(); selectedId = null; renderCrewTags(); }
       }
     }
 
