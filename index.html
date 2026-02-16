@@ -645,12 +645,15 @@
     const projInput = document.getElementById('project');
     const projDropdown = document.getElementById('projectDropdown');
 
-    projInput.addEventListener('input', () => {
+    const renderProjects = () => {
       const val = projInput.value.toLowerCase();
       projDropdown.innerHTML = '';
-      if (!val) { projDropdown.style.display = 'none'; return; }
 
-      const matches = clientsData.filter(c => c.name.toLowerCase().includes(val));
+      // Show all if empty, or filter
+      const matches = val
+        ? clientsData.filter(c => c.name.toLowerCase().includes(val))
+        : clientsData;
+
       if (!matches.length) { projDropdown.style.display = 'none'; return; }
 
       matches.forEach(c => {
@@ -661,6 +664,13 @@
         projDropdown.appendChild(div);
       });
       projDropdown.style.display = 'block';
+    };
+
+    projInput.addEventListener('input', renderProjects);
+    projInput.addEventListener('focus', renderProjects);
+    projInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+      renderProjects();
     });
 
     // Crew Tags & Dropdown
