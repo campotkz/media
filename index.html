@@ -678,6 +678,7 @@
               <div id="t_projectDropdown" class="dropdown"></div>
             </div>
           </label>
+          <input type="hidden" id="task_id_hidden">
           <label>Название<input id="t_title" placeholder="Сделать монтаж..." required /></label>
           <label>Описание<textarea id="t_desc" placeholder="Детали..." style="min-height:60px;"></textarea></label>
 
@@ -797,9 +798,10 @@
       form.scrollIntoView({ behavior: 'smooth' });
 
       const btn = document.getElementById('taskSubmitBtn');
+      const hiddenId = document.getElementById('task_id_hidden');
 
       if (task) {
-        selectedTaskId = task.id;
+        hiddenId.value = task.id; // Set hidden ID
         if (btn) btn.textContent = 'Сохранить';
 
         document.getElementById('t_title').value = task.title;
@@ -809,7 +811,7 @@
         document.getElementById('t_project').value = task.project_id || '';
         document.getElementById('t_assignees').value = (task.assignee_ids || []).join(', ');
       } else {
-        selectedTaskId = null;
+        hiddenId.value = ''; // Clear hidden ID
         if (btn) btn.textContent = 'Создать';
 
         // Reset form
@@ -826,7 +828,8 @@
 
     // Helper to open task from list
     function editTask(id) {
-      const t = allTasks.find(x => x.id === id);
+      // Use loose equality or string conversion to match
+      const t = allTasks.find(x => String(x.id) === String(id));
       if (t) openTaskForm(t);
     }
 
