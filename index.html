@@ -800,6 +800,8 @@
       const btn = document.getElementById('taskSubmitBtn');
       const hiddenId = document.getElementById('task_id_hidden');
 
+      // console.log('Open Task Form. Task:', task); // Debug
+
       if (task) {
         hiddenId.value = task.id; // Set hidden ID
         if (btn) btn.textContent = 'Сохранить';
@@ -853,7 +855,8 @@
 
       let error, data;
 
-      console.log('Submitting Task. HiddenID:', hiddenIdVal);
+      // console.log('Submitting Task. HiddenID:', hiddenIdVal);
+      alert('DEBUG: Submitting. Hidden ID: ' + hiddenIdVal);
 
       if (hiddenIdVal) {
         // UPDATE
