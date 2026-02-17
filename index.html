@@ -468,6 +468,20 @@
       position: relative;
     }
 
+    .day.today {
+      background: #333;
+      border: 1px solid #666;
+    }
+
+    .day.sel {
+      border: 2px solid #fff;
+    }
+
+    .day.has-pending {
+      background: rgba(255, 204, 0, 0.08);
+    }
+
+    /* Subtle yellow highlight */
     .multi-select-wrap {
       background: rgba(0, 0, 0, .18);
       border: 1px solid rgba(255, 255, 255, .12);
@@ -705,10 +719,14 @@
           </label>
 
           <div class="actions">
-            <button type="button" onclick="document.getElementById('taskForm').style.display='none'">Отмена</button>
-            <button id="taskSubmitBtn" class="primary" type="submit"
-              style="background:#ffcc00; color:#000; border:none;">Создать</button>
-          </div>
+            <div class="actions">
+              <button type="button" id="taskCopyBtn"
+                style="color:#7aa2ff; border-color:#7aa2ff; display:none;">Копировать</button>
+              <button type="button" id="taskDeleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
+              <button type="button" onclick="document.getElementById('taskForm').style.display='none'">Свернуть</button>
+              <button id="taskSubmitBtn" class="primary" type="submit"
+                style="background:#ffcc00; color:#000; border:none;">Сохранить</button>
+            </div>
         </form>
       </div>
     </div>
@@ -798,6 +816,8 @@
       form.scrollIntoView({ behavior: 'smooth' });
 
       const btn = document.getElementById('taskSubmitBtn');
+      const deleteBtn = document.getElementById('taskDeleteBtn');
+      const copyBtn = document.getElementById('taskCopyBtn');
       const hiddenId = document.getElementById('task_id_hidden');
 
       // console.log('Open Task Form. Task:', task); // Debug
@@ -805,6 +825,14 @@
       if (task) {
         hiddenId.value = task.id; // Set hidden ID
         if (btn) btn.textContent = 'Сохранить';
+        if (deleteBtn) {
+          deleteBtn.style.display = 'block';
+          deleteBtn.onclick = () => deleteTask(task.id);
+        }
+        if (copyBtn) {
+          copyBtn.style.display = 'block';
+          copyBtn.onclick = () => copyTask(task);
+        }
 
         document.getElementById('t_title').value = task.title;
         document.getElementById('t_desc').value = task.description || '';
@@ -815,6 +843,8 @@
       } else {
         hiddenId.value = ''; // Clear hidden ID
         if (btn) btn.textContent = 'Создать';
+        if (deleteBtn) deleteBtn.style.display = 'none';
+        if (copyBtn) copyBtn.style.display = 'none';
 
         // Reset form
         document.getElementById('t_project').value = '';
@@ -826,6 +856,22 @@
       }
       renderAssigneeTags();
       renderTaskProjects();
+    }
+
+    function copyTask(task) {
+      const txt = `📌 **${task.title}**\n` +
+        `📅 Дедлайн: ${task.deadline}\n` +
+        `📂 Проект: ${task.project_id || '-'}\n` +
+        `📝 Описание: ${task.description || '-'}\n` +
+        `👥 Исполнители: ${(task.assignee_ids || []).join(', ')}`;
+
+      navigator.clipboard.writeText(txt);
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+      const copyBtn = document.getElementById('taskCopyBtn');
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = "Скопировано!";
+      setTimeout(() => copyBtn.textContent = originalText, 1500);
     }
 
     // Helper to open task from list
@@ -856,7 +902,6 @@
       let error, data;
 
       // console.log('Submitting Task. HiddenID:', hiddenIdVal);
-      alert('DEBUG: Submitting. Hidden ID: ' + hiddenIdVal);
 
       if (hiddenIdVal) {
         // UPDATE
@@ -1356,10 +1401,20 @@
           linesHtml += `</div>`;
         }
 
+        // Highlight Logic
+        const isPast = iso < todayISO;
+        const hasPendingShoot = dayEvents.some(e => getStatus(e) === 'pending');
+
         const cell = document.createElement("div");
-        cell.className = "day" + (d.getMonth() !== currentMonth.getMonth() ? " out" : "") + (iso === toISO(selectedDate) ? " sel" : "") + (iso === toISO(today) ? " today" : "");
-        // Only show date number
-        cell.innerHTML = `<div class="num"><span>${d.getDate()}</span></div><div class="dots">${dotsHtml}</div>${linesHtml}`;
+        let cellClasses = "day" + (d.getMonth() !== currentMonth.getMonth() ? " out" : "") + (iso === toISO(selectedDate) ? " sel" : "") + (iso === toISO(today) ? " today" : "");
+        if (hasPendingShoot) cellClasses += " has-pending";
+
+        cell.className = cellClasses;
+
+        // Gray out past days numbers
+        const numStyle = isPast ? 'style="color:#444;"' : '';
+
+        cell.innerHTML = `<div class="num" ${numStyle}><span>${d.getDate()}</span></div><div class="dots">${dotsHtml}</div>${linesHtml}`;
         cell.onclick = () => { selectedDate = d; selectedId = null; toggleForm(false); document.getElementById('taskForm').style.display = 'none'; render(); };
         grid.appendChild(cell);
       }
