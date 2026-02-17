@@ -831,6 +831,7 @@
     }
 
     // TASK FORM SUBMIT
+    // TASK FORM SUBMIT
     document.getElementById('taskForm').onsubmit = async (e) => {
       e.preventDefault();
       const title = document.getElementById('t_title').value;
@@ -844,33 +845,35 @@
         title, description: desc, deadline, type,
         assignee_ids: assignees,
         project_id: project, // Storing project name
-        // status: 'pending' // Don't override status on edit unless logic requires
       };
-
-      if (!selectedTaskId) payload.status = 'pending';
 
       let error, data;
 
+      console.log('Submitting Task. SelectedID:', selectedTaskId); // Debug
+
       if (selectedTaskId) {
         // UPDATE
+        // Do NOT overwrite status here, it preserves existing status
         const res = await supabaseClient.from('tasks').update(payload).eq('id', selectedTaskId).select();
         error = res.error;
         data = res.data;
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
           const idx = allTasks.findIndex(x => x.id === selectedTaskId);
           if (idx !== -1) allTasks[idx] = data[0];
         }
       } else {
         // INSERT
+        payload.status = 'pending'; // Default status for new
         const res = await supabaseClient.from('tasks').insert(payload).select();
         error = res.error;
         data = res.data;
-        if (!error && data) allTasks.push(data[0]);
+        if (!error && data && data.length > 0) allTasks.push(data[0]);
       }
 
       if (!error) {
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         document.getElementById('taskForm').style.display = 'none';
+        selectedTaskId = null; // Clear ID after successful submit
         render(); // Refresh Unified View
       } else {
         alert('Error: ' + error.message);
