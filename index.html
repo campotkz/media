@@ -500,14 +500,45 @@
       opacity: 0.5;
       font-size: 10px;
     }
+
+    /* Tabs */
+    .nav-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 10px 0;
+      padding: 0 10px;
+    }
+
+    .nav-btn {
+      flex: 1;
+      max-width: 200px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--muted);
+      border-radius: 8px;
+    }
+
+    .nav-btn.active {
+      background: var(--accent-fill);
+      border-color: var(--accent-stroke);
+      color: white;
+      box-shadow: 0 0 10px rgba(122, 162, 255, 0.3);
+    }
   </style>
 </head>
 
 <body>
   <!-- ... (HTML structure identical until script) ... -->
+  <div class="nav-tabs">
+    <button class="nav-btn active" onclick="switchTab('calendar')">📅 Календарь</button>
+    <button class="nav-btn" onclick="switchTab('tasks')">✅ Задачи</button>
+  </div>
+
   <div class="wrap">
-    <div class="card">
-      <!-- ... (Calendar Card) ... -->
+    <!-- CALENDAR VIEW -->
+    <div class="card" id="calendarView">
       <div class="head">
         <div class="title">🎬 GULYWOOD ERP</div>
         <div class="seg">
@@ -538,6 +569,7 @@
       </div>
     </div>
 
+    <!-- DAY DETAILS (Linked to Calendar) -->
     <div class="card" id="dayCard">
       <div class="head">
         <div class="dayHeadGlow"></div>
@@ -585,6 +617,61 @@
         <pre id="preview">—</pre>
       </div>
     </div>
+
+    <!-- TASKS VIEW -->
+    <div class="card" id="tasksView" style="display:none">
+      <div class="head">
+        <div class="title">✅ ЗАДАЧИ</div>
+        <button class="primary" onclick="openTaskForm()">+ Новая</button>
+      </div>
+
+      <div class="side">
+        <!-- Task Filters -->
+        <div class="seg" style="margin-bottom: 15px;">
+          <button class="isActive" onclick="filterTasks('all', this)">Все</button>
+          <button onclick="filterTasks('my', this)">Мои</button>
+          <button onclick="filterTasks('due', this)">Горят 🔥</button>
+        </div>
+
+        <div class="list" id="taskListContainer" style="min-height: 200px;"></div>
+      </div>
+
+      <!-- TASK FORM (Hidden by default) -->
+      <form id="taskForm" style="display:none; padding: var(--s-4); border-top: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="margin:0 0 10px 0; font-size:14px; text-transform:uppercase; color:var(--muted2);">Новая задача</h3>
+
+        <label>Название<input id="t_title" placeholder="Сделать монтаж..." required /></label>
+        <label>Описание<textarea id="t_desc" placeholder="Детали..." style="min-height:60px;"></textarea></label>
+
+        <div class="row2">
+          <label>Дедлайн<input id="t_deadline" type="date" required /></label>
+          <label>Тип
+            <select id="t_type" class="input-style"
+              style="width:100%; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.12); color:white; padding:10px; border-radius:8px; outline:none;">
+              <option value="general">Общее</option>
+              <option value="design">Дизайн</option>
+              <option value="location">Локация</option>
+              <option value="shoot_prep">Подготовка</option>
+            </select>
+          </label>
+        </div>
+
+        <label>Исполнитель
+          <div class="multi-select-wrap" id="assigneeWrapper">
+            <div id="assigneeTags" class="tags"></div>
+            <input id="assigneeInput" placeholder="Выбрать..." autocomplete="off" />
+            <div id="assigneeDropdown" class="dropdown"></div>
+          </div>
+          <textarea id="t_assignees" style="display:none"></textarea>
+        </label>
+
+        <div class="actions">
+          <button type="button" onclick="document.getElementById('taskForm').style.display='none'">Отмена</button>
+          <button class="primary" type="submit">Создать задачу</button>
+        </div>
+      </form>
+    </div>
+
   </div>
 
   <script>
@@ -599,6 +686,8 @@
 
     // ПЕРЕМЕННЫЕ
     let allEvents = [];
+    let allTasks = []; // New
+    let currentTab = 'calendar'; // 'calendar' or 'tasks'
     let selectedDate = new Date();
     let currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
     let selectedId = null;
@@ -609,6 +698,7 @@
     const niceDate = d => d.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
     const weekday = d => d.toLocaleDateString("ru-RU", { weekday: "long" });
     const monthName = d => d.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+    const niceDateShort = d => d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }); // New helper
 
     // Helpers for Status
     const todayISO = toISO(new Date());
@@ -631,6 +721,219 @@
       gear: document.getElementById("gear"),
       notes: document.getElementById("notes"),
     };
+
+    // --- TABS LOGIC ---
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.nav-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+
+      if (tab === 'calendar') {
+        document.getElementById('calendarView').style.display = 'block';
+        document.getElementById('dayCard').style.display = 'block';
+        document.getElementById('tasksView').style.display = 'none';
+        render(); // Render calendar
+      } else {
+        document.getElementById('calendarView').style.display = 'none';
+        document.getElementById('dayCard').style.display = 'none';
+        document.getElementById('tasksView').style.display = 'block';
+        renderTasks('all');
+      }
+    }
+
+    // --- TASK LOGIC ---
+    let currentTaskFilter = 'all';
+
+    function renderTasks(filter) {
+      if (filter) currentTaskFilter = filter;
+      const list = document.getElementById('taskListContainer');
+      list.innerHTML = '';
+
+      // Update filter UI
+      document.querySelectorAll('#tasksView .seg button').forEach(b => {
+        b.classList.remove('isActive');
+        if (b.textContent.includes(filter === 'all' ? 'Все' : filter === 'my' ? 'Мои' : 'Горят')) b.classList.add('isActive');
+      });
+
+      let displayedTasks = allTasks.filter(t => {
+        if (currentTaskFilter === 'due') return t.status !== 'done' && t.deadline < todayISO;
+        // TODO: Implement 'my' filter when we have user context (tg.initDataUnsafe.user.id)
+        // For now 'my' just shows all or maybe pending
+        if (currentTaskFilter === 'my') return t.status !== 'done';
+        return true;
+      });
+
+      // Sort by deadline
+      displayedTasks.sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
+
+      if (!displayedTasks.length) {
+        list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">Нет задач</div>';
+        return;
+      }
+
+      displayedTasks.forEach(t => {
+        const div = document.createElement('div');
+        div.className = `item ${t.status === 'done' ? 'done' : (t.deadline < todayISO ? 'overdue' : 'pending')}`;
+
+        // Avatars (Initials) from Assignees
+        let avatars = '';
+        if (t.assignee_ids && t.assignee_ids.length) {
+          avatars = `<div style="display:flex; margin-top:5px;">`;
+          t.assignee_ids.forEach(name => {
+            // Use first letter as avatar
+            const initial = name.charAt(0).toUpperCase();
+            avatars += `<div style="width:24px; height:24px; background:rgba(255,255,255,0.1); border-radius:50%; display:flex; 
+                 align-items:center; justify-content:center; font-size:10px; margin-right:-5px; border:1px solid #101116;">${initial}</div>`;
+          });
+          avatars += `</div>`;
+        }
+
+        let btn = t.status === 'done'
+          ? `<button class="icon-btn" onclick="toggleTaskStatus('${t.id}', 'pending')">↩️</button>`
+          : `<button class="icon-btn done-btn" onclick="toggleTaskStatus('${t.id}', 'done')">✅</button>`;
+
+        div.innerHTML = `
+            <div class="item-content">
+               <div style="font-size:10px; opacity:0.6; text-transform:uppercase; margin-bottom:2px;">
+                 ${t.deadline ? niceDateShort(new Date(t.deadline)) : 'Без срока'} • ${t.type}
+               </div>
+               <b>${t.title}</b>
+               ${t.description ? `<div style="font-size:12px; opacity:0.8; margin-top:2px;">${t.description}</div>` : ''}
+               ${avatars}
+            </div>
+            <div class="item-actions">
+               ${btn}
+               <button class="icon-btn resched-btn" onclick="deleteTask('${t.id}')">🗑</button>
+            </div>
+         `;
+        list.appendChild(div);
+      });
+    }
+
+    async function toggleTaskStatus(id, status) {
+      // Optimistic
+      const t = allTasks.find(x => x.id === id);
+      if (t) t.status = status;
+      renderTasks();
+
+      await supabaseClient.from('tasks').update({ status }).eq('id', id);
+    }
+
+    async function deleteTask(id) {
+      if (!confirm('Удалить задачу?')) return;
+      // Optimistic
+      allTasks = allTasks.filter(x => x.id !== id);
+      renderTasks();
+      await supabaseClient.from('tasks').delete().eq('id', id);
+    }
+
+    function openTaskForm() {
+      document.getElementById('taskForm').style.display = 'block';
+      document.getElementById('taskForm').scrollIntoView();
+      // Reset form
+      document.getElementById('t_title').value = '';
+      document.getElementById('t_desc').value = '';
+      document.getElementById('t_deadline').value = toISO(new Date());
+      document.getElementById('t_assignees').value = '';
+      renderAssigneeTags();
+    }
+
+    function filterTasks(type, btn) {
+      renderTasks(type);
+    }
+
+    // --- ASSIGNEE LOGIC (Reusing Team Data) ---
+    const assInput = document.getElementById('assigneeInput');
+    const assDropdown = document.getElementById('assigneeDropdown');
+    const assTags = document.getElementById('assigneeTags');
+    const assHidden = document.getElementById('t_assignees');
+
+    function renderAssigneeTags() {
+      const val = assHidden.value;
+      // Storing as JSON string in hidden input for simplicity, or just comma separated?
+      // Let's use comma separated names for UI, matching crew logic
+      const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
+      assTags.innerHTML = '';
+      names.forEach(name => {
+        const tag = document.createElement('div');
+        tag.className = 'tag';
+        tag.innerHTML = `<span>${name}</span> <span class="tag-remove">×</span>`;
+        tag.querySelector('.tag-remove').onclick = () => {
+          const newNames = names.filter(n => n !== name);
+          assHidden.value = newNames.join(', ');
+          renderAssigneeTags();
+        };
+        assTags.appendChild(tag);
+      });
+    }
+
+    function addAssignee(name) {
+      const val = assHidden.value;
+      const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
+      if (!names.includes(name)) {
+        names.push(name);
+        assHidden.value = names.join(', ');
+        renderAssigneeTags();
+      }
+      assInput.value = '';
+      assDropdown.style.display = 'none';
+    }
+
+    function renderAssigneeDropdown() {
+      const val = assInput.value.toLowerCase();
+      assDropdown.innerHTML = '';
+      let matches = val
+        ? teamData.filter(t => (t.full_name && t.full_name.toLowerCase().includes(val)) || (t.username && t.username.toLowerCase().includes(val)))
+        : teamData;
+      matches = matches.slice(0, 50);
+
+      if (!matches.length) { assDropdown.style.display = 'none'; return; }
+      matches.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.innerHTML = `${t.full_name}`;
+        div.onclick = () => addAssignee(t.full_name);
+        assDropdown.appendChild(div);
+      });
+      assDropdown.style.display = 'block';
+    }
+
+    assInput.addEventListener('input', renderAssigneeDropdown);
+    assInput.addEventListener('focus', renderAssigneeDropdown);
+    assInput.addEventListener('click', (e) => { e.stopPropagation(); renderAssigneeDropdown(); });
+    // Wrapper click
+    document.getElementById('assigneeWrapper').onclick = (e) => {
+      if (e.target === document.getElementById('assigneeWrapper')) assInput.focus();
+    };
+
+    // TASK FORM SUBMIT
+    document.getElementById('taskForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('t_title').value;
+      const desc = document.getElementById('t_desc').value;
+      const deadline = document.getElementById('t_deadline').value;
+      const type = document.getElementById('t_type').value;
+      const assignees = document.getElementById('t_assignees').value.split(',').map(s => s.trim()).filter(s => s);
+
+      const payload = {
+        title, description: desc, deadline, type,
+        assignee_ids: assignees, // Storing names as array
+        status: 'pending'
+      };
+
+      const { data, error } = await supabaseClient.from('tasks').insert(payload).select();
+
+      if (!error) {
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        document.getElementById('taskForm').style.display = 'none';
+        // Add locally and render (or reload)
+        allTasks.push(data[0]);
+        renderTasks();
+      } else {
+        alert('Error: ' + error.message);
+      }
+    };
+
 
     // --- AUTOCOMPLETE LOGIC ---
     let clientsData = [];
@@ -786,17 +1089,27 @@
       if (e.target === document.getElementById('crewWrapper')) crewInput.focus();
     };
 
+
+
+
+
+
+
     // 2. ЗАГРУЗКА ИЗ ОБЛАКА
     async function loadFromCloud() {
       await fetchAutocompleteData();
       try {
-        const { data, error } = await supabaseClient.from('shoots').select('*');
-        if (!error) {
-          allEvents = data || [];
-          render();
-        } else {
-          console.error("Supabase Error:", error);
-        }
+        // Fetch Shoots
+        const shoots = await supabaseClient.from('shoots').select('*');
+        if (shoots.data) allEvents = shoots.data;
+
+        // Fetch Tasks (New)
+        const tasks = await supabaseClient.from('tasks').select('*');
+        if (tasks.data) allTasks = tasks.data;
+
+        if (currentTab === 'calendar') render();
+        else renderTasks(); // Render if on tasks tab
+
       } catch (err) { console.error("Network/Other Error:", err); }
     }
 
