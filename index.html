@@ -693,6 +693,7 @@
             </div>
           </label>
           <input type="hidden" id="task_id_hidden">
+          <!-- <small id="debug_id_disp" style="color:gray; font-size:10px; display:block;">ID: -</small> -->
           <label>Название<input id="t_title" placeholder="Сделать монтаж..." required /></label>
           <label>Описание<textarea id="t_desc" placeholder="Детали..." style="min-height:60px;"></textarea></label>
 
@@ -824,6 +825,9 @@
 
       if (task) {
         hiddenId.value = task.id; // Set hidden ID
+        form.style.borderColor = '#ffcc00'; // Yellow/Red border for EDIT
+        document.querySelector('#taskForm h3').textContent = 'РЕДАКТИРОВАНИЕ ЗАДАЧИ';
+        // document.getElementById('debug_id_disp').textContent = 'ID: ' + task.id; // Visible Debug
         if (btn) btn.textContent = 'Сохранить';
         if (deleteBtn) {
           deleteBtn.style.display = 'block';
@@ -842,6 +846,8 @@
         document.getElementById('t_assignees').value = (task.assignee_ids || []).join(', ');
       } else {
         hiddenId.value = ''; // Clear hidden ID
+        form.style.borderColor = 'rgba(255, 204, 0, 0.3)'; // Default border
+        document.querySelector('#taskForm h3').textContent = 'НОВАЯ ЗАДАЧА';
         if (btn) btn.textContent = 'Создать';
         if (deleteBtn) deleteBtn.style.display = 'none';
         if (copyBtn) copyBtn.style.display = 'none';
