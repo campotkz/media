@@ -796,29 +796,32 @@
       form.style.display = 'block';
       form.scrollIntoView({ behavior: 'smooth' });
 
+      const btn = document.getElementById('taskSubmitBtn');
+
       if (task) {
         selectedTaskId = task.id;
+        if (btn) btn.textContent = 'Сохранить';
+
         document.getElementById('t_title').value = task.title;
         document.getElementById('t_desc').value = task.description || '';
         document.getElementById('t_deadline').value = task.deadline || toISO(new Date());
         document.getElementById('t_type').value = task.type || 'general';
-        document.getElementById('t_project').value = task.project_id || ''; // Using project name in project_id field based on earlier logic
+        document.getElementById('t_project').value = task.project_id || '';
         document.getElementById('t_assignees').value = (task.assignee_ids || []).join(', ');
-
-        // Show delete button
-        // document.getElementById('taskDeleteBtn').style.display = 'block'; // If we add one
       } else {
         selectedTaskId = null;
+        if (btn) btn.textContent = 'Создать';
+
         // Reset form
         document.getElementById('t_project').value = '';
         document.getElementById('t_title').value = '';
         document.getElementById('t_desc').value = '';
-        document.getElementById('t_deadline').value = toISO(selectedDate); // Default to selected date
+        document.getElementById('t_deadline').value = toISO(selectedDate);
         document.getElementById('t_type').value = 'general';
         document.getElementById('t_assignees').value = '';
       }
       renderAssigneeTags();
-      renderTaskProjects(); // Reset dropdown
+      renderTaskProjects();
     }
 
     // Helper to open task from list
@@ -1151,11 +1154,8 @@
       }
     });
 
-    // Mouseleave logic for dropdowns
-    document.getElementById('crewWrapper').onmouseleave = () => crewDropdown.style.display = 'none';
-    document.getElementById('assigneeWrapper').onmouseleave = () => assDropdown.style.display = 'none';
-    document.querySelector('#project').parentElement.onmouseleave = () => projDropdown.style.display = 'none';
-    document.querySelector('#t_project').parentElement.onmouseleave = () => tProjDropdown.style.display = 'none';
+    // Mouseleave logic REMOVED due to UX issues (closing too fast).
+    // relying on click-outside (implemented above) for closing.
 
     // Focus wrapper clicks
     document.getElementById('crewWrapper').onclick = (e) => {
@@ -1311,16 +1311,37 @@
         });
 
         // Line Logic (Tasks)
-        // Check if day has tasks? Tasks have deadline.
-        // We only show lines for tasks with deadline === iso
-        const dayTasks = allTasks.filter(t => t.deadline === iso && t.status !== 'done');
+        const dayTasks = allTasks.filter(t => {
+          if (t.status === 'done') return false;
+          if (!t.deadline) return false;
+
+          // Startdate: created_at or fallback to deadline if missing
+          // We want to show line from start to deadline
+          // If created_at is missing, we assume it's a single day task (deadline)
+          let start = t.created_at ? t.created_at.split('T')[0] : t.deadline;
+          if (start > t.deadline) start = t.deadline; // Safety
+
+          return iso >= start && iso <= t.deadline;
+        });
+
         let linesHtml = "";
         if (dayTasks.length > 0) {
           linesHtml += `<div class="task-lines">`;
           dayTasks.forEach(t => {
-            // Simple line
-            // const color = t.status === 'done' ? '#4cd964' : (t.deadline < todayISO ? '#ff3b30' : '#ffcc00');
-            linesHtml += `<div class="task-line ${t.deadline < todayISO ? 'overdue' : 'pending'}"></div>`;
+            const start = t.created_at ? t.created_at.split('T')[0] : t.deadline;
+            const isStart = (start === iso);
+            const isEnd = (t.deadline === iso);
+
+            // Style for rounded ends
+            let style = '';
+            // If single day
+            if (isStart && isEnd) { style = 'border-radius: 2px;'; }
+            else if (isStart) { style = 'border-radius: 2px 0 0 2px; margin-right:-4px;'; }
+            else if (isEnd) { style = 'border-radius: 0 2px 2px 0; margin-left:-4px;'; }
+            else { style = 'border-radius: 0; margin: 0 -4px;'; }
+
+            const stClass = (t.deadline < todayISO) ? 'overdue' : 'pending';
+            linesHtml += `<div class="task-line ${stClass}" style="${style}"></div>`;
           });
           linesHtml += `</div>`;
         }
