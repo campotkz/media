@@ -175,7 +175,7 @@ def handle_rename(message):
     except Exception as e:
         bot.reply_to(message, f"Ошибка сохранения: {e}")
 
-@bot.message_handler(content_types=['text'])
+@bot.message_handler(content_types=['audio', 'photo', 'voice', 'video', 'document', 'text', 'location', 'contact', 'sticker'])
 def handle_text(message):
     try:
         # 1. Team Discovery
