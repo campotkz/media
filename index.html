@@ -56,8 +56,11 @@
       --ease: cubic-bezier(.2, .8, .2, 1);
     }
 
-    * {
+    *,
+    *::before,
+    *::after {
       box-sizing: border-box;
+      font-family: inherit;
     }
 
     html {
@@ -66,15 +69,9 @@
 
     body {
       margin: 0;
-      font-family: var(--font-sans);
       color: var(--text);
-      font-size: var(--fs-body);
-      line-height: var(--lh-normal);
-      letter-spacing: -0.01em;
-      -webkit-font-smoothing: antialiased;
-      font-variant-numeric: tabular-nums;
-      background: radial-gradient(900px 650px at 20% 15%, rgba(122, 162, 255, .25) 0%, rgba(122, 162, 255, 0) 58%), radial-gradient(900px 650px at 85% 25%, rgba(255, 204, 102, .18) 0%, rgba(255, 204, 102, 0) 60%), radial-gradient(1100px 900px at 60% 82%, rgba(168, 106, 255, .16) 0%, rgba(168, 106, 255, 0) 62%), linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
-      min-height: 100vh;
+      background: #101116;
+      font-family: var(--font-sans);
       overflow-x: hidden;
     }
 
@@ -320,6 +317,11 @@
 
     .icon-btn:hover {
       background: rgba(255, 255, 255, 0.2);
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: rgba(122, 162, 255, .50);
     }
 
     .icon-btn.done-btn {
