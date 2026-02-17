@@ -640,6 +640,12 @@
       <form id="taskForm" style="display:none; padding: var(--s-4); border-top: 1px solid rgba(255,255,255,0.1);">
         <h3 style="margin:0 0 10px 0; font-size:14px; text-transform:uppercase; color:var(--muted2);">Новая задача</h3>
 
+        <label>Проект
+          <div class="input-wrap">
+            <input id="t_project" placeholder="Найти..." autocomplete="off">
+            <div id="t_projectDropdown" class="dropdown"></div>
+          </div>
+        </label>
         <label>Название<input id="t_title" placeholder="Сделать монтаж..." required /></label>
         <label>Описание<textarea id="t_desc" placeholder="Детали..." style="min-height:60px;"></textarea></label>
 
@@ -831,6 +837,7 @@
       document.getElementById('taskForm').style.display = 'block';
       document.getElementById('taskForm').scrollIntoView();
       // Reset form
+      document.getElementById('t_project').value = ''; // Reset project
       document.getElementById('t_title').value = '';
       document.getElementById('t_desc').value = '';
       document.getElementById('t_deadline').value = toISO(new Date());
@@ -841,6 +848,33 @@
     function filterTasks(type, btn) {
       renderTasks(type);
     }
+
+    // --- PROJECT LOGIC ---
+    const tProjInput = document.getElementById('t_project');
+    const tProjDropdown = document.getElementById('t_projectDropdown');
+
+    function renderTaskProjects() {
+      const val = tProjInput.value.toLowerCase();
+      tProjDropdown.innerHTML = '';
+      const matches = val
+        ? clientsData.filter(c => c.name.toLowerCase().includes(val))
+        : clientsData;
+
+      if (!matches.length) { tProjDropdown.style.display = 'none'; return; }
+
+      matches.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.textContent = c.name;
+        div.onclick = () => { tProjInput.value = c.name; tProjDropdown.style.display = 'none'; };
+        tProjDropdown.appendChild(div);
+      });
+      tProjDropdown.style.display = 'block';
+    }
+
+    tProjInput.addEventListener('input', renderTaskProjects);
+    tProjInput.addEventListener('focus', renderTaskProjects);
+    tProjInput.addEventListener('click', (e) => { e.stopPropagation(); renderTaskProjects(); });
 
     // --- ASSIGNEE LOGIC (Reusing Team Data) ---
     const assInput = document.getElementById('assigneeInput');
@@ -914,10 +948,12 @@
       const deadline = document.getElementById('t_deadline').value;
       const type = document.getElementById('t_type').value;
       const assignees = document.getElementById('t_assignees').value.split(',').map(s => s.trim()).filter(s => s);
+      const project = document.getElementById('t_project').value.trim() || null;
 
       const payload = {
         title, description: desc, deadline, type,
-        assignee_ids: assignees, // Storing names as array
+        assignee_ids: assignees,
+        project_id: project, // Storing project name
         status: 'pending'
       };
 
@@ -1080,7 +1116,10 @@
     };
 
     document.addEventListener('click', (e) => {
-      if (!e.target.closest('.input-wrap')) projDropdown.style.display = 'none';
+      if (!e.target.closest('.input-wrap')) {
+        projDropdown.style.display = 'none';
+        tProjDropdown.style.display = 'none';
+      }
       if (!e.target.closest('.multi-select-wrap')) crewDropdown.style.display = 'none';
     });
 
