@@ -248,7 +248,58 @@
 
     .dot.pending {
       background: #ffcc00;
+      box-shadow: 0 0 4px rgba(255, 204, 0, 0.6);
     }
+
+    .task-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-top: 4px;
+    }
+
+    .task-line {
+      height: 3px;
+      border-radius: 2px;
+      width: 100%;
+      opacity: 0.8;
+    }
+
+    .task-line.done {
+      background: #4cd964;
+    }
+
+    .task-line.pending {
+      background: #ffcc00;
+    }
+
+    .task-line.overdue {
+      background: #ff3b30;
+    }
+
+    /* Unified Header Buttons */
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .mini-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .mini-btn.task-btn {
+      color: #ffcc00;
+      background: rgba(255, 204, 0, 0.1);
+    }
+
 
     .dot.overdue {
       background: #ff3b30;
@@ -615,68 +666,52 @@
           </div>
         </form>
         <pre id="preview">—</pre>
-      </div>
-    </div>
 
-    <!-- TASKS VIEW -->
-    <div class="card" id="tasksView" style="display:none">
-      <div class="head">
-        <div class="title">✅ ЗАДАЧИ</div>
-        <button class="primary" onclick="openTaskForm()">+ Новая</button>
-      </div>
+        <!-- TASK FORM (Moved here) -->
+        <form id="taskForm"
+          style="display:none; padding: var(--s-3); margin-top:10px; border-radius:8px; border: 1px solid rgba(255, 204, 0, 0.3); background: rgba(255, 204, 0, 0.05);">
+          <h3 style="margin:0 0 10px 0; font-size:14px; text-transform:uppercase; color:#ffcc00;">Новая задача</h3>
 
-      <div class="side">
-        <!-- Task Filters -->
-        <div class="seg" style="margin-bottom: 15px;">
-          <button class="isActive" onclick="filterTasks('all', this)">Все</button>
-          <button onclick="filterTasks('my', this)">Мои</button>
-          <button onclick="filterTasks('due', this)">Горят 🔥</button>
-        </div>
-
-        <div class="list" id="taskListContainer" style="min-height: 200px;"></div>
-      </div>
-
-      <!-- TASK FORM (Hidden by default) -->
-      <form id="taskForm" style="display:none; padding: var(--s-4); border-top: 1px solid rgba(255,255,255,0.1);">
-        <h3 style="margin:0 0 10px 0; font-size:14px; text-transform:uppercase; color:var(--muted2);">Новая задача</h3>
-
-        <label>Проект
-          <div class="input-wrap">
-            <input id="t_project" placeholder="Найти..." autocomplete="off">
-            <div id="t_projectDropdown" class="dropdown"></div>
-          </div>
-        </label>
-        <label>Название<input id="t_title" placeholder="Сделать монтаж..." required /></label>
-        <label>Описание<textarea id="t_desc" placeholder="Детали..." style="min-height:60px;"></textarea></label>
-
-        <div class="row2">
-          <label>Дедлайн<input id="t_deadline" type="date" required /></label>
-          <label>Тип
-            <select id="t_type" class="input-style"
-              style="width:100%; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.12); color:white; padding:10px; border-radius:8px; outline:none;">
-              <option value="general">Общее</option>
-              <option value="design">Дизайн</option>
-              <option value="location">Локация</option>
-              <option value="shoot_prep">Подготовка</option>
-            </select>
+          <label>Проект
+            <div class="input-wrap">
+              <input id="t_project" placeholder="Найти..." autocomplete="off">
+              <div id="t_projectDropdown" class="dropdown"></div>
+            </div>
           </label>
-        </div>
+          <label>Название<input id="t_title" placeholder="Сделать монтаж..." required /></label>
+          <label>Описание<textarea id="t_desc" placeholder="Детали..." style="min-height:60px;"></textarea></label>
 
-        <label>Исполнитель
-          <div class="multi-select-wrap" id="assigneeWrapper">
-            <div id="assigneeTags" class="tags"></div>
-            <input id="assigneeInput" placeholder="Выбрать..." autocomplete="off" />
-            <div id="assigneeDropdown" class="dropdown"></div>
+          <div class="row2">
+            <label>Дедлайн<input id="t_deadline" type="date" required /></label>
+            <label>Тип
+              <select id="t_type" class="input-style"
+                style="width:100%; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.12); color:white; padding:10px; border-radius:8px; outline:none;">
+                <option value="general">Общее</option>
+                <option value="design">Дизайн</option>
+                <option value="location">Локация</option>
+                <option value="shoot_prep">Подготовка</option>
+              </select>
+            </label>
           </div>
-          <textarea id="t_assignees" style="display:none"></textarea>
-        </label>
 
-        <div class="actions">
-          <button type="button" onclick="document.getElementById('taskForm').style.display='none'">Отмена</button>
-          <button class="primary" type="submit">Создать задачу</button>
-        </div>
-      </form>
+          <label>Исполнитель
+            <div class="multi-select-wrap" id="assigneeWrapper">
+              <div id="assigneeTags" class="tags"></div>
+              <input id="assigneeInput" placeholder="Выбрать..." autocomplete="off" />
+              <div id="assigneeDropdown" class="dropdown"></div>
+            </div>
+            <textarea id="t_assignees" style="display:none"></textarea>
+          </label>
+
+          <div class="actions">
+            <button type="button" onclick="document.getElementById('taskForm').style.display='none'">Отмена</button>
+            <button class="primary" type="submit" style="background:#ffcc00; color:#000; border:none;">Создать</button>
+          </div>
+        </form>
+      </div>
     </div>
+
+
 
   </div>
 
@@ -728,99 +763,17 @@
       notes: document.getElementById("notes"),
     };
 
-    // --- TABS LOGIC ---
-    function switchTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      document.querySelector(`.nav-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
-
-      if (tab === 'calendar') {
-        document.getElementById('calendarView').style.display = 'block';
-        document.getElementById('dayCard').style.display = 'block';
-        document.getElementById('tasksView').style.display = 'none';
-        render(); // Render calendar
-      } else {
-        document.getElementById('calendarView').style.display = 'none';
-        document.getElementById('dayCard').style.display = 'none';
-        document.getElementById('tasksView').style.display = 'block';
-        renderTasks('all');
-      }
-    }
+    // --- TABS LOGIC REMOVED (Unified View) ---
+    // function switchTab(tab) { ... }
 
     // --- TASK LOGIC ---
-    let currentTaskFilter = 'all';
 
-    function renderTasks(filter) {
-      if (filter) currentTaskFilter = filter;
-      const list = document.getElementById('taskListContainer');
-      list.innerHTML = '';
-
-      // Update filter UI
-      document.querySelectorAll('#tasksView .seg button').forEach(b => {
-        b.classList.remove('isActive');
-        if (b.textContent.includes(filter === 'all' ? 'Все' : filter === 'my' ? 'Мои' : 'Горят')) b.classList.add('isActive');
-      });
-
-      let displayedTasks = allTasks.filter(t => {
-        if (currentTaskFilter === 'due') return t.status !== 'done' && t.deadline < todayISO;
-        // TODO: Implement 'my' filter when we have user context (tg.initDataUnsafe.user.id)
-        // For now 'my' just shows all or maybe pending
-        if (currentTaskFilter === 'my') return t.status !== 'done';
-        return true;
-      });
-
-      // Sort by deadline
-      displayedTasks.sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
-
-      if (!displayedTasks.length) {
-        list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">Нет задач</div>';
-        return;
-      }
-
-      displayedTasks.forEach(t => {
-        const div = document.createElement('div');
-        div.className = `item ${t.status === 'done' ? 'done' : (t.deadline < todayISO ? 'overdue' : 'pending')}`;
-
-        // Avatars (Initials) from Assignees
-        let avatars = '';
-        if (t.assignee_ids && t.assignee_ids.length) {
-          avatars = `<div style="display:flex; margin-top:5px;">`;
-          t.assignee_ids.forEach(name => {
-            // Use first letter as avatar
-            const initial = name.charAt(0).toUpperCase();
-            avatars += `<div style="width:24px; height:24px; background:rgba(255,255,255,0.1); border-radius:50%; display:flex; 
-                 align-items:center; justify-content:center; font-size:10px; margin-right:-5px; border:1px solid #101116;">${initial}</div>`;
-          });
-          avatars += `</div>`;
-        }
-
-        let btn = t.status === 'done'
-          ? `<button class="icon-btn" onclick="toggleTaskStatus('${t.id}', 'pending')">↩️</button>`
-          : `<button class="icon-btn done-btn" onclick="toggleTaskStatus('${t.id}', 'done')">✅</button>`;
-
-        div.innerHTML = `
-            <div class="item-content">
-               <div style="font-size:10px; opacity:0.6; text-transform:uppercase; margin-bottom:2px;">
-                 ${t.deadline ? niceDateShort(new Date(t.deadline)) : 'Без срока'} • ${t.type}
-               </div>
-               <b>${t.title}</b>
-               ${t.description ? `<div style="font-size:12px; opacity:0.8; margin-top:2px;">${t.description}</div>` : ''}
-               ${avatars}
-            </div>
-            <div class="item-actions">
-               ${btn}
-               <button class="icon-btn resched-btn" onclick="deleteTask('${t.id}')">🗑</button>
-            </div>
-         `;
-        list.appendChild(div);
-      });
-    }
 
     async function toggleTaskStatus(id, status) {
       // Optimistic
       const t = allTasks.find(x => x.id === id);
       if (t) t.status = status;
-      renderTasks();
+      render(); // Refresh calendar view
 
       await supabaseClient.from('tasks').update({ status }).eq('id', id);
     }
@@ -829,24 +782,23 @@
       if (!confirm('Удалить задачу?')) return;
       // Optimistic
       allTasks = allTasks.filter(x => x.id !== id);
-      renderTasks();
+      render();
       await supabaseClient.from('tasks').delete().eq('id', id);
     }
 
     function openTaskForm() {
+      // Close shoot form if open
+      toggleForm(false);
       document.getElementById('taskForm').style.display = 'block';
-      document.getElementById('taskForm').scrollIntoView();
+      document.getElementById('taskForm').scrollIntoView({ behavior: 'smooth' });
+
       // Reset form
-      document.getElementById('t_project').value = ''; // Reset project
+      document.getElementById('t_project').value = '';
       document.getElementById('t_title').value = '';
       document.getElementById('t_desc').value = '';
-      document.getElementById('t_deadline').value = toISO(new Date());
+      document.getElementById('t_deadline').value = toISO(selectedDate); // Default to selected date
       document.getElementById('t_assignees').value = '';
       renderAssigneeTags();
-    }
-
-    function filterTasks(type, btn) {
-      renderTasks(type);
     }
 
     // --- PROJECT LOGIC ---
@@ -964,7 +916,7 @@
         document.getElementById('taskForm').style.display = 'none';
         // Add locally and render (or reload)
         allTasks.push(data[0]);
-        renderTasks();
+        render(); // Refresh Unified View
       } else {
         alert('Error: ' + error.message);
       }
@@ -1120,8 +1072,17 @@
         projDropdown.style.display = 'none';
         tProjDropdown.style.display = 'none';
       }
-      if (!e.target.closest('.multi-select-wrap')) crewDropdown.style.display = 'none';
+      if (!e.target.closest('.multi-select-wrap')) {
+        crewDropdown.style.display = 'none';
+        assDropdown.style.display = 'none';
+      }
     });
+
+    // Mouseleave logic for dropdowns
+    document.getElementById('crewWrapper').onmouseleave = () => crewDropdown.style.display = 'none';
+    document.getElementById('assigneeWrapper').onmouseleave = () => assDropdown.style.display = 'none';
+    document.querySelector('#project').parentElement.onmouseleave = () => projDropdown.style.display = 'none';
+    document.querySelector('#t_project').parentElement.onmouseleave = () => tProjDropdown.style.display = 'none';
 
     // Focus wrapper clicks
     document.getElementById('crewWrapper').onclick = (e) => {
@@ -1146,8 +1107,7 @@
         const tasks = await supabaseClient.from('tasks').select('*');
         if (tasks.data) allTasks = tasks.data;
 
-        if (currentTab === 'calendar') render();
-        else renderTasks(); // Render if on tasks tab
+        render();
 
       } catch (err) { console.error("Network/Other Error:", err); }
     }
@@ -1269,7 +1229,7 @@
         d.setDate(start.getDate() + i);
         const iso = toISO(d);
 
-        // Dot Logic
+        // Dot Logic (Shoots)
         const dayEvents = allEvents.filter(e => e.date === iso);
         let dotsHtml = "";
         dayEvents.forEach(e => {
@@ -1277,59 +1237,94 @@
           dotsHtml += `<div class="dot ${st}"></div>`;
         });
 
+        // Line Logic (Tasks)
+        // Check if day has tasks? Tasks have deadline.
+        // We only show lines for tasks with deadline === iso
+        const dayTasks = allTasks.filter(t => t.deadline === iso && t.status !== 'done');
+        let linesHtml = "";
+        if (dayTasks.length > 0) {
+          linesHtml += `<div class="task-lines">`;
+          dayTasks.forEach(t => {
+            // Simple line
+            // const color = t.status === 'done' ? '#4cd964' : (t.deadline < todayISO ? '#ff3b30' : '#ffcc00');
+            linesHtml += `<div class="task-line ${t.deadline < todayISO ? 'overdue' : 'pending'}"></div>`;
+          });
+          linesHtml += `</div>`;
+        }
+
         const cell = document.createElement("div");
         cell.className = "day" + (d.getMonth() !== currentMonth.getMonth() ? " out" : "") + (iso === toISO(selectedDate) ? " sel" : "") + (iso === toISO(today) ? " today" : "");
         // Only show date number
-        cell.innerHTML = `<div class="num"><span>${d.getDate()}</span></div><div class="dots">${dotsHtml}</div>`;
-        cell.onclick = () => { selectedDate = d; selectedId = null; toggleForm(false); render(); };
+        cell.innerHTML = `<div class="num"><span>${d.getDate()}</span></div><div class="dots">${dotsHtml}</div>${linesHtml}`;
+        cell.onclick = () => { selectedDate = d; selectedId = null; toggleForm(false); document.getElementById('taskForm').style.display = 'none'; render(); };
         grid.appendChild(cell);
       }
 
-      // Список проектов дня
+      // Список проектов дня (Shoots + Tasks)
       const listDiv = document.getElementById("eventList");
-      const dayList = allEvents.filter(e => e.date === toISO(selectedDate)).sort((a, b) => a.callTime.localeCompare(b.callTime));
-      listDiv.innerHTML = dayList.length ? "" : '<div class="item" style="color:gray">Нет съёмок</div>';
+      const dayShoots = allEvents.filter(e => e.date === toISO(selectedDate)).sort((a, b) => a.callTime.localeCompare(b.callTime));
+      const dayTasksList = allTasks.filter(t => t.deadline === toISO(selectedDate)); // Show done too? Maybe.
 
-      dayList.forEach(e => {
+      let html = "";
+      if (!dayShoots.length && !dayTasksList.length) html = '<div class="item" style="color:gray">Нет событий</div>';
+
+      // Render Shoots
+      dayShoots.forEach(e => {
         const st = getStatus(e);
-        const item = document.createElement("div");
-        item.className = `item ${st}`;
-
-        // Buttons
+        // ... (Buttons logic same as before)
         let buttons = "";
-        if (st === 'pending' || st === 'overdue') {
-          buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'done')">✅</button>`;
-        }
-        if (st === 'done') {
-          buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'pending')">↩️</button>`;
-        }
-        if (st === 'overdue') {
-          buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); rescheduleTask('${e.id}')">📅</button>`;
-        }
+        if (st === 'pending' || st === 'overdue') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'done')">✅</button>`;
+        if (st === 'done') buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'pending')">↩️</button>`;
+        if (st === 'overdue') buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); rescheduleTask('${e.id}')">📅</button>`;
 
-        item.innerHTML = `
-            <div class="item-content">
-                <b>${e.project || "Без названия"}</b><br>
-                <small>${e.callTime || "--:--"} • ${e.location || ""}</small>
+        html += `
+            <div class="item ${st}" onclick="editShoot('${e.id}')">
+                <div class="item-content">
+                    <b>${e.project || "Без названия"}</b><br>
+                    <small>🎥 ${e.callTime || "--:--"} • ${e.location || ""}</small>
+                </div>
+                <div class="item-actions">${buttons}</div>
             </div>
-            <div class="item-actions">${buttons}</div>
         `;
-
-        item.onclick = () => {
-          selectedId = e.id;
-          f.project.value = e.project; f.location.value = e.location;
-          f.callTime.value = e.callTime; f.wrapTime.value = e.wrapTime;
-          f.address.value = e.address; f.contact.value = e.contact;
-          f.deliverables.value = e.deliverables; f.crew.value = e.crew;
-          f.schedule.value = e.schedule; f.gear.value = e.gear; f.notes.value = e.notes;
-          renderCrewTags(); // Init tags
-          document.getElementById("deleteBtn").style.display = "block";
-          toggleForm(true);
-        };
-        listDiv.appendChild(item);
       });
 
+      // Render Tasks
+      dayTasksList.forEach(t => {
+        const st = t.status === 'done' ? 'done' : (t.deadline < todayISO ? 'overdue' : 'pending');
+        // Task Buttons
+        let buttons = "";
+        if (t.status !== 'done') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'done')">✅</button>`;
+        else buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'pending')">↩️</button>`;
+        buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); deleteTask('${t.id}')">🗑</button>`;
+
+        html += `
+            <div class="item ${st}" style="border-left: 2px solid ${st === 'done' ? '#4cd964' : '#ffcc00'};">
+                <div class="item-content">
+                    <b>${t.title}</b><br>
+                    <small>📌 ${t.project ? t.project + ' • ' : ''}${t.type}</small>
+                </div>
+                <div class="item-actions">${buttons}</div>
+            </div>
+         `;
+      });
+
+      listDiv.innerHTML = html;
       document.getElementById("preview").textContent = buildExportText();
+    }
+
+    // Helper to edit shoot (since we construct HTML string)
+    function editShoot(id) {
+      const e = allEvents.find(x => x.id === id);
+      if (!e) return;
+      selectedId = e.id;
+      f.project.value = e.project; f.location.value = e.location;
+      f.callTime.value = e.callTime; f.wrapTime.value = e.wrapTime;
+      f.address.value = e.address; f.contact.value = e.contact;
+      f.deliverables.value = e.deliverables; f.crew.value = e.crew;
+      f.schedule.value = e.schedule; f.gear.value = e.gear; f.notes.value = e.notes;
+      renderCrewTags();
+      document.getElementById("deleteBtn").style.display = "block";
+      toggleForm(true);
     }
 
     // ... (rest of helper functions: buildExportText, toggleForm, etc.) ...
@@ -1379,7 +1374,22 @@
     // Init
     document.getElementById("form").style.display = "none";
     render();
-    loadFromCloud();
+    // 2. ЗАГРУЗКА ИЗ ОБЛАКА
+    async function loadFromCloud() {
+      await fetchAutocompleteData();
+      try {
+        // Fetch Shoots
+        const shoots = await supabaseClient.from('shoots').select('*');
+        if (shoots.data) allEvents = shoots.data;
+
+        // Fetch Tasks
+        const tasks = await supabaseClient.from('tasks').select('*');
+        if (tasks.data) allTasks = tasks.data;
+
+        render();
+
+      } catch (err) { console.error("Network/Other Error:", err); }
+    }
   </script>
 </body>
 
