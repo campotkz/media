@@ -901,38 +901,39 @@
       const payload = {
         title, description: desc, deadline, type,
         assignee_ids: assignees,
-        project_id: project, // Storing project name
+        project_id: project,
+        status: 'pending' // Default, will be overwritten if ID exists and we fetch old status? No, let's keep it simple or fetch.
       };
 
-      let error, data;
-
-      // console.log('Submitting Task. SelectedTaskId:', selectedTaskId);
-
+      // Match Shoot Logic: Use Upsert
       if (selectedTaskId) {
-        // UPDATE
-        const res = await supabaseClient.from('tasks').update(payload).eq('id', selectedTaskId).select();
-        error = res.error;
-        data = res.data;
-        if (!error && data && data.length > 0) {
-          const idx = allTasks.findIndex(x => String(x.id) === String(selectedTaskId));
-          if (idx !== -1) allTasks[idx] = data[0];
-        }
-      } else {
-        // INSERT
-        payload.status = 'pending';
-        const res = await supabaseClient.from('tasks').insert(payload).select();
-        error = res.error;
-        data = res.data;
-        if (!error && data && data.length > 0) allTasks.push(data[0]);
+        payload.id = selectedTaskId;
+        // Ideally we should preserve status if we are just editing details, 
+        // but upsert might overwrite status to 'pending' if we don't fetch first.
+        // Let's fetch the existing status from local array to be safe.
+        const existing = allTasks.find(t => t.id === selectedTaskId);
+        if (existing) payload.status = existing.status;
       }
 
-      if (!error) {
+      const { data, error } = await supabaseClient.from('tasks').upsert(payload).select();
+
+      if (!error && data && data.length > 0) {
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         document.getElementById('taskForm').style.display = 'none';
+
+        // Update Local State
+        const newTask = data[0];
+        if (selectedTaskId) {
+          const idx = allTasks.findIndex(t => t.id === selectedTaskId);
+          if (idx !== -1) allTasks[idx] = newTask;
+        } else {
+          allTasks.push(newTask);
+        }
+
         selectedTaskId = null; // Clean up
         render(); // Refresh Unified View
       } else {
-        alert('Error: ' + error.message);
+        alert('Error: ' + (error ? error.message : 'Unknown error'));
       }
     };
 
@@ -1025,36 +1026,6 @@
     // Wrapper click
     document.getElementById('assigneeWrapper').onclick = (e) => {
       if (e.target === document.getElementById('assigneeWrapper')) assInput.focus();
-    };
-
-    // TASK FORM SUBMIT
-    document.getElementById('taskForm').onsubmit = async (e) => {
-      e.preventDefault();
-      const title = document.getElementById('t_title').value;
-      const desc = document.getElementById('t_desc').value;
-      const deadline = document.getElementById('t_deadline').value;
-      const type = document.getElementById('t_type').value;
-      const assignees = document.getElementById('t_assignees').value.split(',').map(s => s.trim()).filter(s => s);
-      const project = document.getElementById('t_project').value.trim() || null;
-
-      const payload = {
-        title, description: desc, deadline, type,
-        assignee_ids: assignees,
-        project_id: project, // Storing project name
-        status: 'pending'
-      };
-
-      const { data, error } = await supabaseClient.from('tasks').insert(payload).select();
-
-      if (!error) {
-        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-        document.getElementById('taskForm').style.display = 'none';
-        // Add locally and render (or reload)
-        allTasks.push(data[0]);
-        render(); // Refresh Unified View
-      } else {
-        alert('Error: ' + error.message);
-      }
     };
 
 
@@ -1419,7 +1390,14 @@
         const numStyle = isPast ? 'style="color:#444;"' : '';
 
         cell.innerHTML = `<div class="num" ${numStyle}><span>${d.getDate()}</span></div><div class="dots">${dotsHtml}</div>${linesHtml}`;
-        cell.onclick = () => { selectedDate = d; selectedId = null; toggleForm(false); document.getElementById('taskForm').style.display = 'none'; render(); };
+        cell.onclick = () => {
+          selectedDate = d;
+          selectedId = null;
+          selectedTaskId = null; // Clear Task editing state too
+          toggleForm(false);
+          document.getElementById('taskForm').style.display = 'none';
+          render();
+        };
         grid.appendChild(cell);
       }
 
