@@ -582,10 +582,7 @@
 
 <body>
   <!-- ... (HTML structure identical until script) ... -->
-  <div class="nav-tabs">
-    <button class="nav-btn active" onclick="switchTab('calendar')">📅 Календарь</button>
-    <button class="nav-btn" onclick="switchTab('tasks')">✅ Задачи</button>
-  </div>
+
 
   <div class="wrap">
     <!-- CALENDAR VIEW -->
@@ -625,7 +622,10 @@
       <div class="head">
         <div class="dayHeadGlow"></div>
         <div class="title">📅 <span id="selectedLabel">—</span></div>
-        <button id="newBtn">Новая</button>
+        <div style="display:flex; gap:10px;">
+          <button class="mini-btn" id="newBtn">Смена</button>
+          <button class="mini-btn task-btn" onclick="openTaskForm()">+ Задача</button>
+        </div>
       </div>
       <div class="side">
         <div class="list" id="eventList"></div>
@@ -732,6 +732,7 @@
     let selectedDate = new Date();
     let currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
     let selectedId = null;
+    let selectedTaskId = null; // for editing tasks
 
     const pad2 = n => String(n).padStart(2, "0");
     const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -786,20 +787,91 @@
       await supabaseClient.from('tasks').delete().eq('id', id);
     }
 
-    function openTaskForm() {
+    function openTaskForm(task) {
       // Close shoot form if open
       toggleForm(false);
-      document.getElementById('taskForm').style.display = 'block';
-      document.getElementById('taskForm').scrollIntoView({ behavior: 'smooth' });
 
-      // Reset form
-      document.getElementById('t_project').value = '';
-      document.getElementById('t_title').value = '';
-      document.getElementById('t_desc').value = '';
-      document.getElementById('t_deadline').value = toISO(selectedDate); // Default to selected date
-      document.getElementById('t_assignees').value = '';
+      const form = document.getElementById('taskForm');
+      form.style.display = 'block';
+      form.scrollIntoView({ behavior: 'smooth' });
+
+      if (task) {
+        selectedTaskId = task.id;
+        document.getElementById('t_title').value = task.title;
+        document.getElementById('t_desc').value = task.description || '';
+        document.getElementById('t_deadline').value = task.deadline || toISO(new Date());
+        document.getElementById('t_type').value = task.type || 'general';
+        document.getElementById('t_project').value = task.project_id || ''; // Using project name in project_id field based on earlier logic
+        document.getElementById('t_assignees').value = (task.assignee_ids || []).join(', ');
+
+        // Show delete button
+        // document.getElementById('taskDeleteBtn').style.display = 'block'; // If we add one
+      } else {
+        selectedTaskId = null;
+        // Reset form
+        document.getElementById('t_project').value = '';
+        document.getElementById('t_title').value = '';
+        document.getElementById('t_desc').value = '';
+        document.getElementById('t_deadline').value = toISO(selectedDate); // Default to selected date
+        document.getElementById('t_type').value = 'general';
+        document.getElementById('t_assignees').value = '';
+      }
       renderAssigneeTags();
+      renderTaskProjects(); // Reset dropdown
     }
+
+    // Helper to open task from list
+    function editTask(id) {
+      const t = allTasks.find(x => x.id === id);
+      if (t) openTaskForm(t);
+    }
+
+    // TASK FORM SUBMIT
+    document.getElementById('taskForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('t_title').value;
+      const desc = document.getElementById('t_desc').value;
+      const deadline = document.getElementById('t_deadline').value;
+      const type = document.getElementById('t_type').value;
+      const assignees = document.getElementById('t_assignees').value.split(',').map(s => s.trim()).filter(s => s);
+      const project = document.getElementById('t_project').value.trim() || null;
+
+      const payload = {
+        title, description: desc, deadline, type,
+        assignee_ids: assignees,
+        project_id: project, // Storing project name
+        // status: 'pending' // Don't override status on edit unless logic requires
+      };
+
+      if (!selectedTaskId) payload.status = 'pending';
+
+      let error, data;
+
+      if (selectedTaskId) {
+        // UPDATE
+        const res = await supabaseClient.from('tasks').update(payload).eq('id', selectedTaskId).select();
+        error = res.error;
+        data = res.data;
+        if (!error && data) {
+          const idx = allTasks.findIndex(x => x.id === selectedTaskId);
+          if (idx !== -1) allTasks[idx] = data[0];
+        }
+      } else {
+        // INSERT
+        const res = await supabaseClient.from('tasks').insert(payload).select();
+        error = res.error;
+        data = res.data;
+        if (!error && data) allTasks.push(data[0]);
+      }
+
+      if (!error) {
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        document.getElementById('taskForm').style.display = 'none';
+        render(); // Refresh Unified View
+      } else {
+        alert('Error: ' + error.message);
+      }
+    };
 
     // --- PROJECT LOGIC ---
     const tProjInput = document.getElementById('t_project');
@@ -1298,7 +1370,7 @@
         buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); deleteTask('${t.id}')">🗑</button>`;
 
         html += `
-            <div class="item ${st}" style="border-left: 2px solid ${st === 'done' ? '#4cd964' : '#ffcc00'};">
+            <div class="item ${st}" style="border-left: 2px solid ${st === 'done' ? '#4cd964' : '#ffcc00'};" onclick="editTask('${t.id}')">
                 <div class="item-content">
                     <b>${t.title}</b><br>
                     <small>📌 ${t.project ? t.project + ' • ' : ''}${t.type}</small>
