@@ -186,7 +186,7 @@
                 <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">03. Качество</h2>
 
                 <div className="space-y-4">
-                    <label className="text-[10px] uppercase text-zinc-600 block">Оценка качества заявок (1-5)</label>
+                    <label className="text-[10px] uppercase text-zinc-600 block">Качество входящих заявок (Лидов)</label>
                     <div className="flex justify-between gap-1">
                         {[1, 2, 3, 4, 5].map(v => (
                             <button key={v} onClick={() => update('quality_score', v)}
@@ -212,7 +212,7 @@
                 <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">04. Процессы</h2>
 
                 <div>
-                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Как быстро ВЫ отвечаете клиентам?</label>
+                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Как быстро менеджер отвечает на заявки?</label>
                     <div className="select-wrapper">
                         <select className="input-style" value={form.response_speed} onChange={e => update('response_speed', e.target.value)}>
                             <option value="5-15 мин">⚡ 5-15 мин (Супер)</option>

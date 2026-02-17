@@ -86,7 +86,7 @@ Tel: {get_val('phone')}
 Средний чек: {get_val('average_check')}
 
 🎯 **КАЧЕСТВО & КОНТЕНТ**
-Оценка продукции/услуг: {get_val('quality_score')}/5
+Качество заявок: {get_val('quality_score')}/5
 Реклама (Target): {get_val('ad_quality_score')}/5
 Контент (Visual): {get_val('content_quality_score')}/5
 
@@ -96,8 +96,8 @@ Tel: {get_val('phone')}
 Боли/Вопросы: "{get_val('customer_pain_points')}"
 
 ⚡ **ПРОЦЕССЫ**
-Скорость ВАШЕГО ответа: {get_val('response_speed')}
-Ваш отдел продаж: {get_val('sales_process_rating')}
+Скорость ответа менеджера: {get_val('response_speed')}
+Отдел продаж: {get_val('sales_process_rating')}
 
 🤝 ** КОМАНДА CAMPOT**
 Работа менеджера: {get_val('manager_quality_score')}/5
