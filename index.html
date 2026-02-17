@@ -893,7 +893,19 @@
         const d = new Date(e.date);
         return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
       });
-      document.getElementById("monthStat").textContent = `${monEvents.length} съёмок`;
+
+      // Calculate Stats
+      const done = monEvents.filter(e => e.status === 'done').length;
+      const pending = monEvents.filter(e => e.status === 'pending').length;
+      const overdue = monEvents.filter(e => e.status === 'overdue').length;
+
+      // Update Header with Icons
+      const statHtml = `
+        <span style="color:#4cd964">✅ ${done}</span>
+        <span style="color:#ffcc00; margin-left:8px">🟡 ${pending}</span>
+        <span style="color:#ff3b30; margin-left:8px">🔥 ${overdue}</span>
+      `;
+      document.getElementById("monthStat").innerHTML = statHtml;
 
       const first = startMonth(currentMonth);
       const offset = (first.getDay() + 6) % 7;
