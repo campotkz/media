@@ -734,7 +734,7 @@
     let selectedDate = new Date();
     let currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
     let selectedId = null;
-    let selectedTaskId = null; // for editing tasks
+    // selectedTaskId removed, using hidden input
 
     const pad2 = n => String(n).padStart(2, "0");
     const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -834,7 +834,6 @@
     }
 
     // TASK FORM SUBMIT
-    // TASK FORM SUBMIT
     document.getElementById('taskForm').onsubmit = async (e) => {
       e.preventDefault();
       const title = document.getElementById('t_title').value;
@@ -844,6 +843,8 @@
       const assignees = document.getElementById('t_assignees').value.split(',').map(s => s.trim()).filter(s => s);
       const project = document.getElementById('t_project').value.trim() || null;
 
+      const hiddenIdVal = document.getElementById('task_id_hidden').value;
+
       const payload = {
         title, description: desc, deadline, type,
         assignee_ids: assignees,
@@ -852,21 +853,20 @@
 
       let error, data;
 
-      console.log('Submitting Task. SelectedID:', selectedTaskId); // Debug
+      console.log('Submitting Task. HiddenID:', hiddenIdVal);
 
-      if (selectedTaskId) {
+      if (hiddenIdVal) {
         // UPDATE
-        // Do NOT overwrite status here, it preserves existing status
-        const res = await supabaseClient.from('tasks').update(payload).eq('id', selectedTaskId).select();
+        const res = await supabaseClient.from('tasks').update(payload).eq('id', hiddenIdVal).select();
         error = res.error;
         data = res.data;
         if (!error && data && data.length > 0) {
-          const idx = allTasks.findIndex(x => x.id === selectedTaskId);
+          const idx = allTasks.findIndex(x => String(x.id) === String(hiddenIdVal));
           if (idx !== -1) allTasks[idx] = data[0];
         }
       } else {
         // INSERT
-        payload.status = 'pending'; // Default status for new
+        payload.status = 'pending';
         const res = await supabaseClient.from('tasks').insert(payload).select();
         error = res.error;
         data = res.data;
@@ -876,7 +876,8 @@
       if (!error) {
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         document.getElementById('taskForm').style.display = 'none';
-        selectedTaskId = null; // Clear ID after successful submit
+        document.getElementById('task_id_hidden').value = ''; // Clean up
+        selectedTaskId = null;
         render(); // Refresh Unified View
       } else {
         alert('Error: ' + error.message);
