@@ -212,7 +212,7 @@
                 <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">04. Процессы</h2>
 
                 <div>
-                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Скорость ответа в Direct</label>
+                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Как быстро ВЫ отвечаете клиентам?</label>
                     <div className="select-wrapper">
                         <select className="input-style" value={form.response_speed} onChange={e => update('response_speed', e.target.value)}>
                             <option value="5-15 мин">⚡ 5-15 мин (Супер)</option>
@@ -224,12 +224,13 @@
                 </div>
 
                 <div>
-                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Узнаваемость Offline</label>
+                    <label className="text-[10px] uppercase text-zinc-500 mb-1 block">Оценка работы ВАШЕГО отдела продаж</label>
                     <div className="select-wrapper">
-                        <select className="input-style" value={form.brand_awareness_offline} onChange={e => update('brand_awareness_offline', e.target.value)}>
-                            <option value="Да, говорят">🗣 Да, говорят об Инстаграм</option>
-                            <option value="Партнеры">🤝 Упоминают партнеры</option>
-                            <option value="Нет">😶 Пока тихо</option>
+                        <select className="input-style" value={form.sales_process_rating || "Не знаю"} onChange={e => update('sales_process_rating', e.target.value)}>
+                            <option value="Отлично">🔥 Отлично (Закрываем всех)</option>
+                            <option value="Нормально">👍 Нормально</option>
+                            <option value="Плохо">👎 Плохо (Теряем лидов)</option>
+                            <option value="Нет отдела">🤷‍♂️ Нет отдела продаж</option>
                         </select>
                     </div>
                 </div>
@@ -243,21 +244,33 @@
 
         const Step4_Content = ({ form, update, setStep }) => (
             <div className="step-anim space-y-6">
-                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">05. Контент</h2>
-                <textarea className="input-style h-20" placeholder="Какой контент понравился ВАМ?" value={form.favorite_content} onChange={e => update('favorite_content', e.target.value)}></textarea>
-                <input className="input-style" placeholder="Чего не хватает? (Лайв / Польза)" value={form.missing_content_needs} onChange={e => update('missing_content_needs', e.target.value)} />
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">05. Контент & Реклама</h2>
 
                 <div className="space-y-4">
-                    <label className="text-[10px] uppercase text-zinc-600 block">Охват и шум в городе (1-5)</label>
+                    <label className="text-[10px] uppercase text-zinc-600 block">Качество рекламы / таргета (1-5)</label>
                     <div className="flex justify-between gap-1">
                         {[1, 2, 3, 4, 5].map(v => (
-                            <button key={v} onClick={() => update('reach_score', v)}
-                                className={`flex-1 p-3 font-bold border ${form.reach_score === v ? 'bg-campot-red text-white border-campot-red' : 'border-zinc-800 text-zinc-600'}`}>
+                            <button key={v} onClick={() => update('ad_quality_score', v)}
+                                className={`flex-1 p-3 font-bold border ${form.ad_quality_score === v ? 'bg-campot-red text-white border-campot-red' : 'border-zinc-800 text-zinc-600'}`}>
                                 {v}
                             </button>
                         ))}
                     </div>
                 </div>
+
+                <div className="space-y-4">
+                    <label className="text-[10px] uppercase text-zinc-600 block">Качество контента / визуала (1-5)</label>
+                    <div className="flex justify-between gap-1">
+                        {[1, 2, 3, 4, 5].map(v => (
+                            <button key={v} onClick={() => update('content_quality_score', v)}
+                                className={`flex-1 p-3 font-bold border ${form.content_quality_score === v ? 'bg-campot-red text-white border-campot-red' : 'border-zinc-800 text-zinc-600'}`}>
+                                {v}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <textarea className="input-style h-20 mt-4" placeholder="Что понравилось / не хватило?" value={form.favorite_content} onChange={e => update('favorite_content', e.target.value)}></textarea>
 
                 <div className="flex gap-3 pt-4">
                     <button onClick={() => setStep(3)} className="btn-secondary w-1/3">Назад</button>
@@ -266,9 +279,44 @@
             </div>
         );
 
-        const Step5_Plan = ({ form, update, setStep, submit, loading, errorMsg }) => (
+        const Step5_Team = ({ form, update, setStep }) => (
             <div className="step-anim space-y-6">
-                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">06. План</h2>
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">06. Команда & Сервис</h2>
+
+                <div className="space-y-4">
+                    <label className="text-[10px] uppercase text-zinc-600 block">Работа менеджера / команды (1-5)</label>
+                    <div className="flex justify-between gap-1">
+                        {[1, 2, 3, 4, 5].map(v => (
+                            <button key={v} onClick={() => update('manager_quality_score', v)}
+                                className={`flex-1 p-3 font-bold border ${form.manager_quality_score === v ? 'bg-campot-red text-white border-campot-red' : 'border-zinc-800 text-zinc-600'}`}>
+                                {v}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <label className="text-[10px] uppercase text-zinc-600 block">Общее впечатление (1-5)</label>
+                    <div className="flex justify-between gap-1">
+                        {[1, 2, 3, 4, 5].map(v => (
+                            <button key={v} onClick={() => update('agency_impression_score', v)}
+                                className={`flex-1 p-3 font-bold border ${form.agency_impression_score === v ? 'bg-campot-red text-white border-campot-red' : 'border-zinc-800 text-zinc-600'}`}>
+                                {v}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                    <button onClick={() => setStep(4)} className="btn-secondary w-1/3">Назад</button>
+                    <button onClick={() => setStep(6)} className="btn-campot flex-1">Далее</button>
+                </div>
+            </div>
+        );
+
+        const Step6_Plan = ({ form, update, setStep, submit, loading, errorMsg }) => (
+            <div className="step-anim space-y-6">
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 border-l-2 border-campot-red pl-3 italic">07. План</h2>
 
                 <textarea className="input-style h-24" placeholder="Новые акции / Продукты?" value={form.new_campaigns} onChange={e => update('new_campaigns', e.target.value)}></textarea>
 
@@ -289,7 +337,7 @@
                 {errorMsg && <div className="p-3 bg-red-900/30 border border-red-500 text-red-200 text-xs">{errorMsg}</div>}
 
                 <div className="flex gap-3 pt-4">
-                    <button onClick={() => setStep(4)} className="btn-secondary w-1/3">Назад</button>
+                    <button onClick={() => setStep(5)} className="btn-secondary w-1/3">Назад</button>
                     <button onClick={submit} disabled={loading} className="btn-campot flex-1">
                         {loading ? "Отправка..." : "ОТПРАВИТЬ ОТЧЕТ 🚀"}
                     </button>
@@ -314,10 +362,12 @@
                 // Block 2
                 quality_score: 5, client_source_quotes: '', customer_pain_points: '',
                 // Block 3
-                response_speed: '5-15 мин', brand_awareness_offline: 'Нет',
+                response_speed: '5-15 мин', sales_process_rating: 'Нормально',
                 // Block 4
-                favorite_content: '', missing_content_needs: '', reach_score: 3,
-                // Block 5
+                ad_quality_score: 4, content_quality_score: 5, favorite_content: '',
+                // Block 5 (Team)
+                manager_quality_score: 5, agency_impression_score: 5,
+                // Block 6 (Plan)
                 new_campaigns: '', next_month_focus: 'Лиды', general_suggestions: '',
                 // Meta
                 chat_id: params.get('cid'), thread_id: params.get('tid')
@@ -409,7 +459,8 @@
                     {step === 2 && <Step2_Quality form={form} update={update} setStep={setStep} />}
                     {step === 3 && <Step3_Process form={form} update={update} setStep={setStep} />}
                     {step === 4 && <Step4_Content form={form} update={update} setStep={setStep} />}
-                    {step === 5 && <Step5_Plan form={form} update={update} setStep={setStep} submit={submit} loading={loading} errorMsg={errorMsg} />}
+                    {step === 5 && <Step5_Team form={form} update={update} setStep={setStep} />}
+                    {step === 6 && <Step6_Plan form={form} update={update} setStep={setStep} submit={submit} loading={loading} errorMsg={errorMsg} />}
 
                     <footer className="mt-20 text-center opacity-30">
                         <p className="text-[8px] uppercase tracking-[4px]">Campot Analytics / 2026</p>

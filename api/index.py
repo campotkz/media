@@ -85,21 +85,23 @@ Tel: {get_val('phone')}
 Источник: {get_val('lead_source')}
 Средний чек: {get_val('average_check')}
 
-🎯 **КАЧЕСТВО**
-Оценка: {get_val('quality_score')}/5
-Цитаты клиентов:
-"{get_val('client_source_quotes')}"
-Боли/Вопросы:
-"{get_val('customer_pain_points')}"
+🎯 **КАЧЕСТВО & КОНТЕНТ**
+Оценка продукции/услуг: {get_val('quality_score')}/5
+Реклама (Target): {get_val('ad_quality_score')}/5
+Контент (Visual): {get_val('content_quality_score')}/5
+
+🗣 **МНЕНИЯ**
+Понравилось: "{get_val('favorite_content')}"
+Цитаты клиентов: "{get_val('client_source_quotes')}"
+Боли/Вопросы: "{get_val('customer_pain_points')}"
 
 ⚡ **ПРОЦЕССЫ**
-Скорость ответа: {get_val('response_speed')}
-Узнаваемость (Offline): {get_val('brand_awareness_offline')}
+Скорость ВАШЕГО ответа: {get_val('response_speed')}
+Ваш отдел продаж: {get_val('sales_process_rating')}
 
-📢 **КОНТЕНТ**
-Понравилось: {get_val('favorite_content')}
-Не хватает: {get_val('missing_content_needs')}
-Ощущение охвата: {get_val('reach_score')}/5
+🤝 ** КОМАНДА CAMPOT**
+Работа менеджера: {get_val('manager_quality_score')}/5
+Общее впечатление: {get_val('agency_impression_score')}/5
 
 🚀 **ПЛАН**
 Акции/Продукты: {get_val('new_campaigns')}
