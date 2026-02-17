@@ -757,6 +757,19 @@
 
     const pad2 = n => String(n).padStart(2, "0");
     const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+    // Color Interpolation Helper
+    function interpolateColor(c1, c2, factor) {
+      if (factor <= 0) return c1;
+      if (factor >= 1) return c2;
+      const r1 = parseInt(c1.slice(1, 3), 16), g1 = parseInt(c1.slice(3, 5), 16), b1 = parseInt(c1.slice(5, 7), 16);
+      const r2 = parseInt(c2.slice(1, 3), 16), g2 = parseInt(c2.slice(3, 5), 16), b2 = parseInt(c2.slice(5, 7), 16);
+      const r = Math.round(r1 + factor * (r2 - r1));
+      const g = Math.round(g1 + factor * (g2 - g1));
+      const b = Math.round(b1 + factor * (b2 - b1));
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
     const startMonth = d => new Date(d.getFullYear(), d.getMonth(), 1);
     const niceDate = d => d.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
     const weekday = d => d.toLocaleDateString("ru-RU", { weekday: "long" });
@@ -912,7 +925,14 @@
         // but upsert might overwrite status to 'pending' if we don't fetch first.
         // Let's fetch the existing status from local array to be safe.
         const existing = allTasks.find(t => t.id === selectedTaskId);
-        if (existing) payload.status = existing.status;
+        if (existing) {
+          payload.status = existing.status;
+          // Preserve created_at on edit to keep the start date stable
+          if (existing.created_at) payload.created_at = existing.created_at;
+        }
+      } else {
+        // NEW TASK: Set start date to selected date
+        payload.created_at = toISO(selectedDate);
       }
 
       const { data, error } = await supabaseClient.from('tasks').upsert(payload).select();
@@ -1357,94 +1377,92 @@
         let linesHtml = "";
         if (dayTasks.length > 0) {
           linesHtml += `<div class="task-lines">`;
-          dayTasks.forEach(t => {
-            dayTasks.forEach(t => {
-              const startRaw = t.created_at ? t.created_at.split('T')[0] : t.deadline;
-              let start = startRaw;
-              if (start > t.deadline) start = t.deadline;
+          daysTasks.forEach(t => {
+            const startStr = t.created_at ? t.created_at.split('T')[0] : t.deadline;
+            const start = startStr > t.deadline ? t.deadline : startStr;
+            const isStart = (start === iso);
+            const isEnd = (t.deadline === iso);
 
-              // Calculate progress for color interpolation
-              let color = '#ffcc00'; // Default yellow
-              if (start !== t.deadline) {
-                const startDate = new Date(start);
-                const endDate = new Date(t.deadline);
-                const currDate = new Date(iso);
+            // Style for rounded ends
+            let borderRadius = '';
+            if (isStart && isEnd) { borderRadius = 'border-radius: 2px;'; }
+            else if (isStart) { borderRadius = 'border-radius: 2px 0 0 2px; margin-right:-4px;'; }
+            else if (isEnd) { borderRadius = 'border-radius: 0 2px 2px 0; margin-left:-4px;'; }
+            else { borderRadius = 'border-radius: 0; margin: 0 -4px;'; }
 
-                const totalDur = endDate - startDate;
-                const currDur = currDate - startDate;
+            const stClass = (t.deadline < todayISO) ? 'overdue' : 'pending';
 
-                let ratio = 0;
-                if (totalDur > 0) ratio = Math.max(0, Math.min(1, currDur / totalDur));
+            // Gradient Logic
+            let colorStyle = '';
+            if (stClass === 'pending') {
+              const startDate = new Date(start);
+              const endDate = new Date(t.deadline);
+              const currDate = new Date(iso);
 
-                // Interpolate Yellow (#ffcc00) to Red (#ff3b30)
-                // RGB Yellow: 255, 204, 0
-                // RGB Red:    255, 59, 48
-                const r = 255;
-                const g = Math.round(204 + (59 - 204) * ratio);
-                const b = Math.round(0 + (48 - 0) * ratio);
-                color = `rgb(${r}, ${g}, ${b})`;
-              }
+              let total = endDate - startDate;
+              let elapsed = currDate - startDate;
 
-              const isStart = (start === iso);
-              const isEnd = (t.deadline === iso);
+              // If single day, valid total is 0. Avoid division by zero.
+              // But for single day we want pure yellow? Or Red?
+              // User said "Start Yellow, End Red". 
+              // If 1 day: it's both Start and End. Let's make it Red to signify deadline? 
+              // Or Yellow? Maybe strictly interpolated.
 
-              // Style for rounded ends
-              let style = `background-color: ${color};`;
-              // If single day
-              if (isStart && isEnd) { style += 'border-radius: 2px;'; }
-              else if (isStart) { style += 'border-radius: 2px 0 0 2px; margin-right:-4px;'; }
-              else if (isEnd) { style += 'border-radius: 0 2px 2px 0; margin-left:-4px;'; }
-              else { style += 'border-radius: 0; margin: 0 -4px;'; }
+              if (total <= 0) total = 1; // 1ms duration to avoid NaN, effectively end state
 
-              const stClass = (t.deadline < todayISO) ? 'overdue' : 'pending';
-              linesHtml += `<div class="task-line ${stClass}" style="${style}"></div>`;
-            });
-            linesHtml += `</div>`;
-          }
+              let factor = elapsed / total;
+              const color = interpolateColor('#ffcc00', '#ff453a', factor);
+              colorStyle = `background-color: ${color};`;
+            }
+
+            linesHtml += `<div class="task-line ${stClass}" style="${borderRadius} ${colorStyle}"></div>`;
+          });
+          linesHtml += `</div>`;
+        }
 
         // Highlight Logic
         const isPast = iso < todayISO;
-          const hasPendingShoot = dayEvents.some(e => getStatus(e) === 'pending');
+        const hasPendingShoot = dayEvents.some(e => getStatus(e) === 'pending');
 
-          const cell = document.createElement("div");
-          let cellClasses = "day" + (d.getMonth() !== currentMonth.getMonth() ? " out" : "") + (iso === toISO(selectedDate) ? " sel" : "") + (iso === toISO(today) ? " today" : "");
-          if (hasPendingShoot) cellClasses += " has-pending";
+        const cell = document.createElement("div");
+        let cellClasses = "day" + (d.getMonth() !== currentMonth.getMonth() ? " out" : "") + (iso === toISO(selectedDate) ? " sel" : "") + (iso === toISO(today) ? " today" : "");
+        if (hasPendingShoot) cellClasses += " has-pending";
 
-          cell.className = cellClasses;
+        cell.className = cellClasses;
 
-          // Gray out past days numbers
-          const numStyle = isPast ? 'style="color:#444;"' : '';
+        // Gray out past days numbers
+        const numStyle = isPast ? 'style="color:#444;"' : '';
 
-          cell.innerHTML = `<div class="num" ${numStyle}><span>${d.getDate()}</span></div><div class="dots">${dotsHtml}</div>${linesHtml}`;
-          cell.onclick = () => {
-            selectedDate = d;
-            selectedId = null;
-            selectedTaskId = null; // Clear Task editing state too
-            toggleForm(false);
-            document.getElementById('taskForm').style.display = 'none';
-            render();
-          };
-          grid.appendChild(cell);
-        }
+        cell.innerHTML = `<div class="num" ${numStyle}><span>${d.getDate()}</span></div><div class="dots">${dotsHtml}</div>${linesHtml}`;
+        cell.onclick = () => {
+          selectedDate = d;
+          selectedId = null;
+          selectedTaskId = null; // Clear Task editing state too
+          toggleForm(false);
+          document.getElementById('taskForm').style.display = 'none';
+          render();
+        };
+        grid.appendChild(cell);
+      }
 
-        // Список проектов дня (Shoots + Tasks)
-        const listDiv = document.getElementById("eventList");
-        const dayShoots = allEvents.filter(e => e.date === toISO(selectedDate)).sort((a, b) => a.callTime.localeCompare(b.callTime));
-        const dayTasksList = allTasks.filter(t => t.deadline === toISO(selectedDate)); // Show done too? Maybe.
+      // Список проектов дня (Shoots + Tasks)
+      const listDiv = document.getElementById("eventList");
+      const dayShoots = allEvents.filter(e => e.date === toISO(selectedDate)).sort((a, b) => a.callTime.localeCompare(b.callTime));
+      const dayTasksList = allTasks.filter(t => t.deadline === toISO(selectedDate)); // Show done too? Maybe.
 
-        let html = "";
-        if (!dayShoots.length && !dayTasksList.length) html = '<div class="item" style="color:gray">Нет событий</div>';
+      let html = "";
+      if (!dayShoots.length && !dayTasksList.length) html = '<div class="item" style="color:gray">Нет событий</div>';
 
-        // Render Shoots
-        dayShoots.forEach(e => {
-          const st = getStatus(e);
-          // ... (Buttons logic same as before)
-          let buttons = "";
-          if (st === 'pending' || st === 'overdue') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'done')">✅</button>`;
-          if (st === 'done') buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'pending')">↩️</button>`;
-          if (st === 'overdue') buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); rescheduleTask('${e.id}')">📅</button>`;
+      // Render Shoots
+      dayShoots.forEach(e => {
+        const st = getStatus(e);
+        // ... (Buttons logic same as before)
+        let buttons = "";
+        if (st === 'pending' || st === 'overdue') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'done')">✅</button>`;
+        if (st === 'done') buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'pending')">↩️</button>`;
+        if (st === 'overdue') buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); rescheduleTask('${e.id}')">📅</button>`;
 
-          html += `
+        html += `
             <div class="item ${st}" onclick="editShoot('${e.id}')">
                 <div class="item-content">
                     <b>${e.project || "Без названия"}</b><br>
@@ -1453,18 +1471,18 @@
                 <div class="item-actions">${buttons}</div>
             </div>
         `;
-        });
+      });
 
-        // Render Tasks
-        dayTasksList.forEach(t => {
-          const st = t.status === 'done' ? 'done' : (t.deadline < todayISO ? 'overdue' : 'pending');
-          // Task Buttons
-          let buttons = "";
-          if (t.status !== 'done') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'done')">✅</button>`;
-          else buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'pending')">↩️</button>`;
-          buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); deleteTask('${t.id}')">🗑</button>`;
+      // Render Tasks
+      dayTasksList.forEach(t => {
+        const st = t.status === 'done' ? 'done' : (t.deadline < todayISO ? 'overdue' : 'pending');
+        // Task Buttons
+        let buttons = "";
+        if (t.status !== 'done') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'done')">✅</button>`;
+        else buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'pending')">↩️</button>`;
+        buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); deleteTask('${t.id}')">🗑</button>`;
 
-          html += `
+        html += `
             <div class="item ${st}" style="border-left: 2px solid ${st === 'done' ? '#4cd964' : '#ffcc00'};" onclick="editTask('${t.id}')">
                 <div class="item-content">
                     <b>${t.title}</b><br>
@@ -1473,92 +1491,92 @@
                 <div class="item-actions">${buttons}</div>
             </div>
          `;
-        });
+      });
 
-        listDiv.innerHTML = html;
-        document.getElementById("preview").textContent = buildExportText();
-      }
+      listDiv.innerHTML = html;
+      document.getElementById("preview").textContent = buildExportText();
+    }
 
-      // Helper to edit shoot (since we construct HTML string)
-      function editShoot(id) {
-        const e = allEvents.find(x => x.id === id);
-        if (!e) return;
-        selectedId = e.id;
-        f.project.value = e.project; f.location.value = e.location;
-        f.callTime.value = e.callTime; f.wrapTime.value = e.wrapTime;
-        f.address.value = e.address; f.contact.value = e.contact;
-        f.deliverables.value = e.deliverables; f.crew.value = e.crew;
-        f.schedule.value = e.schedule; f.gear.value = e.gear; f.notes.value = e.notes;
-        renderCrewTags();
-        document.getElementById("deleteBtn").style.display = "block";
-        toggleForm(true);
-      }
+    // Helper to edit shoot (since we construct HTML string)
+    function editShoot(id) {
+      const e = allEvents.find(x => x.id === id);
+      if (!e) return;
+      selectedId = e.id;
+      f.project.value = e.project; f.location.value = e.location;
+      f.callTime.value = e.callTime; f.wrapTime.value = e.wrapTime;
+      f.address.value = e.address; f.contact.value = e.contact;
+      f.deliverables.value = e.deliverables; f.crew.value = e.crew;
+      f.schedule.value = e.schedule; f.gear.value = e.gear; f.notes.value = e.notes;
+      renderCrewTags();
+      document.getElementById("deleteBtn").style.display = "block";
+      toggleForm(true);
+    }
 
-      // ... (rest of helper functions: buildExportText, toggleForm, etc.) ...
+    // ... (rest of helper functions: buildExportText, toggleForm, etc.) ...
 
-      // STARTUP
-      function buildExportText() {
-        const list = allEvents.filter(e => e.date === toISO(selectedDate));
-        if (!list.length) return "Смен нет.";
-        let lines = [`🎬 СЪЁМОЧНЫЙ ДЕНЬ — ${niceDate(selectedDate)}`];
-        list.forEach((e, i) => {
-          // Add status indicator to export
-          const stat = getStatus(e) === 'done' ? '[OK] ' : '';
-          lines.push(`\n— — —\n${stat}🎥 Проект #${i + 1}\nПроект: ${e.project}\nCall: ${e.callTime}\nЛокация: ${e.location}\nКоманда: ${e.crew}\nЗаметки: ${e.notes}`);
-        });
-        return lines.join("\n");
-      }
+    // STARTUP
+    function buildExportText() {
+      const list = allEvents.filter(e => e.date === toISO(selectedDate));
+      if (!list.length) return "Смен нет.";
+      let lines = [`🎬 СЪЁМОЧНЫЙ ДЕНЬ — ${niceDate(selectedDate)}`];
+      list.forEach((e, i) => {
+        // Add status indicator to export
+        const stat = getStatus(e) === 'done' ? '[OK] ' : '';
+        lines.push(`\n— — —\n${stat}🎥 Проект #${i + 1}\nПроект: ${e.project}\nCall: ${e.callTime}\nЛокация: ${e.location}\nКоманда: ${e.crew}\nЗаметки: ${e.notes}`);
+      });
+      return lines.join("\n");
+    }
 
-      function toggleForm(show) {
-        const form = document.getElementById("form");
-        const btn = document.getElementById("newBtn");
+    function toggleForm(show) {
+      const form = document.getElementById("form");
+      const btn = document.getElementById("newBtn");
 
-        if (show === undefined) {
-          const isHidden = form.style.display === "none";
-          form.style.display = isHidden ? "grid" : "none";
-          btn.textContent = isHidden ? "Свернуть" : "Новая";
-          if (isHidden) {
-            selectedId = null;
-            form.reset();
-            renderCrewTags();
-            document.getElementById("deleteBtn").style.display = "none";
-            form.scrollIntoView({ behavior: "smooth" });
-          }
-        } else {
-          form.style.display = show ? "grid" : "none";
-          btn.textContent = show ? "Свернуть" : "Новая";
-          if (!show) { form.reset(); selectedId = null; renderCrewTags(); }
+      if (show === undefined) {
+        const isHidden = form.style.display === "none";
+        form.style.display = isHidden ? "grid" : "none";
+        btn.textContent = isHidden ? "Свернуть" : "Новая";
+        if (isHidden) {
+          selectedId = null;
+          form.reset();
+          renderCrewTags();
+          document.getElementById("deleteBtn").style.display = "none";
+          form.scrollIntoView({ behavior: "smooth" });
         }
+      } else {
+        form.style.display = show ? "grid" : "none";
+        btn.textContent = show ? "Свернуть" : "Новая";
+        if (!show) { form.reset(); selectedId = null; renderCrewTags(); }
       }
+    }
 
-      function moveMonth(n) { currentMonth.setMonth(currentMonth.getMonth() + n); render(); }
-      document.getElementById("prevBtn").onclick = () => moveMonth(-1);
-      document.getElementById("nextBtn").onclick = () => moveMonth(1);
-      document.getElementById("todayBtn").onclick = () => { selectedDate = new Date(); currentMonth = startMonth(selectedDate); render(); };
-      document.getElementById("newBtn").onclick = () => toggleForm();
-      document.getElementById("copyDayBtn").onclick = () => { navigator.clipboard.writeText(buildExportText()); alert("Скопировано!"); };
+    function moveMonth(n) { currentMonth.setMonth(currentMonth.getMonth() + n); render(); }
+    document.getElementById("prevBtn").onclick = () => moveMonth(-1);
+    document.getElementById("nextBtn").onclick = () => moveMonth(1);
+    document.getElementById("todayBtn").onclick = () => { selectedDate = new Date(); currentMonth = startMonth(selectedDate); render(); };
+    document.getElementById("newBtn").onclick = () => toggleForm();
+    document.getElementById("copyDayBtn").onclick = () => { navigator.clipboard.writeText(buildExportText()); alert("Скопировано!"); };
 
-      // Init
-      document.getElementById("form").style.display = "none";
-      render();
-      // 2. ЗАГРУЗКА ИЗ ОБЛАКА
-      async function loadFromCloud() {
-        await fetchAutocompleteData();
-        try {
-          // Fetch Shoots
-          const shoots = await supabaseClient.from('shoots').select('*');
-          if (shoots.data) allEvents = shoots.data;
+    // Init
+    document.getElementById("form").style.display = "none";
+    render();
+    // 2. ЗАГРУЗКА ИЗ ОБЛАКА
+    async function loadFromCloud() {
+      await fetchAutocompleteData();
+      try {
+        // Fetch Shoots
+        const shoots = await supabaseClient.from('shoots').select('*');
+        if (shoots.data) allEvents = shoots.data;
 
-          // Fetch Tasks
-          const tasks = await supabaseClient.from('tasks').select('*');
-          if (tasks.data) allTasks = tasks.data;
+        // Fetch Tasks
+        const tasks = await supabaseClient.from('tasks').select('*');
+        if (tasks.data) allTasks = tasks.data;
 
-          render();
+        render();
 
-        } catch (err) { console.error("Network/Other Error:", err); }
-      }
+      } catch (err) { console.error("Network/Other Error:", err); }
+    }
 
-      loadFromCloud();
+    loadFromCloud();
   </script>
 </body>
 
