@@ -692,7 +692,7 @@
               <div id="t_projectDropdown" class="dropdown"></div>
             </div>
           </label>
-          <input type="hidden" id="task_id_hidden">
+          <!-- <input type="hidden" id="task_id_hidden"> -->
           <!-- <small id="debug_id_disp" style="color:gray; font-size:10px; display:block;">ID: -</small> -->
           <label>Название<input id="t_title" placeholder="Сделать монтаж..." required /></label>
           <label>Описание<textarea id="t_desc" placeholder="Детали..." style="min-height:60px;"></textarea></label>
@@ -752,8 +752,8 @@
     let currentTab = 'calendar'; // 'calendar' or 'tasks'
     let selectedDate = new Date();
     let currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-    let selectedId = null;
-    // selectedTaskId removed, using hidden input
+    let selectedId = null; // For Shoots
+    let selectedTaskId = null; // For Tasks (Re-introduced for stability)
 
     const pad2 = n => String(n).padStart(2, "0");
     const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -819,12 +819,12 @@
       const btn = document.getElementById('taskSubmitBtn');
       const deleteBtn = document.getElementById('taskDeleteBtn');
       const copyBtn = document.getElementById('taskCopyBtn');
-      const hiddenId = document.getElementById('task_id_hidden');
 
       // console.log('Open Task Form. Task:', task); // Debug
 
       if (task) {
-        hiddenId.value = task.id; // Set hidden ID
+        selectedTaskId = task.id; // Global Variable Mode
+
         form.style.borderColor = '#ffcc00'; // Yellow/Red border for EDIT
         document.querySelector('#taskForm h3').textContent = 'РЕДАКТИРОВАНИЕ ЗАДАЧИ';
         // document.getElementById('debug_id_disp').textContent = 'ID: ' + task.id; // Visible Debug
@@ -845,7 +845,8 @@
         document.getElementById('t_project').value = task.project_id || '';
         document.getElementById('t_assignees').value = (task.assignee_ids || []).join(', ');
       } else {
-        hiddenId.value = ''; // Clear hidden ID
+        selectedTaskId = null; // Clear Global ID
+
         form.style.borderColor = 'rgba(255, 204, 0, 0.3)'; // Default border
         document.querySelector('#taskForm h3').textContent = 'НОВАЯ ЗАДАЧА';
         if (btn) btn.textContent = 'Создать';
@@ -897,8 +898,6 @@
       const assignees = document.getElementById('t_assignees').value.split(',').map(s => s.trim()).filter(s => s);
       const project = document.getElementById('t_project').value.trim() || null;
 
-      const hiddenIdVal = document.getElementById('task_id_hidden').value;
-
       const payload = {
         title, description: desc, deadline, type,
         assignee_ids: assignees,
@@ -907,15 +906,15 @@
 
       let error, data;
 
-      // console.log('Submitting Task. HiddenID:', hiddenIdVal);
+      // console.log('Submitting Task. SelectedTaskId:', selectedTaskId);
 
-      if (hiddenIdVal) {
+      if (selectedTaskId) {
         // UPDATE
-        const res = await supabaseClient.from('tasks').update(payload).eq('id', hiddenIdVal).select();
+        const res = await supabaseClient.from('tasks').update(payload).eq('id', selectedTaskId).select();
         error = res.error;
         data = res.data;
         if (!error && data && data.length > 0) {
-          const idx = allTasks.findIndex(x => String(x.id) === String(hiddenIdVal));
+          const idx = allTasks.findIndex(x => String(x.id) === String(selectedTaskId));
           if (idx !== -1) allTasks[idx] = data[0];
         }
       } else {
@@ -930,8 +929,7 @@
       if (!error) {
         if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         document.getElementById('taskForm').style.display = 'none';
-        document.getElementById('task_id_hidden').value = ''; // Clean up
-        selectedTaskId = null;
+        selectedTaskId = null; // Clean up
         render(); // Refresh Unified View
       } else {
         alert('Error: ' + error.message);
