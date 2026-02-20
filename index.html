@@ -1148,7 +1148,11 @@
           // Check if it's one of ours (excluding 'Студия Campot' itself which might be broader, but inclusion is fine)
           const isStudio = ["Бали", "Экспертный кабинет", "Классический", "Ванная комната", "Кухня", "Кофейня", "Minimalistic", "Циклорама", "Лестница", "Студия Campot"].includes(l.name);
           if (isStudio) {
-            document.getElementById('address').value = studioAddress;
+            const addrInt = document.getElementById('address');
+            const sAddr = "Comfort Residencies, Улица Иванилова, 63з";
+            const sLink = "https://go.2gis.com/bd4n9";
+            addrInt.value = sAddr;
+            addrInt.dataset.full = `${sAddr} | ${sLink}`; // Update hidden data too!
           }
         };
         locDropdown.appendChild(div);
@@ -1197,6 +1201,10 @@
     addrInput.addEventListener('input', () => {
       clearTimeout(addrTimeout);
       const val = addrInput.value.trim();
+
+      // Clear hidden data as soon as user starts typing manually
+      addrInput.dataset.full = '';
+
       if (val.length < 3) { addrDropdown.style.display = 'none'; return; }
 
       addrTimeout = setTimeout(async () => {
