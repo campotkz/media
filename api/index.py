@@ -61,21 +61,46 @@ def handle_feedback(message):
     markup.add(types.InlineKeyboardButton(text="📊 ЗАПОЛНИТЬ МЕТРИКИ", url=f"{APP_URL}feedback.html?cid={cid}&tid={tid}"))
     bot.send_message(cid, f"📉 **СВЕРКА МЕТРИК**\n\n`{APP_URL}feedback.html?cid={cid}&tid={tid}`", reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
 
+@bot.message_handler(commands=['rename'])
+def handle_rename(message):
+    try:
+        tid = message.message_thread_id if message.is_topic_message else None
+        if not tid:
+            bot.reply_to(message, "❌ Эту команду нужно использовать внутри Топика (Проекта).")
+            return
+        
+        new_name = message.text.replace('/rename', '').strip()
+        if not new_name:
+            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`", parse_mode="Markdown")
+            return
+
+        supabase.from_("clients").update({"name": new_name}).eq("thread_id", tid).execute()
+        bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка переименования: {e}")
+
 def register_user(user, chat_id, thread_id=None, silent=False):
     try:
         # Match by ID
         res = supabase.from_("team").select("*").eq("telegram_id", user.id).execute()
         if res.data: return res.data[0]
 
-        # Match by Username (Case-insensitive)
-        if user.username:
-            uname = user.username.lstrip('@').lower()
-            all_t = supabase.from_("team").select("*").execute()
-            for t in (all_t.data or []):
-                db_u = (t.get('username') or "").lstrip('@').lower()
-                if db_u == uname and uname:
-                    supabase.from_("team").update({"telegram_id": user.id}).eq("id", t['id']).execute()
-                    return t
+        # Match by Username or Full Name (Robust)
+        all_t = supabase.from_("team").select("*").execute()
+        u_low = (user.username or "").lstrip('@').lower()
+        f_low = (user.full_name or "").lower()
+        
+        match = None
+        for t in (all_t.data or []):
+            db_u = (t.get('username') or "").lstrip('@').lower()
+            db_f = (t.get('full_name') or "").lower()
+            if (u_low and db_u == u_low) or (f_low and db_f == f_low):
+                match = t
+                break
+        
+        if match:
+            supabase.from_("team").update({"telegram_id": user.id}).eq("id", match['id']).execute()
+            return match
         
         # Create New
         rec = {"telegram_id": user.id, "username": user.username or "", "full_name": user.full_name or user.first_name, "roles": ["task"]}
@@ -86,6 +111,12 @@ def register_user(user, chat_id, thread_id=None, silent=False):
     except Exception as e:
         print(f"Reg err: {e}"); return None
 
+@bot.message_handler(content_types=['new_chat_members'])
+def handle_new_member(message):
+    tid = message.message_thread_id if message.is_topic_message else None
+    for u in message.new_chat_members:
+        if not u.is_bot: register_user(u, message.chat.id, tid)
+
 @bot.message_handler(content_types=['audio', 'photo', 'voice', 'video', 'document', 'text', 'location', 'contact', 'sticker'])
 def handle_text(message):
     try:
@@ -94,14 +125,15 @@ def handle_text(message):
         tid = message.message_thread_id if message.is_topic_message else None
         content = (message.text or message.caption or "").strip()
         
-        # Phone Detection (Digits Only Search)
-        clean_content = re.sub(r'[\s\-()\[\]]', '', content)
-        ph_match = re.findall(r'(\+?7|8)\d{10}', clean_content)
+        # Phone Detection
+        clean_c = re.sub(r'[\s\-()\[\]]', '', content)
+        ph_match = re.findall(r'(\+?7|8)\d{10}', clean_c)
         is_ph = len(ph_match) > 0
+        is_cmd = content.startswith('/')
         
-        # 1. Identity
-        u_rec = register_user(user, message.chat.id, tid, silent=is_ph)
-        if u_rec and not u_rec.get('position') and not is_ph:
+        # 1. Identity (Silent if phone or command to avoid noise)
+        u_rec = register_user(user, message.chat.id, tid, silent=(is_ph or is_cmd))
+        if u_rec and not u_rec.get('position') and not (is_ph or is_cmd):
             bot.send_message(message.chat.id, f"📝 {user.first_name}, напиши свою **Должность**.", message_thread_id=tid)
 
         # 2. Reply Handling
@@ -123,7 +155,7 @@ def handle_text(message):
                 return
 
         # 3. Discovery (Topics Only)
-        if tid and content:
+        if tid and content and not is_cmd:
             # 3.1 Project Sync
             p_res = supabase.from_("clients").select("*").eq("thread_id", tid).execute()
             if not p_res.data:
@@ -147,19 +179,18 @@ def handle_text(message):
             if is_ph:
                 raw_ph = ph_match[0]
                 ph = raw_ph if raw_ph.startswith('+') else ('+7' + raw_ph[1:] if raw_ph.startswith('8') else ('+' + raw_ph if raw_ph.startswith('7') else ph_match[0]))
-                if not ph.startswith('+7'): ph = '+7' + ph.lstrip('+').lstrip('7') # Normalize to +7...
-                if len(ph) != 12: ph = '+7' + raw_ph[-10:] # Safety for 11 digits
+                if not ph.startswith('+7'): ph = '+7' + ph.lstrip('+').lstrip('7') 
+                if len(ph) != 12: ph = '+7' + raw_ph[-10:] 
 
                 c_ex = supabase.table("contacts").select("*").eq("phone", ph).eq("thread_id", tid).execute()
                 if c_ex.data:
                     bot.reply_to(message, f"📱 Номер `{ph}` уже записан как **{c_ex.data[0]['name']}**. Хотите сменить имя? Ответьте (Reply) новым именем.")
                 else:
-                    # Look for name guess in ORIGINAL content around the match
-                    after = content.split()[-2:] # Simple guess
+                    after = content.split()[-2:] 
                     guess = " ".join([w for w in after if w and w[0].isupper() and len(w)>1][:2])
                     if guess:
                         supabase.table("contacts").insert({"name": guess, "phone": ph, "thread_id": tid}).execute()
                         bot.reply_to(message, f"✅ Контакт: **{guess}** ({ph})")
                     else:
-                        bot.reply_to(message, f"📱 Вижу номер: `{ph}`\nКак зовут этого клиента? Ответьте (Reply).")
+                        bot.reply_to(message, f"📱 Вижу номер: `{ph}`\nКак зовут этого клиента?")
     except Exception as e: print(f"Bot error: {e}")
