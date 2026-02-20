@@ -152,57 +152,79 @@ def handle_feedback(message):
         parse_mode="Markdown"
     )
 
-# --- AUTO-DISCOVERY HANDLERS ---
+@bot.message_handler(content_types=['new_chat_members'])
+def handle_new_member(message):
+    for user in message.new_chat_members:
+        if not user.is_bot:
+            register_user(user, message.chat.id)
 
-@bot.message_handler(commands=['rename'])
-def handle_rename(message):
-    if not message.is_topic_message:
-        bot.reply_to(message, "Эта команда работает только внутри топика (проекта).")
-        return
-
-    new_name = message.text.replace("/rename", "").strip()
-    thread_id = message.message_thread_id
-
-    if not new_name:
-        bot.reply_to(message, "Укажите новое имя.\nПример: `/rename ЖК Ривьера`", parse_mode="Markdown")
-        return
-
+def register_user(user, chat_id):
     try:
-        # Upsert client name
-        data = {"thread_id": thread_id, "name": new_name}
-        supabase.from_("clients").upsert(data, on_conflict="thread_id").execute()
-        bot.reply_to(message, f"✅ Проект переименован в: **{new_name}**", parse_mode="Markdown")
+        # Check if user exists
+        res = supabase.from_("team").select("*").eq("telegram_id", user.id).execute()
+        
+        if not res.data:
+            # New user
+            data = {
+                "telegram_id": user.id,
+                "username": user.username or "",
+                "full_name": user.full_name or user.first_name,
+                "roles": ["task"] # Default role
+            }
+            supabase.from_("team").insert(data).execute()
+            bot.send_message(chat_id, f"👋 Привет, {user.first_name}! Вижу нового участника команды.\n\nНапиши, пожалуйста, свою **Должность** (например: Оператор, Монтажер, Продюсер), чтобы я добавил тебя в ERP GULYWOOD.")
+        elif not res.data[0].get('position'):
+            # Existing but no position
+            bot.send_message(chat_id, f"📝 {user.first_name}, напомни, пожалуйста, свою **Должность**, чтобы я правильно настроил твои доступы в ERP.")
     except Exception as e:
-        bot.reply_to(message, f"Ошибка сохранения: {e}")
+        print(f"Error registering user: {e}")
 
 @bot.message_handler(content_types=['audio', 'photo', 'voice', 'video', 'document', 'text', 'location', 'contact', 'sticker'])
 def handle_text(message):
     try:
-        # 1. Team Discovery
         user = message.from_user
-        if user and not user.is_bot:
-            team_data = {
-                "telegram_id": user.id,
-                "username": user.username or "",
-                "full_name": user.full_name or message.from_user.first_name
-            }
-            # Upsert team member
-            supabase.from_("team").upsert(team_data, on_conflict="telegram_id").execute()
+        if not user or user.is_bot: return
 
-        # 2. Project (Client) Discovery
+        # 1. Check if we need a position from this user
+        res = supabase.from_("team").select("*").eq("telegram_id", user.id).execute()
+        
+        if not res.data:
+            # First time sending a message, not caught by 'new_member'
+            register_user(user, message.chat.id)
+            return
+            
+        old_data = res.data[0]
+        if not old_data.get('position') and message.text and not message.text.startswith('/'):
+            # This looks like a response to "What is your position?"
+            pos = message.text.strip()
+            roles = ["task"] # Everyone can do tasks
+            p_low = pos.lower()
+            
+            # Smart Role Mapping
+            if any(k in p_low for k in ["оператор", "камера", "camera"]):
+                roles += ["production", "post"] # Operators are also editors as per user
+            if any(k in p_low for k in ["монтаж", "motion", "дизайн", "editor", "vfx"]):
+                roles += ["post"]
+            if any(k in p_low for k in ["актер", "актриса", "actor", "модель"]):
+                roles += ["actor"]
+            if any(k in p_low for k in ["менеджер", "руководитель", "директор", "продюсер", "админ", "manager"]):
+                roles = ["production", "post", "task", "actor"] # Everywhere
+
+            supabase.from_("team").update({
+                "position": pos,
+                "roles": list(set(roles))
+            }).eq("telegram_id", user.id).execute()
+            
+            bot.reply_to(message, f"✅ Принято! Добавил тебя как **{pos}**.\nТеперь ты в базе и доступен при выборе команды в ERP.")
+            return
+
+        # 2. Existing Auto-discovery (Topic/Client)
         if message.is_topic_message:
             thread_id = message.message_thread_id
-            # Check if exists, if not insert placeholder
-            # We use 'select' first to avoid overwriting existing names with placeholders
             existing = supabase.from_("clients").select("id").eq("thread_id", thread_id).execute()
-            
             if not existing.data:
-                # New topic detected
-                client_data = {
-                    "thread_id": thread_id,
-                    "name": f"Topic {thread_id}" 
-                }
+                client_data = {"thread_id": thread_id, "name": f"Topic {thread_id}"}
                 supabase.from_("clients").insert(client_data).execute()
                 
     except Exception as e:
-        print(f"Auto-discovery error: {e}") # Non-blocking error logging
+        print(f"Auto-discovery error: {e}")
