@@ -705,7 +705,7 @@
           <label>Контакт<input id="contact" placeholder="Имя + телефон" /></label>
           <label>ТЗ<textarea id="deliverables" placeholder="Опиши задачу..."></textarea></label>
 
-          <label>Команда
+          <label>Команда продакшн
             <div class="multi-select-wrap" id="crewWrapper">
               <div id="crewTags" class="tags"></div>
               <input id="crewInput" placeholder="Добавить..." autocomplete="off" />
@@ -713,6 +713,32 @@
             </div>
             <textarea id="crew" style="display:none"></textarea>
           </label>
+
+          <label>Пост/монтаж
+            <div class="multi-select-wrap" id="postWrapper">
+              <div id="postTags" class="tags"></div>
+              <input id="postInput" placeholder="Выбрать реж. монтажа..." autocomplete="off" />
+              <div id="postDropdown" class="dropdown"></div>
+            </div>
+            <textarea id="post_production" style="display:none"></textarea>
+          </label>
+
+          <div class="row2">
+            <label>Кастинг проект
+              <div class="input-wrap">
+                <input id="casting_project" placeholder="Найти проект..." autocomplete="off" />
+                <div id="castingDropdown" class="dropdown"></div>
+              </div>
+            </label>
+            <label>Актеры
+              <div class="multi-select-wrap" id="actorsWrapper">
+                <div id="actorsTags" class="tags"></div>
+                <input id="actorsInput" placeholder="Добавить..." autocomplete="off" />
+                <div id="actorsDropdown" class="dropdown"></div>
+              </div>
+              <textarea id="actors" style="display:none"></textarea>
+            </label>
+          </div>
 
           <label>План/тайминг<textarea id="schedule" placeholder="10:00 — интервью..."></textarea></label>
           <label>Техника<textarea id="gear" placeholder="Камера, свет..."></textarea></label>
@@ -824,6 +850,9 @@
       contact: document.getElementById("contact"),
       deliverables: document.getElementById("deliverables"),
       crew: document.getElementById("crew"),
+      post_production: document.getElementById("post_production"),
+      casting_project: document.getElementById("casting_project"),
+      actors: document.getElementById("actors"),
       schedule: document.getElementById("schedule"),
       gear: document.getElementById("gear"),
       notes: document.getElementById("notes"),
@@ -1395,6 +1424,9 @@
         contact: f.contact.value.trim(),
         deliverables: f.deliverables.value.trim(),
         crew: f.crew.value.trim(),
+        post_production: f.post_production.value.trim(),
+        casting_project: f.casting_project.value.trim(),
+        actors: f.actors.value.trim(),
         schedule: f.schedule.value.trim(),
         gear: f.gear.value.trim(),
         notes: f.notes.value.trim(),
@@ -1662,10 +1694,15 @@
       f.contact.value = e.contact || '';
       f.deliverables.value = e.deliverables || '';
       f.crew.value = e.crew || '';
+      f.post_production.value = e.post_production || '';
+      f.casting_project.value = e.casting_project || '';
+      f.actors.value = e.actors || '';
       f.schedule.value = e.schedule || '';
       f.gear.value = e.gear || '';
       f.notes.value = e.notes || '';
       renderCrewTags();
+      renderPostTags();
+      renderActorsTags();
       document.getElementById("deleteBtn").style.display = "block";
       toggleForm(true);
     }
@@ -1693,7 +1730,10 @@
           displayAddr = `[${studioAddress}](${studioLink})`;
         }
 
-        lines.push(`\n— — —\n${stat}🎥 Проект #${i + 1}\nПроект: ${e.project}\nCall: ${e.callTime}\nЛокация: ${displayLoc}\nАдрес: ${displayAddr}\nКоманда: ${e.crew}\nЗаметки: ${e.notes}`);
+        lines.push(`\n— — —\n${stat}🎥 Проект #${i + 1}\nПроект: ${e.project}\nCall: ${e.callTime}\nЛокация: ${displayLoc}\nАдрес: ${displayAddr}\nКоманда: ${e.crew}`);
+        if (e.post_production) lines.push(`Пост/монтаж: ${e.post_production}`);
+        if (e.casting_project || e.actors) lines.push(`Кастинг: ${e.casting_project || '—'} (Актеры: ${e.actors || '—'})`);
+        lines.push(`Заметки: ${e.notes}`);
       });
       return lines.join("\n");
     }
@@ -1721,6 +1761,8 @@
           selectedId = null;
           f.address.dataset.full = ''; // Clear hidden link
           renderCrewTags();
+          renderPostTags();
+          renderActorsTags();
         }
       }
     }
