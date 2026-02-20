@@ -685,7 +685,12 @@
                 <div id="projectDropdown" class="dropdown"></div>
               </div>
             </label>
-            <label>Локация<input id="location" placeholder="Студия / Офис" /></label>
+            <label>Локация
+              <div class="input-wrap">
+                <input id="location" placeholder="Зал или адрес..." required />
+                <div id="locationDropdown" class="dropdown"></div>
+              </div>
+            </label>
           </div>
           <div class="row2">
             <label>Call<input id="callTime" type="time" /></label>
@@ -1079,12 +1084,15 @@
     // --- AUTOCOMPLETE LOGIC ---
     let clientsData = [];
     let teamData = [];
+    let locationsData = [];
 
     async function fetchAutocompleteData() {
       const { data: cData } = await supabaseClient.from('clients').select('name');
       if (cData) clientsData = cData;
       const { data: tData } = await supabaseClient.from('team').select('full_name, username');
       if (tData) teamData = tData;
+      const { data: lData } = await supabaseClient.from('locations').select('name');
+      if (lData) locationsData = lData;
     }
 
     // Project Dropdown
@@ -1094,14 +1102,10 @@
     const renderProjects = () => {
       const val = projInput.value.toLowerCase();
       projDropdown.innerHTML = '';
-
-      // Show all if empty, or filter
       const matches = val
         ? clientsData.filter(c => c.name.toLowerCase().includes(val))
         : clientsData;
-
       if (!matches.length) { projDropdown.style.display = 'none'; return; }
-
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
@@ -1114,6 +1118,45 @@
 
     projInput.addEventListener('input', renderProjects);
     projInput.addEventListener('focus', renderProjects);
+
+    // Location Dropdown
+    const locInput = document.getElementById('location');
+    const locDropdown = document.getElementById('locationDropdown');
+
+    const renderLocations = () => {
+      const val = locInput.value.toLowerCase();
+      locDropdown.innerHTML = '';
+      const matches = val
+        ? locationsData.filter(l => l.name.toLowerCase().includes(val))
+        : locationsData;
+      if (!matches.length) { locDropdown.style.display = 'none'; return; }
+      matches.forEach(l => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.textContent = l.name;
+        div.onclick = () => {
+          locInput.value = l.name;
+          locDropdown.style.display = 'none';
+
+          // Auto-fill address for studio locations
+          const studioAddress = "Comfort Residencies, Улица Иванилова, 63з";
+          // Check if it's one of ours (excluding 'Студия Campot' itself which might be broader, but inclusion is fine)
+          const isStudio = ["Бали", "Экспертный кабинет", "Классический", "Ванная комната", "Кухня", "Кофейня", "Minimalistic", "Циклорама", "Лестница", "Студия Campot"].includes(l.name);
+          if (isStudio) {
+            document.getElementById('address').value = studioAddress;
+          }
+        };
+        locDropdown.appendChild(div);
+      });
+      locDropdown.style.display = 'block';
+    };
+
+    locInput.addEventListener('input', renderLocations);
+    locInput.addEventListener('focus', renderLocations);
+    locInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+      renderLocations();
+    });
     projInput.addEventListener('click', (e) => {
       e.stopPropagation();
       renderProjects();
@@ -1204,8 +1247,19 @@
 
     // Copy Single Shoot
     document.getElementById('copyBtn').onclick = () => {
+      const addressVal = f.address.value;
+      const studioAddress = "Comfort Residencies, Улица Иванилова, 63з";
+      const studioLink = "https://go.2gis.com/bd4n9";
+
+      // If matches studio address, format as Markdown link for Telegram
+      let displayAddress = addressVal;
+      if (addressVal.includes("Иванилова, 63з") || addressVal === studioAddress) {
+        // [Address](URL) is standard Markdown for links
+        displayAddress = `[${studioAddress}](${studioLink})`;
+      }
+
       const txt = `🎥 **${f.project.value}**\n` +
-        `📍 ${f.location.value} (${f.address.value})\n` +
+        `📍 ${f.location.value} (${displayAddress})\n` +
         `⏰ Call: ${f.callTime.value} | Wrap: ${f.wrapTime.value}\n` +
         `👥 Команда: ${f.crew.value}\n` +
         `📝 Задачи: ${f.deliverables.value}\n` +
@@ -1224,6 +1278,7 @@
       if (!e.target.closest('.input-wrap')) {
         projDropdown.style.display = 'none';
         tProjDropdown.style.display = 'none';
+        locDropdown.style.display = 'none';
       }
       if (!e.target.closest('.multi-select-wrap')) {
         crewDropdown.style.display = 'none';
@@ -1552,9 +1607,19 @@
       if (!list.length) return "Смен нет.";
       let lines = [`🎬 СЪЁМОЧНЫЙ ДЕНЬ — ${niceDate(selectedDate)}`];
       list.forEach((e, i) => {
-        // Add status indicator to export
         const stat = getStatus(e) === 'done' ? '[OK] ' : '';
-        lines.push(`\n— — —\n${stat}🎥 Проект #${i + 1}\nПроект: ${e.project}\nCall: ${e.callTime}\nЛокация: ${e.location}\nКоманда: ${e.crew}\nЗаметки: ${e.notes}`);
+
+        // Link logic for day summary
+        const studioAddress = "Comfort Residencies, Улица Иванилова, 63з";
+        const studioLink = "https://go.2gis.com/bd4n9";
+        let displayLoc = e.location;
+        let displayAddr = e.address;
+
+        if (e.address.includes("Иванилова, 63з") || e.address === studioAddress) {
+          displayAddr = `[${studioAddress}](${studioLink})`;
+        }
+
+        lines.push(`\n— — —\n${stat}🎥 Проект #${i + 1}\nПроект: ${e.project}\nCall: ${e.callTime}\nЛокация: ${displayLoc}\nАдрес: ${displayAddr}\nКоманда: ${e.crew}\nЗаметки: ${e.notes}`);
       });
       return lines.join("\n");
     }
