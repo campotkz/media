@@ -1,18 +1,18 @@
--- Drop table if exists to ensure clean schema update
+-- Полное удаление старой таблицы для обновления структуры
 DROP TABLE IF EXISTS team CASCADE;
 
--- Create team table with telegram_id
+-- Создание таблицы с полем для Telegram ID
 CREATE TABLE team (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    telegram_id BIGINT UNIQUE, -- Bigint for Telegram IDs
+    telegram_id BIGINT UNIQUE, -- Поле для связи с Telegram
     full_name TEXT NOT NULL,
-    username TEXT, -- Telegram username
-    position TEXT, -- e.g., "Motion Designer", "Operator"
-    roles TEXT[] DEFAULT '{}', -- array of roles: 'production', 'post', 'task', 'actor'
+    username TEXT, -- Username без собачки
+    position TEXT, -- Должность
+    roles TEXT[] DEFAULT '{}', -- Роли: production, post, task, actor
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Seed initial data (IDs are placeholders if unknown, but username/name will match)
+-- Начальные данные (Исправлено: добавлено NULL в последнюю строку)
 INSERT INTO team (full_name, username, position, roles, telegram_id) VALUES
 ('MIRA', 'MiraWWLL', 'Монтаж', '{post}', NULL),
 ('Yuume', 'younjopa', 'Монтаж', '{post}', NULL),
