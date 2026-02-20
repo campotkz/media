@@ -696,7 +696,12 @@
             <label>Call<input id="callTime" type="time" /></label>
             <label>Wrap<input id="wrapTime" type="time" /></label>
           </div>
-          <label>Адрес/линк<input id="address" placeholder="2GIS / Google Maps" /></label>
+          <label>Адрес/линк
+            <div class="input-wrap">
+              <input id="address" placeholder="Найти адрес (2GIS / Maps)..." autocomplete="off" />
+              <div id="addressDropdown" class="dropdown"></div>
+            </div>
+          </label>
           <label>Контакт<input id="contact" placeholder="Имя + телефон" /></label>
           <label>ТЗ<textarea id="deliverables" placeholder="Опиши задачу..."></textarea></label>
 
@@ -1157,6 +1162,53 @@
       e.stopPropagation();
       renderLocations();
     });
+
+    // Address Search Dropdown
+    const addrInput = document.getElementById('address');
+    const addrDropdown = document.getElementById('addressDropdown');
+    let addrTimeout = null;
+
+    const renderAddresses = (results) => {
+      addrDropdown.innerHTML = '';
+      if (!results || !results.length) { addrDropdown.style.display = 'none'; return; }
+
+      results.forEach(res => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.style.fontSize = '11px';
+        div.style.padding = '8px 12px';
+        div.textContent = res.display_name;
+        div.onclick = () => {
+          // Store as: Plain Address | 2GIS Link
+          const link = `https://2gis.kz/geo/${res.lon},${res.lat}`;
+          addrInput.value = `${res.display_name} | ${link}`;
+          addrDropdown.style.display = 'none';
+
+          // Format display immediately (strip link for UI)
+          addrInput.value = res.display_name;
+          // Store link in a data attribute to preserve it
+          addrInput.dataset.full = `${res.display_name} | ${link}`;
+        };
+        addrDropdown.appendChild(div);
+      });
+      addrDropdown.style.display = 'block';
+    };
+
+    addrInput.addEventListener('input', () => {
+      clearTimeout(addrTimeout);
+      const val = addrInput.value.trim();
+      if (val.length < 3) { addrDropdown.style.display = 'none'; return; }
+
+      addrTimeout = setTimeout(async () => {
+        try {
+          // Viewbox for Almaty biasing
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=5&viewbox=76.6,43.4,77.1,43.1`);
+          const data = await res.json();
+          renderAddresses(data);
+        } catch (e) { console.error(e); }
+      }, 500);
+    });
+
     projInput.addEventListener('click', (e) => {
       e.stopPropagation();
       renderProjects();
@@ -1279,6 +1331,7 @@
         projDropdown.style.display = 'none';
         tProjDropdown.style.display = 'none';
         locDropdown.style.display = 'none';
+        addrDropdown.style.display = 'none';
       }
       if (!e.target.closest('.multi-select-wrap')) {
         crewDropdown.style.display = 'none';
@@ -1327,7 +1380,7 @@
         location: f.location.value.trim(),
         callTime: f.callTime.value,
         wrapTime: f.wrapTime.value,
-        address: f.address.value.trim(),
+        address: f.address.dataset.full || f.address.value.trim(),
         contact: f.contact.value.trim(),
         deliverables: f.deliverables.value.trim(),
         crew: f.crew.value.trim(),
@@ -1589,11 +1642,18 @@
       const e = allEvents.find(x => x.id === id);
       if (!e) return;
       selectedId = e.id;
-      f.project.value = e.project; f.location.value = e.location;
-      f.callTime.value = e.callTime; f.wrapTime.value = e.wrapTime;
-      f.address.value = e.address; f.contact.value = e.contact;
-      f.deliverables.value = e.deliverables; f.crew.value = e.crew;
-      f.schedule.value = e.schedule; f.gear.value = e.gear; f.notes.value = e.notes;
+      f.project.value = e.project || '';
+      f.location.value = e.location || '';
+      f.callTime.value = e.callTime || '';
+      f.wrapTime.value = e.wrapTime || '';
+      f.address.value = e.address && e.address.includes(' | ') ? e.address.split(' | ')[0] : (e.address || '');
+      f.address.dataset.full = e.address || '';
+      f.contact.value = e.contact || '';
+      f.deliverables.value = e.deliverables || '';
+      f.crew.value = e.crew || '';
+      f.schedule.value = e.schedule || '';
+      f.gear.value = e.gear || '';
+      f.notes.value = e.notes || '';
       renderCrewTags();
       document.getElementById("deleteBtn").style.display = "block";
       toggleForm(true);
@@ -1613,9 +1673,12 @@
         const studioAddress = "Comfort Residencies, Улица Иванилова, 63з";
         const studioLink = "https://go.2gis.com/bd4n9";
         let displayLoc = e.location;
-        let displayAddr = e.address;
+        let displayAddr = e.address || '';
 
-        if (e.address.includes("Иванилова, 63з") || e.address === studioAddress) {
+        if (displayAddr.includes(' | ')) {
+          const parts = displayAddr.split(' | ');
+          displayAddr = `[${parts[0]}](${parts[1]})`;
+        } else if (displayAddr.includes("Иванилова, 63з") || displayAddr === studioAddress) {
           displayAddr = `[${studioAddress}](${studioLink})`;
         }
 
@@ -1642,7 +1705,12 @@
       } else {
         form.style.display = show ? "grid" : "none";
         btn.textContent = show ? "Свернуть" : "Новая";
-        if (!show) { form.reset(); selectedId = null; renderCrewTags(); }
+        if (!show) {
+          form.reset();
+          selectedId = null;
+          f.address.dataset.full = ''; // Clear hidden link
+          renderCrewTags();
+        }
       }
     }
 
