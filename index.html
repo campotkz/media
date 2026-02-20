@@ -669,7 +669,8 @@
     <div class="card" id="dayCard">
       <div class="head">
         <div class="dayHeadGlow"></div>
-        <div class="title">📅 <span id="selectedLabel">—</span></div>
+        <div class="title">📅 <span id="selectedLabel">—</span> <small style="font-size:8px; opacity:0.5;">v1.2</small>
+        </div>
         <div style="display:flex; gap:10px;">
           <button class="mini-btn" id="newBtn">Смена</button>
           <button class="mini-btn task-btn" onclick="openTaskForm()">+ Задача</button>
@@ -790,14 +791,13 @@
           </label>
 
           <div class="actions">
-            <div class="actions">
-              <button type="button" id="taskCopyBtn"
-                style="color:#7aa2ff; border-color:#7aa2ff; display:none;">Копировать</button>
-              <button type="button" id="taskDeleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
-              <button type="button" onclick="document.getElementById('taskForm').style.display='none'">Свернуть</button>
-              <button id="taskSubmitBtn" class="primary" type="submit"
-                style="background:#ffcc00; color:#000; border:none;">Сохранить</button>
-            </div>
+            <button type="button" id="taskCopyBtn"
+              style="color:#7aa2ff; border-color:#7aa2ff; display:none;">Копировать</button>
+            <button type="button" id="taskDeleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
+            <button type="button" onclick="document.getElementById('taskForm').style.display='none'">Свернуть</button>
+            <button id="taskSubmitBtn" class="primary" type="submit"
+              style="background:#ffcc00; color:#000; border:none;">Сохранить</button>
+          </div>
         </form>
       </div>
     </div>
