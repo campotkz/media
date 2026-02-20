@@ -137,14 +137,10 @@ def handle_start(message):
 def handle_feedback(message):
     chat_id = message.chat.id
     thread_id = message.message_thread_id if message.is_topic_message else ""
-    
-    # Generate Link
     link = f"{APP_URL}feedback.html?cid={chat_id}&tid={thread_id}"
-    
     markup = types.InlineKeyboardMarkup()
     btn = types.InlineKeyboardButton(text="📊 ЗАПОЛНИТЬ МЕТРИКИ", url=link)
     markup.add(btn)
-    
     bot.send_message(
         chat_id,
         f"📉 **СВЕРКА МЕТРИК**\n\nСсылка для отчета (нажмите, чтобы скопировать):\n`{link}`\n\nЗаполните, пожалуйста, данные за месяц.",
@@ -153,118 +149,117 @@ def handle_feedback(message):
         parse_mode="Markdown"
     )
 
-@bot.message_handler(content_types=['new_chat_members'])
-def handle_new_member(message):
-    for user in message.new_chat_members:
-        if not user.is_bot:
-            register_user(user, message.chat.id)
-
 def register_user(user, chat_id, thread_id=None):
     try:
-        # 1. Search by Telegram ID
         res = supabase.from_("team").select("*").eq("telegram_id", user.id).execute()
-        
         if not res.data and user.username:
-            # 2. Search by username (case-insensitive, strip @)
             clean_uname = user.username.lstrip('@').lower()
-            res = supabase.from_("team").select("*").execute() # Fetch all and filter in Python to be safe with case
-            match = next((t for t in res.data if t.get('username', '').lstrip('@').lower() == clean_uname), None)
-            
+            all_team = supabase.from_("team").select("*").execute()
+            match = next((t for t in all_team.data if t.get('username', '').lstrip('@').lower() == clean_uname), None)
             if match:
                 supabase.from_("team").update({"telegram_id": user.id}).eq("id", match['id']).execute()
                 return match
-
         if not res.data:
-            # 3. New user creation
-            data = {
-                "telegram_id": user.id,
-                "username": user.username or "",
-                "full_name": user.full_name or user.first_name,
-                "roles": ["task"]
-            }
+            data = {"telegram_id": user.id, "username": user.username or "", "full_name": user.full_name or user.first_name, "roles": ["task"]}
             supabase.from_("team").insert(data).execute()
             bot.send_message(chat_id, f"👋 Привет, {user.first_name}! Вижу нового участника.\nНапиши свою **Должность**, чтобы я добавил тебя в ERP.", message_thread_id=thread_id)
             return None
-            
         rec = res.data[0]
         if not rec.get('position'):
             bot.send_message(chat_id, f"📝 {user.first_name}, напиши свою **Должность** для ERP.", message_thread_id=thread_id)
             return rec
-            
         return rec
     except Exception as e:
         print(f"Reg error: {e}")
         return None
+
+@bot.message_handler(content_types=['new_chat_members'])
+def handle_new_member(message):
+    thread_id = message.message_thread_id if message.is_topic_message else None
+    for user in message.new_chat_members:
+        if not user.is_bot: register_user(user, message.chat.id, thread_id)
 
 @bot.message_handler(content_types=['audio', 'photo', 'voice', 'video', 'document', 'text', 'location', 'contact', 'sticker'])
 def handle_text(message):
     try:
         user = message.from_user
         if not user or user.is_bot: return
+        thread_id = message.message_thread_id if message.is_topic_message else None
 
-        # 1. Check if we need a position from this user
-        res = supabase.from_("team").select("*").eq("telegram_id", user.id).execute()
+        # 1. Identity Phase
+        user_record = register_user(user, message.chat.id, thread_id)
         
-        if not res.data:
-            # First time sending a message, not caught by 'new_member'
-            register_user(user, message.chat.id)
-            return
+        # 2. Handle Replies (Name or Position)
+        if message.reply_to_message and message.reply_to_message.from_user.is_bot and message.text and not message.text.startswith('/'):
+            bot_text = message.reply_to_message.text
             
-        old_data = res.data[0]
-        
-        # 1.5 Handle "What is the name for this phone?" response
-        # We check if the last message from bot in this chat was a phone prompt
-        # but for simplicity in serverless, we check if user just sent a name and we have a pending phone in this thread
-        # Actually, let's look for a name if message doesn't start with / and follows a prompt.
-        # Temporary: detect if text is just a name and we have a contact with 'PENDING_NAME' phone for this thread?
-        # Better: use regex for phone first.
-        
-        # 1.7 Phone Number Discovery
-        phone_matches = re.findall(r'(?:\+7|8)[\s\-]?\(?7\d{2}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}', message.text or "")
-        if phone_matches and message.is_topic_message:
-            phone = phone_matches[0].replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-            if phone.startswith('8'): phone = '+7' + phone[1:]
-            if not phone.startswith('+'): phone = '+' + phone
-            
-            # Simple Name Extraction for same message
-            name_guess = ""
-            after_phone = message.text.split(phone_matches[0])[-1].strip()
-            # Look for 1-2 capitalized words after phone
-            words = [w for w in after_phone.split() if w and w[0].isupper()]
-            if words: name_guess = " ".join(words[:2])
+            # 2.1 Contact Rename Response
+            phone_m = re.search(r"Вижу номер телефона: `(\+7\d{10})`", bot_text)
+            if phone_m and thread_id:
+                phone = phone_m.group(1)
+                name = message.text.strip()
+                supabase.table("contacts").upsert({"name": name, "phone": phone, "thread_id": thread_id}, on_conflict="phone,thread_id").execute()
+                bot.reply_to(message, f"✅ Имя контакта обновлено: **{name}** ({phone})")
+                return
 
-            existing_contact = supabase.table("contacts").select("*").eq("phone", phone).eq("thread_id", thread_id).execute()
-            if not existing_contact.data:
-                if name_guess:
-                    supabase.table("contacts").insert({"name": name_guess, "phone": phone, "thread_id": thread_id}).execute()
-                    bot.reply_to(message, f"✅ Обнаружил контакт: **{name_guess}** ({phone}).")
-                else:
-                    bot.reply_to(message, f"📱 Вижу номер телефона: `{phone}`\n\nКак зовут этого клиента за этим номером? (Ответьте Reply на это сообщение)")
-                    return
+            # 2.2 Position Response
+            if "Напиши свою Должность" in bot_text:
+                pos = message.text.strip()
+                roles = ["task"]
+                p_low = pos.lower()
+                if any(k in p_low for k in ["оператор", "камера"]): roles += ["production", "post"]
+                if any(k in p_low for k in ["монтаж", "motion", "дизайн", "vfx"]): roles += ["post"]
+                if any(k in p_low for k in ["актер", "актриса", "модель"]): roles += ["actor"]
+                if any(k in p_low for k in ["менеджер", "руководитель", "продюсер", "админ"]): roles = ["production", "post", "task", "actor"]
+                supabase.from_("team").update({"position": pos, "roles": list(set(roles))}).eq("telegram_id", user.id).execute()
+                bot.reply_to(message, f"✅ Должность **{pos}** сохранена!")
+                return
 
-        # 2. Project (Client) Discovery
-        if message.is_topic_message:
-            existing = supabase.from_("clients").select("id").eq("thread_id", thread_id).execute()
-            if not existing.data:
-                # NEW TOPIC DETECTED - Try to find Name: Inst | Client Name
-                insta_handle = ""
-                url_match = re.search(r'instagram\.com/([^/?#\s]+)', message.text or "")
-                at_match = re.search(r'@([\w._]+)', message.text or "")
-                if url_match: insta_handle = url_match.group(1)
-                elif at_match: insta_handle = at_match.group(1)
-
-                name_val = ""
-                # Look for capitalized words that aren't the handle
-                words = [w for w in (message.text or "").split() if w and w[0].isupper() and not w.startswith(('http', '@', '#'))]
+        # 3. Discovery Phase
+        if message.is_topic_message and message.text:
+            # 3.1 Project Discovery
+            existing_proj = supabase.from_("clients").select("id").eq("thread_id", thread_id).execute()
+            if not existing_proj.data:
+                insta, name_val = "", ""
+                u_link = re.search(r'instagram\.com/([^/?#\s]+)', message.text)
+                a_mention = re.search(r'@([\w._]+)', message.text)
+                if u_link: insta = u_link.group(1)
+                elif a_mention: insta = a_mention.group(1)
+                
+                words = [w for w in message.text.split() if w and w[0].isupper() and not w.startswith(('http', '@', '#'))]
                 if words: name_val = words[0]
-
+                
                 proj_name = f"Topic {thread_id}"
-                if insta_handle and name_val: proj_name = f"{insta_handle} | {name_val}"
-                elif insta_handle: proj_name = insta_handle
+                if insta and name_val: proj_name = f"{insta} | {name_val}"
+                elif insta: proj_name = insta
                 elif name_val: proj_name = name_val
-
+                
                 supabase.from_("clients").insert({"thread_id": thread_id, "name": proj_name}).execute()
                 bot.reply_to(message, f"🆕 Проект зарегистрирован: **{proj_name}**")
+
+            # 3.2 Phone Discovery
+            phone_matches = re.findall(r'(?:\+7|8)[\s\-]?\(?7\d{2}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}', message.text)
+            if phone_matches:
+                raw_phone = phone_matches[0]
+                phone = raw_phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+                if phone.startswith('8'): phone = '+7' + phone[1:]
+                if not phone.startswith('+'): phone = '+' + phone
+                
+                name_hint = ""
+                after = message.text.split(raw_phone)[-1].strip()
+                hint_w = [w for w in after.split() if w and w[0].isupper()]
+                if hint_w: name_hint = " ".join(hint_w[:2])
+
+                exists = supabase.table("contacts").select("*").eq("phone", phone).eq("thread_id", thread_id).execute()
+                if exists.data:
+                    old_name = exists.data[0]['name']
+                    bot.reply_to(message, f"📱 Номер `{phone}` уже записан как **{old_name}**. Хотите переименовать? Напишите новое имя в ответ (Reply) на это сообщение.")
+                else:
+                    if name_hint:
+                        supabase.table("contacts").insert({"name": name_hint, "phone": phone, "thread_id": thread_id}).execute()
+                        bot.reply_to(message, f"✅ Обнаружил контакт: **{name_hint}** ({phone})")
+                    else:
+                        bot.reply_to(message, f"📱 Вижу номер телефона: `{phone}`\nНапишите имя клиента в ответ (Reply) на это сообщение.")
                 
     except Exception as e:
-        print(f"Auto-discovery error: {e}")
+        print(f"Bot error: {e}")
