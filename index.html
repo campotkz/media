@@ -1254,87 +1254,92 @@
       renderProjects();
     });
 
-    // Crew Tags & Dropdown
-    const crewInput = document.getElementById('crewInput');
-    const crewDropdown = document.getElementById('crewDropdown');
-    const crewTags = document.getElementById('crewTags');
-    const crewHidden = document.getElementById('crew');
-
-    function renderCrewTags() {
-      const val = crewHidden.value;
+    // Generic Tags Logic
+    function renderTags(fieldId, tagsId) {
+      const hidden = document.getElementById(fieldId);
+      const tagsContainer = document.getElementById(tagsId);
+      if (!hidden || !tagsContainer) return;
+      const val = hidden.value;
       const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
-      crewTags.innerHTML = '';
+      tagsContainer.innerHTML = '';
       names.forEach(name => {
         const tag = document.createElement('div');
         tag.className = 'tag';
         tag.innerHTML = `<span>${name}</span> <span class="tag-remove">×</span>`;
         tag.querySelector('.tag-remove').onclick = () => {
           const newNames = names.filter(n => n !== name);
-          crewHidden.value = newNames.join(', ');
-          renderCrewTags();
+          hidden.value = newNames.join(', ');
+          renderTags(fieldId, tagsId);
         };
-        crewTags.appendChild(tag);
+        tagsContainer.appendChild(tag);
       });
     }
 
-    function addCrewTag(name) {
-      const val = crewHidden.value;
+    function addTag(fieldId, tagsId, inputId, dropdownId, name) {
+      const hidden = document.getElementById(fieldId);
+      const val = hidden.value;
       const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
       if (!names.includes(name)) {
         names.push(name);
-        crewHidden.value = names.join(', ');
-        renderCrewTags();
+        hidden.value = names.join(', ');
+        renderTags(fieldId, tagsId);
       }
-      crewInput.value = '';
-      crewDropdown.style.display = 'none';
+      document.getElementById(inputId).value = '';
+      document.getElementById(dropdownId).style.display = 'none';
     }
 
-    function renderCrewDropdown() {
-      const val = crewInput.value.toLowerCase();
-      crewDropdown.innerHTML = '';
+    function renderCrewTags() { renderTags('crew', 'crewTags'); }
+    function renderPostTags() { renderTags('post_production', 'postTags'); }
+    function renderActorsTags() { renderTags('actors', 'actorsTags'); }
 
-      // Show all (top 20?) if empty, or filter
-      let matches = val
-        ? teamData.filter(t => (t.full_name && t.full_name.toLowerCase().includes(val)) || (t.username && t.username.toLowerCase().includes(val)))
-        : teamData;
-
-      // Limit to 50 to avoid huge lists
-      matches = matches.slice(0, 50);
-
-      if (!matches.length) { crewDropdown.style.display = 'none'; return; }
-
-      matches.forEach(t => {
-        const div = document.createElement('div');
-        div.className = 'dropdown-item';
-        div.innerHTML = `${t.full_name} <small>@${t.username}</small>`;
-        div.onclick = () => addCrewTag(t.full_name);
-        crewDropdown.appendChild(div);
-      });
-      crewDropdown.style.display = 'block';
-    }
-
-    crewInput.addEventListener('input', renderCrewDropdown);
-    crewInput.addEventListener('focus', renderCrewDropdown);
-    crewInput.addEventListener('click', (e) => {
-      e.stopPropagation();
-      renderCrewDropdown();
-    });
-
-    crewInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && !crewInput.value) {
-        const val = crewHidden.value;
-        const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
-        if (names.length) {
-          names.pop();
-          crewHidden.value = names.join(', ');
-          renderCrewTags();
+    function setupTagInput(inputId, dropdownId, fieldId, tagsId, dataSrc = []) {
+      const inp = document.getElementById(inputId);
+      const drop = document.getElementById(dropdownId);
+      const renderDrop = () => {
+        const val = inp.value.toLowerCase();
+        drop.innerHTML = '';
+        let matches = val
+          ? dataSrc.filter(t => (t.full_name && t.full_name.toLowerCase().includes(val)) || (t.username && t.username.toLowerCase().includes(val)))
+          : dataSrc;
+        matches = matches.slice(0, 20);
+        if (!matches.length) { drop.style.display = 'none'; return; }
+        matches.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'dropdown-item';
+          div.innerHTML = `${m.full_name} <small>@${m.username}</small>`;
+          div.onclick = () => addTag(fieldId, tagsId, inputId, dropdownId, m.full_name);
+          drop.appendChild(div);
+        });
+        drop.style.display = 'block';
+      };
+      inp.addEventListener('input', renderDrop);
+      inp.addEventListener('focus', renderDrop);
+      inp.addEventListener('click', (e) => { e.stopPropagation(); renderDrop(); });
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !inp.value) {
+          const hidden = document.getElementById(fieldId);
+          const names = hidden.value.split(',').map(s => s.trim()).filter(s => s);
+          if (names.length) {
+            names.pop();
+            hidden.value = names.join(', ');
+            renderTags(fieldId, tagsId);
+          }
         }
-      }
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const val = crewInput.value.trim();
-        if (val) addCrewTag(val);
-      }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const val = inp.value.trim();
+          if (val) addTag(fieldId, tagsId, inputId, dropdownId, val);
+        }
+      });
+    }
+
+    setupTagInput('crewInput', 'crewDropdown', 'crew', 'crewTags', teamData);
+    setupTagInput('postInput', 'postDropdown', 'post_production', 'postTags', teamData);
+    setupTagInput('actorsInput', 'actorsDropdown', 'actors', 'actorsTags', []);
+
+    // Casting Project simple listener
+    document.getElementById('casting_project').addEventListener('input', () => {
+      document.getElementById('castingDropdown').style.display = 'none';
     });
 
     // Copy Single Shoot
@@ -1343,27 +1348,32 @@
       const studioAddress = "Comfort Residencies, Улица Иванилова, 63з";
       const studioLink = "https://go.2gis.com/bd4n9";
 
-      // If matches studio address, format as Markdown link for Telegram
       let displayAddress = addressVal;
       if (addressVal.includes("Иванилова, 63з") || addressVal === studioAddress) {
-        // [Address](URL) is standard Markdown for links
         displayAddress = `[${studioAddress}](${studioLink})`;
       }
 
-      const txt = `🎥 **${f.project.value}**\n` +
+      let txt = `🎥 **${f.project.value}**\n` +
         `📍 ${f.location.value} (${displayAddress})\n` +
         `⏰ Call: ${f.callTime.value} | Wrap: ${f.wrapTime.value}\n` +
-        `👥 Команда: ${f.crew.value}\n` +
-        `📝 Задачи: ${f.deliverables.value}\n` +
+        `👥 Продакшн: ${f.crew.value}\n`;
+
+      if (f.post_production.value) txt += `✂️ Пост/Монтаж: ${f.post_production.value}\n`;
+      if (f.casting_project.value || f.actors.value) {
+        txt += `🎭 Кастинг: ${f.casting_project.value || '—'}\n`;
+        if (f.actors.value) txt += `🎬 Актеры: ${f.actors.value}\n`;
+      }
+
+      txt += `📝 Задачи: ${f.deliverables.value}\n` +
         `⚙️ Техника: ${f.gear.value}\n` +
         `⚠️ Инфо: ${f.notes.value}\n` +
         `📞 Контакт: ${f.contact.value}`;
 
       navigator.clipboard.writeText(txt);
       if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-      const originalText = document.getElementById('copyBtn').textContent;
+      const originalBtnText = document.getElementById('copyBtn').textContent;
       document.getElementById('copyBtn').textContent = "Скопировано!";
-      setTimeout(() => document.getElementById('copyBtn').textContent = originalText, 1500);
+      setTimeout(() => document.getElementById('copyBtn').textContent = originalBtnText, 1500);
     };
 
     document.addEventListener('click', (e) => {
