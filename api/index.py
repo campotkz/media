@@ -161,44 +161,39 @@ def handle_new_member(message):
 
 def register_user(user, chat_id, thread_id=None):
     try:
-        # 1. Check if user exists by Telegram ID
+        # 1. Search by Telegram ID
         res = supabase.from_("team").select("*").eq("telegram_id", user.id).execute()
         
         if not res.data and user.username:
-            # 2. Check by username if ID not found (User was seeded but ID unknown)
-            res = supabase.from_("team").select("*").eq("username", user.username).execute()
-            if res.data:
-                # Update existing record with ID
-                supabase.from_("team").update({"telegram_id": user.id}).eq("username", user.username).execute()
-                return res.data[0] # Return matched user
+            # 2. Search by username (case-insensitive, strip @)
+            clean_uname = user.username.lstrip('@').lower()
+            res = supabase.from_("team").select("*").execute() # Fetch all and filter in Python to be safe with case
+            match = next((t for t in res.data if t.get('username', '').lstrip('@').lower() == clean_uname), None)
+            
+            if match:
+                supabase.from_("team").update({"telegram_id": user.id}).eq("id", match['id']).execute()
+                return match
 
         if not res.data:
-            # 3. Truly new user
+            # 3. New user creation
             data = {
                 "telegram_id": user.id,
                 "username": user.username or "",
                 "full_name": user.full_name or user.first_name,
-                "roles": ["task"] # Default role
+                "roles": ["task"]
             }
             supabase.from_("team").insert(data).execute()
-            bot.send_message(
-                chat_id, 
-                f"👋 Привет, {user.first_name}! Вижу нового участника команды.\n\nНапиши, пожалуйста, свою **Должность** (например: Оператор, Монтажер, Продюсер), чтобы я добавил тебя в ERP GULYWOOD.",
-                message_thread_id=thread_id
-            )
+            bot.send_message(chat_id, f"👋 Привет, {user.first_name}! Вижу нового участника.\nНапиши свою **Должность**, чтобы я добавил тебя в ERP.", message_thread_id=thread_id)
             return None
-        elif not res.data[0].get('position'):
-            # Existing but no position
-            bot.send_message(
-                chat_id, 
-                f"📝 {user.first_name}, напомни, пожалуйста, свою **Должность**, чтобы я правильно настроил твои доступы в ERP.",
-                message_thread_id=thread_id
-            )
-            return res.data[0]
-        
-        return res.data[0]
+            
+        rec = res.data[0]
+        if not rec.get('position'):
+            bot.send_message(chat_id, f"📝 {user.first_name}, напиши свою **Должность** для ERP.", message_thread_id=thread_id)
+            return rec
+            
+        return rec
     except Exception as e:
-        print(f"Error registering user: {e}")
+        print(f"Reg error: {e}")
         return None
 
 @bot.message_handler(content_types=['audio', 'photo', 'voice', 'video', 'document', 'text', 'location', 'contact', 'sticker'])
