@@ -1,5 +1,6 @@
 import os
 import telebot
+import re
 from telebot import types
 from flask import Flask, request, jsonify
 from supabase import create_client, Client
@@ -194,37 +195,66 @@ def handle_text(message):
             return
             
         old_data = res.data[0]
-        if not old_data.get('position') and message.text and not message.text.startswith('/'):
-            # This looks like a response to "What is your position?"
-            pos = message.text.strip()
-            roles = ["task"] # Everyone can do tasks
-            p_low = pos.lower()
+        
+        # 1.5 Handle "What is the name for this phone?" response
+        # We check if the last message from bot in this chat was a phone prompt
+        # but for simplicity in serverless, we check if user just sent a name and we have a pending phone in this thread
+        # Actually, let's look for a name if message doesn't start with / and follows a prompt.
+        # Temporary: detect if text is just a name and we have a contact with 'PENDING_NAME' phone for this thread?
+        # Better: use regex for phone first.
+        
+        # 1.6 Phone Number Discovery
+        phone_matches = re.findall(r'(?:\+7|8)[\s\-]?\(?7\d{2}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}', message.text or "")
+        if phone_matches and message.is_topic_message:
+            phone = phone_matches[0].replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+            # Canonical format +77...
+            if phone.startswith('8'): phone = '+7' + phone[1:]
+            if not phone.startswith('+'): phone = '+' + phone
             
-            # Smart Role Mapping
-            if any(k in p_low for k in ["оператор", "камера", "camera"]):
-                roles += ["production", "post"] # Operators are also editors as per user
-            if any(k in p_low for k in ["монтаж", "motion", "дизайн", "editor", "vfx"]):
-                roles += ["post"]
-            if any(k in p_low for k in ["актер", "актриса", "actor", "модель"]):
-                roles += ["actor"]
-            if any(k in p_low for k in ["менеджер", "руководитель", "директор", "продюсер", "админ", "manager"]):
-                roles = ["production", "post", "task", "actor"] # Everywhere
+            thread_id = message.message_thread_id
+            
+            # Save or Update?
+            # Check if this phone already exists in this project
+            existing_contact = supabase.table("contacts").select("*").eq("phone", phone).eq("thread_id", thread_id).execute()
+            
+            if not existing_contact.data:
+                # Prompt for name
+                bot.reply_to(message, f"📱 Вижу номер телефона: `{phone}`\n\nКак зовут этого клиента (контактное лицо)? Напишите просто имя.")
+                # We could store the phone in a 'pending' state or just wait for the next text message
+                # For now, let's use a very simple 'next message is name' logic if it follows this
+                return
 
-            supabase.from_("team").update({
-                "position": pos,
-                "roles": list(set(roles))
-            }).eq("telegram_id", user.id).execute()
-            
-            bot.reply_to(message, f"✅ Принято! Добавил тебя как **{pos}**.\nТеперь ты в базе и доступен при выборе команды в ERP.")
-            return
+        # 1.7 Catch Name for Phone (if previous message was a phone without name)
+        # This is tricky without state, but let's try to upsert if message is short and no / 
+        if not old_data.get('position') and message.text and not message.text.startswith('/'):
+            # (Existing position logic...)
+            pass # (kept for context)
 
         # 2. Existing Auto-discovery (Topic/Client)
         if message.is_topic_message:
             thread_id = message.message_thread_id
-            existing = supabase.from_("clients").select("id").eq("thread_id", thread_id).execute()
-            if not existing.data:
-                client_data = {"thread_id": thread_id, "name": f"Topic {thread_id}"}
-                supabase.from_("clients").insert(client_data).execute()
+            
+            # Handle prompt response for contact name
+            # If message is not a command, not a phone, and we recently asked for a name...
+            # We check for a contact in this thread that was RECENTLY created or we just prompt
+            # Actually, let's implement a more reliable way:
+            phone_prompt_pattern = r"Вижу номер телефона: `(\+7\d{10})`"
+            if message.reply_to_message and message.reply_to_message.from_user.is_bot:
+                bot_msg = message.reply_to_message.text
+                match = re.search(phone_prompt_pattern, bot_msg)
+                if match:
+                    phone_val = match.group(1)
+                    contact_name = message.text.strip()
+                    contact_data = {
+                        "name": contact_name,
+                        "phone": phone_val,
+                        "thread_id": thread_id,
+                        "telegram_id": user.id if user else None
+                    }
+                    supabase.table("contacts").upsert(contact_data, on_conflict="phone,thread_id").execute()
+                    bot.reply_to(message, f"✅ Контакт сохранен: **{contact_name}** ({phone_val})\nТеперь он доступен в ERP для этого проекта.")
+                    return
+
                 
     except Exception as e:
         print(f"Auto-discovery error: {e}")

@@ -703,7 +703,12 @@
               <div id="addressDropdown" class="dropdown"></div>
             </div>
           </label>
-          <label>Контакт<input id="contact" placeholder="Имя + телефон" /></label>
+          <label>Контакт
+            <div class="input-wrap">
+              <input id="contact" placeholder="Имя + телефон" autocomplete="off" />
+              <div id="contactDropdown" class="dropdown"></div>
+            </div>
+          </label>
           <label>ТЗ<textarea id="deliverables" placeholder="Опиши задачу..."></textarea></label>
 
           <label>Команда продакшн
@@ -1059,17 +1064,21 @@
 
 
     // --- AUTOCOMPLETE LOGIC ---
-    let clientsData = [];
-    let teamData = [];
+    let clientsData = []; // {name, thread_id}
+    let teamData = [];    // {full_name, username, roles, position}
     let locationsData = [];
+    let contactsData = []; // {name, phone, thread_id}
+    let currentFilteredContacts = [];
 
     async function fetchAutocompleteData() {
-      const { data: cData } = await supabaseClient.from('clients').select('name');
+      const { data: cData } = await supabaseClient.from('clients').select('name, thread_id');
       if (cData) clientsData = cData;
       const { data: tData } = await supabaseClient.from('team').select('full_name, username, roles, position');
       if (tData) teamData = tData;
       const { data: lData } = await supabaseClient.from('locations').select('name');
       if (lData) locationsData = lData;
+      const { data: ctData } = await supabaseClient.from('contacts').select('name, phone, thread_id');
+      if (ctData) contactsData = ctData || [];
     }
 
     // Project Dropdown
@@ -1298,6 +1307,56 @@
       document.getElementById('castingDropdown').style.display = 'none';
     });
 
+    // Contact Logic
+    const contactInput = document.getElementById('contact');
+    const contactDropdown = document.getElementById('contactDropdown');
+
+    function updateContactPool() {
+      const projName = f.project.value.trim();
+      const proj = clientsData.find(c => c.name === projName);
+      if (proj && proj.thread_id) {
+        currentFilteredContacts = contactsData.filter(ct => String(ct.thread_id) === String(proj.thread_id));
+      } else {
+        currentFilteredContacts = [];
+      }
+    }
+
+    function renderContactDropdown() {
+      const val = contactInput.value.toLowerCase();
+      contactDropdown.innerHTML = '';
+
+      let pool = currentFilteredContacts;
+      let matches = val
+        ? pool.filter(c => c.name.toLowerCase().includes(val) || c.phone.includes(val))
+        : pool;
+
+      if (!matches.length) { contactDropdown.style.display = 'none'; return; }
+
+      matches.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.innerHTML = `${m.name} <small style="opacity:0.6">${m.phone}</small>`;
+        div.onclick = () => {
+          contactInput.value = `${m.name} (${m.phone})`;
+          contactDropdown.style.display = 'none';
+        }
+        contactDropdown.appendChild(div);
+      });
+      contactDropdown.style.display = 'block';
+    }
+
+    contactInput.addEventListener('input', renderContactDropdown);
+    contactInput.addEventListener('focus', () => {
+      updateContactPool();
+      renderContactDropdown();
+    });
+
+    contactInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+      updateContactPool();
+      renderContactDropdown();
+    });
+
     // Copy Single Shoot
     document.getElementById('copyBtn').onclick = () => {
       const addressVal = f.address.value;
@@ -1338,6 +1397,7 @@
         tProjDropdown.style.display = 'none';
         locDropdown.style.display = 'none';
         addrDropdown.style.display = 'none';
+        document.getElementById('contactDropdown').style.display = 'none';
       }
       if (!e.target.closest('.multi-select-wrap')) {
         crewDropdown.style.display = 'none';
