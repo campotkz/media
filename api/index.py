@@ -8,7 +8,7 @@ from supabase import create_client, Client
 # Config
 TOKEN = os.environ.get('BOT_KEY')
 SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co"
-SUPABASE_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V" # Public key is fine due to RLS
+SUPABASE_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V" 
 APP_URL = "https://campotkz.github.io/media/"
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
@@ -37,14 +37,14 @@ def submit_report():
         chat_id, thread_id = data.get('chat_id'), data.get('thread_id')
         if not chat_id: return jsonify({'error': 'No chat_id'}), 400
         prev_query = supabase.table('client_feedback').select('leads_count, sales_count').eq('thread_id', thread_id or 0).order('created_at', desc=True).limit(2).execute()
-        p_leads, p_sales = 0, 0
+        p_l, p_s = 0, 0
         if len(prev_query.data) > 1:
-            p_leads, p_sales = prev_query.data[1]['leads_count'] or 0, prev_query.data[1]['sales_count'] or 0
-        c_leads, c_sales = int(data.get('leads_count', 0)), int(data.get('sales_count', 0))
-        d_l, d_s = c_leads - p_leads, c_sales - p_sales
+            p_l, p_s = prev_query.data[1]['leads_count'] or 0, prev_query.data[1]['sales_count'] or 0
+        c_l, c_s = int(data.get('leads_count', 0)), int(data.get('sales_count', 0))
+        d_l, d_s = c_l - p_l, c_s - p_s
         l_i, s_i = ("🟢" if d_l >= 0 else "🔴"), ("🟢" if d_s >= 0 else "🔴")
         def v(k): return str(data.get(k)) if data.get(k) else "-"
-        msg = f"📊 **ОТЧЕТ ЗА МЕСЯЦ**\n\n👤 **КОНТАКТЫ**\nИмя: {v('client_name')}\nInst: {v('instagram')}\nTel: {v('phone')}\n\n🔥 **ЦИФРЫ**\nЛиды: {c_leads}\nПродажи: {c_sales}\n\n🤝 **КОМАНДА CAMPOT**"
+        msg = f"📊 **ОТЧЕТ ЗА МЕСЯЦ**\n\n👤 Имя: {v('client_name')}\nInst: {v('instagram')}\n\n🔥 Лиды: {c_l} ({d_l:+})\nПродажи: {c_s} ({d_s:+})"
         bot.send_message(chat_id, msg, message_thread_id=thread_id, parse_mode="Markdown")
         r = jsonify({'status': 'ok'})
         r.headers.add('Access-Control-Allow-Origin', '*')
@@ -70,26 +70,25 @@ def handle_feedback(message):
 
 def register_user(user, chat_id, thread_id=None, silent=False):
     try:
-        # 1. Direct ID match
+        # Check by ID
         res = supabase.from_("team").select("*").eq("telegram_id", user.id).execute()
         if res.data: return res.data[0]
 
-        # 2. Robust Username match
+        # Check by Username
         if user.username:
             u_low = user.username.lstrip('@').lower()
             all_t = supabase.from_("team").select("*").execute()
             for t in (all_t.data or []):
                 db_u = (t.get('username') or "").lstrip('@').lower()
-                if db_u == u_low and u_low:
-                    # Found match! Update ID and return
+                if db_u == u_low:
                     supabase.from_("team").update({"telegram_id": user.id}).eq("id", t['id']).execute()
                     return t
         
-        # 3. New User or ID unknown
+        # New
         data = {"telegram_id": user.id, "username": user.username or "", "full_name": user.full_name or user.first_name, "roles": ["task"]}
         supabase.from_("team").insert(data).execute()
         if not silent:
-            bot.send_message(chat_id, f"👋 Привет, {user.first_name}!\nЯ привязал твой аккаунт. Скажи, какая у тебя **Должность** (например: Менеджер, Оператор)?", message_thread_id=thread_id)
+            bot.send_message(chat_id, f"👋 Привет, {user.first_name}! Какая у тебя **Должность**?", message_thread_id=thread_id)
         return None
     except Exception as e:
         print(f"Reg err: {e}"); return None
@@ -106,37 +105,37 @@ def handle_text(message):
         user = message.from_user
         if not user or user.is_bot: return
         tid = message.message_thread_id if message.is_topic_message else None
-
-        # 1. Identity Check
-        is_p = bool(re.search(r'(?:\+7|8)[\s\-]?\(?7\d{2}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}', message.text or ""))
-        u_rec = register_user(user, message.chat.id, tid, silent=is_p)
         
-        # If user has no position and it's NOT a phone message, prompt
-        if u_rec and not u_rec.get('position') and not is_p:
-            bot.send_message(message.chat.id, f"📝 {user.first_name}, напомни свою **Должность** для ERP.", message_thread_id=tid)
+        # Phone Detection (Permissive)
+        ph_match = re.findall(r'(?:\+7|8)[\s\-]?\(?7\d{2}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}', message.text or "")
+        is_ph = len(ph_match) > 0
+        
+        # 1. Identity Phase
+        u_rec = register_user(user, message.chat.id, tid, silent=is_ph)
+        if u_rec and not u_rec.get('position') and not is_ph:
+            bot.send_message(message.chat.id, f"📝 {user.first_name}, напиши свою **Должность**.", message_thread_id=tid)
 
-        # 2. Handle Replies
-        if message.reply_to_message and message.reply_to_message.from_user.is_bot and message.text and not message.text.startswith('/'):
-            b_text = message.reply_to_message.text
-            ph_m = re.search(r"номер телефона: `(\+7\d{10})`", b_text)
-            if ph_m and tid:
-                ph, name = ph_m.group(1), message.text.strip()
+        # 2. Reply Handling
+        if message.reply_to_message and message.reply_to_message.from_user.is_bot and message.text:
+            b_txt = message.reply_to_message.text
+            pm = re.search(r"номер телефона: `(\+7\d{10})`", b_txt)
+            if pm and tid:
+                ph, name = pm.group(1), message.text.strip()
                 supabase.table("contacts").upsert({"name": name, "phone": ph, "thread_id": tid}, on_conflict="phone,thread_id").execute()
                 bot.reply_to(message, f"✅ Контакт **{name}** ({ph}) сохранен!")
                 return
-            if "**Должность**" in b_text:
+            if "**Должность**" in b_txt:
                 pos = message.text.strip()
                 roles = ["task"]
                 if any(x in pos.lower() for x in ["оператор", "камера"]): roles += ["production", "post"]
-                if any(x in pos.lower() for x in ["монтаж", "дизайн", "edit"]): roles += ["post"]
-                if any(x in pos.lower() for x in ["админ", "мендж", "прод"]): roles = ["production", "post", "task", "actor"]
+                if any(x in pos.lower() for x in ["админ", "менеджер"]): roles = ["production", "post", "task", "actor"]
                 supabase.from_("team").update({"position": pos, "roles": list(set(roles))}).eq("telegram_id", user.id).execute()
                 bot.reply_to(message, f"✅ Должность **{pos}** сохранена!")
                 return
 
-        # 3. Discovery (Only in Topics)
-        if message.is_topic_message and message.text:
-            # 3.1 Project Discovery
+        # 3. Discovery (Only if Thread/Topic ID is present)
+        if tid and message.text:
+            # 3.1 Project Sync
             p_res = supabase.from_("clients").select("*").eq("thread_id", tid).execute()
             if not p_res.data:
                 insta, name_v = "", ""
@@ -147,32 +146,32 @@ def handle_text(message):
                 words = [w for w in message.text.split() if w and w[0].isupper() and not w.startswith(('http', '@', '#'))]
                 if words: name_v = words[0]
                 
-                t_name = f"{insta} | {name_v}" if insta and name_v else (insta or name_v or f"Topic {tid}")
+                t_name = f"{insta} | {name_v}" if insta and name_v else (insta or name_v or f"Project {tid}")
                 exists = supabase.from_("clients").select("*").ilike("name", f"%{t_name}%").execute()
                 if exists.data:
+                    # FIX: Use 'exists' (the correct variable name)
                     supabase.from_("clients").update({"thread_id": tid}).eq("id", exists.data[0]['id']).execute()
                     bot.reply_to(message, f"🔗 Проект **{exists.data[0]['name']}** привязан к топику.")
                 else:
                     supabase.from_("clients").insert({"thread_id": tid, "name": t_name}).execute()
-                    bot.reply_to(message, f"🆕 Проект зарегистрирован: **{t_name}**")
+                    bot.reply_to(message, f"🆕 Проект: **{t_name}**")
 
             # 3.2 Phone Discovery
-            ph_match = re.findall(r'(?:\+7|8)[\s\-]?\(?7\d{2}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}', message.text)
             if ph_match:
                 raw = ph_match[0]
-                phone = raw.replace(" ","").replace("-","").replace("(","").replace(")","")
-                if phone.startswith('8'): phone = '+7' + phone[1:]
-                if not phone.startswith('+'): phone = '+' + phone
+                ph = raw.replace(" ","").replace("-","").replace("(","").replace(")","")
+                if ph.startswith('8'): ph = '+7' + ph[1:]
+                if not ph.startswith('+'): ph = '+' + ph
                 
-                c_ex = supabase.table("contacts").select("*").eq("phone", phone).eq("thread_id", tid).execute()
+                c_ex = supabase.table("contacts").select("*").eq("phone", ph).eq("thread_id", tid).execute()
                 if c_ex.data:
-                    bot.reply_to(message, f"📱 Номер `{phone}` уже записан как **{c_ex.data[0]['name']}**. Хотите сменить имя? Напишите новое в ответ (Reply).")
+                    bot.reply_to(message, f"📱 Номер `{ph}` уже записан как **{c_ex.data[0]['name']}**. Хотите сменить имя? Напишите новое в ответ (Reply).")
                 else:
                     after = message.text.split(raw)[-1].strip()
                     guess = " ".join([w for w in after.split() if w and w[0].isupper()][:2])
                     if guess:
-                        supabase.table("contacts").insert({"name": guess, "phone": phone, "thread_id": tid}).execute()
-                        bot.reply_to(message, f"✅ Контакт: **{guess}** ({phone})")
+                        supabase.table("contacts").insert({"name": guess, "phone": ph, "thread_id": tid}).execute()
+                        bot.reply_to(message, f"✅ Контакт: **{guess}** ({ph})")
                     else:
-                        bot.reply_to(message, f"📱 Вижу номер: `{phone}`\nКак зовут этого клиента?")
+                        bot.reply_to(message, f"📱 Вижу номер телефона: `{ph}`\nКак зовут этого клиента?")
     except Exception as e: print(f"Bot error: {e}")
