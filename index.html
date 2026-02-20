@@ -1181,17 +1181,20 @@
         div.className = 'dropdown-item';
         div.style.fontSize = '11px';
         div.style.padding = '8px 12px';
-        div.textContent = res.display_name;
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+
+        const isBuilding = res.address && (res.address.house_number || res.type === 'house' || res.class === 'building');
+        const icon = isBuilding ? '🏠' : '📍';
+
+        div.innerHTML = `<span>${icon} ${res.display_name}</span>`;
+
         div.onclick = () => {
           // Store as: Plain Address | 2GIS Link
           const link = `https://2gis.kz/geo/${res.lon},${res.lat}`;
-          addrInput.value = `${res.display_name} | ${link}`;
-          addrDropdown.style.display = 'none';
-
-          // Format display immediately (strip link for UI)
           addrInput.value = res.display_name;
-          // Store link in a data attribute to preserve it
           addrInput.dataset.full = `${res.display_name} | ${link}`;
+          addrDropdown.style.display = 'none';
         };
         addrDropdown.appendChild(div);
       });
@@ -1209,8 +1212,8 @@
 
       addrTimeout = setTimeout(async () => {
         try {
-          // Viewbox for Almaty biasing
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=5&viewbox=76.6,43.4,77.1,43.1`);
+          // Viewbox for Almaty biasing + addressdetails for house numbers
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=6&viewbox=76.6,43.4,77.1,43.1&dedupe=1`);
           const data = await res.json();
           renderAddresses(data);
         } catch (e) { console.error(e); }
