@@ -1050,68 +1050,11 @@
     tProjInput.addEventListener('focus', renderTaskProjects);
     tProjInput.addEventListener('click', (e) => { e.stopPropagation(); renderTaskProjects(); });
 
-    // --- ASSIGNEE LOGIC (Reusing Team Data) ---
-    const assInput = document.getElementById('assigneeInput');
-    const assDropdown = document.getElementById('assigneeDropdown');
-    const assTags = document.getElementById('assigneeTags');
-    const assHidden = document.getElementById('t_assignees');
+    function renderAssigneeTags() { renderTags('t_assignees', 'assigneeTags'); }
 
-    function renderAssigneeTags() {
-      const val = assHidden.value;
-      // Storing as JSON string in hidden input for simplicity, or just comma separated?
-      // Let's use comma separated names for UI, matching crew logic
-      const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
-      assTags.innerHTML = '';
-      names.forEach(name => {
-        const tag = document.createElement('div');
-        tag.className = 'tag';
-        tag.innerHTML = `<span>${name}</span> <span class="tag-remove">×</span>`;
-        tag.querySelector('.tag-remove').onclick = () => {
-          const newNames = names.filter(n => n !== name);
-          assHidden.value = newNames.join(', ');
-          renderAssigneeTags();
-        };
-        assTags.appendChild(tag);
-      });
-    }
-
-    function addAssignee(name) {
-      const val = assHidden.value;
-      const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
-      if (!names.includes(name)) {
-        names.push(name);
-        assHidden.value = names.join(', ');
-        renderAssigneeTags();
-      }
-      assInput.value = '';
-      assDropdown.style.display = 'none';
-    }
-
-    function renderAssigneeDropdown() {
-      const val = assInput.value.toLowerCase();
-      assDropdown.innerHTML = '';
-      let matches = val
-        ? teamData.filter(t => (t.full_name && t.full_name.toLowerCase().includes(val)) || (t.username && t.username.toLowerCase().includes(val)))
-        : teamData;
-      matches = matches.slice(0, 50);
-
-      if (!matches.length) { assDropdown.style.display = 'none'; return; }
-      matches.forEach(t => {
-        const div = document.createElement('div');
-        div.className = 'dropdown-item';
-        div.innerHTML = `${t.full_name}`;
-        div.onclick = () => addAssignee(t.full_name);
-        assDropdown.appendChild(div);
-      });
-      assDropdown.style.display = 'block';
-    }
-
-    assInput.addEventListener('input', renderAssigneeDropdown);
-    assInput.addEventListener('focus', renderAssigneeDropdown);
-    assInput.addEventListener('click', (e) => { e.stopPropagation(); renderAssigneeDropdown(); });
     // Wrapper click
     document.getElementById('assigneeWrapper').onclick = (e) => {
-      if (e.target === document.getElementById('assigneeWrapper')) assInput.focus();
+      if (e.target === document.getElementById('assigneeWrapper')) document.getElementById('assigneeInput').focus();
     };
 
 
@@ -1123,7 +1066,7 @@
     async function fetchAutocompleteData() {
       const { data: cData } = await supabaseClient.from('clients').select('name');
       if (cData) clientsData = cData;
-      const { data: tData } = await supabaseClient.from('team').select('full_name, username');
+      const { data: tData } = await supabaseClient.from('team').select('full_name, username, roles, position');
       if (tData) teamData = tData;
       const { data: lData } = await supabaseClient.from('locations').select('name');
       if (lData) locationsData = lData;
@@ -1182,6 +1125,12 @@
             const sLink = "https://go.2gis.com/bd4n9";
             addrInt.value = sAddr;
             addrInt.dataset.full = `${sAddr} | ${sLink}`; // Update hidden data too!
+
+            // Auto-add Roman (Administrator) to crew
+            const roman = teamData.find(t => t.username === 'magnate71k' || t.full_name === 'Roman');
+            if (roman) {
+              addTag('crew', 'crewTags', 'crewInput', 'crewDropdown', roman.full_name);
+            }
           }
         };
         locDropdown.appendChild(div);
@@ -1292,21 +1241,27 @@
     function renderPostTags() { renderTags('post_production', 'postTags'); }
     function renderActorsTags() { renderTags('actors', 'actorsTags'); }
 
-    function setupTagInput(inputId, dropdownId, fieldId, tagsId, dataSrc = []) {
+    function setupTagInput(inputId, dropdownId, fieldId, tagsId, requiredRole = null) {
       const inp = document.getElementById(inputId);
       const drop = document.getElementById(dropdownId);
       const renderDrop = () => {
         const val = inp.value.toLowerCase();
         drop.innerHTML = '';
+
+        let pool = teamData;
+        if (requiredRole) {
+          pool = teamData.filter(t => t.roles && t.roles.includes(requiredRole));
+        }
+
         let matches = val
-          ? dataSrc.filter(t => (t.full_name && t.full_name.toLowerCase().includes(val)) || (t.username && t.username.toLowerCase().includes(val)))
-          : dataSrc;
+          ? pool.filter(t => (t.full_name && t.full_name.toLowerCase().includes(val)) || (t.username && t.username.toLowerCase().includes(val)))
+          : pool;
         matches = matches.slice(0, 20);
         if (!matches.length) { drop.style.display = 'none'; return; }
         matches.forEach(m => {
           const div = document.createElement('div');
           div.className = 'dropdown-item';
-          div.innerHTML = `${m.full_name} <small>@${m.username}</small>`;
+          div.innerHTML = `${m.full_name} <small style="opacity:0.6">${m.position || ''}</small>`;
           div.onclick = () => addTag(fieldId, tagsId, inputId, dropdownId, m.full_name);
           drop.appendChild(div);
         });
@@ -1333,9 +1288,10 @@
       });
     }
 
-    setupTagInput('crewInput', 'crewDropdown', 'crew', 'crewTags', teamData);
-    setupTagInput('postInput', 'postDropdown', 'post_production', 'postTags', teamData);
-    setupTagInput('actorsInput', 'actorsDropdown', 'actors', 'actorsTags', []);
+    setupTagInput('crewInput', 'crewDropdown', 'crew', 'crewTags', 'production');
+    setupTagInput('postInput', 'postDropdown', 'post_production', 'postTags', 'post');
+    setupTagInput('actorsInput', 'actorsDropdown', 'actors', 'actorsTags', 'actor');
+    setupTagInput('assigneeInput', 'assigneeDropdown', 't_assignees', 'assigneeTags', null); // All for tasks
 
     // Casting Project simple listener
     document.getElementById('casting_project').addEventListener('input', () => {
@@ -1385,7 +1341,9 @@
       }
       if (!e.target.closest('.multi-select-wrap')) {
         crewDropdown.style.display = 'none';
-        assDropdown.style.display = 'none';
+        document.getElementById('postDropdown').style.display = 'none';
+        document.getElementById('actorsDropdown').style.display = 'none';
+        document.getElementById('assigneeDropdown').style.display = 'none';
       }
     });
 
