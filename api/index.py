@@ -224,58 +224,52 @@ def handle_text(message):
         # Temporary: detect if text is just a name and we have a contact with 'PENDING_NAME' phone for this thread?
         # Better: use regex for phone first.
         
-        # 1.6 Phone Number Discovery
+        # 1.7 Phone Number Discovery
         phone_matches = re.findall(r'(?:\+7|8)[\s\-]?\(?7\d{2}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}', message.text or "")
         if phone_matches and message.is_topic_message:
             phone = phone_matches[0].replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-            # Canonical format +77...
             if phone.startswith('8'): phone = '+7' + phone[1:]
             if not phone.startswith('+'): phone = '+' + phone
             
-            thread_id = message.message_thread_id
-            
-            # Save or Update?
-            # Check if this phone already exists in this project
+            # Simple Name Extraction for same message
+            name_guess = ""
+            after_phone = message.text.split(phone_matches[0])[-1].strip()
+            # Look for 1-2 capitalized words after phone
+            words = [w for w in after_phone.split() if w and w[0].isupper()]
+            if words: name_guess = " ".join(words[:2])
+
             existing_contact = supabase.table("contacts").select("*").eq("phone", phone).eq("thread_id", thread_id).execute()
-            
             if not existing_contact.data:
-                # Prompt for name
-                bot.reply_to(message, f"📱 Вижу номер телефона: `{phone}`\n\nКак зовут этого клиента (контактное лицо)? Напишите просто имя.")
-                # We could store the phone in a 'pending' state or just wait for the next text message
-                # For now, let's use a very simple 'next message is name' logic if it follows this
-                return
-
-        # 1.7 Catch Name for Phone (if previous message was a phone without name)
-        # This is tricky without state, but let's try to upsert if message is short and no / 
-        if not old_data.get('position') and message.text and not message.text.startswith('/'):
-            # (Existing position logic...)
-            pass # (kept for context)
-
-        # 2. Existing Auto-discovery (Topic/Client)
-        if message.is_topic_message:
-            thread_id = message.message_thread_id
-            
-            # Handle prompt response for contact name
-            # If message is not a command, not a phone, and we recently asked for a name...
-            # We check for a contact in this thread that was RECENTLY created or we just prompt
-            # Actually, let's implement a more reliable way:
-            phone_prompt_pattern = r"Вижу номер телефона: `(\+7\d{10})`"
-            if message.reply_to_message and message.reply_to_message.from_user.is_bot:
-                bot_msg = message.reply_to_message.text
-                match = re.search(phone_prompt_pattern, bot_msg)
-                if match:
-                    phone_val = match.group(1)
-                    contact_name = message.text.strip()
-                    contact_data = {
-                        "name": contact_name,
-                        "phone": phone_val,
-                        "thread_id": thread_id,
-                        "telegram_id": user.id if user else None
-                    }
-                    supabase.table("contacts").upsert(contact_data, on_conflict="phone,thread_id").execute()
-                    bot.reply_to(message, f"✅ Контакт сохранен: **{contact_name}** ({phone_val})\nТеперь он доступен в ERP для этого проекта.")
+                if name_guess:
+                    supabase.table("contacts").insert({"name": name_guess, "phone": phone, "thread_id": thread_id}).execute()
+                    bot.reply_to(message, f"✅ Обнаружил контакт: **{name_guess}** ({phone}).")
+                else:
+                    bot.reply_to(message, f"📱 Вижу номер телефона: `{phone}`\n\nКак зовут этого клиента за этим номером? (Ответьте Reply на это сообщение)")
                     return
 
+        # 2. Project (Client) Discovery
+        if message.is_topic_message:
+            existing = supabase.from_("clients").select("id").eq("thread_id", thread_id).execute()
+            if not existing.data:
+                # NEW TOPIC DETECTED - Try to find Name: Inst | Client Name
+                insta_handle = ""
+                url_match = re.search(r'instagram\.com/([^/?#\s]+)', message.text or "")
+                at_match = re.search(r'@([\w._]+)', message.text or "")
+                if url_match: insta_handle = url_match.group(1)
+                elif at_match: insta_handle = at_match.group(1)
+
+                name_val = ""
+                # Look for capitalized words that aren't the handle
+                words = [w for w in (message.text or "").split() if w and w[0].isupper() and not w.startswith(('http', '@', '#'))]
+                if words: name_val = words[0]
+
+                proj_name = f"Topic {thread_id}"
+                if insta_handle and name_val: proj_name = f"{insta_handle} | {name_val}"
+                elif insta_handle: proj_name = insta_handle
+                elif name_val: proj_name = name_val
+
+                supabase.from_("clients").insert({"thread_id": thread_id, "name": proj_name}).execute()
+                bot.reply_to(message, f"🆕 Проект зарегистрирован: **{proj_name}**")
                 
     except Exception as e:
         print(f"Auto-discovery error: {e}")
