@@ -105,6 +105,9 @@ def handle_cast_link(message):
             bot.reply_to(message, "❌ Эту команду нужно использовать внутри Топика (Кастинга).")
             return
         
+        # Ensure project exists
+        ensure_project(cid, tid, message.chat.title)
+        
         # Check if project exists to get name
         p_res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
         p_name = p_res.data[0]['name'] if p_res.data else "Unknown Project"
