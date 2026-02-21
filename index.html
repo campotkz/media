@@ -1064,20 +1064,20 @@
 
 
     // --- AUTOCOMPLETE LOGIC ---
-    let clientsData = []; // {name, thread_id}
+    let clientsData = []; // {name, thread_id, chat_id, category}
     let teamData = [];    // {full_name, username, roles, position}
     let locationsData = [];
-    let contactsData = []; // {name, phone, thread_id}
+    let contactsData = []; // {name, phone, thread_id, chat_id, category}
     let currentFilteredContacts = [];
 
     async function fetchAutocompleteData() {
-      const { data: cData } = await supabaseClient.from('clients').select('name, thread_id');
+      const { data: cData } = await supabaseClient.from('clients').select('name, thread_id, chat_id, category');
       if (cData) clientsData = cData;
       const { data: tData } = await supabaseClient.from('team').select('full_name, username, roles, position');
       if (tData) teamData = tData;
       const { data: lData } = await supabaseClient.from('locations').select('name');
       if (lData) locationsData = lData;
-      const { data: ctData } = await supabaseClient.from('contacts').select('name, phone, thread_id');
+      const { data: ctData } = await supabaseClient.from('contacts').select('name, phone, thread_id, chat_id, category');
       if (ctData) contactsData = ctData || [];
     }
 
@@ -1095,11 +1095,19 @@
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.textContent = c.name;
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+
+        const cat = c.category || 'media';
+        const color = cat === 'casting' ? '#7aa2ff' : '#4cd964';
+
+        div.innerHTML = `
+          <span>${c.name}</span>
+          <small style="background:${color}33; color:${color}; padding:2px 6px; border-radius:4px; font-size:9px; text-transform:uppercase">${cat}</small>
+        `;
         div.onclick = () => {
           projInput.value = c.name;
           projDropdown.style.display = 'none';
-          // Trigger updates for contacts and actors
           updateContactPool();
         };
         projDropdown.appendChild(div);
@@ -1267,14 +1275,22 @@
           pool = teamData.filter(t => t.roles && t.roles.includes(requiredRole));
         }
 
-        // SPECIAL CASE: Actors should ALSO include project-specific contacts
+        // SPECIAL CASE: Actors should ALSO include project-specific contacts 
+        // AND all contacts from 'casting' category
         if (fieldId === 'actors') {
-          const projectContacts = currentFilteredContacts.map(c => ({
+          const castingContacts = contactsData.filter(ct => ct.category === 'casting').map(c => ({
             full_name: c.name,
-            position: 'Актер (из контактов)',
+            position: 'Актер (из Кастинга)',
             roles: ['actor']
           }));
-          pool = [...pool, ...projectContacts];
+          const projectContacts = currentFilteredContacts.map(c => ({
+            full_name: c.name,
+            position: 'Клиент/Контакт',
+            roles: ['actor']
+          }));
+          pool = [...pool, ...castingContacts, ...projectContacts];
+          // dedupe by full_name
+          pool = pool.filter((v, i, a) => a.findIndex(t => t.full_name === v.full_name) === i);
         }
 
         let matches = val
@@ -1330,8 +1346,17 @@
     function updateContactPool() {
       const projName = f.project.value.trim();
       const proj = clientsData.find(c => c.name === projName);
-      if (proj && proj.thread_id) {
-        currentFilteredContacts = contactsData.filter(ct => String(ct.thread_id) === String(proj.thread_id));
+      if (proj) {
+        if (proj.thread_id && proj.chat_id) {
+          currentFilteredContacts = contactsData.filter(ct =>
+            String(ct.thread_id) === String(proj.thread_id) &&
+            String(ct.chat_id) === String(proj.chat_id)
+          );
+        } else if (proj.thread_id) {
+          currentFilteredContacts = contactsData.filter(ct => String(ct.thread_id) === String(proj.thread_id));
+        } else {
+          currentFilteredContacts = [];
+        }
       } else {
         currentFilteredContacts = [];
       }

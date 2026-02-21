@@ -80,6 +80,7 @@ def handle_feedback(message):
 @bot.message_handler(commands=['rename'])
 def handle_rename(message):
     try:
+        cid = message.chat.id
         tid = message.message_thread_id if message.is_topic_message else None
         if not tid:
             bot.reply_to(message, "❌ Эту команду нужно использовать внутри Топика (Проекта).")
@@ -90,7 +91,7 @@ def handle_rename(message):
             bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`", parse_mode="Markdown")
             return
 
-        supabase.from_("clients").update({"name": new_name}).eq("thread_id", tid).execute()
+        supabase.from_("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
         bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
@@ -159,7 +160,12 @@ def handle_text(message):
         
         # Safe content extraction
         content = (message.text or message.caption or "").strip()
+        cid = message.chat.id
         tid = message.message_thread_id if message.is_topic_message else None
+        
+        # Detect Category
+        chat_title = (message.chat.title or "").upper()
+        category = 'casting' if 'КАСТИНГ' in chat_title else 'media'
         
         # Phone Detection (Immediate)
         clean_c = re.sub(r'[\s\-()\[\]]', '', content)
@@ -168,9 +174,7 @@ def handle_text(message):
         is_cmd = content.startswith('/')
 
         # 1. Reply Handling (Highest Priority)
-        # If user is replying to a bot message, we handle it as a direct answer
         if message.reply_to_message and content:
-            # Check if this is a response to our own bot
             if message.reply_to_message.from_user.username == bot.get_me().username:
                 b_txt = (message.reply_to_message.text or message.reply_to_message.caption or "")
                 
@@ -179,8 +183,14 @@ def handle_text(message):
                 if pm and tid:
                     ph, name = pm.group(1), content
                     try:
-                        supabase.table("contacts").upsert({"name": name, "phone": ph, "thread_id": tid}, on_conflict="phone,thread_id").execute()
-                        bot.reply_to(message, f"✅ Контакт **{name}** ({ph}) сохранен!")
+                        supabase.table("contacts").upsert({
+                            "name": name, 
+                            "phone": ph, 
+                            "thread_id": tid, 
+                            "chat_id": cid, 
+                            "category": category
+                        }, on_conflict="phone,chat_id,thread_id").execute()
+                        bot.reply_to(message, f"✅ Контакт **{name}** ({ph}) сохранен в категорию **{category}**!")
                         return
                     except Exception as ex:
                         bot.reply_to(message, f"❌ Ошибка сохранения контакта: {ex}")
@@ -204,7 +214,7 @@ def handle_text(message):
         if tid and content and not is_cmd:
             # 2.1 Project Sync (Only if not linked)
             try:
-                p_res = supabase.from_("clients").select("*").eq("thread_id", tid).execute()
+                p_res = supabase.from_("clients").select("*").eq("chat_id", cid).eq("thread_id", tid).execute()
                 if not p_res.data:
                     insta, name_v = "", ""
                     u_m = re.search(r'instagram\.com/([^/?#\s]+)', content)
@@ -215,15 +225,17 @@ def handle_text(message):
                     words = [w for w in content.split() if w and w[0].isupper() and not w.startswith(('http', '@', '#')) and len(w) > 1]
                     if words: name_v = words[0]
                     
-                    t_name = f"{insta} | {name_v}" if insta and name_v else (insta or name_v or f"Project {tid}")
+                    prefix = "Casting: " if category == 'casting' else ""
+                    t_name = f"{prefix}{insta} | {name_v}" if insta and name_v else (prefix + (insta or name_v or f"Project {tid}"))
+                    
                     ex = supabase.from_("clients").select("*").ilike("name", f"%{t_name}%").execute()
                     if ex.data:
-                        supabase.from_("clients").update({"thread_id": tid}).eq("id", ex.data[0]['id']).execute()
-                        bot.reply_to(message, f"🔗 Проект **{ex.data[0]['name']}** привязан к топику.")
+                        supabase.from_("clients").update({"thread_id": tid, "chat_id": cid, "category": category}).eq("id", ex.data[0]['id']).execute()
+                        bot.reply_to(message, f"🔗 Проект **{ex.data[0]['name']}** привязан к категории **{category}**.")
                         return
                     else:
-                        supabase.from_("clients").insert({"thread_id": tid, "name": t_name}).execute()
-                        bot.reply_to(message, f"🆕 Проект зарегистрирован: **{t_name}**")
+                        supabase.from_("clients").insert({"thread_id": tid, "chat_id": cid, "name": t_name, "category": category}).execute()
+                        bot.reply_to(message, f"🆕 Проект зарегистрирован в **{category}**: **{t_name}**")
                         return
             except Exception as ex: print(f"Proj sync err: {ex}")
 
@@ -240,20 +252,26 @@ def handle_text(message):
                     else: ph = '+7' + raw_ph[-10:]
 
                 try:
-                    c_ex = supabase.table("contacts").select("*").eq("phone", ph).eq("thread_id", tid).execute()
+                    c_ex = supabase.table("contacts").select("*").eq("phone", ph).eq("chat_id", cid).eq("thread_id", tid).execute()
                     if c_ex.data:
-                        bot.reply_to(message, f"📱 Номер `{ph}` уже записан как **{c_ex.data[0]['name']}**. Хотите сменить имя? Ответьте на это сообщение новым именем.")
+                        bot.reply_to(message, f"📱 Номер `{ph}` уже записан как **{c_ex.data[0]['name']}** в этом проекте.")
                         return
                     else:
                         candidate_words = [w for w in content.split() if w and w[0].isupper() and len(w) > 1 and not w.startswith(('#', '@', 'http')) and not any(c in w for c in '+890')]
                         guess = " ".join(candidate_words[:2]) if candidate_words else None
                         
                         if guess:
-                            supabase.table("contacts").insert({"name": guess, "phone": ph, "thread_id": tid}).execute()
-                            bot.reply_to(message, f"✅ Контакт: **{guess}** ({ph}) сохранен для этого проекта.")
+                            supabase.table("contacts").insert({
+                                "name": guess, 
+                                "phone": ph, 
+                                "thread_id": tid, 
+                                "chat_id": cid, 
+                                "category": category
+                            }).execute()
+                            bot.reply_to(message, f"✅ Контакт: **{guess}** ({ph}) сохранен в **{category}**.")
                             return
                         else:
-                            bot.reply_to(message, f"📱 Вижу номер телефона: `{ph}`\nКак зовут этого клиента (ответьте на ЭТО сообщение)?")
+                            bot.reply_to(message, f"📱 Вижу номер телефона: `{ph}`\nКак зовут этого человека (ответьте на ЭТО сообщение)?")
                             return
                 except Exception as ex: 
                     bot.reply_to(message, f"❌ Ошибка обработки телефона: {ex}")
@@ -263,8 +281,6 @@ def handle_text(message):
         if not is_cmd and content:
             u_rec = register_user(user, message.chat.id, tid, silent=True)
             if u_rec and not u_rec.get('position'):
-                # Heuristic: If it's a short reply and we just asked him, it might be the position even without reply
-                # But to stay safe, we only prompt periodically or if user hasn't been asked yet
                 bot.send_message(message.chat.id, f"📝 {user.first_name}, напиши свою **Должность** (ответь на это сообщение).", message_thread_id=tid)
 
     except Exception as e:
