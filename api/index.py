@@ -139,22 +139,23 @@ def handle_text(message):
         
         # Phone Detection
         clean_c = re.sub(r'[\s\-()\[\]]', '', content)
-        ph_match = re.findall(r'(\+?7|8)\d{10}', clean_c)
-        is_ph = len(ph_match) > 0
+        # Use a more specific regex with capture group for the whole number
+        ph_match = re.search(r'((\+?7|8)\d{10})', clean_c)
+        is_ph = ph_match is not None
         is_cmd = content.startswith('/')
         
         # 1. Identity (Silent if phone or command)
         u_rec = register_user(user, message.chat.id, tid, silent=(is_ph or is_cmd))
         
         # If user found but has no position, AND it's not a noise message, ask.
-        # But we use the EMOJI '📝' to distinguish from old versions.
         if u_rec and not u_rec.get('position') and not (is_ph or is_cmd):
             bot.send_message(message.chat.id, f"📝 {user.first_name}, напиши свою **Должность**.", message_thread_id=tid)
 
         # 2. Reply Handling
         if message.reply_to_message and message.reply_to_message.from_user.is_bot and content:
             b_txt = message.reply_to_message.text
-            pm = re.search(r"номер телефона: `(\+7\d{10})`", b_txt)
+            # Look for phone format: +7XXXXXXXXXX
+            pm = re.search(r"`(\+7\d{10})`", b_txt)
             if pm and tid:
                 ph, name = pm.group(1), content
                 supabase.table("contacts").upsert({"name": name, "phone": ph, "thread_id": tid}, on_conflict="phone,thread_id").execute()
@@ -171,9 +172,10 @@ def handle_text(message):
 
         # 3. Discovery (Topics Only)
         if tid and content and not is_cmd:
-            # 3.1 Project Sync
+            # 3.1 Project Sync (Only if not linked)
             p_res = supabase.from_("clients").select("*").eq("thread_id", tid).execute()
             if not p_res.data:
+                # Existing project sync logic...
                 insta, name_v = "", ""
                 u_m = re.search(r'instagram\.com/([^/?#\s]+)', content)
                 at_m = re.search(r'@([\w._]+)', content)
@@ -192,20 +194,31 @@ def handle_text(message):
 
             # 3.2 Phone Discovery
             if is_ph:
-                raw_ph = ph_match[0]
-                ph = raw_ph if raw_ph.startswith('+') else ('+7' + raw_ph[1:] if raw_ph.startswith('8') else ('+' + raw_ph if raw_ph.startswith('7') else ph_match[0]))
-                if not ph.startswith('+7'): ph = '+7' + ph.lstrip('+').lstrip('7') 
-                if len(ph) != 12: ph = '+7' + raw_ph[-10:] 
+                raw_ph = ph_match.group(1)
+                # Normalize to +7XXXXXXXXXX
+                ph = raw_ph
+                if ph.startswith('8'): ph = '+7' + ph[1:]
+                elif ph.startswith('7'): ph = '+' + ph
+                elif not ph.startswith('+'): ph = '+7' + ph
+                
+                if len(ph) != 12: # Handle cases where raw was just 10 digits
+                    if len(raw_ph) == 10: ph = '+7' + raw_ph
+                    else: ph = '+7' + raw_ph[-10:]
 
                 c_ex = supabase.table("contacts").select("*").eq("phone", ph).eq("thread_id", tid).execute()
                 if c_ex.data:
                     bot.reply_to(message, f"📱 Номер `{ph}` уже записан как **{c_ex.data[0]['name']}**. Хотите сменить имя? Ответьте (Reply) новым именем.")
                 else:
-                    after = content.split()[-2:] 
-                    guess = " ".join([w for w in after if w and w[0].isupper() and len(w)>1][:2])
+                    # Look for capitalized words near the phone or in the same message
+                    guess = None
+                    # Try words that are not the command and are capitalized
+                    candidate_words = [w for w in content.split() if w and w[0].isupper() and len(w) > 1 and not any(c in w for c in '+890')]
+                    if candidate_words:
+                        guess = " ".join(candidate_words[:2])
+                    
                     if guess:
                         supabase.table("contacts").insert({"name": guess, "phone": ph, "thread_id": tid}).execute()
-                        bot.reply_to(message, f"✅ Контакт: **{guess}** ({ph})")
+                        bot.reply_to(message, f"✅ Контакт: **{guess}** ({ph}) сохранен для этого проекта.")
                     else:
-                        bot.reply_to(message, f"📱 Вижу номер телефона: `{ph}`\nКак зовут этого клиента?")
+                        bot.reply_to(message, f"📱 Вижу номер телефона: `{ph}`\nКак зовут этого клиента (ответьте на это сообщение)?")
     except Exception as e: print(f"Bot error: {e}")

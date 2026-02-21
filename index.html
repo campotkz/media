@@ -1096,7 +1096,12 @@
         const div = document.createElement('div');
         div.className = 'dropdown-item';
         div.textContent = c.name;
-        div.onclick = () => { projInput.value = c.name; projDropdown.style.display = 'none'; };
+        div.onclick = () => {
+          projInput.value = c.name;
+          projDropdown.style.display = 'none';
+          // Trigger updates for contacts and actors
+          updateContactPool();
+        };
         projDropdown.appendChild(div);
       });
       projDropdown.style.display = 'block';
@@ -1257,14 +1262,25 @@
         const val = inp.value.toLowerCase();
         drop.innerHTML = '';
 
-        let pool = teamData;
+        let pool = [...teamData];
         if (requiredRole) {
           pool = teamData.filter(t => t.roles && t.roles.includes(requiredRole));
+        }
+
+        // SPECIAL CASE: Actors should ALSO include project-specific contacts
+        if (fieldId === 'actors') {
+          const projectContacts = currentFilteredContacts.map(c => ({
+            full_name: c.name,
+            position: 'Актер (из контактов)',
+            roles: ['actor']
+          }));
+          pool = [...pool, ...projectContacts];
         }
 
         let matches = val
           ? pool.filter(t => (t.full_name && t.full_name.toLowerCase().includes(val)) || (t.username && t.username.toLowerCase().includes(val)))
           : pool;
+
         matches = matches.slice(0, 20);
         if (!matches.length) { drop.style.display = 'none'; return; }
         matches.forEach(m => {
