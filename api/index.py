@@ -107,7 +107,7 @@ def handle_cast_link(message):
         
         # Check if project exists to get name
         p_res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
-        p_name = p_res.data[0]['name'] if p_res.data else "Unknwon Project"
+        p_name = p_res.data[0]['name'] if p_res.data else "Unknown Project"
 
         link = f"{APP_URL}casting.html?cid={cid}&tid={tid}&proj={p_name.replace(' ', '%20')}"
         markup = types.InlineKeyboardMarkup()
