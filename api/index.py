@@ -134,7 +134,9 @@ def handle_text(message):
     try:
         user = message.from_user
         if not user or user.is_bot: return
-        content = message.text.strip() if message.text else ""
+        
+        # Safe content extraction (Text or Caption)
+        content = (message.text or message.caption or "").strip()
         tid = message.message_thread_id if message.is_topic_message else None
         
         # Phone Detection (Immediate)
@@ -144,8 +146,11 @@ def handle_text(message):
         is_cmd = content.startswith('/')
 
         # 1. Reply Handling (Highest Priority)
-        if message.reply_to_message and message.reply_to_message.from_user.is_bot and content:
-            b_txt = message.reply_to_message.text
+        if message.reply_to_message and content:
+            # We check the text of the message being replied to
+            b_txt = (message.reply_to_message.text or message.reply_to_message.caption or "")
+            
+            # 1.1 Saving Contact via Reply
             # Look for phone format: +7XXXXXXXXXX
             pm = re.search(r"`(\+7\d{10})`", b_txt)
             if pm and tid:
@@ -158,12 +163,13 @@ def handle_text(message):
                     bot.reply_to(message, f"❌ Ошибка сохранения контакта: {ex}")
                     return
 
+            # 1.2 Saving Position via Reply
             if "**Должность**" in b_txt:
                 pos = content
-                r = ["task"]
-                if any(x in pos.lower() for x in ["оператор", "камера"]): r += ["production", "post"]
-                if any(x in pos.lower() for x in ["админ", "менеджер"]): r = ["production", "post", "task", "actor"]
                 try:
+                    r = ["task"]
+                    if any(x in pos.lower() for x in ["оператор", "камера"]): r += ["production", "post"]
+                    if any(x in pos.lower() for x in ["админ", "менеджер"]): r = ["production", "post", "task", "actor"]
                     supabase.from_("team").update({"position": pos, "roles": list(set(r))}).eq("telegram_id", user.id).execute()
                     bot.reply_to(message, f"✅ Должность **{pos}** сохранена!")
                     return
@@ -211,7 +217,7 @@ def handle_text(message):
 
                 c_ex = supabase.table("contacts").select("*").eq("phone", ph).eq("thread_id", tid).execute()
                 if c_ex.data:
-                    bot.reply_to(message, f"📱 Номер `{ph}` уже записан как **{c_ex.data[0]['name']}**. Хотите сменить имя? Ответьте новым именем.")
+                    bot.reply_to(message, f"📱 Номер `{ph}` уже записан как **{c_ex.data[0]['name']}**. Хотите сменить имя? Ответьте на это сообщение новым именем.")
                     return
                 else:
                     candidate_words = [w for w in content.split() if w and w[0].isupper() and len(w) > 1 and not w.startswith(('#', '@', 'http')) and not any(c in w for c in '+890')]
@@ -226,14 +232,18 @@ def handle_text(message):
                             bot.reply_to(message, f"❌ Ошибка авто-сохранения контакта: {ex}")
                             return
                     else:
-                        bot.reply_to(message, f"📱 Вижу номер телефона: `{ph}`\nКак зовут этого клиента (ответьте на это сообщение)?")
+                        bot.reply_to(message, f"📱 Вижу номер телефона: `{ph}`\nКак зовут этого клиента (ответьте на ЭТО сообщение)?")
                         return
 
         # 3. Identity & Registration (Last Priority)
-        if not is_cmd:
+        if not is_cmd and content:
             u_rec = register_user(user, message.chat.id, tid, silent=True)
+            # If user has no position, AND this message isn't a project/contact thing, try to use it as position
             if u_rec and not u_rec.get('position'):
-                bot.send_message(message.chat.id, f"📝 {user.first_name}, напиши свою **Должность**.", message_thread_id=tid)
+                # Heuristic: If it's a short message (1-3 words) and no capitalized words (except maybe first), could be position
+                # But to avoid mistakes, we'll only do this IF it was a response to the prompt.
+                # Since we can't easily check 'context', we'll just keep the prompt but make it less frequent or better worded.
+                bot.send_message(message.chat.id, f"📝 {user.first_name}, напиши свою **Должность** (ответь на это сообщение).", message_thread_id=tid)
 
     except Exception as e:
         print(f"Bot error: {e}")
