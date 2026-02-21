@@ -96,35 +96,48 @@ def handle_rename(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
-def ensure_project(chat_id, thread_id, chat_title, content=""):
-    """Ensures a project (topic) exists in the clients table. Returns the project category."""
+def ensure_project(chat_id, thread_id, chat_title, content="", message=None):
+    """Ensures a project (topic) exists. Returns (category, is_new)."""
     try:
-        if not thread_id: return 'media'
+        if not thread_id: return 'media', False
         category = 'casting' if 'КАСТИНГ' in (chat_title or "").upper() else 'media'
-
+        
+        # 1. Exact Match by Thread
         p_res = supabase.from_("clients").select("*").eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
-        if p_res.data: return p_res.data[0].get('category', category)
+        if p_res.data:
+            return p_res.data[0].get('category', category), False
+        
+        # 2. Not found, but let's see if we have a "discovery" candidate
+        # If the user is replying with a name (Project Naming Flow)
+        if message and message.reply_to_message and "Как назовем этот проект?" in (message.reply_to_message.text or ""):
+            new_name = content.strip()
+            # Check if this name exists in DB but without thread_id (Linking Flow)
+            ex = supabase.from_("clients").select("*").ilike("name", f"%{new_name}%").execute()
+            if ex.data and not ex.data[0].get('thread_id'):
+                supabase.from_("clients").update({
+                    "thread_id": thread_id, "chat_id": chat_id, "category": category
+                }).eq("id", ex.data[0]['id']).execute()
+                bot.reply_to(message, f"🔗 Проект **{ex.data[0]['name']}** привязан к этому топику.")
+                return category, False
+            else:
+                # Create NEW
+                supabase.from_("clients").insert({
+                    "thread_id": thread_id, "chat_id": chat_id, "name": new_name, "category": category
+                }).execute()
+                bot.reply_to(message, f"✅ Проект создан: **{new_name}**")
+                return category, False
 
-        insta, name_v = "", ""
-        u_m = re.search(r'instagram\.com/([^/?#\s]+)', content)
-        at_m = re.search(r'@([\w._]+)', content)
-        if u_m: insta = u_m.group(1)
-        elif at_m: insta = at_m.group(1)
-
-        words = [w for w in content.split() if w and w[0].isupper() and not w.startswith(('http', '@', '#')) and len(w) > 1]
-        if words: name_v = words[0]
-
-        prefix = "Casting: " if category == 'casting' else ""
-        t_name = f"{prefix}{insta} | {name_v}" if insta and name_v else (prefix + (insta or name_v or f"Project {thread_id}"))
-
-        ex = supabase.from_("clients").select("*").ilike("name", f"%{t_name}%").execute()
-        if ex.data:
-            supabase.from_("clients").update({"thread_id": thread_id, "chat_id": chat_id, "category": category}).eq("id", ex.data[0]['id']).execute()
-        else:
-            supabase.from_("clients").insert({"thread_id": thread_id, "chat_id": chat_id, "name": t_name, "category": category}).execute()
-        return category
+        # 3. First time seeing this topic - Ask for Name
+        if message:
+            bot.send_message(chat_id, f"🆕 Вижу новый топик в **{category}**!\nКак назовем этот проект? (ответь на это сообщение)", message_thread_id=thread_id)
+        
+        # Create a temporary placeholder so we don't spam the prompt
+        supabase.from_("clients").insert({
+            "thread_id": thread_id, "chat_id": chat_id, "name": f"Project {thread_id}", "category": category
+        }).execute()
+        return category, True
     except Exception as e:
-        print(f"ensure_project err: {e}"); return 'media'
+        print(f"ensure_project err: {e}"); return 'media', False
 
 @bot.message_handler(commands=['actor', 'client'])
 def handle_manual_contact(message):
@@ -240,8 +253,13 @@ def handle_text(message):
         if message.reply_to_message and content:
             if message.reply_to_message.from_user.username == bot.get_me().username:
                 b_txt = (message.reply_to_message.text or message.reply_to_message.caption or "")
+                
+                # 1.1 Project Naming via Reply
+                if "Как назовем этот проект?" in b_txt:
+                    ensure_project(cid, tid, message.chat.title, content, message=message)
+                    return
 
-                # 1.1 Saving Contact via Reply
+                # 1.2 Saving Contact via Reply
                 pm = re.search(r"`(\+7\d{10})`", b_txt)
                 if pm and tid:
                     ph, name = pm.group(1), content
@@ -249,7 +267,7 @@ def handle_text(message):
                     if content.lower() in ["да", "yes", "ок", "ok", "давай", "верно"] and "уже записан как" in b_txt:
                         m_name = re.search(r"\*\*(.*?)\*\*", b_txt)
                         if m_name: name = m_name.group(1)
-
+                    
                     try:
                         supabase.table("contacts").upsert({
                             "name": name, "phone": ph, "thread_id": tid, "chat_id": cid, "category": category
@@ -259,7 +277,7 @@ def handle_text(message):
                     except Exception as ex:
                         bot.reply_to(message, f"❌ Ошибка: {ex}"); return
 
-                # 1.2 Saving Position via Reply
+                # 1.3 Saving Position via Reply
                 if "**Должность**" in b_txt:
                     pos = content
                     try:
@@ -273,15 +291,15 @@ def handle_text(message):
 
         # 2. Discovery (Topics Only)
         if tid and content and not is_cmd:
-            ensure_project(cid, tid, message.chat.title, content)
-
-            # 2.2 Phone Discovery
-            if is_ph:
+            cat, is_new = ensure_project(cid, tid, message.chat.title, content, message=message)
+            
+            # 2.2 Phone Discovery (Only if project is NOT brand new and awaiting naming)
+            if is_ph and not is_new:
                 ph = ph_match.group(1)
                 if ph.startswith('8'): ph = '+7' + ph[1:]
                 elif ph.startswith('7') and not ph.startswith('+'): ph = '+' + ph
                 elif not ph.startswith('+'): ph = '+7' + ph
-
+                
                 if len(ph) != 12: ph = '+7' + ph[-10:]
 
                 try:
