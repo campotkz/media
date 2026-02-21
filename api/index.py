@@ -96,6 +96,91 @@ def handle_rename(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
+@bot.message_handler(commands=['cast_link'])
+def handle_cast_link(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id if message.is_topic_message else ""
+        if not tid:
+            bot.reply_to(message, "❌ Эту команду нужно использовать внутри Топика (Кастинга).")
+            return
+        
+        # Check if project exists to get name
+        p_res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
+        p_name = p_res.data[0]['name'] if p_res.data else "Unknwon Project"
+
+        link = f"{APP_URL}casting.html?cid={cid}&tid={tid}&proj={p_name.replace(' ', '%20')}"
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton(text="🎭 ОТКРЫТЬ АНКЕТУ", url=link))
+        
+        msg = f"📋 **ССЫЛКА НА АНКЕТУ**\nПроект: **{p_name}**\n\n`{link}`\n\nОтправьте эту ссылку кандидатам. Все анкеты прилетят прямо в этот чат."
+        bot.send_message(cid, msg, reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка генерации ссылки: {e}")
+
+@app.route('/api/casting', methods=['POST', 'OPTIONS'])
+def notify_casting():
+    if request.method == 'OPTIONS':
+        r = app.make_response('')
+        r.headers.add('Access-Control-Allow-Origin', '*')
+        r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        r.headers.add('Access-Control-Allow-Methods', 'POST')
+        return r
+    try:
+        data = request.json or {}
+        cid = data.get('chat_id')
+        tid = data.get('thread_id')
+        if not cid: return jsonify({'error': 'No chat_id'}), 400
+
+        # 1. Auto-Register Contact
+        try:
+            name, phone = data.get('full_name'), data.get('phone')
+            if name and phone:
+                supabase.table("contacts").upsert({
+                    "name": name, "phone": phone, "thread_id": tid, "chat_id": cid, "category": "casting"
+                }, on_conflict="phone,chat_id,thread_id").execute()
+        except: pass
+
+        # 2. Format Message
+        txt = (
+            f"🌟 **НОВАЯ АНКЕТА: {data.get('full_name')}**\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"📍 {data.get('city')} | {data.get('gender')} | {data.get('dob')}\n"
+            f"🌍 {data.get('nationality')}\n\n"
+            f"📏 **Параметры**: {data.get('height_weight')} | {data.get('sizes')}\n"
+            f"📱 **Inst**: {data.get('instagram')}\n"
+            f"📞 **WhatsApp**: {data.get('phone')}\n\n"
+            f"💡 **Опыт**: {data.get('experience')}\n"
+            f"🎭 **Навыки**: {data.get('skills')}\n\n"
+            f"💎 **Бюджет**: {data.get('fee_range')}\n"
+            f"👙 Белье: {data.get('underwear_ok')} | Массовка: {data.get('extras_ok')}\n"
+        )
+        if data.get('portfolio_url'): txt += f"🔗 [Портфолио]({data.get('portfolio_url')})\n"
+
+        photos = data.get('photo_urls', [])
+        video = data.get('video_audition_url')
+
+        media = []
+        # First media item gets the caption
+        for i, url in enumerate(photos):
+            media.append(types.InputMediaPhoto(url, caption=txt if i == 0 and not video else "", parse_mode="Markdown"))
+        
+        if video:
+            # If video exists, it's better to put caption on video if it's the first or just after photos
+            media.append(types.InputMediaVideo(video, caption=txt if not media else "", parse_mode="Markdown"))
+
+        if media:
+            bot.send_media_group(cid, media, message_thread_id=tid)
+        else:
+            bot.send_message(cid, txt, message_thread_id=tid, parse_mode="Markdown")
+
+        res = jsonify({'status': 'ok'})
+        res.headers.add('Access-Control-Allow-Origin', '*')
+        return res
+    except Exception as e:
+        print(f"Casting Notify Error: {e}")
+        r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
+
 def ensure_project(chat_id, thread_id, chat_title, content="", message=None):
     """Ensures a project (topic) exists. Returns (category, is_new)."""
     try:
