@@ -100,39 +100,31 @@ def ensure_project(chat_id, thread_id, chat_title, content=""):
     """Ensures a project (topic) exists in the clients table. Returns the project category."""
     try:
         if not thread_id: return 'media'
-        
         category = 'casting' if 'КАСТИНГ' in (chat_title or "").upper() else 'media'
-        
-        # Check if exists
+
         p_res = supabase.from_("clients").select("*").eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
-        if p_res.data:
-            # If exists but category mismatch (unlikely but possible), let's not force update now to keep it simple
-            return p_res.data[0].get('category', category)
-        
-        # Create new project
+        if p_res.data: return p_res.data[0].get('category', category)
+
         insta, name_v = "", ""
         u_m = re.search(r'instagram\.com/([^/?#\s]+)', content)
         at_m = re.search(r'@([\w._]+)', content)
         if u_m: insta = u_m.group(1)
         elif at_m: insta = at_m.group(1)
-        
+
         words = [w for w in content.split() if w and w[0].isupper() and not w.startswith(('http', '@', '#')) and len(w) > 1]
         if words: name_v = words[0]
-        
+
         prefix = "Casting: " if category == 'casting' else ""
         t_name = f"{prefix}{insta} | {name_v}" if insta and name_v else (prefix + (insta or name_v or f"Project {thread_id}"))
-        
-        # Try to find existing by name to link instead of duplicate
+
         ex = supabase.from_("clients").select("*").ilike("name", f"%{t_name}%").execute()
         if ex.data:
             supabase.from_("clients").update({"thread_id": thread_id, "chat_id": chat_id, "category": category}).eq("id", ex.data[0]['id']).execute()
-            return category
         else:
             supabase.from_("clients").insert({"thread_id": thread_id, "chat_id": chat_id, "name": t_name, "category": category}).execute()
-            return category
+        return category
     except Exception as e:
-        print(f"ensure_project err: {e}")
-        return 'media'
+        print(f"ensure_project err: {e}"); return 'media'
 
 @bot.message_handler(commands=['actor', 'client'])
 def handle_manual_contact(message):
@@ -142,132 +134,88 @@ def handle_manual_contact(message):
         if not args:
             bot.reply_to(message, f"📝 Формат: `/{cmd} [телефон] [Имя]`\nПример: `/{cmd} 87012223344 Иван`", parse_mode="Markdown")
             return
-        
-        cid = message.chat.id
-        tid = message.message_thread_id if message.is_topic_message else None
-        
-        # REQUIRED: Ensure project exists (Fixes Foreign Key Error)
+
+        cid, tid = message.chat.id, (message.message_thread_id if message.is_topic_message else None)
         ensure_project(cid, tid, message.chat.title, args)
-        
-        # 1. Extract Phone
+
         clean_args = re.sub(r'[\s\-()\[\]]', '', args)
         ph_match = re.search(r'((\+?7|8)\d{10})', clean_args)
         if not ph_match:
             bot.reply_to(message, "❌ Не нашел номера телефона в сообщении.")
             return
-        
+
         raw_ph = ph_match.group(1)
-        # Normalize
         ph = raw_ph
         if ph.startswith('8'): ph = '+7' + ph[1:]
         elif ph.startswith('7') and not ph.startswith('+'): ph = '+' + ph
         elif not ph.startswith('+'): ph = '+7' + ph
-        
-        # 2. Extract Name (the rest)
+
         name = args.replace(raw_ph, '').strip()
-        if not name:
-            bot.reply_to(message, "❌ Укажите имя после телефона.")
-            return
-        
-        # 3. Category
-        # If /actor -> casting, if /client -> media
         category = 'casting' if cmd == 'actor' else 'media'
-        
+
         try:
             supabase.table("contacts").upsert({
-                "name": name, 
-                "phone": ph, 
-                "thread_id": tid, 
-                "chat_id": cid, 
-                "category": category
+                "name": name, "phone": ph, "thread_id": tid, "chat_id": cid, "category": category
             }, on_conflict="phone,chat_id,thread_id").execute()
-            
-            bot.reply_to(message, f"✅ **{cmd.capitalize()}** сохранен:\n👤 {name}\n📱 {ph}\n📂 Категория: {category}")
-        except Exception as ex:
-            bot.reply_to(message, f"❌ Ошибка базы данных: {ex}")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка: {e}")
+            bot.reply_to(message, f"✅ **{cmd.capitalize()}** сохранен: **{name}** ({ph})")
+        except Exception as ex: bot.reply_to(message, f"❌ Ошибка базы данных: {ex}")
+    except Exception as e: bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(commands=['staff'])
 def handle_manual_staff(message):
-# ... rest of the file ...
     try:
         args = message.text.replace('/staff', '').strip().split(maxsplit=2)
         if len(args) < 2:
-            bot.reply_to(message, "📝 Формат: `/staff [ID или @username] [Имя] [Должность]`\nПример: `/staff @magnate71k Роман Администратор`", parse_mode="Markdown")
+            bot.reply_to(message, f"📝 Формат: `/staff [ID или @username] [Имя] [Должность]`", parse_mode="Markdown")
             return
-        
-        identity = args[0].lstrip('@')
-        name = args[1]
+
+        identity, name = args[0].lstrip('@'), args[1]
         pos = args[2] if len(args) > 2 else "Сотрудник"
-        
-        # Roles logic (same as /rename or similar)
+
         r = ["task"]
         if any(x in pos.lower() for x in ["оператор", "камера"]): r += ["production", "post"]
         if any(x in pos.lower() for x in ["админ", "менеджер"]): r = ["production", "post", "task", "actor"]
 
         rec = {"full_name": name, "position": pos, "roles": list(set(r))}
-        
         if identity.isdigit():
             rec["telegram_id"] = int(identity)
             supabase.from_("team").upsert(rec, on_conflict="telegram_id").execute()
         else:
             rec["username"] = identity
             supabase.from_("team").upsert(rec, on_conflict="username").execute()
-            
-        bot.reply_to(message, f"✅ Сотрудник **{name}** ({identity}) добавлен в базу.\n💼 Должность: {pos}")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка: {e}")
+        bot.reply_to(message, f"✅ Сотрудник **{name}** добавлен.")
+    except Exception as e: bot.reply_to(message, f"❌ Ошибка: {e}")
 
 def register_user(user, chat_id, thread_id=None, silent=False):
     try:
         if not user: return None
         uid = getattr(user, 'id', None)
         username = (getattr(user, 'username', "") or "").lstrip('@').lower()
-        
-        # 1. Match by Telegram ID
         if uid:
             res = supabase.from_("team").select("*").eq("telegram_id", uid).execute()
             if res.data: return res.data[0]
 
-        # 2. Match by Username (Very common for pre-filled lists)
         if username:
             res = supabase.from_("team").select("*").ilike("username", username).execute()
             if res.data:
-                # Link the ID
                 supabase.from_("team").update({"telegram_id": uid}).eq("id", res.data[0]['id']).execute()
                 return res.data[0]
 
-        # 3. Match by Full Name (Fallback)
         all_t = supabase.from_("team").select("*").execute()
-        first = getattr(user, 'first_name', "") or ""
-        last = getattr(user, 'last_name', "") or ""
+        first, last = (getattr(user, 'first_name', "") or ""), (getattr(user, 'last_name', "") or "")
         f_low = f"{first} {last}".strip().lower()
-        
-        match = None
-        for t in (all_t.data or []):
-            db_f = (t.get('full_name') or "").lower()
-            if f_low and db_f == f_low:
-                match = t
-                break
-        
+        match = next((t for t in (all_t.data or []) if (t.get('full_name') or "").lower() == f_low), None)
+
         if match:
             supabase.from_("team").update({"telegram_id": uid}).eq("id", match['id']).execute()
             return match
-        
-        # 4. Create New if no match found
-        rec = {
-            "telegram_id": uid, 
-            "username": username, 
-            "full_name": f"{first} {last}".strip(), 
-            "roles": ["task"]
-        }
+
+        rec = {"telegram_id": uid, "username": username, "full_name": f"{first} {last}".strip(), "roles": ["task"]}
         supabase.from_("team").insert(rec).execute()
         if not silent:
             bot.send_message(chat_id, f"👋 Привет, {first}! Какая у тебя **Должность**? (ответь на это сообщение)", message_thread_id=thread_id)
         return None
-    except Exception as e:
-        print(f"Reg err: {e}"); return None
+    except Exception as e: print(f"Reg err: {e}"); return None
 
 @bot.message_handler(content_types=['new_chat_members'])
 def handle_new_member(message):
@@ -280,44 +228,36 @@ def handle_text(message):
     try:
         user = message.from_user
         if not user or user.is_bot: return
-        
-        # Safe content extraction
         content = (message.text or message.caption or "").strip()
-        cid = message.chat.id
-        tid = message.message_thread_id if message.is_topic_message else None
-        
-        # Detect Category
-        chat_title = (message.chat.title or "").upper()
-        category = 'casting' if 'КАСТИНГ' in chat_title else 'media'
-        
-        # Phone Detection (Immediate)
+        cid, tid = message.chat.id, (message.message_thread_id if message.is_topic_message else None)
+        category = 'casting' if 'КАСТИНГ' in (message.chat.title or "").upper() else 'media'
+
         clean_c = re.sub(r'[\s\-()\[\]]', '', content)
         ph_match = re.search(r'((\+?7|8)\d{10})', clean_c)
-        is_ph = ph_match is not None
-        is_cmd = content.startswith('/')
+        is_ph, is_cmd = (ph_match is not None), content.startswith('/')
 
         # 1. Reply Handling (Highest Priority)
         if message.reply_to_message and content:
             if message.reply_to_message.from_user.username == bot.get_me().username:
                 b_txt = (message.reply_to_message.text or message.reply_to_message.caption or "")
-                
+
                 # 1.1 Saving Contact via Reply
                 pm = re.search(r"`(\+7\d{10})`", b_txt)
                 if pm and tid:
                     ph, name = pm.group(1), content
+                    # If user replies "Да" or "Yes" and it was a global suggestion
+                    if content.lower() in ["да", "yes", "ок", "ok", "давай", "верно"] and "уже записан как" in b_txt:
+                        m_name = re.search(r"\*\*(.*?)\*\*", b_txt)
+                        if m_name: name = m_name.group(1)
+
                     try:
                         supabase.table("contacts").upsert({
-                            "name": name, 
-                            "phone": ph, 
-                            "thread_id": tid, 
-                            "chat_id": cid, 
-                            "category": category
+                            "name": name, "phone": ph, "thread_id": tid, "chat_id": cid, "category": category
                         }, on_conflict="phone,chat_id,thread_id").execute()
-                        bot.reply_to(message, f"✅ Контакт **{name}** ({ph}) сохранен в категорию **{category}**!")
+                        bot.reply_to(message, f"✅ Контакт **{name}** ({ph}) сохранен!")
                         return
                     except Exception as ex:
-                        bot.reply_to(message, f"❌ Ошибка сохранения контакта: {ex}")
-                        return
+                        bot.reply_to(message, f"❌ Ошибка: {ex}"); return
 
                 # 1.2 Saving Position via Reply
                 if "**Должность**" in b_txt:
@@ -327,11 +267,9 @@ def handle_text(message):
                         if any(x in pos.lower() for x in ["оператор", "камера"]): r += ["production", "post"]
                         if any(x in pos.lower() for x in ["админ", "менеджер"]): r = ["production", "post", "task", "actor"]
                         supabase.from_("team").update({"position": pos, "roles": list(set(r))}).eq("telegram_id", user.id).execute()
-                        bot.reply_to(message, f"✅ Должность **{pos}** сохранена!")
-                        return
+                        bot.reply_to(message, f"✅ Должность **{pos}** сохранена!"); return
                     except Exception as ex:
-                        bot.reply_to(message, f"❌ Ошибка сохранения должности: {ex}")
-                        return
+                        bot.reply_to(message, f"❌ Ошибка: {ex}"); return
 
         # 2. Discovery (Topics Only)
         if tid and content and not is_cmd:
@@ -339,41 +277,30 @@ def handle_text(message):
 
             # 2.2 Phone Discovery
             if is_ph:
-                raw_ph = ph_match.group(1)
-                ph = raw_ph
+                ph = ph_match.group(1)
                 if ph.startswith('8'): ph = '+7' + ph[1:]
                 elif ph.startswith('7') and not ph.startswith('+'): ph = '+' + ph
                 elif not ph.startswith('+'): ph = '+7' + ph
-                
-                if len(ph) != 12: 
-                    if len(raw_ph) == 10: ph = '+7' + raw_ph
-                    else: ph = '+7' + raw_ph[-10:]
+
+                if len(ph) != 12: ph = '+7' + ph[-10:]
 
                 try:
+                    # Check in this topic
                     c_ex = supabase.table("contacts").select("*").eq("phone", ph).eq("chat_id", cid).eq("thread_id", tid).execute()
                     if c_ex.data:
                         bot.reply_to(message, f"📱 Номер `{ph}` уже записан как **{c_ex.data[0]['name']}** в этом проекте.")
                         return
+
+                    # Check globally
+                    c_glob = supabase.table("contacts").select("*").eq("phone", ph).limit(1).execute()
+                    if c_glob.data:
+                        g_name = c_glob.data[0]['name']
+                        bot.reply_to(message, f"📱 Номер `{ph}` уже записан в базе как **{g_name}**.\nДобавить его в этот проект? (Ответьте **Да** или напишите новое имя)")
+                        return
                     else:
-                        candidate_words = [w for w in content.split() if w and w[0].isupper() and len(w) > 1 and not w.startswith(('#', '@', 'http')) and not any(c in w for c in '+890')]
-                        guess = " ".join(candidate_words[:2]) if candidate_words else None
-                        
-                        if guess:
-                            supabase.table("contacts").insert({
-                                "name": guess, 
-                                "phone": ph, 
-                                "thread_id": tid, 
-                                "chat_id": cid, 
-                                "category": category
-                            }).execute()
-                            bot.reply_to(message, f"✅ Контакт: **{guess}** ({ph}) сохранен в **{category}**.")
-                            return
-                        else:
-                            bot.reply_to(message, f"📱 Вижу номер телефона: `{ph}`\nКак зовут этого человека (ответьте на ЭТО сообщение)?")
-                            return
-                except Exception as ex: 
-                    bot.reply_to(message, f"❌ Ошибка обработки телефона: {ex}")
-                    return
+                        bot.reply_to(message, f"📱 Вижу новый номер телефона: `{ph}`\nКак зовут этого человека? (Ответьте на это сообщение)")
+                        return
+                except Exception as ex: print(f"Ph disc err: {ex}"); return
 
         # 3. Identity & Registration (Last Priority)
         if not is_cmd and content:
@@ -383,6 +310,5 @@ def handle_text(message):
 
     except Exception as e:
         print(f"Bot error: {e}")
-        try:
-            bot.reply_to(message, f"🚨 Критическая ошибка бота: {e}\nВерсия: {VERSION}")
+        try: bot.reply_to(message, f"🚨 Ошибка бота: {e}")
         except: pass
