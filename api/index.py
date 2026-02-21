@@ -209,44 +209,50 @@ def notify_casting():
         # 2. Format Message (HTML for better reliability)
         def v(k): return str(data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
         
+        # IMPROVED LAYOUT
         full_txt = (
             f"🌟 <b>НОВАЯ АНКЕТА: {v('full_name')}</b>\n"
             f"🎯 Кастинг: <b>{v('casting_target')}</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"📍 {v('city')} | {v('gender')} | Возраст: <b>{v('dob')}</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 <b>Личные данные:</b>\n"
+            f"📍 {v('city')} | {v('gender')}\n"
+            f"🎂 Возраст: <b>{v('dob')}</b>\n"
             f"🎭 Внешность: {v('nationality')}\n\n"
-            f"📏 <b>Параметры</b>: {v('height_weight')} | {v('sizes')}\n"
-            f"📱 <b>Inst</b>: {v('instagram')}\n"
-            f"📞 <b>WhatsApp</b>: {v('phone')}\n\n"
-            f"💡 <b>Опыт</b>: {v('experience')}\n"
-            f"🎭 <b>Навыки</b>: {v('skills')}\n\n"
-            f"💎 <b>Бюджет</b>: {v('fee_range')}\n"
+            f"📏 <b>Параметры:</b>\n"
+            f"📈 Рост/Вес: <b>{v('height_weight')}</b>\n"
+            f"👟 Размеры: <b>{v('sizes')}</b>\n\n"
+            f"📱 <b>Контакты:</b>\n"
+            f"🔗 Inst: {v('instagram')}\n"
+            f"📞 WhatsApp: {v('phone')}\n\n"
+            f"💡 <b>Опыт:</b>\n{v('experience')}\n\n"
+            f"🎭 <b>Навыки:</b>\n{v('skills')}\n\n"
+            f"💎 <b>Финансы и Прочее:</b>\n"
+            f"💰 Бюджет: {v('fee_range')}\n"
             f"👙 Белье: {v('underwear_ok')} | Массовка: {v('extras_ok')}\n"
         )
         if data.get('portfolio_url'):
-            full_txt += f"\n🔗 <a href='{data.get('portfolio_url')}'>Портфолио / Ссылка</a>"
+            full_txt += f"\n🔗 <a href='{data.get('portfolio_url')}'>Портфолио / Ссылка</a>\n"
 
-        # Telegram caption limit is 1024.
-        caption_txt = full_txt
-        if len(caption_txt) > 1020:
-            caption_txt = caption_txt[:1000] + "...\n\n(Полный текст ниже ⬇️)"
+        # USE A SIMPLE SAFE CAPTION FOR MEDIA GROUP to avoid 1024 limit and HTML breakage
+        simple_caption = (
+            f"📸 <b>Анкета: {v('full_name')}</b>\n"
+            f"🎯 {v('casting_target')}\n\n"
+            f"Описание придет следующим сообщением... ⬇️"
+        )
 
         photos = data.get('photo_urls', [])
         video = data.get('video_audition_url')
 
         media = []
-        # Build media group. Caption goes on the first item only.
         for i, url in enumerate(photos):
             if i == 0:
-                media.append(types.InputMediaPhoto(url, caption=caption_txt, parse_mode="HTML"))
+                media.append(types.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
             else:
                 media.append(types.InputMediaPhoto(url))
         
         if video:
-            # If video is the ONLY item, it gets the caption. 
-            # If photos exist, video is just another item (caption is already on first photo).
             if not media:
-                media.append(types.InputMediaVideo(video, caption=caption_txt, parse_mode="HTML"))
+                media.append(types.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
             else:
                 media.append(types.InputMediaVideo(video))
 
@@ -254,18 +260,19 @@ def notify_casting():
             if media:
                 print(f"DEBUG: sending media group with {len(media)} items")
                 bot.send_media_group(cid, media, message_thread_id=tid)
-                # 3. Send separate full text message if it's long or just for reliability
-                bot.send_message(cid, f"📄 <b>ПОЛНЫЕ ДАННЫЕ</b>:\n\n{full_txt}", message_thread_id=tid, parse_mode="HTML", disable_web_page_preview=True)
+                # 3. Always send full text as a separate message for guaranteed delivery
+                bot.send_message(cid, full_txt, message_thread_id=tid, parse_mode="HTML", disable_web_page_preview=True)
             else:
                 print(f"DEBUG: sending text message only")
                 bot.send_message(cid, full_txt, message_thread_id=tid, parse_mode="HTML")
             print("✅ SUCCESS: Notification sent to Telegram")
         except Exception as bot_err:
             print(f"❌ BOT SEND ERROR: {bot_err}")
-            # Fallback
+            # Fallback to pure text message
             try:
-                bot.send_message(cid, f"⚠️ Ошибка медиа. Данные анкета:\n\n{full_txt}", message_thread_id=tid, parse_mode="HTML")
-            except: pass
+                bot.send_message(cid, f"⚠️ Ошибка медиа. Данные анкеты:\n\n{full_txt}", message_thread_id=tid, parse_mode="HTML")
+            except Exception as e2:
+                print(f"❌ FALLBACK FAILED: {e2}")
 
         res = jsonify({'status': 'ok'})
         res.headers.add('Access-Control-Allow-Origin', '*')
