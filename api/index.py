@@ -81,18 +81,23 @@ def handle_feedback(message):
 def handle_rename(message):
     try:
         cid = message.chat.id
-        tid = message.message_thread_id if message.is_topic_message else None
-        if not tid:
-            bot.reply_to(message, "❌ Эту команду нужно использовать внутри Топика (Проекта).")
-            return
+        # Robust tid detection
+        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
         
         new_name = (message.text or "").replace('/rename', '').strip()
         if not new_name:
             bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`", parse_mode="Markdown")
             return
-
-        supabase.from_("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
+        
+        # 1. Update existing
+        res = supabase.from_("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        
+        # 2. If no rows updated, maybe it doesn't exist? Try to ensure it
+        if not res.data:
+            ensure_project(cid, tid, new_name)
+            bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
+        else:
+            bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
@@ -100,19 +105,24 @@ def handle_rename(message):
 def handle_cast_link(message):
     try:
         cid = message.chat.id
-        tid = message.message_thread_id if message.is_topic_message else ""
-        if not tid:
-            bot.reply_to(message, "❌ Эту команду нужно использовать внутри Топика (Кастинга).")
-            return
+        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
         
-        # Ensure project exists
+        # 1. Ensure project exists in DB
         ensure_project(cid, tid, message.chat.title)
         
-        # Check if project exists to get name
+        # 2. Fetch the current name
         p_res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
-        p_name = p_res.data[0]['name'] if p_res.data else "Unknown Project"
+        
+        # 3. If still "Project X", try to use topic name if it's better
+        p_name = "Unknown Project"
+        if p_res.data:
+            p_name = p_res.data[0]['name']
+            if p_name.startswith("Project ") and message.reply_to_message:
+                # Fallback: if we only have Project ID, maybe the topic name is in the chat title?
+                # Usually chat.title is the group name, not topic name.
+                pass
 
-        link = f"{APP_URL}casting.html?cid={cid}&tid={tid}&proj={p_name.replace(' ', '%20')}"
+        link = f"{APP_URL}casting.html?cid={cid}&tid={tid or ''}&proj={p_name.replace(' ', '%20')}"
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton(text="🎭 ОТКРЫТЬ АНКЕТУ", url=link))
         
