@@ -502,89 +502,98 @@ def generate_timer_report():
         
         l_res = supabase.table('production_logs').select("*").eq('shift_id', shift_id).order('event_time').execute()
         logs = l_res.data
-
-        # 2. Process Logs
-        df_logs = pd.DataFrame(logs)
-        if df_logs.empty:
-            bot.send_message(chat_id, "⚠️ Отчет пуст: данные не найдены.", message_thread_id=thread_id)
+        if not logs:
+            bot.send_message(chat_id, "⚠️ Отчет пуст: логи не найдены.", message_thread_id=thread_id)
             return jsonify({'status': 'empty'})
 
+        df_logs = pd.DataFrame(logs)
         df_logs['time'] = pd.to_datetime(df_logs['event_time']).dt.tz_convert('Asia/Almaty')
         
-        # 3. Create Excel in memory
+        # 2. Create Excel
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             # Sheet 1: Chronology (Detailed)
-            raw_data = []
+            chrono = []
             for _, row in df_logs.iterrows():
-                e_data = row['data'] or {}
-                raw_data.append({
+                d = row['data'] or {}
+                chrono.append({
                     'Время': row['time'].strftime('%H:%M:%S'),
-                    'Локация': e_data.get('loc', '-'),
-                    'Сцена': e_data.get('scene_no', '-'),
-                    'Дубль': e_data.get('take_no', '-'),
                     'Событие': row['event_type'].upper(),
-                    'Детали': json.dumps(e_data, ensure_ascii=False) if e_data else ''
+                    'Локация': d.get('loc', '-'),
+                    'Сцена': d.get('scene_no', '-'),
+                    'Дубль': d.get('take_no', '-'),
+                    'Детали': json.dumps(d, ensure_ascii=False) if d else ''
                 })
-            pd.DataFrame(raw_data).to_excel(writer, sheet_name='Хронология', index=False)
-            
-            # Sheet 2: Delays Analysis
-            delay_logs = df_logs[df_logs['event_type'].str.contains('delay', case=False)]
-            if not delay_logs.empty:
-                delays = []
-                for _, row in delay_logs.iterrows():
-                    delays.append({
-                        'Время': row['time'].strftime('%H:%M:%S'),
-                        'Категория': row['event_type'].replace('delay_', '').upper(),
-                        'Сцена': (row['data'] or {}).get('scene_no', '-'),
-                        'Комментарий': (row['data'] or {}).get('reason', '-')
-                    })
-                pd.DataFrame(delays).to_excel(writer, sheet_name='Задержки', index=False)
+            pd.DataFrame(chrono).to_excel(writer, sheet_name='Хронология', index=False)
+
+            # Sheet 2: Delays
+            delays = []
+            for _, row in df_logs[df_logs['event_type'].str.contains('delay', case=False)].iterrows():
+                d = row['data'] or {}
+                delays.append({
+                    'Время': row['time'].strftime('%H:%M:%S'),
+                    'Категория': row['event_type'].replace('delay_', '').upper(),
+                    'Сцена': d.get('scene_no', '-'),
+                    'Причина': d.get('reason', '-')
+                })
+            pd.DataFrame(delays).to_excel(writer, sheet_name='Задержки', index=False)
 
             # Sheet 3: Actor Prep (Promised vs Actual)
-            # This is a bit complex as we need to match start/end events, but for now we'll just log them clearly
-            prep_logs = df_logs[df_logs['event_type'].str.contains('makeup|wardrobe|sound_rigging', case=False)]
-            if not prep_logs.empty:
-                preps = []
-                for _, row in prep_logs.iterrows():
-                    e_type = row['event_type']
-                    state = "СТАРТ" if "_start" in e_type else "ФИНИШ" if "_end" in e_type else "ОТМЕТКА"
-                    preps.append({
-                        'Время': row['time'].strftime('%H:%M:%S'),
-                        'Cервис': e_type.replace('_start', '').replace('_end', '').upper(),
-                        'Статус': state,
-                        'Обещано (мин)': (row['data'] or {}).get('promised', '-')
-                    })
-                pd.DataFrame(preps).to_excel(writer, sheet_name='Подготовка', index=False)
+            prep_data = []
+            prep_types = ['makeup', 'wardrobe', 'sound_rigging']
+            for pt in prep_types:
+                starts = df_logs[df_logs['event_type'] == f'{pt}_start']
+                ends = df_logs[df_logs['event_type'] == f'{pt}_end']
+                for _, s_row in starts.iterrows():
+                    promised = (s_row['data'] or {}).get('promised', '?')
+                    # Find first end after this start
+                    e_match = ends[ends['time'] > s_row['time']].head(1)
+                    if not e_match.empty:
+                        e_row = e_match.iloc[0]
+                        actual_min = round((e_row['time'] - s_row['time']).total_seconds() / 60)
+                        diff = 0
+                        try:
+                            if str(promised).isdigit(): diff = actual_min - int(promised)
+                        except: pass
+                        prep_data.append({
+                            'Сервис': pt.upper(),
+                            'Старт': s_row['time'].strftime('%H:%M'),
+                            'Финиш': e_row['time'].strftime('%H:%M'),
+                            'План (мин)': promised,
+                            'Факт (мин)': actual_min,
+                            'Отклонение': diff
+                        })
+            pd.DataFrame(prep_data).to_excel(writer, sheet_name='Подготовка', index=False)
 
             # Sheet 4: Summary (Totals)
-            start = pd.to_datetime(shift['start_time']).tz_convert('Asia/Almaty')
-            end = pd.to_datetime(shift['end_time']).tz_convert('Asia/Almaty') if shift['end_time'] else datetime.now()
+            start_t = pd.to_datetime(shift['start_time']).tz_convert('Asia/Almaty')
+            end_t = pd.to_datetime(shift['end_time']).tz_convert('Asia/Almaty') if shift.get('end_time') else df_logs['time'].max()
+            duration = end_t - start_t
             
             summary = [
-                {'Параметр': 'Дата', 'Value': start.strftime('%d.%m.%Y')},
-                {'Параметр': 'Начало смены', 'Value': start.strftime('%H:%M:%S')},
-                {'Паarамтр': 'Конец смены', 'Value': end.strftime('%H:%M:%S') if shift['end_time'] else 'В процессе'},
-                {'Параметр': 'Общее время', 'Value': str(end - start).split('.')[0]},
-                {'Параметр': 'Всего сцен', 'Value': df_logs['data'].apply(lambda x: (x or {}).get('scene_no', 0)).max()},
-                {'Параметр': 'Всего дублей', 'Value': len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])},
+                {'Параметр': 'Дата', 'Значение': start_t.strftime('%d.%m.%Y')},
+                {'Параметр': 'Начало смены', 'Значение': start_t.strftime('%H:%M:%S')},
+                {'Параметр': 'Конец смены', 'Значение': end_t.strftime('%H:%M:%S') if shift.get('end_time') else 'В работе'},
+                {'Параметр': 'Общее время', 'Значение': str(duration).split('.')[0]},
+                {'Параметр': 'Всего сцен', 'Значение': df_logs['data'].apply(lambda x: (x or {}).get('scene_no', 1)).nunique()},
+                {'Параметр': 'Всего дублей', 'Значение': len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])},
                 {'Параметр': 'Хороших дублей', 'Value': len(df_logs[df_logs['data'].apply(lambda x: (x or {}).get('result') == 'good')])},
             ]
             pd.DataFrame(summary).to_excel(writer, sheet_name='Итоги', index=False)
 
         output.seek(0)
+        file_name = f"DPR_{start_t.strftime('%d%m')}_Shift_{shift_id}.xlsx"
         
         # 4. Send to Telegram
-        doc_name = f"DPR_Shift_{str(start.date())}.xlsx"
         bot.send_document(chat_id, ('report.xlsx', output.read()), 
-                          caption=f"📊 **DPR: ОТЧЕТ ПО СМЕНЕ**\nДата: {start.strftime('%d.%m.%Y')}\n\nСмена успешно завершена. Детальный лог в прикрепленном файле.", 
-                          message_thread_id=thread_id, visible_file_name=doc_name, parse_mode="Markdown")
+                          caption=f"📋 **ОТЧЕТ ЗА СМЕНУ (DPR)**\nДата: {start_t.strftime('%d.%m.%Y')}\nСмена завершена: {end_t.strftime('%H:%M')}\nВсего отснято дублей: {len(df_logs[df_logs['event_type']=='motor'])}", 
+                         message_thread_id=thread_id, visible_file_name=file_name, parse_mode="Markdown")
 
         res = jsonify({'status': 'ok'})
         res.headers.add('Access-Control-Allow-Origin', '*')
         return res
     except Exception as e:
-        print(f"Report Error: {e}")
+        print(f"Report generator error: {e}")
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
 
 def ensure_project(chat_id, thread_id, chat_title, content="", message=None, forced_name=None):
