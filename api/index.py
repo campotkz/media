@@ -98,31 +98,46 @@ def handle_rename(message):
 def register_user(user, chat_id, thread_id=None, silent=False):
     try:
         if not user: return None
-        # Match by ID
-        res = supabase.from_("team").select("*").eq("telegram_id", user.id).execute()
-        if res.data: return res.data[0]
+        uid = getattr(user, 'id', None)
+        username = (getattr(user, 'username', "") or "").lstrip('@').lower()
+        
+        # 1. Match by Telegram ID
+        if uid:
+            res = supabase.from_("team").select("*").eq("telegram_id", uid).execute()
+            if res.data: return res.data[0]
 
-        # Match by Username or Name (Robustness)
+        # 2. Match by Username (Very common for pre-filled lists)
+        if username:
+            res = supabase.from_("team").select("*").ilike("username", username).execute()
+            if res.data:
+                # Link the ID
+                supabase.from_("team").update({"telegram_id": uid}).eq("id", res.data[0]['id']).execute()
+                return res.data[0]
+
+        # 3. Match by Full Name (Fallback)
         all_t = supabase.from_("team").select("*").execute()
-        u_low = (user.username or "").lstrip('@').lower()
-        first = user.first_name or ""
-        last = user.last_name or ""
+        first = getattr(user, 'first_name', "") or ""
+        last = getattr(user, 'last_name', "") or ""
         f_low = f"{first} {last}".strip().lower()
         
         match = None
         for t in (all_t.data or []):
-            db_u = (t.get('username') or "").lstrip('@').lower()
             db_f = (t.get('full_name') or "").lower()
-            if (u_low and db_u == u_low) or (f_low and db_f == f_low) or (first.lower() == db_f):
+            if f_low and db_f == f_low:
                 match = t
                 break
         
         if match:
-            supabase.from_("team").update({"telegram_id": user.id}).eq("id", match['id']).execute()
+            supabase.from_("team").update({"telegram_id": uid}).eq("id", match['id']).execute()
             return match
         
-        # New
-        rec = {"telegram_id": user.id, "username": user.username or "", "full_name": f"{first} {last}".strip(), "roles": ["task"]}
+        # 4. Create New if no match found
+        rec = {
+            "telegram_id": uid, 
+            "username": username, 
+            "full_name": f"{first} {last}".strip(), 
+            "roles": ["task"]
+        }
         supabase.from_("team").insert(rec).execute()
         if not silent:
             bot.send_message(chat_id, f"👋 Привет, {first}! Какая у тебя **Должность**? (ответь на это сообщение)", message_thread_id=thread_id)

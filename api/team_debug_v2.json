@@ -1,0 +1,185 @@
+﻿{
+    "value":  [
+                  {
+                      "id":  "f043aa32-dd70-440e-a2fc-0b45180b573b",
+                      "telegram_id":  null,
+                      "full_name":  "MIRA",
+                      "username":  "MiraWWLL",
+                      "position":  "Монтаж",
+                      "roles":  [
+                                    "post"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "8f5b3f09-5a0f-4b20-aea4-988424f59319",
+                      "telegram_id":  null,
+                      "full_name":  "Yuume",
+                      "username":  "younjopa",
+                      "position":  "Монтаж",
+                      "roles":  [
+                                    "post"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "3d0de538-4ea1-46bb-b7a0-11a5b4d58f6b",
+                      "telegram_id":  null,
+                      "full_name":  "Iliyas",
+                      "username":  "ilirender",
+                      "position":  "Motion Designer",
+                      "roles":  [
+                                    "post"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "ae015117-108b-46b1-8eef-eab9c20ff01a",
+                      "telegram_id":  null,
+                      "full_name":  "Кирилл",
+                      "username":  "Fufec",
+                      "position":  "Оператор",
+                      "roles":  [
+                                    "production",
+                                    "post"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "d2ae040f-b538-487a-aca3-54195fa573c9",
+                      "telegram_id":  5843540271,
+                      "full_name":  "Alish",
+                      "username":  "5843540271",
+                      "position":  "Бас оператор",
+                      "roles":  [
+                                    "production",
+                                    "post"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "8bdd42a8-2c8c-4ad9-920c-eca463b60eb7",
+                      "telegram_id":  887184918,
+                      "full_name":  "Дарья",
+                      "username":  "887184918",
+                      "position":  "Фотограф",
+                      "roles":  [
+                                    "production",
+                                    "post"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "3b981eba-317b-40ef-b677-54295416e130",
+                      "telegram_id":  null,
+                      "full_name":  "Roman",
+                      "username":  "magnate71k",
+                      "position":  "Администратор",
+                      "roles":  [
+                                    "production"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "b4ccd85b-7d7d-4157-9bed-c9cb29bbffb7",
+                      "telegram_id":  null,
+                      "full_name":  "LENA TANGO",
+                      "username":  "lenn_nnia",
+                      "position":  "Сценарист",
+                      "roles":  [
+                                    "task"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "9147bab3-f9cf-47ba-aea8-206ae402a709",
+                      "telegram_id":  null,
+                      "full_name":  "Юлия",
+                      "username":  "Bird_of_nord",
+                      "position":  "Сценарист",
+                      "roles":  [
+                                    "task"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "4e9f489b-f65f-407b-8864-83b775d06222",
+                      "telegram_id":  null,
+                      "full_name":  "Кириллович",
+                      "username":  "P4rkir",
+                      "position":  "Smm менеджер",
+                      "roles":  [
+                                    "task"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "b6f053ad-8228-4c8a-b6b2-7c25d9d1ba96",
+                      "telegram_id":  null,
+                      "full_name":  "Aru",
+                      "username":  "Arumeyyy",
+                      "position":  "Дизайнер",
+                      "roles":  [
+                                    "task"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "9df7dc2d-43fe-4ec6-8a8b-cc92023dce52",
+                      "telegram_id":  null,
+                      "full_name":  "Yuriu",
+                      "username":  "fumchik",
+                      "position":  "Дизайнер",
+                      "roles":  [
+                                    "task"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "a9a73b82-a4db-4a26-aa36-958f0c55407b",
+                      "telegram_id":  null,
+                      "full_name":  "Evgeniy",
+                      "username":  "evoron",
+                      "position":  "Руководитель",
+                      "roles":  [
+                                    "task"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "ed21decd-b95f-466c-b1f1-f470b5b98ea8",
+                      "telegram_id":  null,
+                      "full_name":  "Иван",
+                      "username":  "tango_thecreator",
+                      "position":  "Директор",
+                      "roles":  [
+                                    "production",
+                                    "actor"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "fda1b242-036d-4999-8af2-9b9a7cd64ee3",
+                      "telegram_id":  null,
+                      "full_name":  "Sergey",
+                      "username":  "sijicbond",
+                      "position":  "Продюсер",
+                      "roles":  [
+                                    "production"
+                                ],
+                      "created_at":  "2026-02-20T19:03:29.829768+00:00"
+                  },
+                  {
+                      "id":  "e3cb79cd-6201-4d59-a672-50b46997102b",
+                      "telegram_id":  542053490,
+                      "full_name":  "Sergey Bondarev",
+                      "username":  "sijicbond",
+                      "position":  null,
+                      "roles":  [
+                                    "task"
+                                ],
+                      "created_at":  "2026-02-20T19:22:45.847532+00:00"
+                  }
+              ],
+    "Count":  16
+}
