@@ -346,7 +346,7 @@ def notify_casting():
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
 
 # --- ADD VIDEO / MEDIA COMMAND ---
-@bot.message_handler(func=lambda m: (m.text and "/add_video" in m.text) or (m.caption and "/add_video" in m.caption))
+@bot.message_handler(func=lambda m: (m.text and "/add_video" in m.text) or (m.caption and "/add_video" in m.caption), content_types=['text', 'photo', 'video', 'document'])
 def handle_add_video(message):
     try:
         reply = message.reply_to_message
@@ -354,48 +354,60 @@ def handle_add_video(message):
             bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение с анкетой, чтобы добавить медиа.")
             return
 
-        # 1. Find Application in DB
-        res = supabase.table("casting_applications").select("*").eq("tg_message_id", reply.message_id).execute()
+        # 1. SMART TARGET DETECTION (Chain Discovery)
+        # We need to find the BOT's notification message (the "Application")
+        target_reply = reply
+        source_msg = message # By default, media is in the command message itself
+        
+        # If the reply is NOT the bot's application (no "АНКЕТА:")...
+        if "АНКЕТА:" not in (reply.text or reply.caption or ""):
+            # Maybe we are replying to a video/photo?
+            if reply.video or reply.photo or reply.document:
+                source_msg = reply # The media is what we replied to
+                # Does THIS media reply to the application?
+                if reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or ""):
+                    target_reply = reply.reply_to_message
+                else:
+                    # Let's try to search naming anyway, but we need a target_reply
+                    pass
+
+        # Now search DB by target_reply.message_id
+        res = supabase.table("casting_applications").select("*").eq("tg_message_id", target_reply.message_id).execute()
         app_data = None
         
         if not res.data:
-            # SMART HEALING: Try to find by name in the text of the reply
-            txt = reply.text or reply.caption or ""
-            # Capture everything after 'АНКЕТА: ' until end of line or tag
+            # SMART HEALING: Search by name in text
+            txt = target_reply.text or target_reply.caption or ""
             m_name = re.search(r'АНКЕТА:\s*([^\n<]+)', txt, re.IGNORECASE)
             found_name = m_name.group(1).strip().replace("<b>", "").replace("</b>", "") if m_name else None
             
             if found_name:
-                print(f"DEBUG: Healing old message. Found name: {found_name}")
-                # Search by name and chat_id
                 h_res = supabase.table("casting_applications").select("*").ilike("full_name", f"%{found_name}%").eq("chat_id", message.chat.id).execute()
                 if h_res.data:
                     app_data = h_res.data[0]
-                    # LINK IT: Save message_id for next time
-                    supabase.table("casting_applications").update({"tg_message_id": reply.message_id}).eq("id", app_data['id']).execute()
-                    print(f"✅ SUCCESS: Healed application for {found_name}")
+                    supabase.table("casting_applications").update({"tg_message_id": target_reply.message_id}).eq("id", app_data['id']).execute()
                 else:
                     bot.reply_to(message, f"❌ Не удалось найти в базе анкету на имя '{found_name}'.")
                     return
             else:
-                bot.reply_to(message, "❌ Не удалось найти анкету в базе или распознать имя в тексте. Попробуйте только для новых анкет.")
+                bot.reply_to(message, "❌ Пожалуйста, отвечайте именно на сообщение с АНКЕТОЙ.")
                 return
         else:
             app_data = res.data[0]
         
-        # 2. Get Media (check for file upload or link in text)
+        # 2. Extract Media from source_msg
         new_url = None
         file_id = None
-        media_type = "file"
+        media_type = "файл"
         
-        if message.video: 
-            file_id = message.video.file_id
+        if source_msg.video: 
+            file_id = source_msg.video.file_id
             media_type = "видео"
-        elif message.photo: 
-            file_id = message.photo[-1].file_id # Highest resolution
+        elif source_msg.photo: 
+            file_id = source_msg.photo[-1].file_id
             media_type = "фото"
-        elif message.document: 
-            file_id = message.document.file_id
+        elif source_msg.document: 
+            file_id = source_msg.document.file_id
             media_type = "файл"
         
         if file_id:
