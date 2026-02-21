@@ -204,8 +204,7 @@ def handle_timer(message):
             # 3. Create TWA Keyboard
             url = f"{APP_URL}timer.html?pid={pid}&proj={pname.replace(' ', '%20')}&tid={tid or ''}&cid={cid}"
             markup = types.InlineKeyboardMarkup()
-            # Note: types.WebAppInfo is for Mini Apps
-            btn = types.InlineKeyboardButton(text="⏱️ ЗАПУСТИТЬ ТАЙМЕР", web_app=types.WebAppInfo(url))
+            btn = types.InlineKeyboardButton(text="⏱️ ЗАПУСТИТЬ ТАЙМЕР", url=url)
             markup.add(btn)
             
             bot.send_message(cid, f"🚀 **FILM TIMER PRO**\n\nПроект: **{pname}**\n\nНажмите кнопку ниже, чтобы начать замер смены.", 
