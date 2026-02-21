@@ -356,11 +356,32 @@ def handle_add_video(message):
 
         # 1. Find Application in DB
         res = supabase.table("casting_applications").select("*").eq("tg_message_id", reply.message_id).execute()
-        if not res.data:
-            bot.reply_to(message, "❌ Не удалось найти анкету в базе. Возможно, она была прислана до этого обновления или это не сообщение бота.")
-            return
+        app_data = None
         
-        app_data = res.data[0]
+        if not res.data:
+            # SMART HEALING: Try to find by name in the text of the reply
+            txt = reply.text or reply.caption or ""
+            # Capture everything after 'АНКЕТА: ' until end of line or tag
+            m_name = re.search(r'АНКЕТА:\s*([^\n<]+)', txt, re.IGNORECASE)
+            found_name = m_name.group(1).strip().replace("<b>", "").replace("</b>", "") if m_name else None
+            
+            if found_name:
+                print(f"DEBUG: Healing old message. Found name: {found_name}")
+                # Search by name and chat_id
+                h_res = supabase.table("casting_applications").select("*").ilike("full_name", f"%{found_name}%").eq("chat_id", message.chat.id).execute()
+                if h_res.data:
+                    app_data = h_res.data[0]
+                    # LINK IT: Save message_id for next time
+                    supabase.table("casting_applications").update({"tg_message_id": reply.message_id}).eq("id", app_data['id']).execute()
+                    print(f"✅ SUCCESS: Healed application for {found_name}")
+                else:
+                    bot.reply_to(message, f"❌ Не удалось найти в базе анкету на имя '{found_name}'.")
+                    return
+            else:
+                bot.reply_to(message, "❌ Не удалось найти анкету в базе или распознать имя в тексте. Попробуйте только для новых анкет.")
+                return
+        else:
+            app_data = res.data[0]
         
         # 2. Get Media (check for file upload or link in text)
         new_url = None
