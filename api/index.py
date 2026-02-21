@@ -15,6 +15,9 @@ bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# Version indicator for debugging
+VERSION = "1.5.1" 
+
 @app.route('/api', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -54,6 +57,10 @@ def handle_start(message):
     markup.add(types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", url=APP_URL))
     bot.send_message(message.chat.id, "🦾 **GULYWOOD ERP**", reply_markup=markup, message_thread_id=message.message_thread_id, parse_mode="Markdown")
 
+@bot.message_handler(commands=['status'])
+def handle_status(message):
+    bot.reply_to(message, f"🤖 **Bot Status**\nVersion: `{VERSION}`\nUser: `{message.from_user.first_name}`\nID: `{message.from_user.id}`", parse_mode="Markdown")
+
 @bot.message_handler(commands=['feedback'])
 def handle_feedback(message):
     cid, tid = message.chat.id, message.message_thread_id or ""
@@ -85,28 +92,33 @@ def register_user(user, chat_id, thread_id=None, silent=False):
         res = supabase.from_("team").select("*").eq("telegram_id", user.id).execute()
         if res.data: return res.data[0]
 
-        # Match by Username or Full Name (Robust)
+        # Match by Username or Name (Robustness)
         all_t = supabase.from_("team").select("*").execute()
         u_low = (user.username or "").lstrip('@').lower()
-        f_low = (user.full_name or "").lower()
+        # Safe way to get full name in telebot
+        first = user.first_name or ""
+        last = user.last_name or ""
+        f_low = f"{first} {last}".strip().lower()
         
         match = None
         for t in (all_t.data or []):
             db_u = (t.get('username') or "").lstrip('@').lower()
             db_f = (t.get('full_name') or "").lower()
-            if (u_low and db_u == u_low) or (f_low and db_f == f_low):
+            # Try to match username OR full name
+            if (u_low and db_u == u_low) or (f_low and db_f == f_low) or (first.lower() == db_f):
                 match = t
                 break
         
         if match:
+            # Update the ID so we don't have to search next time
             supabase.from_("team").update({"telegram_id": user.id}).eq("id", match['id']).execute()
             return match
         
-        # Create New
-        rec = {"telegram_id": user.id, "username": user.username or "", "full_name": user.full_name or user.first_name, "roles": ["task"]}
+        # New
+        rec = {"telegram_id": user.id, "username": user.username or "", "full_name": f"{first} {last}".strip(), "roles": ["task"]}
         supabase.from_("team").insert(rec).execute()
         if not silent:
-            bot.send_message(chat_id, f"👋 Привет, {user.first_name}! Какая у тебя **Должность**?", message_thread_id=thread_id)
+            bot.send_message(chat_id, f"👋 Привет, {first}! Какая у тебя **Должность**?", message_thread_id=thread_id)
         return None
     except Exception as e:
         print(f"Reg err: {e}"); return None
@@ -131,8 +143,11 @@ def handle_text(message):
         is_ph = len(ph_match) > 0
         is_cmd = content.startswith('/')
         
-        # 1. Identity (Silent if phone or command to avoid noise)
+        # 1. Identity (Silent if phone or command)
         u_rec = register_user(user, message.chat.id, tid, silent=(is_ph or is_cmd))
+        
+        # If user found but has no position, AND it's not a noise message, ask.
+        # But we use the EMOJI '📝' to distinguish from old versions.
         if u_rec and not u_rec.get('position') and not (is_ph or is_cmd):
             bot.send_message(message.chat.id, f"📝 {user.first_name}, напиши свою **Должность**.", message_thread_id=tid)
 
@@ -192,5 +207,5 @@ def handle_text(message):
                         supabase.table("contacts").insert({"name": guess, "phone": ph, "thread_id": tid}).execute()
                         bot.reply_to(message, f"✅ Контакт: **{guess}** ({ph})")
                     else:
-                        bot.reply_to(message, f"📱 Вижу номер: `{ph}`\nКак зовут этого клиента?")
+                        bot.reply_to(message, f"📱 Вижу номер телефона: `{ph}`\nКак зовут этого клиента?")
     except Exception as e: print(f"Bot error: {e}")
