@@ -11,17 +11,16 @@ def main():
         "Content-Type": "application/json"
     }
     
-    target_cid = -1003738942785
-    url = f"{SUPABASE_URL}/rest/v1/clients?chat_id=eq.{target_cid}"
+    url = f"{SUPABASE_URL}/rest/v1/clients"
     
     print(f"Requesting: {url}")
     r = requests.get(url, headers=headers)
     
     if r.status_code == 200:
         data = r.json()
-        print(f"Found {len(data)} records for chat {target_cid}:")
+        print(f"Found {len(data)} records total:")
         for row in data:
-            print(f"- TID: {row['thread_id']}, Name: {row['name']}, Hidden: {row['is_hidden']}, Active: {row['is_active']}")
+            print(f"- CID: {row['chat_id']}, TID: {row['thread_id']}, Name: {row['name']}, Hidden: {row['is_hidden']}, Active: {row['is_active']}")
     else:
         print(f"Error {r.status_code}: {r.text}")
 

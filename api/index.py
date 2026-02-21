@@ -111,8 +111,18 @@ def handle_archive(message):
         if not tid:
             bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика.")
             return
-        supabase.from_("clients").update({"is_hidden": True, "is_active": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        bot.reply_to(message, "🗄️ **АРХИВИРОВАНО**\nЭтот топик скрыт из всех списков выбора на сайте.", parse_mode="Markdown")
+        
+        # 1. Try exact match
+        res = supabase.from_("clients").update({"is_hidden": True, "is_active": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        
+        # 2. Try match by tid where chat_id is null (legacy cleanup)
+        if not res.data:
+            res = supabase.from_("clients").update({"is_hidden": True, "is_active": False, "chat_id": cid}).is_("chat_id", "null").eq("thread_id", tid).execute()
+        
+        if res.data:
+            bot.reply_to(message, "🗄️ **АРХИВИРОВАНО**\nЭтот топик скрыт из всех списков выбора на сайте.", parse_mode="Markdown")
+        else:
+            bot.reply_to(message, "❌ Ошибка: Проект не найден в базе данных. Попробуйте сначала создать ссылку командой `/cast_link` или просто подождать.", parse_mode="Markdown")
     except Exception as e: bot.reply_to(message, f"❌ Ошибка архивации: {e}")
 
 @bot.message_handler(commands=['unarchive'])
@@ -122,8 +132,18 @@ def handle_unarchive(message):
         if not tid:
             bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика.")
             return
-        supabase.from_("clients").update({"is_hidden": False, "is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        bot.reply_to(message, "🔓 **РАЗАРХИВИРОВАНО**\nТопик снова доступен в списках выбора.", parse_mode="Markdown")
+            
+        # 1. Try exact match
+        res = supabase.from_("clients").update({"is_hidden": False, "is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        
+        # 2. Try match by tid where chat_id is null
+        if not res.data:
+            res = supabase.from_("clients").update({"is_hidden": False, "is_active": True, "chat_id": cid}).is_("chat_id", "null").eq("thread_id", tid).execute()
+
+        if res.data:
+            bot.reply_to(message, "🔓 **РАЗАРХИВИРОВАНО**\nТопик снова доступен в списках выбора.", parse_mode="Markdown")
+        else:
+            bot.reply_to(message, "❌ Ошибка: Проект не найден.", parse_mode="Markdown")
     except Exception as e: bot.reply_to(message, f"❌ Ошибка разархивации: {e}")
 
 @bot.message_handler(commands=['cast_link'])
@@ -245,6 +265,14 @@ def ensure_project(chat_id, thread_id, chat_title, content="", message=None, for
         
         # 1. Exact Match by Thread
         p_res = supabase.from_("clients").select("*").eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
+        
+        # 1b. Try match by Thread only if Chat ID is Null (Legacy Migration)
+        if not p_res.data:
+            p_res = supabase.from_("clients").select("*").is_("chat_id", "null").eq("thread_id", thread_id).execute()
+            if p_res.data:
+                # Fill in missing chat_id
+                supabase.from_("clients").update({"chat_id": chat_id}).eq("id", p_res.data[0]['id']).execute()
+
         if p_res.data:
             p = p_res.data[0]
             # Update category just in case (e.g. if topic moved to another group)
