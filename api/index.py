@@ -368,20 +368,27 @@ def handle_new_member(message):
 @bot.message_handler(content_types=['forum_topic_closed'])
 def handle_topic_closed(message):
     try:
+        print(f"DEBUG: Catch forum_topic_closed in chat {message.chat.id}, thread {message.message_thread_id}")
         cid, tid = message.chat.id, message.message_thread_id
         if tid:
             supabase.from_("clients").update({"is_hidden": True, "is_active": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
-            print(f"Topic {tid} in chat {cid} CLOSED and HIDDEN.")
-    except Exception as e: print(f"Topic Closed Err: {e}")
+            print(f"✅ SUCCESS: Topic {tid} in chat {cid} CLOSED and HIDDEN.")
+    except Exception as e: print(f"❌ Topic Closed Err: {e}")
 
 @bot.message_handler(content_types=['forum_topic_reopened'])
 def handle_topic_reopened(message):
     try:
+        print(f"DEBUG: Catch forum_topic_reopened in chat {message.chat.id}, thread {message.message_thread_id}")
         cid, tid = message.chat.id, message.message_thread_id
         if tid:
             supabase.from_("clients").update({"is_hidden": False, "is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
-            print(f"Topic {tid} in chat {cid} REOPENED and REVEALED.")
-    except Exception as e: print(f"Topic Reopened Err: {e}")
+            print(f"✅ SUCCESS: Topic {tid} in chat {cid} REOPENED and REVEALED.")
+    except Exception as e: print(f"❌ Topic Reopened Err: {e}")
+
+# Catch-all logger for debugging service messages
+@bot.message_handler(func=lambda m: True, content_types=['forum_topic_created', 'forum_topic_edited', 'forum_topic_closed', 'forum_topic_reopened', 'general_forum_topic_hidden', 'general_forum_topic_unhidden'])
+def debug_topic_events(message):
+    print(f"🔍 DEBUG: Topic Event Type: {message.content_type} in Chat {message.chat.id}, Thread {message.message_thread_id}")
 
 @bot.message_handler(func=lambda m: True)
 def handle_text(message):
