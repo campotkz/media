@@ -365,6 +365,24 @@ def handle_new_member(message):
     for u in (message.new_chat_members or []):
         if not u.is_bot: register_user(u, message.chat.id, tid)
 
+@bot.message_handler(content_types=['forum_topic_closed'])
+def handle_topic_closed(message):
+    try:
+        cid, tid = message.chat.id, message.message_thread_id
+        if tid:
+            supabase.from_("clients").update({"is_hidden": True, "is_active": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
+            print(f"Topic {tid} in chat {cid} CLOSED and HIDDEN.")
+    except Exception as e: print(f"Topic Closed Err: {e}")
+
+@bot.message_handler(content_types=['forum_topic_reopened'])
+def handle_topic_reopened(message):
+    try:
+        cid, tid = message.chat.id, message.message_thread_id
+        if tid:
+            supabase.from_("clients").update({"is_hidden": False, "is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
+            print(f"Topic {tid} in chat {cid} REOPENED and REVEALED.")
+    except Exception as e: print(f"Topic Reopened Err: {e}")
+
 @bot.message_handler(func=lambda m: True)
 def handle_text(message):
     try:
