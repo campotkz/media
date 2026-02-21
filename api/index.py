@@ -96,6 +96,84 @@ def handle_rename(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
+@bot.message_handler(commands=['actor', 'client'])
+def handle_manual_contact(message):
+    try:
+        cmd = message.text.split()[0].lower().strip('/')
+        args = message.text.replace(f'/{cmd}', '').strip()
+        if not args:
+            bot.reply_to(message, f"📝 Формат: `/{cmd} [телефон] [Имя]`\nПример: `/{cmd} 87012223344 Иван`", parse_mode="Markdown")
+            return
+        
+        cid = message.chat.id
+        tid = message.message_thread_id if message.is_topic_message else None
+        
+        # 1. Extract Phone
+        clean_args = re.sub(r'[\s\-()\[\]]', '', args)
+        ph_match = re.search(r'((\+?7|8)\d{10})', clean_args)
+        if not ph_match:
+            bot.reply_to(message, "❌ Не нашел номера телефона в сообщении.")
+            return
+        
+        raw_ph = ph_match.group(1)
+        # Normalize
+        ph = raw_ph
+        if ph.startswith('8'): ph = '+7' + ph[1:]
+        elif ph.startswith('7') and not ph.startswith('+'): ph = '+' + ph
+        elif not ph.startswith('+'): ph = '+7' + ph
+        
+        # 2. Extract Name (the rest)
+        name = args.replace(raw_ph, '').strip()
+        if not name:
+            bot.reply_to(message, "❌ Укажите имя после телефона.")
+            return
+        
+        # 3. Category
+        # If /actor -> casting, if /client -> media
+        category = 'casting' if cmd == 'actor' else 'media'
+        
+        supabase.table("contacts").upsert({
+            "name": name, 
+            "phone": ph, 
+            "thread_id": tid, 
+            "chat_id": cid, 
+            "category": category
+        }, on_conflict="phone,chat_id,thread_id").execute()
+        
+        bot.reply_to(message, f"✅ **{cmd.capitalize()}** сохранен:\n👤 {name}\n📱 {ph}\n📂 Категория: {category}")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
+@bot.message_handler(commands=['staff'])
+def handle_manual_staff(message):
+    try:
+        args = message.text.replace('/staff', '').strip().split(maxsplit=2)
+        if len(args) < 2:
+            bot.reply_to(message, "📝 Формат: `/staff [ID или @username] [Имя] [Должность]`\nПример: `/staff @magnate71k Роман Администратор`", parse_mode="Markdown")
+            return
+        
+        identity = args[0].lstrip('@')
+        name = args[1]
+        pos = args[2] if len(args) > 2 else "Сотрудник"
+        
+        # Roles logic (same as /rename or similar)
+        r = ["task"]
+        if any(x in pos.lower() for x in ["оператор", "камера"]): r += ["production", "post"]
+        if any(x in pos.lower() for x in ["админ", "менеджер"]): r = ["production", "post", "task", "actor"]
+
+        rec = {"full_name": name, "position": pos, "roles": list(set(r))}
+        
+        if identity.isdigit():
+            rec["telegram_id"] = int(identity)
+            supabase.from_("team").upsert(rec, on_conflict="telegram_id").execute()
+        else:
+            rec["username"] = identity
+            supabase.from_("team").upsert(rec, on_conflict="username").execute()
+            
+        bot.reply_to(message, f"✅ Сотрудник **{name}** ({identity}) добавлен в базу.\n💼 Должность: {pos}")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
 def register_user(user, chat_id, thread_id=None, silent=False):
     try:
         if not user: return None
