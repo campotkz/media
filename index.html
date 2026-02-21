@@ -1064,9 +1064,11 @@
     function renderTaskProjects() {
       const val = tProjInput.value.toLowerCase();
       tProjDropdown.innerHTML = '';
-      const matches = val
-        ? clientsData.filter(c => !c.is_hidden && c.name.toLowerCase().includes(val))
-        : clientsData.filter(c => !c.is_hidden);
+      const matches = clientsData.filter(c =>
+        (c.category || 'media') === 'media' &&
+        !c.is_hidden &&
+        (val ? c.name.toLowerCase().includes(val) : true)
+      );
 
       if (!matches.length) { tProjDropdown.style.display = 'none'; return; }
 
