@@ -1068,7 +1068,8 @@
     let teamData = [];    // {full_name, username, roles, position}
     let locationsData = [];
     let contactsData = []; // {name, phone, thread_id, chat_id, category}
-    let currentFilteredContacts = [];
+    let currentMediaContacts = [];
+    let currentCastingContacts = [];
 
     async function fetchAutocompleteData() {
       const { data: cData } = await supabaseClient.from('clients').select('name, thread_id, chat_id, category');
@@ -1088,23 +1089,12 @@
     const renderProjects = () => {
       const val = projInput.value.toLowerCase();
       projDropdown.innerHTML = '';
-      const matches = val
-        ? clientsData.filter(c => c.name.toLowerCase().includes(val))
-        : clientsData;
+      const matches = clientsData.filter(c => (c.category || 'media') === 'media' && (val ? c.name.toLowerCase().includes(val) : true));
       if (!matches.length) { projDropdown.style.display = 'none'; return; }
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.style.display = 'flex';
-        div.style.justifyContent = 'space-between';
-
-        const cat = c.category || 'media';
-        const color = cat === 'casting' ? '#7aa2ff' : '#4cd964';
-
-        div.innerHTML = `
-          <span>${c.name}</span>
-          <small style="background:${color}33; color:${color}; padding:2px 6px; border-radius:4px; font-size:9px; text-transform:uppercase">${cat}</small>
-        `;
+        div.innerHTML = `<span>${c.name}</span> <small style="background:#4cd96433; color:#4cd964; padding:2px 6px; border-radius:4px; font-size:9px">MEDIA</small>`;
         div.onclick = () => {
           projInput.value = c.name;
           projDropdown.style.display = 'none';
@@ -1115,8 +1105,33 @@
       projDropdown.style.display = 'block';
     };
 
+    const castInput = document.getElementById('casting_project');
+    const castDropdown = document.getElementById('castingDropdown');
+
+    const renderCastingProjects = () => {
+      const val = castInput.value.toLowerCase();
+      castDropdown.innerHTML = '';
+      const matches = clientsData.filter(c => c.category === 'casting' && (val ? c.name.toLowerCase().includes(val) : true));
+      if (!matches.length) { castDropdown.style.display = 'none'; return; }
+      matches.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.innerHTML = `<span>${c.name}</span> <small style="background:#7aa2ff33; color:#7aa2ff; padding:2px 6px; border-radius:4px; font-size:9px">CASTING</small>`;
+        div.onclick = () => {
+          castInput.value = c.name;
+          castDropdown.style.display = 'none';
+          updateContactPool();
+        };
+        castDropdown.appendChild(div);
+      });
+      castDropdown.style.display = 'block';
+    };
+
     projInput.addEventListener('input', renderProjects);
     projInput.addEventListener('focus', renderProjects);
+    castInput.addEventListener('input', renderCastingProjects);
+    castInput.addEventListener('focus', renderCastingProjects);
+    castInput.addEventListener('click', (e) => { e.stopPropagation(); renderCastingProjects(); });
 
     // Location Dropdown
     const locInput = document.getElementById('location');
@@ -1267,6 +1282,7 @@
       const inp = document.getElementById(inputId);
       const drop = document.getElementById(dropdownId);
       const renderDrop = () => {
+        updateContactPool(); // Ensure pools are fresh
         const val = inp.value.toLowerCase();
         drop.innerHTML = '';
 
@@ -1278,18 +1294,16 @@
         // SPECIAL CASE: Actors should ALSO include project-specific contacts 
         // AND all contacts from 'casting' category
         if (fieldId === 'actors') {
-          const castingContacts = contactsData.filter(ct => ct.category === 'casting').map(c => ({
-            full_name: c.name,
-            position: 'Актер (из Кастинга)',
-            roles: ['actor']
+          const mediaContacts = currentMediaContacts.map(c => ({
+            full_name: c.name, position: 'Контакт (Media)', roles: ['actor']
           }));
-          const projectContacts = currentFilteredContacts.map(c => ({
-            full_name: c.name,
-            position: 'Клиент/Контакт',
-            roles: ['actor']
+          const castingContacts = currentCastingContacts.map(c => ({
+            full_name: c.name, position: 'Актер (Casting)', roles: ['actor']
           }));
-          pool = [...pool, ...castingContacts, ...projectContacts];
-          // dedupe by full_name
+          // Also include ALL contacts with category 'casting' regardless of selected project?
+          // The user said: "фильтровать по топику кастинг ... ПЛЮС клиенты из проекта"
+          // So let's stick to the selected projects' contacts.
+          pool = [...pool, ...mediaContacts, ...castingContacts];
           pool = pool.filter((v, i, a) => a.findIndex(t => t.full_name === v.full_name) === i);
         }
 
@@ -1334,39 +1348,25 @@
     setupTagInput('actorsInput', 'actorsDropdown', 'actors', 'actorsTags', 'actor');
     setupTagInput('assigneeInput', 'assigneeDropdown', 't_assignees', 'assigneeTags', null); // All for tasks
 
-    // Casting Project simple listener
-    document.getElementById('casting_project').addEventListener('input', () => {
-      document.getElementById('castingDropdown').style.display = 'none';
-    });
+    function updateContactPool() {
+      // 1. Media Pool
+      const mProj = clientsData.find(c => c.name === f.project.value.trim());
+      currentMediaContacts = mProj ? contactsData.filter(ct => String(ct.thread_id) === String(mProj.thread_id)) : [];
+
+      // 2. Casting Pool
+      const cProj = clientsData.find(c => c.name === f.casting_project.value.trim());
+      currentCastingContacts = cProj ? contactsData.filter(ct => String(ct.thread_id) === String(cProj.thread_id)) : [];
+    }
 
     // Contact Logic
     const contactInput = document.getElementById('contact');
     const contactDropdown = document.getElementById('contactDropdown');
 
-    function updateContactPool() {
-      const projName = f.project.value.trim();
-      const proj = clientsData.find(c => c.name === projName);
-      if (proj) {
-        if (proj.thread_id && proj.chat_id) {
-          currentFilteredContacts = contactsData.filter(ct =>
-            String(ct.thread_id) === String(proj.thread_id) &&
-            String(ct.chat_id) === String(proj.chat_id)
-          );
-        } else if (proj.thread_id) {
-          currentFilteredContacts = contactsData.filter(ct => String(ct.thread_id) === String(proj.thread_id));
-        } else {
-          currentFilteredContacts = [];
-        }
-      } else {
-        currentFilteredContacts = [];
-      }
-    }
-
     function renderContactDropdown() {
       const val = contactInput.value.toLowerCase();
       contactDropdown.innerHTML = '';
 
-      let pool = currentFilteredContacts;
+      let pool = currentMediaContacts;
       let matches = val
         ? pool.filter(c => c.name.toLowerCase().includes(val) || c.phone.includes(val))
         : pool;
@@ -1438,7 +1438,8 @@
         tProjDropdown.style.display = 'none';
         locDropdown.style.display = 'none';
         addrDropdown.style.display = 'none';
-        document.getElementById('contactDropdown').style.display = 'none';
+        castDropdown.style.display = 'none';
+        contactDropdown.style.display = 'none';
       }
       if (!e.target.closest('.multi-select-wrap')) {
         crewDropdown.style.display = 'none';
