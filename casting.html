@@ -508,7 +508,7 @@
                 <div class="form-group">
                     <label>Фотографии (минимум 3 шт)<span>*</span></label>
                     <p style="font-size:11px; color:var(--muted); margin-bottom:10px">Анфас, профиль, в полный рост. Без
-                        фильтров.</p>
+                        фильтров. <b>Max 50MB/файл.</b></p>
                     <div class="upload-area" id="photoUpload">
                         <i>📸</i>
                         <span>Нажмите для выбора фото (JPG, PNG)</span>
@@ -520,7 +520,7 @@
                 <div class="form-group">
                     <label>Видео-проба (Актерский этюд)<span>*</span></label>
                     <p style="font-size:11px; color:var(--muted); margin-bottom:10px">До 1 минуты. Эмоции и подача в
-                        кадре.</p>
+                        кадре. <b>Лимит 50MB.</b> Если файл больше, укажите ссылку ниже.</p>
                     <div class="upload-area" id="videoUpload">
                         <i>🎬</i>
                         <span>Нажмите для выбора видео (MP4, MOV)</span>
@@ -575,8 +575,13 @@
         // Photo Upload Handling
         document.getElementById('photoUpload').onclick = () => document.getElementById('photoInput').click();
         document.getElementById('photoInput').onchange = async (e) => {
+            const MAX_SIZE = 50 * 1024 * 1024; // 50MB
             const files = Array.from(e.target.files);
             for (const file of files) {
+                if (file.size > MAX_SIZE) {
+                    alert(`Файл "${file.name}" слишком большой (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимум — 50MB.`);
+                    continue;
+                }
                 const id = Math.random().toString(36).substr(2, 9);
                 const fileItem = createMediaItem(id, file);
                 document.getElementById('photoList').appendChild(fileItem);
@@ -607,6 +612,13 @@
         document.getElementById('videoInput').onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
+
+            const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+            if (file.size > MAX_SIZE) {
+                alert(`Видео слишком тяжелое (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимум — 50MB. Пожалуйста, сожмите его или укажите ссылку на Google Диск / YouTube ниже.`);
+                e.target.value = '';
+                return;
+            }
 
             const id = Math.random().toString(36).substr(2, 9);
             const fileItem = createMediaItem(id, file, true);
@@ -649,8 +661,13 @@
         // Form Submit
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
+            const formData = new FormData(e.target);
+            const results = Object.fromEntries(formData.entries());
+
             if (uploadedPhotos.length < 3) return alert("Пожалуйста, загрузите минимум 3 фотографии.");
-            if (!uploadedVideo) return alert("Пожалуйста, загрузите видео-пробу.");
+            if (!uploadedVideo && !results.portfolio_url) {
+                return alert("Пожалуйста, загрузите видео-пробу ИЛИ укажите ссылку на ваше портфолио/видео ниже.");
+            }
 
             const overlay = document.getElementById('loadingOverlay');
             const submitBtn = document.getElementById('submitBtn');
