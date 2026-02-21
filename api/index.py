@@ -422,8 +422,9 @@ def handle_add_video(message):
             
             supabase.storage.from_('casting_media').upload(path, f_bytes)
             # Get public link
-            pub = supabase.storage.from_('casting_media').get_public_url(path)
-            new_url = pub.get('publicURL') or f"{SUPABASE_URL}/storage/v1/object/public/casting_media/{path}"
+            new_url = supabase.storage.from_('casting_media').get_public_url(path)
+            if not new_url:
+                new_url = f"{SUPABASE_URL}/storage/v1/object/public/casting_media/{path}"
         else:
             # Search for link in text (Manual Link)
             txt = (message.text or message.caption or "").replace("/add_video", "").strip()
