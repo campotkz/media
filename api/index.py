@@ -81,7 +81,6 @@ def handle_feedback(message):
 def handle_rename(message):
     try:
         cid = message.chat.id
-        # Robust tid detection
         tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
         
         new_name = (message.text or "").replace('/rename', '').strip()
@@ -89,12 +88,16 @@ def handle_rename(message):
             bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`", parse_mode="Markdown")
             return
         
-        # 1. Update existing
-        res = supabase.from_("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        # Determine category from chat title (group name)
+        chat_title = message.chat.title or ""
+        category = 'casting' if 'КАСТИНГ' in chat_title.upper() else 'media'
         
-        # 2. If no rows updated, maybe it doesn't exist? Try to ensure it
+        # 1. Update existing
+        res = supabase.from_("clients").update({"name": new_name, "category": category}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        
+        # 2. If no rows updated, create it with the correct name and category
         if not res.data:
-            ensure_project(cid, tid, new_name)
+            ensure_project(cid, tid, chat_title, forced_name=new_name)
             bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
         else:
             bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
@@ -209,7 +212,7 @@ def notify_casting():
         print(f"Casting Notify Error: {e}")
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
 
-def ensure_project(chat_id, thread_id, chat_title, content="", message=None):
+def ensure_project(chat_id, thread_id, chat_title, content="", message=None, forced_name=None):
     """Ensures a project (topic) exists. Returns (category, is_new)."""
     try:
         if not thread_id: return 'media', False
@@ -219,13 +222,26 @@ def ensure_project(chat_id, thread_id, chat_title, content="", message=None):
         p_res = supabase.from_("clients").select("*").eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
         if p_res.data:
             p = p_res.data[0]
+            # Update category just in case (e.g. if topic moved to another group)
+            if p.get('category') != category:
+                supabase.from_("clients").update({"category": category}).eq("id", p['id']).execute()
+
             # Auto-activate if ✅ added to thread name (heuristic: chat_title contains it)
             if '✅' in (chat_title or "") and not p.get('is_active'):
                 supabase.from_("clients").update({"is_active": True}).eq("id", p['id']).execute()
-                return p.get('category', category), False
-            return p.get('category', category), p['name'].startswith("Project ")
-        
-        # 2. Heuristic Discovery (The "Brief" pattern)
+                return category, False
+            return category, p['name'].startswith("Project ")
+
+        # 2. Forced Name or Heuristic Discovery
+        if forced_name:
+            is_active = '✅' in forced_name
+            supabase.from_("clients").insert({
+                "thread_id": thread_id, "chat_id": chat_id, "name": forced_name, 
+                "category": category, "is_active": is_active
+            }).execute()
+            return category, False
+
+        # Discovery (The "Brief" pattern)
         insta, name_v = "", ""
         u_m = re.search(r'instagram\.com/([^/?#\s]+)', content)
         at_m = re.search(r'@([\w._]+)', content)
