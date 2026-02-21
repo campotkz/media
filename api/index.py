@@ -4,6 +4,10 @@ import re
 from telebot import types
 from flask import Flask, request, jsonify
 from supabase import create_client, Client
+import pandas as pd
+import io
+import json
+from datetime import datetime
 
 # Config
 TOKEN = os.environ.get('BOT_KEY')
@@ -176,6 +180,41 @@ def handle_cast_link(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка генерации ссылки: {e}")
 
+@bot.message_handler(commands=['timer'])
+def handle_timer(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
+        
+        if not tid:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика.")
+            return
+
+        # 1. Ensure project exists
+        ensure_project(cid, tid, message.chat.title)
+        
+        # 2. Get project details for the link
+        p_res = supabase.from_("clients").select("id, name").eq("chat_id", cid).eq("thread_id", tid).execute()
+        
+        if p_res.data:
+            p = p_res.data[0]
+            pid = p['id']
+            pname = p['name']
+            
+            # 3. Create TWA Keyboard
+            url = f"{APP_URL}timer.html?pid={pid}&proj={pname.replace(' ', '%20')}&tid={tid or ''}&cid={cid}"
+            markup = types.InlineKeyboardMarkup()
+            # Note: types.WebAppInfo is for Mini Apps
+            btn = types.InlineKeyboardButton(text="⏱️ ЗАПУСТИТЬ ТАЙМЕР", web_app=types.WebAppInfo(url))
+            markup.add(btn)
+            
+            bot.send_message(cid, f"🚀 **FILM TIMER PRO**\n\nПроект: **{pname}**\n\nНажмите кнопку ниже, чтобы начать замер смены.", 
+                             reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
+        else:
+            bot.reply_to(message, "❌ Ошибка: Проект не найден. Попробуйте написать что-нибудь в этот топик сначала.")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка таймера: {e}")
+
 @app.route('/api/casting', methods=['POST', 'OPTIONS'])
 def notify_casting():
     if request.method == 'OPTIONS':
@@ -233,6 +272,17 @@ def notify_casting():
         if data.get('portfolio_url'):
             full_txt += f"\n🔗 <a href='{data.get('portfolio_url')}'>Портфолио / Ссылка</a>\n"
 
+        photos = data.get('photo_urls', [])
+        video = data.get('video_audition_url')
+
+        # DOUBLE-SAFETY: Add direct links to the message text
+        if photos or video:
+            full_txt += f"\n🖼️ <b>МЕДИА-ФАЙЛЫ (ПРЯМЫЕ ССЫЛКИ):</b>\n"
+            for i, p_url in enumerate(photos):
+                full_txt += f"• <a href='{p_url}'>Фото {i+1}</a>\n"
+            if video:
+                full_txt += f"• <a href='{video}'>Видео-визитка</a>\n"
+
         # USE A SIMPLE SAFE CAPTION FOR MEDIA GROUP to avoid 1024 limit and HTML breakage
         simple_caption = (
             f"📸 <b>Анкета: {v('full_name')}</b>\n"
@@ -279,6 +329,115 @@ def notify_casting():
         return res
     except Exception as e:
         print(f"Casting Notify Error: {e}")
+        r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
+
+@app.route('/api/timer/report', methods=['POST', 'OPTIONS'])
+def generate_timer_report():
+    if request.method == 'OPTIONS':
+        r = app.make_response('')
+        r.headers.add('Access-Control-Allow-Origin', '*')
+        r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        r.headers.add('Access-Control-Allow-Methods', 'POST')
+        return r
+        
+    try:
+        data = request.json or {}
+        shift_id = data.get('shift_id')
+        chat_id = data.get('chat_id')
+        thread_id = data.get('thread_id')
+        
+        if not shift_id: return jsonify({'error': 'No shift_id'}), 400
+
+        # 1. Fetch Data
+        s_res = supabase.table('production_shifts').select("*").eq('id', shift_id).execute()
+        if not s_res.data: return jsonify({'error': 'Shift not found'}), 404
+        shift = s_res.data[0]
+        
+        l_res = supabase.table('production_logs').select("*").eq('shift_id', shift_id).order('event_time').execute()
+        logs = l_res.data
+
+        # 2. Process Logs
+        df_logs = pd.DataFrame(logs)
+        if df_logs.empty:
+            bot.send_message(chat_id, "⚠️ Отчет пуст: данные не найдены.", message_thread_id=thread_id)
+            return jsonify({'status': 'empty'})
+
+        df_logs['time'] = pd.to_datetime(df_logs['event_time']).dt.tz_convert('Asia/Almaty')
+        
+        # 3. Create Excel in memory
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Sheet 1: Chronology (Detailed)
+            raw_data = []
+            for _, row in df_logs.iterrows():
+                e_data = row['data'] or {}
+                raw_data.append({
+                    'Время': row['time'].strftime('%H:%M:%S'),
+                    'Локация': e_data.get('loc', '-'),
+                    'Сцена': e_data.get('scene_no', '-'),
+                    'Дубль': e_data.get('take_no', '-'),
+                    'Событие': row['event_type'].upper(),
+                    'Детали': json.dumps(e_data, ensure_ascii=False) if e_data else ''
+                })
+            pd.DataFrame(raw_data).to_excel(writer, sheet_name='Хронология', index=False)
+            
+            # Sheet 2: Delays Analysis
+            delay_logs = df_logs[df_logs['event_type'].str.contains('delay', case=False)]
+            if not delay_logs.empty:
+                delays = []
+                for _, row in delay_logs.iterrows():
+                    delays.append({
+                        'Время': row['time'].strftime('%H:%M:%S'),
+                        'Категория': row['event_type'].replace('delay_', '').upper(),
+                        'Сцена': (row['data'] or {}).get('scene_no', '-'),
+                        'Комментарий': (row['data'] or {}).get('reason', '-')
+                    })
+                pd.DataFrame(delays).to_excel(writer, sheet_name='Задержки', index=False)
+
+            # Sheet 3: Actor Prep (Promised vs Actual)
+            # This is a bit complex as we need to match start/end events, but for now we'll just log them clearly
+            prep_logs = df_logs[df_logs['event_type'].str.contains('makeup|wardrobe|sound_rigging', case=False)]
+            if not prep_logs.empty:
+                preps = []
+                for _, row in prep_logs.iterrows():
+                    e_type = row['event_type']
+                    state = "СТАРТ" if "_start" in e_type else "ФИНИШ" if "_end" in e_type else "ОТМЕТКА"
+                    preps.append({
+                        'Время': row['time'].strftime('%H:%M:%S'),
+                        'Cервис': e_type.replace('_start', '').replace('_end', '').upper(),
+                        'Статус': state,
+                        'Обещано (мин)': (row['data'] or {}).get('promised', '-')
+                    })
+                pd.DataFrame(preps).to_excel(writer, sheet_name='Подготовка', index=False)
+
+            # Sheet 4: Summary (Totals)
+            start = pd.to_datetime(shift['start_time']).tz_convert('Asia/Almaty')
+            end = pd.to_datetime(shift['end_time']).tz_convert('Asia/Almaty') if shift['end_time'] else datetime.now()
+            
+            summary = [
+                {'Параметр': 'Дата', 'Value': start.strftime('%d.%m.%Y')},
+                {'Параметр': 'Начало смены', 'Value': start.strftime('%H:%M:%S')},
+                {'Паarамтр': 'Конец смены', 'Value': end.strftime('%H:%M:%S') if shift['end_time'] else 'В процессе'},
+                {'Параметр': 'Общее время', 'Value': str(end - start).split('.')[0]},
+                {'Параметр': 'Всего сцен', 'Value': df_logs['data'].apply(lambda x: (x or {}).get('scene_no', 0)).max()},
+                {'Параметр': 'Всего дублей', 'Value': len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])},
+                {'Параметр': 'Хороших дублей', 'Value': len(df_logs[df_logs['data'].apply(lambda x: (x or {}).get('result') == 'good')])},
+            ]
+            pd.DataFrame(summary).to_excel(writer, sheet_name='Итоги', index=False)
+
+        output.seek(0)
+        
+        # 4. Send to Telegram
+        doc_name = f"DPR_Shift_{str(start.date())}.xlsx"
+        bot.send_document(chat_id, ('report.xlsx', output.read()), 
+                          caption=f"📊 **DPR: ОТЧЕТ ПО СМЕНЕ**\nДата: {start.strftime('%d.%m.%Y')}\n\nСмена успешно завершена. Детальный лог в прикрепленном файле.", 
+                          message_thread_id=thread_id, visible_file_name=doc_name, parse_mode="Markdown")
+
+        res = jsonify({'status': 'ok'})
+        res.headers.add('Access-Control-Allow-Origin', '*')
+        return res
+    except Exception as e:
+        print(f"Report Error: {e}")
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
 
 def ensure_project(chat_id, thread_id, chat_title, content="", message=None, forced_name=None):
