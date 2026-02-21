@@ -20,21 +20,26 @@ def main():
         data = r.json()
         print(f"Found {len(data)} records total:")
         for row in data:
-            print(f"- CID: {row['chat_id']}, TID: {row['thread_id']}, Name: {row['name']}, Hidden: {row['is_hidden']}, Active: {row['is_active']}")
+            print(f"- ID: {row['id']}, CID: {row['chat_id']}, TID: {row['thread_id']}, Name: {row['name']}")
     else:
         print(f"Error {r.status_code}: {r.text}")
 
-    # Also check hidden
-    url_h = f"{SUPABASE_URL}/rest/v1/clients?is_hidden=eq.true"
-    print(f"\nRequesting hidden: {url_h}")
-    r_h = requests.get(url_h, headers=headers)
-    if r_h.status_code == 200:
-        data_h = r_h.json()
-        print(f"Found {len(data_h)} hidden records:")
-        for row in data_h:
-            print(f"- CID: {row['chat_id']}, TID: {row['thread_id']}, Name: {row['name']}")
+    # TEST UPDATE: Try to update the row we just inserted (ID 32)
+    print("\n--- TEST UPDATE ON NEW RECORD (ID 32) ---")
+    url_upd = f"{SUPABASE_URL}/rest/v1/clients?id=eq.32"
+    headers_upd = headers.copy()
+    headers_upd["Prefer"] = "return=representation"
+    
+    payload = {"is_hidden": True}
+    
+    print(f"Updating ID 32 via: {url_upd}")
+    r_u = requests.patch(url_upd, headers=headers_upd, data=json.dumps(payload))
+    
+    if r_u.status_code in [200, 201, 204]:
+        print("✅ New Record Update SUCCESS")
+        print(f"Response: {r_u.text}")
     else:
-         print(f"Error {r_h.status_code}: {r_h.text}")
+        print(f"❌ New Record Update FAILED {r_u.status_code}: {r_u.text}")
 
 if __name__ == "__main__":
     main()

@@ -206,48 +206,65 @@ def notify_casting():
                 }, on_conflict="phone,chat_id,thread_id").execute()
         except: pass
 
-        # 2. Format Message
-        txt = (
-            f"🌟 **НОВАЯ АНКЕТА: {data.get('full_name')}**\n"
-            f"🎯 Кастинг: **{data.get('casting_target' or '—')}**\n"
+        # 2. Format Message (HTML for better reliability)
+        def v(k): return str(data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
+        
+        full_txt = (
+            f"🌟 <b>НОВАЯ АНКЕТА: {v('full_name')}</b>\n"
+            f"🎯 Кастинг: <b>{v('casting_target')}</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"📍 {data.get('city')} | {data.get('gender')} | {data.get('dob')}\n"
-            f"🌍 {data.get('nationality')}\n\n"
-            f"📏 **Параметры**: {data.get('height_weight')} | {data.get('sizes')}\n"
-            f"📱 **Inst**: {data.get('instagram')}\n"
-            f"📞 **WhatsApp**: {data.get('phone')}\n\n"
-            f"💡 **Опыт**: {data.get('experience')}\n"
-            f"🎭 **Навыки**: {data.get('skills')}\n\n"
-            f"💎 **Бюджет**: {data.get('fee_range')}\n"
-            f"👙 Белье: {data.get('underwear_ok')} | Массовка: {data.get('extras_ok')}\n"
+            f"📍 {v('city')} | {v('gender')} | {v('dob')}\n"
+            f"🌍 {v('nationality')}\n\n"
+            f"📏 <b>Параметры</b>: {v('height_weight')} | {v('sizes')}\n"
+            f"📱 <b>Inst</b>: {v('instagram')}\n"
+            f"📞 <b>WhatsApp</b>: {v('phone')}\n\n"
+            f"💡 <b>Опыт</b>: {v('experience')}\n"
+            f"🎭 <b>Навыки</b>: {v('skills')}\n\n"
+            f"💎 <b>Бюджет</b>: {v('fee_range')}\n"
+            f"👙 Белье: {v('underwear_ok')} | Массовка: {v('extras_ok')}\n"
         )
-        if data.get('portfolio_url'): txt += f"🔗 [Портфолио]({data.get('portfolio_url')})\n"
+        if data.get('portfolio_url'):
+            full_txt += f"\n🔗 <a href='{data.get('portfolio_url')}'>Портфолио / Ссылка</a>"
+
+        # Telegram caption limit is 1024.
+        caption_txt = full_txt
+        if len(caption_txt) > 1020:
+            caption_txt = caption_txt[:1000] + "...\n\n(Полный текст ниже ⬇️)"
 
         photos = data.get('photo_urls', [])
         video = data.get('video_audition_url')
 
         media = []
-        # First media item gets the caption
+        # Build media group. Caption goes on the first item only.
         for i, url in enumerate(photos):
-            media.append(types.InputMediaPhoto(url, caption=txt if i == 0 and not video else "", parse_mode="Markdown"))
+            if i == 0:
+                media.append(types.InputMediaPhoto(url, caption=caption_txt, parse_mode="HTML"))
+            else:
+                media.append(types.InputMediaPhoto(url))
         
         if video:
-            # If video exists, it's better to put caption on video if it's the first or just after photos
-            media.append(types.InputMediaVideo(video, caption=txt if not media else "", parse_mode="Markdown"))
+            # If video is the ONLY item, it gets the caption. 
+            # If photos exist, video is just another item (caption is already on first photo).
+            if not media:
+                media.append(types.InputMediaVideo(video, caption=caption_txt, parse_mode="HTML"))
+            else:
+                media.append(types.InputMediaVideo(video))
 
         try:
             if media:
                 print(f"DEBUG: sending media group with {len(media)} items")
                 bot.send_media_group(cid, media, message_thread_id=tid)
+                # 3. Send separate full text message if it's long or just for reliability
+                bot.send_message(cid, f"📄 <b>ПОЛНЫЕ ДАННЫЕ</b>:\n\n{full_txt}", message_thread_id=tid, parse_mode="HTML", disable_web_page_preview=True)
             else:
-                print(f"DEBUG: sending text message")
-                bot.send_message(cid, txt, message_thread_id=tid, parse_mode="Markdown")
+                print(f"DEBUG: sending text message only")
+                bot.send_message(cid, full_txt, message_thread_id=tid, parse_mode="HTML")
             print("✅ SUCCESS: Notification sent to Telegram")
         except Exception as bot_err:
             print(f"❌ BOT SEND ERROR: {bot_err}")
-            # Try plain text fallback if media group fails
+            # Fallback
             try:
-                bot.send_message(cid, f"⚠️ Ошибка при отправке медиа, вот данные текстом:\n\n{txt}", message_thread_id=tid, parse_mode="Markdown")
+                bot.send_message(cid, f"⚠️ Ошибка медиа. Данные анкета:\n\n{full_txt}", message_thread_id=tid, parse_mode="HTML")
             except: pass
 
         res = jsonify({'status': 'ok'})
