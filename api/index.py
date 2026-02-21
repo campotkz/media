@@ -96,6 +96,44 @@ def handle_rename(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
+def ensure_project(chat_id, thread_id, chat_title, content=""):
+    """Ensures a project (topic) exists in the clients table. Returns the project category."""
+    try:
+        if not thread_id: return 'media'
+        
+        category = 'casting' if 'КАСТИНГ' in (chat_title or "").upper() else 'media'
+        
+        # Check if exists
+        p_res = supabase.from_("clients").select("*").eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
+        if p_res.data:
+            # If exists but category mismatch (unlikely but possible), let's not force update now to keep it simple
+            return p_res.data[0].get('category', category)
+        
+        # Create new project
+        insta, name_v = "", ""
+        u_m = re.search(r'instagram\.com/([^/?#\s]+)', content)
+        at_m = re.search(r'@([\w._]+)', content)
+        if u_m: insta = u_m.group(1)
+        elif at_m: insta = at_m.group(1)
+        
+        words = [w for w in content.split() if w and w[0].isupper() and not w.startswith(('http', '@', '#')) and len(w) > 1]
+        if words: name_v = words[0]
+        
+        prefix = "Casting: " if category == 'casting' else ""
+        t_name = f"{prefix}{insta} | {name_v}" if insta and name_v else (prefix + (insta or name_v or f"Project {thread_id}"))
+        
+        # Try to find existing by name to link instead of duplicate
+        ex = supabase.from_("clients").select("*").ilike("name", f"%{t_name}%").execute()
+        if ex.data:
+            supabase.from_("clients").update({"thread_id": thread_id, "chat_id": chat_id, "category": category}).eq("id", ex.data[0]['id']).execute()
+            return category
+        else:
+            supabase.from_("clients").insert({"thread_id": thread_id, "chat_id": chat_id, "name": t_name, "category": category}).execute()
+            return category
+    except Exception as e:
+        print(f"ensure_project err: {e}")
+        return 'media'
+
 @bot.message_handler(commands=['actor', 'client'])
 def handle_manual_contact(message):
     try:
@@ -107,6 +145,9 @@ def handle_manual_contact(message):
         
         cid = message.chat.id
         tid = message.message_thread_id if message.is_topic_message else None
+        
+        # REQUIRED: Ensure project exists (Fixes Foreign Key Error)
+        ensure_project(cid, tid, message.chat.title, args)
         
         # 1. Extract Phone
         clean_args = re.sub(r'[\s\-()\[\]]', '', args)
@@ -132,20 +173,24 @@ def handle_manual_contact(message):
         # If /actor -> casting, if /client -> media
         category = 'casting' if cmd == 'actor' else 'media'
         
-        supabase.table("contacts").upsert({
-            "name": name, 
-            "phone": ph, 
-            "thread_id": tid, 
-            "chat_id": cid, 
-            "category": category
-        }, on_conflict="phone,chat_id,thread_id").execute()
-        
-        bot.reply_to(message, f"✅ **{cmd.capitalize()}** сохранен:\n👤 {name}\n📱 {ph}\n📂 Категория: {category}")
+        try:
+            supabase.table("contacts").upsert({
+                "name": name, 
+                "phone": ph, 
+                "thread_id": tid, 
+                "chat_id": cid, 
+                "category": category
+            }, on_conflict="phone,chat_id,thread_id").execute()
+            
+            bot.reply_to(message, f"✅ **{cmd.capitalize()}** сохранен:\n👤 {name}\n📱 {ph}\n📂 Категория: {category}")
+        except Exception as ex:
+            bot.reply_to(message, f"❌ Ошибка базы данных: {ex}")
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(commands=['staff'])
 def handle_manual_staff(message):
+# ... rest of the file ...
     try:
         args = message.text.replace('/staff', '').strip().split(maxsplit=2)
         if len(args) < 2:
@@ -290,32 +335,7 @@ def handle_text(message):
 
         # 2. Discovery (Topics Only)
         if tid and content and not is_cmd:
-            # 2.1 Project Sync (Only if not linked)
-            try:
-                p_res = supabase.from_("clients").select("*").eq("chat_id", cid).eq("thread_id", tid).execute()
-                if not p_res.data:
-                    insta, name_v = "", ""
-                    u_m = re.search(r'instagram\.com/([^/?#\s]+)', content)
-                    at_m = re.search(r'@([\w._]+)', content)
-                    if u_m: insta = u_m.group(1)
-                    elif at_m: insta = at_m.group(1)
-                    
-                    words = [w for w in content.split() if w and w[0].isupper() and not w.startswith(('http', '@', '#')) and len(w) > 1]
-                    if words: name_v = words[0]
-                    
-                    prefix = "Casting: " if category == 'casting' else ""
-                    t_name = f"{prefix}{insta} | {name_v}" if insta and name_v else (prefix + (insta or name_v or f"Project {tid}"))
-                    
-                    ex = supabase.from_("clients").select("*").ilike("name", f"%{t_name}%").execute()
-                    if ex.data:
-                        supabase.from_("clients").update({"thread_id": tid, "chat_id": cid, "category": category}).eq("id", ex.data[0]['id']).execute()
-                        bot.reply_to(message, f"🔗 Проект **{ex.data[0]['name']}** привязан к категории **{category}**.")
-                        return
-                    else:
-                        supabase.from_("clients").insert({"thread_id": tid, "chat_id": cid, "name": t_name, "category": category}).execute()
-                        bot.reply_to(message, f"🆕 Проект зарегистрирован в **{category}**: **{t_name}**")
-                        return
-            except Exception as ex: print(f"Proj sync err: {ex}")
+            ensure_project(cid, tid, message.chat.title, content)
 
             # 2.2 Phone Discovery
             if is_ph:
