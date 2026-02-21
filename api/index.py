@@ -104,6 +104,28 @@ def handle_rename(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
+@bot.message_handler(commands=['archive'])
+def handle_archive(message):
+    try:
+        cid, tid = message.chat.id, message.message_thread_id
+        if not tid:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика.")
+            return
+        supabase.from_("clients").update({"is_hidden": True, "is_active": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        bot.reply_to(message, "🗄️ **АРХИВИРОВАНО**\nЭтот топик скрыт из всех списков выбора на сайте.", parse_mode="Markdown")
+    except Exception as e: bot.reply_to(message, f"❌ Ошибка архивации: {e}")
+
+@bot.message_handler(commands=['unarchive'])
+def handle_unarchive(message):
+    try:
+        cid, tid = message.chat.id, message.message_thread_id
+        if not tid:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика.")
+            return
+        supabase.from_("clients").update({"is_hidden": False, "is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        bot.reply_to(message, "🔓 **РАЗАРХИВИРОВАНО**\nТопик снова доступен в списках выбора.", parse_mode="Markdown")
+    except Exception as e: bot.reply_to(message, f"❌ Ошибка разархивации: {e}")
+
 @bot.message_handler(commands=['cast_link'])
 def handle_cast_link(message):
     try:
@@ -402,8 +424,8 @@ def handle_new_member(message):
 @bot.message_handler(content_types=['forum_topic_closed'])
 def handle_topic_closed(message):
     try:
-        print(f"DEBUG: Catch forum_topic_closed in chat {message.chat.id}, thread {message.message_thread_id}")
         cid, tid = message.chat.id, message.message_thread_id
+        print(f"DEBUG: Catch forum_topic_closed in chat {cid}, thread {tid}")
         if tid:
             supabase.from_("clients").update({"is_hidden": True, "is_active": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
             print(f"✅ SUCCESS: Topic {tid} in chat {cid} CLOSED and HIDDEN.")
@@ -412,8 +434,8 @@ def handle_topic_closed(message):
 @bot.message_handler(content_types=['forum_topic_reopened'])
 def handle_topic_reopened(message):
     try:
-        print(f"DEBUG: Catch forum_topic_reopened in chat {message.chat.id}, thread {message.message_thread_id}")
         cid, tid = message.chat.id, message.message_thread_id
+        print(f"DEBUG: Catch forum_topic_reopened in chat {cid}, thread {tid}")
         if tid:
             supabase.from_("clients").update({"is_hidden": False, "is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
             print(f"✅ SUCCESS: Topic {tid} in chat {cid} REOPENED and REVEALED.")

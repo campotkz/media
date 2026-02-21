@@ -1644,6 +1644,8 @@
 
       const monEvents = allEvents.filter(e => {
         const d = new Date(e.date);
+        const project = clientsData.find(c => c.name === e.project);
+        if (project && project.is_hidden) return false;
         return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
       });
 
@@ -1671,7 +1673,11 @@
         const iso = toISO(d);
 
         // Dot Logic (Shoots)
-        const dayEvents = allEvents.filter(e => e.date === iso);
+        const dayEvents = allEvents.filter(e => {
+          if (e.date !== iso) return false;
+          const project = clientsData.find(c => c.name === e.project);
+          return !(project && project.is_hidden);
+        });
         let dotsHtml = "";
         dayEvents.forEach(e => {
           const st = getStatus(e);
@@ -1682,6 +1688,12 @@
         const dayTasks = allTasks.filter(t => {
           if (t.status === 'done') return false;
           if (!t.deadline) return false;
+
+          // Filter by project visibility
+          const project = clientsData.find(c => c.name === t.project);
+          if (project && project.is_hidden) return false;
+          const castProject = clientsData.find(c => c.name === t.casting_project);
+          if (castProject && castProject.is_hidden) return false;
 
           // Startdate: created_at or fallback to deadline if missing
           // We want to show line from start to deadline
