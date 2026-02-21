@@ -141,9 +141,13 @@ def notify_casting():
         return r
     try:
         data = request.json or {}
-        cid = data.get('chat_id')
-        tid = data.get('thread_id')
         if not cid: return jsonify({'error': 'No chat_id'}), 400
+
+        # Cast to integers
+        cid = int(cid)
+        tid = int(tid) if tid else None
+
+        print(f"DEBUG: notify_casting for project: {data.get('project_name')} in chat: {cid}, thread: {tid}")
 
         # 1. Auto-Register Contact
         try:
@@ -157,6 +161,7 @@ def notify_casting():
         # 2. Format Message
         txt = (
             f"🌟 **НОВАЯ АНКЕТА: {data.get('full_name')}**\n"
+            f"🎯 Кастинг: **{data.get('casting_target' or '—')}**\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"📍 {data.get('city')} | {data.get('gender')} | {data.get('dob')}\n"
             f"🌍 {data.get('nationality')}\n\n"
@@ -182,10 +187,20 @@ def notify_casting():
             # If video exists, it's better to put caption on video if it's the first or just after photos
             media.append(types.InputMediaVideo(video, caption=txt if not media else "", parse_mode="Markdown"))
 
-        if media:
-            bot.send_media_group(cid, media, message_thread_id=tid)
-        else:
-            bot.send_message(cid, txt, message_thread_id=tid, parse_mode="Markdown")
+        try:
+            if media:
+                print(f"DEBUG: sending media group with {len(media)} items")
+                bot.send_media_group(cid, media, message_thread_id=tid)
+            else:
+                print(f"DEBUG: sending text message")
+                bot.send_message(cid, txt, message_thread_id=tid, parse_mode="Markdown")
+            print("✅ SUCCESS: Notification sent to Telegram")
+        except Exception as bot_err:
+            print(f"❌ BOT SEND ERROR: {bot_err}")
+            # Try plain text fallback if media group fails
+            try:
+                bot.send_message(cid, f"⚠️ Ошибка при отправке медиа, вот данные текстом:\n\n{txt}", message_thread_id=tid, parse_mode="Markdown")
+            except: pass
 
         res = jsonify({'status': 'ok'})
         res.headers.add('Access-Control-Allow-Origin', '*')
