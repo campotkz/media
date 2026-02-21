@@ -105,13 +105,32 @@ def ensure_project(chat_id, thread_id, chat_title, content="", message=None):
         # 1. Exact Match by Thread
         p_res = supabase.from_("clients").select("*").eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
         if p_res.data:
-            return p_res.data[0].get('category', category), False
+            # If it's a placeholder, we might still be awaiting naming, 
+            # but usually it's better to treat as "not new" to allow other discovery processes.
+            return p_res.data[0].get('category', category), p_res.data[0]['name'].startswith("Project ")
         
-        # 2. Not found, but let's see if we have a "discovery" candidate
-        # If the user is replying with a name (Project Naming Flow)
+        # 2. Heuristic Discovery (The "Brief" pattern)
+        insta, name_v = "", ""
+        u_m = re.search(r'instagram\.com/([^/?#\s]+)', content)
+        at_m = re.search(r'@([\w._]+)', content)
+        if u_m: insta = u_m.group(1)
+        elif at_m: insta = at_m.group(1)
+
+        words = [w for w in content.split() if w and w[0].isupper() and not w.startswith(('http', '@', '#')) and len(w) > 1]
+        if words: name_v = words[0]
+
+        if insta or name_v:
+            prefix = "Casting: " if category == 'casting' else ""
+            t_name = f"{prefix}{insta} | {name_v}" if insta and name_v else (prefix + (insta or name_v))
+            supabase.from_("clients").insert({
+                "thread_id": thread_id, "chat_id": chat_id, "name": t_name, "category": category
+            }).execute()
+            if message: bot.reply_to(message, f"✅ Проект определен: **{t_name}**")
+            return category, False
+
+        # 3. Interactive Naming Flow (via Reply)
         if message and message.reply_to_message and "Как назовем этот проект?" in (message.reply_to_message.text or ""):
             new_name = content.strip()
-            # Check if this name exists in DB but without thread_id (Linking Flow)
             ex = supabase.from_("clients").select("*").ilike("name", f"%{new_name}%").execute()
             if ex.data and not ex.data[0].get('thread_id'):
                 supabase.from_("clients").update({
@@ -120,18 +139,16 @@ def ensure_project(chat_id, thread_id, chat_title, content="", message=None):
                 bot.reply_to(message, f"🔗 Проект **{ex.data[0]['name']}** привязан к этому топику.")
                 return category, False
             else:
-                # Create NEW
                 supabase.from_("clients").insert({
                     "thread_id": thread_id, "chat_id": chat_id, "name": new_name, "category": category
                 }).execute()
                 bot.reply_to(message, f"✅ Проект создан: **{new_name}**")
                 return category, False
 
-        # 3. First time seeing this topic - Ask for Name
+        # 4. Fallback - Ask for Name
         if message:
             bot.send_message(chat_id, f"🆕 Вижу новый топик в **{category}**!\nКак назовем этот проект? (ответь на это сообщение)", message_thread_id=thread_id)
         
-        # Create a temporary placeholder so we don't spam the prompt
         supabase.from_("clients").insert({
             "thread_id": thread_id, "chat_id": chat_id, "name": f"Project {thread_id}", "category": category
         }).execute()
