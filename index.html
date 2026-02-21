@@ -779,10 +779,29 @@
               <select id="t_type" class="input-style"
                 style="width:100%; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.12); color:white; padding:10px; border-radius:8px; outline:none;">
                 <option value="general">Общее</option>
+                <option value="casting">Кастинг</option>
+                <option value="actors">Актеры</option>
                 <option value="design">Дизайн</option>
                 <option value="location">Локация</option>
                 <option value="shoot_prep">Подготовка</option>
               </select>
+            </label>
+          </div>
+
+          <div class="row2">
+            <label>Кастинг проект
+              <div class="input-wrap">
+                <input id="t_casting_project" placeholder="Найти проект..." autocomplete="off" />
+                <div id="t_castingDropdown" class="dropdown"></div>
+              </div>
+            </label>
+            <label>Актеры
+              <div class="multi-select-wrap" id="t_actorsWrapper">
+                <div id="t_actorsTags" class="tags"></div>
+                <input id="t_actorsInput" placeholder="Добавить..." autocomplete="off" />
+                <div id="t_actorsDropdown" class="dropdown"></div>
+              </div>
+              <textarea id="t_actors" style="display:none"></textarea>
             </label>
           </div>
 
@@ -921,6 +940,8 @@
         document.getElementById('t_deadline').value = task.deadline || toISO(new Date());
         document.getElementById('t_type').value = task.type || 'general';
         document.getElementById('t_project').value = task.project_id || '';
+        document.getElementById('t_casting_project').value = task.casting_project || '';
+        document.getElementById('t_actors').value = task.actors || '';
         document.getElementById('t_assignees').value = (task.assignee_ids || []).join(', ');
       } else {
         selectedTaskId = null; // Clear Global ID
@@ -938,9 +959,14 @@
         document.getElementById('t_deadline').value = toISO(selectedDate);
         document.getElementById('t_type').value = 'general';
         document.getElementById('t_assignees').value = '';
+        document.getElementById('t_casting_project').value = '';
+        document.getElementById('t_actors').value = '';
       }
       renderAssigneeTags();
+      renderActorsTags();
+      renderTaskActorsTags();
       renderTaskProjects();
+      renderTaskCastingProjects();
     }
 
     function copyTask(task) {
@@ -974,13 +1000,16 @@
       const deadline = document.getElementById('t_deadline').value;
       const type = document.getElementById('t_type').value;
       const assignees = document.getElementById('t_assignees').value.split(',').map(s => s.trim()).filter(s => s);
-      const project = document.getElementById('t_project').value.trim() || null;
+      const casting_project = document.getElementById('t_casting_project').value.trim() || null;
+      const actors = document.getElementById('t_actors').value.trim() || null;
 
       const payload = {
         title, description: desc, deadline, type,
         assignee_ids: assignees,
         project_id: project,
-        status: 'pending' // Default, will be overwritten if ID exists and we fetch old status? No, let's keep it simple or fetch.
+        casting_project,
+        actors,
+        status: 'pending'
       };
 
       // Match Shoot Logic: Use Upsert
@@ -1036,8 +1065,8 @@
       const val = tProjInput.value.toLowerCase();
       tProjDropdown.innerHTML = '';
       const matches = val
-        ? clientsData.filter(c => c.name.toLowerCase().includes(val))
-        : clientsData;
+        ? clientsData.filter(c => !c.is_hidden && c.name.toLowerCase().includes(val))
+        : clientsData.filter(c => !c.is_hidden);
 
       if (!matches.length) { tProjDropdown.style.display = 'none'; return; }
 
@@ -1050,6 +1079,33 @@
       });
       tProjDropdown.style.display = 'block';
     }
+
+    const tCastProjInput = document.getElementById('t_casting_project');
+    const tCastProjDropdown = document.getElementById('t_castingDropdown');
+
+    function renderTaskCastingProjects() {
+      const val = tCastProjInput.value.toLowerCase();
+      tCastProjDropdown.innerHTML = '';
+      const matches = clientsData.filter(c =>
+        c.category === 'casting' && !c.is_hidden &&
+        (val ? c.name.toLowerCase().includes(val) : true)
+      );
+
+      if (!matches.length) { tCastProjDropdown.style.display = 'none'; return; }
+
+      matches.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.textContent = c.name;
+        div.onclick = () => { tCastProjInput.value = c.name; tCastProjDropdown.style.display = 'none'; };
+        tCastProjDropdown.appendChild(div);
+      });
+      tCastProjDropdown.style.display = 'block';
+    }
+
+    tCastProjInput.addEventListener('input', renderTaskCastingProjects);
+    tCastProjInput.addEventListener('focus', renderTaskCastingProjects);
+    tCastProjInput.addEventListener('click', (e) => { e.stopPropagation(); renderTaskCastingProjects(); });
 
     tProjInput.addEventListener('input', renderTaskProjects);
     tProjInput.addEventListener('focus', renderTaskProjects);
@@ -1091,7 +1147,7 @@
       projDropdown.innerHTML = '';
       const matches = clientsData.filter(c =>
         (c.category || 'media') === 'media' &&
-        c.is_active && !c.is_hidden &&
+        !c.is_hidden &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
       if (!matches.length) { projDropdown.style.display = 'none'; return; }
@@ -1117,7 +1173,7 @@
       castDropdown.innerHTML = '';
       const matches = clientsData.filter(c =>
         c.category === 'casting' &&
-        c.is_active && !c.is_hidden &&
+        !c.is_hidden &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
       if (!matches.length) { castDropdown.style.display = 'none'; return; }
@@ -1285,6 +1341,7 @@
     function renderCrewTags() { renderTags('crew', 'crewTags'); }
     function renderPostTags() { renderTags('post_production', 'postTags'); }
     function renderActorsTags() { renderTags('actors', 'actorsTags'); }
+    function renderTaskActorsTags() { renderTags('t_actors', 't_actorsTags'); }
 
     function setupTagInput(inputId, dropdownId, fieldId, tagsId, requiredRole = null) {
       const inp = document.getElementById(inputId);
@@ -1354,6 +1411,7 @@
     setupTagInput('crewInput', 'crewDropdown', 'crew', 'crewTags', 'production');
     setupTagInput('postInput', 'postDropdown', 'post_production', 'postTags', 'post');
     setupTagInput('actorsInput', 'actorsDropdown', 'actors', 'actorsTags', 'actor');
+    setupTagInput('t_actorsInput', 't_actorsDropdown', 't_actors', 't_actorsTags', 'actor');
     setupTagInput('assigneeInput', 'assigneeDropdown', 't_assignees', 'assigneeTags', null); // All for tasks
 
     function updateContactPool() {
@@ -1444,6 +1502,7 @@
       if (!e.target.closest('.input-wrap')) {
         projDropdown.style.display = 'none';
         tProjDropdown.style.display = 'none';
+        tCastProjDropdown.style.display = 'none';
         locDropdown.style.display = 'none';
         addrDropdown.style.display = 'none';
         castDropdown.style.display = 'none';
@@ -1453,6 +1512,7 @@
         crewDropdown.style.display = 'none';
         document.getElementById('postDropdown').style.display = 'none';
         document.getElementById('actorsDropdown').style.display = 'none';
+        document.getElementById('t_actorsDropdown').style.display = 'none';
         document.getElementById('assigneeDropdown').style.display = 'none';
       }
     });
