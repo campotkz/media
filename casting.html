@@ -693,7 +693,7 @@
 
                 // 2. Notify Bot
                 document.getElementById('loadingText').textContent = "Отправка уведомления...";
-                await fetch('/api/casting', {
+                await fetch('https://media-seven-eta.vercel.app/api/casting', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(finalData)

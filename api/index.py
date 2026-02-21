@@ -144,6 +144,9 @@ def notify_casting():
         return r
     try:
         data = request.json or {}
+        cid = data.get('chat_id')
+        tid = data.get('thread_id')
+        
         if not cid: return jsonify({'error': 'No chat_id'}), 400
 
         # Cast to integers
