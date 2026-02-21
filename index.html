@@ -1064,7 +1064,7 @@
 
 
     // --- AUTOCOMPLETE LOGIC ---
-    let clientsData = []; // {name, thread_id, chat_id, category}
+    let clientsData = []; // {name, thread_id, chat_id, category, is_active, is_hidden}
     let teamData = [];    // {full_name, username, roles, position}
     let locationsData = [];
     let contactsData = []; // {name, phone, thread_id, chat_id, category}
@@ -1072,7 +1072,7 @@
     let currentCastingContacts = [];
 
     async function fetchAutocompleteData() {
-      const { data: cData } = await supabaseClient.from('clients').select('name, thread_id, chat_id, category');
+      const { data: cData } = await supabaseClient.from('clients').select('name, thread_id, chat_id, category, is_active, is_hidden');
       if (cData) clientsData = cData;
       const { data: tData } = await supabaseClient.from('team').select('full_name, username, roles, position');
       if (tData) teamData = tData;
@@ -1089,7 +1089,11 @@
     const renderProjects = () => {
       const val = projInput.value.toLowerCase();
       projDropdown.innerHTML = '';
-      const matches = clientsData.filter(c => (c.category || 'media') === 'media' && (val ? c.name.toLowerCase().includes(val) : true));
+      const matches = clientsData.filter(c =>
+        (c.category || 'media') === 'media' &&
+        c.is_active && !c.is_hidden &&
+        (val ? c.name.toLowerCase().includes(val) : true)
+      );
       if (!matches.length) { projDropdown.style.display = 'none'; return; }
       matches.forEach(c => {
         const div = document.createElement('div');
@@ -1111,7 +1115,11 @@
     const renderCastingProjects = () => {
       const val = castInput.value.toLowerCase();
       castDropdown.innerHTML = '';
-      const matches = clientsData.filter(c => c.category === 'casting' && (val ? c.name.toLowerCase().includes(val) : true));
+      const matches = clientsData.filter(c =>
+        c.category === 'casting' &&
+        c.is_active && !c.is_hidden &&
+        (val ? c.name.toLowerCase().includes(val) : true)
+      );
       if (!matches.length) { castDropdown.style.display = 'none'; return; }
       matches.forEach(c => {
         const div = document.createElement('div');

@@ -105,9 +105,12 @@ def ensure_project(chat_id, thread_id, chat_title, content="", message=None):
         # 1. Exact Match by Thread
         p_res = supabase.from_("clients").select("*").eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
         if p_res.data:
-            # If it's a placeholder, we might still be awaiting naming, 
-            # but usually it's better to treat as "not new" to allow other discovery processes.
-            return p_res.data[0].get('category', category), p_res.data[0]['name'].startswith("Project ")
+            p = p_res.data[0]
+            # Auto-activate if ✅ added to thread name (heuristic: chat_title contains it)
+            if '✅' in (chat_title or "") and not p.get('is_active'):
+                supabase.from_("clients").update({"is_active": True}).eq("id", p['id']).execute()
+                return p.get('category', category), False
+            return p.get('category', category), p['name'].startswith("Project ")
         
         # 2. Heuristic Discovery (The "Brief" pattern)
         insta, name_v = "", ""
@@ -122,27 +125,38 @@ def ensure_project(chat_id, thread_id, chat_title, content="", message=None):
         if insta or name_v:
             prefix = "Casting: " if category == 'casting' else ""
             t_name = f"{prefix}{insta} | {name_v}" if insta and name_v else (prefix + (insta or name_v))
+            is_active = '✅' in t_name
             supabase.from_("clients").insert({
-                "thread_id": thread_id, "chat_id": chat_id, "name": t_name, "category": category
+                "thread_id": thread_id, "chat_id": chat_id, "name": t_name, 
+                "category": category, "is_active": is_active
             }).execute()
-            if message: bot.reply_to(message, f"✅ Проект определен: **{t_name}**")
+            if message: bot.reply_to(message, f"✅ Проект определен: **{t_name}**" + (" (Активен)" if is_active else ""))
             return category, False
 
         # 3. Interactive Naming Flow (via Reply)
         if message and message.reply_to_message and "Как назовем этот проект?" in (message.reply_to_message.text or ""):
             new_name = content.strip()
+            
+            # Handle "нет" to hide topic
+            if new_name.lower() == "нет":
+                supabase.from_("clients").update({"is_hidden": True}).eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
+                bot.reply_to(message, "🤐 Понял, этот топик будет скрыт из списков на сайте.")
+                return category, False
+
+            is_active = '✅' in new_name
             ex = supabase.from_("clients").select("*").ilike("name", f"%{new_name}%").execute()
             if ex.data and not ex.data[0].get('thread_id'):
                 supabase.from_("clients").update({
-                    "thread_id": thread_id, "chat_id": chat_id, "category": category
+                    "thread_id": thread_id, "chat_id": chat_id, "category": category, "is_active": is_active
                 }).eq("id", ex.data[0]['id']).execute()
                 bot.reply_to(message, f"🔗 Проект **{ex.data[0]['name']}** привязан к этому топику.")
                 return category, False
             else:
                 supabase.from_("clients").insert({
-                    "thread_id": thread_id, "chat_id": chat_id, "name": new_name, "category": category
+                    "thread_id": thread_id, "chat_id": chat_id, "name": new_name, 
+                    "category": category, "is_active": is_active
                 }).execute()
-                bot.reply_to(message, f"✅ Проект создан: **{new_name}**")
+                bot.reply_to(message, f"✅ Проект создан: **{new_name}**" + (" (Активен)" if is_active else ""))
                 return category, False
 
         # 4. Fallback - Ask for Name
