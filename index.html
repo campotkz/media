@@ -1119,6 +1119,8 @@
               onclick="triggerExcelImport()">📥 Импорт</button>
             <input type="file" id="excelFileInput" style="display:none" accept=".xlsx, .xls"
               onchange="handleExcelImport(event)">
+            <button type="button" id="timerBtn" style="color:#ff6b6b; border-color:#ff6b6b; font-weight:700;"
+              onclick="openTimer()">🎬 Таймер</button>
             <button type="button" id="deleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
             <button class="primary" type="submit">Сохранить</button>
           </div>
@@ -2312,6 +2314,23 @@
     }
 
     function triggerExcelImport() { document.getElementById('excelFileInput').click(); }
+
+    function openTimer() {
+      const project = document.getElementById('project').value.trim() || 'Проект';
+      const chatId = tg?.initDataUnsafe?.chat?.id || '';
+      const threadId = tg?.initDataUnsafe?.chat?.thread_id || '';
+      // PID = simple hash of chat_id + thread_id for localStorage namespacing
+      const pid = chatId ? `${chatId}_${threadId || '0'}` : project.replace(/\s/g, '_');
+      const params = new URLSearchParams({
+        pid: pid,
+        proj: project,
+        cid: String(chatId),
+        tid: String(threadId)
+      });
+      const timerUrl = `timer.html?${params.toString()}`;
+      // Open in same window (Telegram WebApp stays open)
+      window.location.href = timerUrl;
+    }
 
     function handleExcelImport(event) {
       const file = event.target.files[0];
