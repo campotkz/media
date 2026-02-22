@@ -8,6 +8,7 @@
   <link rel="icon" type="image/png" href="favicon.png">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
   <style>
     /* ПОЛНОСТЬЮ ТВОИ ОРИГИНАЛЬНЫЕ СТИЛИ */
@@ -441,6 +442,33 @@
       gap: var(--s-3);
     }
 
+    /* Timing Grid DnD Styles */
+    .drag-handle {
+      cursor: grab;
+      color: var(--muted2);
+      padding: 0 4px;
+      user-select: none;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .sortable-ghost {
+      opacity: 0.4;
+      background: var(--accent-fill) !important;
+    }
+
+    .sortable-drag {
+      background: var(--bg-1) !important;
+      box-shadow: var(--shadow);
+      opacity: 0.9;
+    }
+
     .actions {
       display: flex;
       justify-content: flex-end;
@@ -489,34 +517,21 @@
       /* Mobile Calendar Fixes */
       .calendar {
         padding: 4px;
-        /* Reduce padding significantly */
       }
 
       .grid,
       .dow {
         gap: 2px;
-        /* Tighter gap */
       }
 
       .day {
         min-height: 60px;
-        /* Smaller cells */
         padding: 2px;
         font-size: 10px;
       }
 
       .num {
         margin-bottom: 2px;
-      }
-
-      .lines-container {
-        /* Optimize task lines for mobile */
-        gap: 1px !important;
-      }
-
-      .task-line {
-        height: 2px !important;
-        /* Thinner lines */
       }
 
       .item {
@@ -531,25 +546,49 @@
 
       /* Maximize horizontal width on mobile */
       .wrap {
-        padding: 10px var(--s-2);
+        padding: 8px 6px;
+        /* Even tighter for narrow devices */
       }
 
       form {
-        padding: 12px;
-        gap: 16px;
+        padding: 10px;
+        gap: 12px;
+        /* Tighter vertical gap */
         padding-bottom: 80px;
       }
 
-      /* Reduce tag size slightly to fit long text */
-      .tag {
-        padding: 3px 8px;
-        font-size: 11px;
+      /* Keep 2-column layout but make it very compact */
+      .row2 {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        /* Small gap to prevent overflow */
+      }
+
+      label {
+        font-size: 10px;
+        /* Smaller labels */
+        gap: 4px;
       }
 
       input,
       textarea,
       .multi-select-wrap {
-        padding: 8px 10px;
+        padding: 6px 8px;
+        /* Tighter input padding */
+        font-size: 12px;
+        /* Smaller input text */
+        min-height: 38px;
+        /* Lower height for compactness */
+      }
+
+      .tag {
+        padding: 2px 6px;
+        font-size: 10px;
+      }
+
+      button {
+        min-height: 38px;
+        font-size: 12px;
       }
     }
 
@@ -819,12 +858,16 @@
       background: rgba(122, 162, 255, 0.2);
     }
 
-    .timing-remove {
+    .timing-remove,
+    .timing-del-btn {
       color: #ff6b6b;
       cursor: pointer;
       font-weight: bold;
       text-align: center;
       width: 100%;
+      background: transparent;
+      border: none;
+      font-size: 18px;
     }
   </style>
 </head>
@@ -961,6 +1004,7 @@
             <div class="timing-wrap">
               <div class="timing-table" id="timingTable">
                 <div class="timing-header timing-row">
+                  <div class="timing-cell" style="width: 30px;"></div> <!-- Handle -->
                   <div class="timing-cell">Start</div>
                   <div class="timing-cell">End</div>
                   <div class="timing-cell">Loc</div>
@@ -968,7 +1012,7 @@
                   <div class="timing-cell">Actors</div>
                   <div class="timing-cell">Notes</div>
                   <div class="timing-cell">Link</div>
-                  <div class="timing-cell"></div>
+                  <div class="timing-cell" style="width: 30px;"></div>
                 </div>
                 <div id="timingRows"></div>
                 <div class="timing-add-btn" onclick="addTimingRow({}, event)">+ ДОБАВИТЬ СТРОКУ</div>
@@ -1493,7 +1537,10 @@
       locDropdown.style.display = 'block';
     };
 
-    locInput.addEventListener('input', renderLocations);
+    locInput.addEventListener('input', () => {
+      renderLocations();
+      updateDatalists(); // Update timing grid suggestions when location changes
+    });
     locInput.addEventListener('focus', renderLocations);
     locInput.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1559,7 +1606,25 @@
       const linkList = document.getElementById('linkOptions');
 
       if (locList) {
-        locList.innerHTML = locationsData.map(l => `<option value="${l.name}">${l.name}</option>`).join('');
+        const mainLoc = (document.getElementById('location').value || '').trim();
+        const studioRooms = ["Бали", "Экспертный кабинет", "Классический", "Ванная комната", "Кухня", "Кофейня", "Minimalistic", "Циклорама", "Лестница", "Студия Campot"];
+
+        let filtered = [];
+        if (mainLoc === "Студия Campot") {
+          // If Studio Campot - show all rooms
+          filtered = locationsData.filter(l => studioRooms.includes(l.name)).map(l => l.name);
+        } else if (mainLoc) {
+          // If specific location - show only that
+          filtered = [mainLoc];
+        } else {
+          // Default: all locations
+          filtered = locationsData.map(l => l.name);
+        }
+
+        // Final fallback to ensure current mainLoc is always there if set
+        if (mainLoc && !filtered.includes(mainLoc)) filtered.unshift(mainLoc);
+
+        locList.innerHTML = filtered.map(name => `<option value="${name}">${name}</option>`).join('');
       }
       if (actList) {
         updateContactPool();
@@ -1894,17 +1959,58 @@
       const row = document.createElement('div');
       row.className = 'timing-row';
       row.innerHTML = `
+        <div class="timing-cell drag-handle">⋮⋮</div>
         <div class="timing-cell"><input type="time" class="t-start" value="${data.start || ''}"></div>
         <div class="timing-cell"><input type="time" class="t-end" value="${data.end || ''}"></div>
         <div class="timing-cell"><input type="text" class="t-loc" value="${data.loc || ''}" list="locationOptions" placeholder="..."></div>
         <div class="timing-cell"><input type="text" class="t-task" value="${data.task || ''}" list="taskOptions" placeholder="..."></div>
-        <div class="timing-cell"><input type="text" class="t-act" value="${data.act || ''}" readonly placeholder="..." onclick="openActorChecklist(this)"></div>
+        <div class="timing-cell" style="position:relative">
+          <input type="text" class="t-act" value="${data.act || ''}" list="actorOptions" placeholder="..." onclick="openActorChecklist(this)">
+        </div>
         <div class="timing-cell"><input type="text" class="t-notes" value="${data.notes || ''}" placeholder="..."></div>
-        <div class="timing-cell"><input type="url" class="t-link" value="${data.link || ''}" list="linkOptions" placeholder="URL..."></div>
-        <div class="timing-cell"><span class="timing-remove" onclick="this.closest('.timing-row').remove()">×</span></div>
+        <div class="timing-cell"><input type="text" class="t-link" value="${data.link || ''}" list="linkOptions" placeholder="..."></div>
+        <div class="timing-cell"><button type="button" class="timing-del-btn" onclick="removeTimingRow(this, event)">×</button></div>
       `;
-      const actInput = row.querySelector('.t-act');
       container.appendChild(row);
+      setTimeout(initTimingSortable, 10);
+    }
+
+    let timingSortable = null;
+    let originalTimeSlots = [];
+
+    function initTimingSortable() {
+      const container = document.getElementById('timingRows');
+      if (!container) return;
+      if (timingSortable) timingSortable.destroy();
+
+      timingSortable = Sortable.create(container, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        dragClass: 'sortable-drag',
+        onStart: () => {
+          // Capture current times at their fixed indices
+          const rows = Array.from(container.querySelectorAll('.timing-row'));
+          originalTimeSlots = rows.map(r => ({
+            start: r.querySelector('.t-start').value,
+            end: r.querySelector('.t-end').value
+          }));
+        },
+        onEnd: () => {
+          const rows = Array.from(container.querySelectorAll('.timing-row'));
+          // Re-apply original times to the rows based on their NEW index
+          // so that the 1st row always has the 1st time slot, etc.
+          rows.forEach((row, i) => {
+            if (originalTimeSlots[i]) {
+              row.querySelector('.t-start').value = originalTimeSlots[i].start;
+              row.querySelector('.t-end').value = originalTimeSlots[i].end;
+            }
+          });
+          // Update preview immediately
+          const preview = document.getElementById('preview');
+          if (preview) preview.innerHTML = buildExportText(true);
+        }
+      });
     }
 
     function getTimingData() {
@@ -1923,6 +2029,16 @@
         }
       });
       return data;
+    }
+
+    function removeTimingRow(btn, event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      btn.closest('.timing-row').remove();
+      const preview = document.getElementById('preview');
+      if (preview) preview.innerHTML = buildExportText(true);
     }
 
     function setTimingData(raw) {
