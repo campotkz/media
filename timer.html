@@ -463,10 +463,17 @@
         <div id="startOverlay" class="overlay">
             <span class="project-tag">FILM TIMER PRO</span>
             <h1 style="margin: 10px 0 0; font-size: 26px; font-weight: 800;">СМЕНА НЕ НАЧАТА</h1>
-            <p
-                style="font-size: 15px; color: var(--text-dim); margin: 12px 0 30px; max-width: 260px; line-height: 1.5;">
-                Нажмите кнопку старта, когда команда будет готова к работе.</p>
-            <button id="btnMainStart" class="start-ring">НАЧАТЬ СМЕНУ</button>
+            <p id="startOverlayDesc"
+                style="font-size: 15px; color: var(--text-dim); margin: 12px 0 20px; max-width: 260px; line-height: 1.5;">
+                Выберите запланированную съемку или начните новую самостоятельно.</p>
+
+            <div id="shootSelector" class="opt-list" style="width: 100%; max-width: 300px; margin-bottom: 20px;">
+                <!-- Shoots will be rendered here -->
+                <div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue);"
+                    onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>
+            </div>
+
+            <button id="btnMainStart" class="start-ring hidden">НАЧАТЬ СМЕНУ</button>
         </div>
 
         <!-- HEADER -->
@@ -778,6 +785,7 @@
                 refreshUI();
             } else {
                 await checkCalendar();
+                ui.overlay.classList.remove('hidden'); // Ensure overlay is visible for selection
             }
         }
 
@@ -788,24 +796,43 @@
                 .eq('date', today)
                 .eq('project', state.project.name);
 
-            if (data && data.length > 0) {
-                const options = data.map(s => ({
-                    l: `${s.location} (${s.callTime || '?'})`,
-                    v: s.id,
-                    loc: s.location
-                }));
-                options.push({ l: "➕ НОВАЯ СМЕНА (ВНЕ ПЛАНА)", v: "new" });
+            const container = document.getElementById('shootSelector');
+            // Reset but keep manual button
+            container.innerHTML = `<div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue);" onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>`;
 
-                showOptions("ВЫБОР СЪЕМКИ", "На сегодня запланированы съемки. Выберите нужную:", options, (val) => {
-                    if (val !== 'new') {
-                        const shoot = data.find(s => s.id === val);
-                        state.shootId = val;
-                        state.location = shoot.location;
-                        ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
-                        saveState();
-                    }
+            if (data && data.length > 0) {
+                data.forEach(s => {
+                    const div = document.createElement('div');
+                    div.className = 'opt-item';
+                    div.innerHTML = `<small style="display:block; opacity:0.6; font-size:9px">СЪЕМКА В КАЛЕНДАРЕ</small>${s.location} <span style="color:var(--accent-yellow)">${s.callTime || ''}</span>`;
+                    div.onclick = () => selectShoot(s);
+                    container.prepend(div);
                 });
             }
+        }
+
+        function selectShoot(shoot) {
+            state.shootId = shoot.id;
+            state.location = shoot.location;
+            ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
+            saveState();
+            startSequence();
+        }
+
+        function startManualShift() {
+            const loc = prompt("Введите локацию (Объект):", state.location);
+            if (loc) {
+                state.location = loc;
+                state.shootId = 'manual';
+                ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
+                saveState();
+                startSequence();
+            }
+        }
+
+        function startSequence() {
+            startStep = 0;
+            showConfirm(startChecks[0].t, startChecks[0].d, () => nextStartStep());
         }
 
         function saveState() {
