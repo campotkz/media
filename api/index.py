@@ -300,10 +300,10 @@ def handle_delete(message):
 
         markup = types.InlineKeyboardMarkup(row_width=2)
         markup.add(
-            types.InlineKeyboardButton("👥 Актеры", callback_query_data=f"del_cat:actors:{tid}"),
-            types.InlineKeyboardButton("📍 Локации", callback_query_data=f"del_cat:locs:{tid}"),
-            types.InlineKeyboardButton("🔗 Ссылки", callback_query_data=f"del_cat:links:{tid}"),
-            types.InlineKeyboardButton("❌ Отмена", callback_query_data="del_cancel")
+            types.InlineKeyboardButton("👥 Актеры", callback_data=f"del_cat:actors:{tid}"),
+            types.InlineKeyboardButton("📍 Локации", callback_data=f"del_cat:locs:{tid}"),
+            types.InlineKeyboardButton("🔗 Ссылки", callback_data=f"del_cat:links:{tid}"),
+            types.InlineKeyboardButton("❌ Отмена", callback_data="del_cancel")
         )
         bot.send_message(cid, "🧹 **ОЧИСТКА ДАННЫХ**\nВы можете удалить данные этого проекта:", reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
         
@@ -329,32 +329,32 @@ def handle_del_callback(call):
             if cat == "actors":
                 res = supabase.table("contacts").select("id, name, phone").eq("chat_id", cid).eq("thread_id", tid).execute()
                 for item in (res.data or []):
-                    markup.add(types.InlineKeyboardButton(f"🗑 {item['name']} ({item['phone']})", callback_query_data=f"del_exe:contacts:{item['id']}"))
+                    markup.add(types.InlineKeyboardButton(f"🗑 {item['name']} ({item['phone']})", callback_data=f"del_exe:contacts:{item['id']}"))
             elif cat == "locs":
                 p_res = supabase.from_("clients").select("id").eq("chat_id", cid).eq("thread_id", tid).execute()
                 if p_res.data:
                     pid = p_res.data[0]['id']
                     res = supabase.table("project_locations").select("id, name").eq("project_id", pid).execute()
                     for item in (res.data or []):
-                        markup.add(types.InlineKeyboardButton(f"🗑 {item['name']}", callback_query_data=f"del_exe:project_locations:{item['id']}"))
+                        markup.add(types.InlineKeyboardButton(f"🗑 {item['name']}", callback_data=f"del_exe:project_locations:{item['id']}"))
             elif cat == "links":
                 res = supabase.table("project_resources").select("id, url").eq("chat_id", cid).eq("thread_id", tid).execute()
                 for item in (res.data or []):
                     # Shorten URL for display
                     short_url = item['url'].replace('https://', '').replace('http://', '')[:25] + '...'
-                    markup.add(types.InlineKeyboardButton(f"🗑 {short_url}", callback_query_data=f"del_exe:project_resources:{item['id']}"))
+                    markup.add(types.InlineKeyboardButton(f"🗑 {short_url}", callback_data=f"del_exe:project_resources:{item['id']}"))
 
-            markup.add(types.InlineKeyboardButton("⬅️ Назад", callback_query_data=f"del_back:{tid}"))
+            markup.add(types.InlineKeyboardButton("⬅️ Назад", callback_data=f"del_back:{tid}"))
             
             bot.edit_message_text("Выберите элемент для удаления:", cid, call.message.message_id, reply_markup=markup)
 
         elif cmd == "del_back":
             markup = types.InlineKeyboardMarkup(row_width=2)
             markup.add(
-                types.InlineKeyboardButton("👥 Актеры", callback_query_data=f"del_cat:actors:{tid}"),
-                types.InlineKeyboardButton("📍 Локации", callback_query_data=f"del_cat:locs:{tid}"),
-                types.InlineKeyboardButton("🔗 Ссылки", callback_query_data=f"del_cat:links:{tid}"),
-                types.InlineKeyboardButton("❌ Отмена", callback_query_data="del_cancel")
+                types.InlineKeyboardButton("👥 Актеры", callback_data=f"del_cat:actors:{tid}"),
+                types.InlineKeyboardButton("📍 Локации", callback_data=f"del_cat:locs:{tid}"),
+                types.InlineKeyboardButton("🔗 Ссылки", callback_data=f"del_cat:links:{tid}"),
+                types.InlineKeyboardButton("❌ Отмена", callback_data="del_cancel")
             )
             bot.edit_message_text("🧹 **ОЧИСТКА ДАННЫХ**\nЧто именно вы хотите удалить?", cid, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 

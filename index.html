@@ -432,8 +432,13 @@
     }
 
     textarea {
-      min-height: 120px;
+      min-height: 80px;
       resize: vertical;
+    }
+
+    #deliverables,
+    #notes {
+      min-height: 160px;
     }
 
     .row2 {
@@ -618,12 +623,12 @@
     .tag {
       background: rgba(122, 162, 255, .20);
       color: #fff;
-      padding: 4px 10px;
+      padding: 3px 8px;
       border-radius: var(--r-pill);
-      font-size: 13px;
+      font-size: 11px;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       border: 1px solid rgba(122, 162, 255, .3);
     }
 
@@ -1032,9 +1037,9 @@
               </div>
             </label>
             <label>Актеры
-              <div class="multi-select-wrap" id="actorsWrapper">
+              <div class="multi-select-wrap" id="actorsWrapper" onclick="openActorChecklist('main')">
                 <div id="actorsTags" class="tags"></div>
-                <input id="actorsInput" placeholder="Добавить..." autocomplete="off" />
+                <input id="actorsInput" placeholder="Выбрать..." readonly style="cursor:pointer;" />
                 <div id="actorsDropdown" class="dropdown"></div>
               </div>
               <textarea id="actors" style="display:none"></textarea>
@@ -1111,9 +1116,9 @@
               </div>
             </label>
             <label>Актеры
-              <div class="multi-select-wrap" id="t_actorsWrapper">
+              <div class="multi-select-wrap" id="t_actorsWrapper" onclick="openActorChecklist('task')">
                 <div id="t_actorsTags" class="tags"></div>
-                <input id="t_actorsInput" placeholder="Добавить..." autocomplete="off" />
+                <input id="t_actorsInput" placeholder="Выбрать..." readonly style="cursor:pointer;" />
                 <div id="t_actorsDropdown" class="dropdown"></div>
               </div>
               <textarea id="t_actors" style="display:none"></textarea>
@@ -1814,21 +1819,23 @@
 
     setupTagInput('crewInput', 'crewDropdown', 'crew', 'crewTags', 'production');
     setupTagInput('postInput', 'postDropdown', 'post_production', 'postTags', 'post');
-    setupTagInput('actorsInput', 'actorsDropdown', 'actors', 'actorsTags', 'actor');
-    setupTagInput('t_actorsInput', 't_actorsDropdown', 't_actors', 't_actorsTags', 'actor');
-    setupTagInput('assigneeInput', 'assigneeDropdown', 't_assignees', 'assigneeTags', null); // All for tasks
+    setupTagInput('assigneeInput', 'assigneeDropdown', 't_assignees', 'assigneeTags', null);
+    function closeActorChecklist() {
+      document.getElementById('actorChecklistModal').style.display = 'none';
+    }
 
-    let activeActorInput = null;
-    function openActorChecklist(input) {
-      activeActorInput = input;
+    document.getElementById("gear").addEventListener('input', function () {
+      this.style.height = 'auto';
+      this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    let currentChecklistTarget = null; // 'grid', 'main', or 'task'
+
+    function openActorChecklist(target = 'grid', rowId = null) {
+      currentChecklistTarget = { target, rowId };
       document.getElementById('actorChecklistModal').style.display = 'flex';
       document.getElementById('checklistSearch').value = '';
       renderChecklist();
-    }
-
-    function closeActorChecklist() {
-      document.getElementById('actorChecklistModal').style.display = 'none';
-      activeActorInput = null;
     }
 
     function renderChecklist() {
@@ -1843,7 +1850,16 @@
         ...currentMediaContacts.map(c => c.name)
       ])].filter(n => n).sort();
 
-      const currentVals = activeActorInput.value.split(',').map(s => s.trim()).filter(s => s);
+      let selectedStr = "";
+      if (currentChecklistTarget.target === 'grid') {
+        const row = document.querySelector(`.timing-row[data-id="${currentChecklistTarget.rowId}"]`);
+        selectedStr = row ? row.querySelector(".t-act").value : "";
+      } else if (currentChecklistTarget.target === 'main') {
+        selectedStr = document.getElementById("actors").value;
+      } else if (currentChecklistTarget.target === 'task') {
+        selectedStr = document.getElementById("t_actors").value;
+      }
+      const currentVals = selectedStr.split(",").map(s => s.trim()).filter(s => s);
 
       pool.forEach(name => {
         if (search && !name.toLowerCase().includes(search)) return;
@@ -1867,9 +1883,19 @@
     document.getElementById('checklistSearch').oninput = renderChecklist;
 
     function confirmActorChecklist() {
-      if (!activeActorInput) return;
-      const checked = Array.from(document.querySelectorAll('#checklistItems input:checked')).map(i => i.value);
-      activeActorInput.value = checked.join(', ');
+      const selected = Array.from(document.querySelectorAll("#checklistItems input:checked")).map(i => i.value).join(", ");
+      const { target, rowId } = currentChecklistTarget;
+
+      if (target === 'grid') {
+        const row = document.querySelector(`.timing-row[data-id="${rowId}"]`);
+        if (row) row.querySelector(".t-act").value = selected;
+      } else if (target === 'main') {
+        document.getElementById("actors").value = selected;
+        renderActorsTags();
+      } else if (target === 'task') {
+        document.getElementById("t_actors").value = selected;
+        renderTaskActorsTags();
+      }
       closeActorChecklist();
     }
 
@@ -2010,8 +2036,10 @@
         event.stopPropagation();
       }
       const container = document.getElementById('timingRows');
+      const rowId = data.id || Date.now() + Math.random().toString(36).substr(2, 5);
       const row = document.createElement('div');
       row.className = 'timing-row';
+      row.dataset.id = rowId;
       row.innerHTML = `
         <div class="timing-cell drag-handle">⋮⋮</div>
         <div class="timing-cell"><input type="time" class="t-start" value="${data.start || ''}"></div>
@@ -2023,7 +2051,7 @@
           <input type="text" class="t-task" value="${data.task || ''}" placeholder="..." autocomplete="off">
         </div>
         <div class="timing-cell">
-          <input type="text" class="t-act" value="${data.act || ''}" placeholder="..." onclick="openActorChecklist(this)" readonly>
+          <input type="text" class="t-act" value="${data.act || ''}" placeholder="..." onclick="openActorChecklist('grid', '${rowId}')" readonly style="cursor:pointer;">
         </div>
         <div class="timing-cell">
           <input type="text" class="t-notes" value="${data.notes || ''}" placeholder="...">
@@ -2494,7 +2522,7 @@
     // ... (rest of helper functions: buildExportText, toggleForm, etc.) ...
 
     // STARTUP
-    function buildSingleShootExport(e, i = null, isHtml = false) {
+    function buildSingleShootExport(e, i = null, isHtml = false, fullDetails = true) {
       const hlL = (txt, html) => html ? `<span class="hl-label">${txt}</span>` : txt;
       const hlT = (txt, html) => html ? `<span class="hl-time">${txt}</span>` : txt;
 
@@ -2527,7 +2555,7 @@
         if (e.actors) lines.push(`${hlL('🎬 АКТЕРЫ:', isHtml)} ${e.actors}`);
       }
 
-      if (e.schedule) {
+      if (fullDetails && e.schedule) {
         try {
           const sch = JSON.parse(e.schedule);
           if (Array.isArray(sch) && sch.some(r => r.start || r.task || r.loc || r.act || r.link)) {
@@ -2546,7 +2574,7 @@
         } catch (ex) { }
       }
 
-      if (e.deliverables) lines.push(`\n${hlL('📝 ЗАДАЧИ:', isHtml)}\n${e.deliverables}`);
+      if (fullDetails && e.deliverables) lines.push(`\n${hlL('📝 ЗАДАЧИ:', isHtml)}\n${e.deliverables}`);
       if (e.gear) lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}\n${e.gear}`);
       if (e.notes) lines.push(`\n${hlL('⚠️ ИНФО:', isHtml)}\n${e.notes}`);
       if (e.contact) lines.push(`${hlL('📞 КОНТАКТ:', isHtml)} ${e.contact}`);
@@ -2562,7 +2590,7 @@
       let lines = [`📅 **СЪЁМОЧНЫЙ ДЕНЬ — ${niceDate(selectedDate)}**`];
       list.forEach((e, i) => {
         lines.push(`\n— — — — — — — — —\n`);
-        lines.push(buildSingleShootExport(e, i, isHtml));
+        lines.push(buildSingleShootExport(e, i, isHtml, false)); // No details in daily export
       });
       return lines.join("\n");
     }
