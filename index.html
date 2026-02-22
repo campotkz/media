@@ -1428,9 +1428,11 @@
       }
       if (actList) {
         updateContactPool();
-        const actors = teamData.filter(t => t.roles && t.roles.includes('actor'));
-        const pool = [...actors, ...currentCastingContacts.map(c => ({ full_name: c.name }))];
-        actList.innerHTML = pool.map(a => `<option value="${a.full_name}">${a.full_name}</option>`).join('');
+        const actors = teamData.filter(t => t.roles && t.roles.includes('actor')).map(t => t.full_name);
+        const casting = currentCastingContacts.map(c => c.name);
+        const media = currentMediaContacts.map(c => c.name);
+        const pool = [...new Set([...actors, ...casting, ...media])].filter(n => n).sort();
+        actList.innerHTML = pool.map(a => `<option value="${a}">${a}</option>`).join('');
       }
       if (linkList) {
         const mProj = clientsData.find(c => c.name === f.project.value.trim());
@@ -2040,6 +2042,7 @@
       f.gear.value = e.gear || '';
       f.notes.value = e.notes || '';
       f.report_link.value = e.report_link || '';
+      updateDatalists(); // Refresh autocomplete for timing grid
       renderCrewTags();
       renderPostTags();
       renderActorsTags();
