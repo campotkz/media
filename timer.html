@@ -1124,7 +1124,7 @@
             state.shootId = shoot.id;
             state.location = shoot.location;
             state.pool_crew = (shoot.crew || '').split(',').map(s => s.trim()).filter(s => s);
-            state.pool_client = (shoot.post_production || '').split(',').map(s => s.trim()).filter(s => s);
+            state.pool_client = (shoot.contact || '').split(',').map(s => s.trim()).filter(s => s);
             state.pool_actor = (shoot.actors || '').split(',').map(s => s.trim()).filter(s => s);
             // Reset tracking from previous shift
             state.arrived_crew = [];
