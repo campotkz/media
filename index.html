@@ -410,7 +410,6 @@
     .multi-select-wrap {
       width: 100%;
       box-sizing: border-box;
-      /* Ensure padding doesn't break alignment */
       border-radius: var(--r-2);
       border: 1px solid rgba(255, 255, 255, .12);
       background: rgba(0, 0, 0, .18);
@@ -418,6 +417,17 @@
       padding: 10px var(--s-3);
       font: inherit;
       outline: none;
+      min-height: var(--hit);
+      /* Unified height for perfect alignment */
+      position: relative;
+    }
+
+    /* specific for multi-select display */
+    .multi-select-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
     }
 
     textarea {
@@ -519,27 +529,27 @@
         justify-content: flex-end;
       }
 
-      /* Stack two-column rows on mobile for more space */
-      .row2 {
-        grid-template-columns: 1fr;
-        gap: 20px;
+      /* Maximize horizontal width on mobile */
+      .wrap {
+        padding: 10px var(--s-2);
+      }
+
+      form {
+        padding: 12px;
+        gap: 16px;
+        padding-bottom: 80px;
       }
 
       /* Reduce tag size slightly to fit long text */
       .tag {
         padding: 3px 8px;
-        font-size: 12px;
+        font-size: 11px;
       }
 
+      input,
+      textarea,
       .multi-select-wrap {
-        min-height: 42px;
-        padding: 6px;
-        gap: 6px;
-      }
-
-      /* Improved safe-area for mobile form */
-      form {
-        padding-bottom: 80px;
+        padding: 8px 10px;
       }
     }
 
@@ -560,18 +570,6 @@
 
     .day.has-pending {
       background: rgba(255, 204, 0, 0.08);
-    }
-
-    /* Subtle yellow highlight */
-    .multi-select-wrap {
-      background: rgba(0, 0, 0, .18);
-      border: 1px solid rgba(255, 255, 255, .12);
-      border-radius: var(--r-2);
-      padding: 5px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      min-height: 42px;
     }
 
     .tags {
