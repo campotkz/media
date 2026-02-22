@@ -901,8 +901,11 @@
                     const actorCount = (s.actors || '').split(',').filter(a => a.trim()).length;
                     const crewCount = (s.crew || '').split(',').filter(a => a.trim()).length;
                     div.innerHTML = `
-                        <small style="display:block; opacity:0.6; font-size:9px">${isSpecific ? '📋 В ПЛАНЕ ПРОЕКТА' : s.project.toUpperCase()}</small>
-                        <div style="font-size:14px; margin:4px 0">📍 ${s.location}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+                            <span style="font-size:13px; font-weight:700; color:var(--accent-yellow)">${s.project.toUpperCase()}</span>
+                            ${isSpecific ? '<span style="font-size:8px; padding:2px 6px; background:var(--accent-green); border-radius:6px; color:#000; font-weight:700">В ПЛАНЕ</span>' : ''}
+                        </div>
+                        <div style="font-size:14px; margin:2px 0">📍 ${s.location}</div>
                         <div style="display:flex; gap:10px; font-size:11px; opacity:0.7">
                             <span>🕐 ${s.callTime || '?'}</span>
                             ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
