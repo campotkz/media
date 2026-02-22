@@ -625,11 +625,103 @@
       color: white;
       box-shadow: 0 0 10px rgba(122, 162, 255, 0.3);
     }
+
+    /* Timing Table */
+    .timing-wrap {
+      margin-top: var(--s-2);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r-2);
+      overflow-x: auto;
+      background: rgba(255, 255, 255, .03);
+    }
+
+    .timing-table {
+      min-width: 800px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .timing-row {
+      display: grid;
+      grid-template-columns: 80px 80px 150px 150px 150px 150px 1fr 40px;
+      gap: 1px;
+      background: var(--stroke);
+      border-bottom: 1px solid var(--stroke);
+    }
+
+    .timing-row:last-child {
+      border-bottom: none;
+    }
+
+    .timing-header {
+      background: rgba(255, 255, 255, .05);
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .timing-cell {
+      background: #15161c;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+    }
+
+    .timing-cell input,
+    .timing-cell select {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 12px;
+      padding: 6px;
+      outline: none;
+    }
+
+    .timing-cell select option {
+      background: #15161c;
+      color: white;
+    }
+
+    .timing-add-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      background: rgba(122, 162, 255, 0.1);
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      border-top: 1px solid var(--stroke);
+    }
+
+    .timing-add-btn:hover {
+      background: rgba(122, 162, 255, 0.2);
+    }
+
+    .timing-remove {
+      color: #ff6b6b;
+      cursor: pointer;
+      font-weight: bold;
+      text-align: center;
+      width: 100%;
+    }
   </style>
 </head>
 
 <body>
-  <!-- ... (HTML structure identical until script) ... -->
+  <datalist id="taskOptions">
+    <option value="Подготовка"></option>
+    <option value="Перестановка"></option>
+    <option value="Перерыв"></option>
+    <option value="Обед"></option>
+    <option value="Тех. перерыв"></option>
+    <option value="Переезд"></option>
+  </datalist>
+  <datalist id="locationOptions"></datalist>
+  <datalist id="actorOptions"></datalist>
 
 
   <div class="wrap">
@@ -746,7 +838,25 @@
             </label>
           </div>
 
-          <label>План/тайминг<textarea id="schedule" placeholder="10:00 — интервью..."></textarea></label>
+          <label>План/тайминг
+            <div class="timing-wrap">
+              <div class="timing-table" id="timingTable">
+                <div class="timing-row timing-header">
+                  <div class="timing-cell">Старт</div>
+                  <div class="timing-cell">Конец</div>
+                  <div class="timing-cell">Объект</div>
+                  <div class="timing-cell">Задача</div>
+                  <div class="timing-cell">Актеры</div>
+                  <div class="timing-cell">Заметки</div>
+                  <div class="timing-cell">Link</div>
+                  <div class="timing-cell"></div>
+                </div>
+                <div id="timingRows"></div>
+                <div class="timing-add-btn" onclick="addTimingRow()">+ Добавить строку</div>
+              </div>
+            </div>
+            <textarea id="schedule" style="display:none"></textarea>
+          </label>
           <label>Техника<textarea id="gear" placeholder="Камера, свет..."></textarea></label>
           <label>Примечания<textarea id="notes" placeholder="Парковка, пропуск..."></textarea></label>
           <div class="actions">
@@ -1138,6 +1248,7 @@
       if (lData) locationsData = lData;
       const { data: ctData } = await supabaseClient.from('contacts').select('name, phone, thread_id, chat_id, category');
       if (ctData) contactsData = ctData || [];
+      updateDatalists();
     }
 
     // Project Dropdown
@@ -1300,6 +1411,20 @@
         } catch (e) { console.error(e); }
       }, 500);
     });
+
+    function updateDatalists() {
+      const locList = document.getElementById('locationOptions');
+      const actList = document.getElementById('actorOptions');
+      if (locList) {
+        locList.innerHTML = locationsData.map(l => `<option value="${l.name}">${l.name}</option>`).join('');
+      }
+      if (actList) {
+        updateContactPool();
+        const actors = teamData.filter(t => t.roles && t.roles.includes('actor'));
+        const pool = [...actors, ...currentCastingContacts.map(c => ({ full_name: c.name }))];
+        actList.innerHTML = pool.map(a => `<option value="${a.full_name}">${a.full_name}</option>`).join('');
+      }
+    }
 
     projInput.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1550,9 +1675,64 @@
       } catch (err) { console.error("Network/Other Error:", err); }
     }
 
+    // --- TIMING GRID LOGIC ---
+    function addTimingRow(data = {}) {
+      const container = document.getElementById('timingRows');
+      const row = document.createElement('div');
+      row.className = 'timing-row';
+      row.innerHTML = `
+        <div class="timing-cell"><input type="time" class="t-start" value="${data.start || ''}"></div>
+        <div class="timing-cell"><input type="time" class="t-end" value="${data.end || ''}"></div>
+        <div class="timing-cell"><input type="text" class="t-loc" value="${data.loc || ''}" list="locationOptions" placeholder="..."></div>
+        <div class="timing-cell"><input type="text" class="t-task" value="${data.task || ''}" list="taskOptions" placeholder="..."></div>
+        <div class="timing-cell"><input type="text" class="t-act" value="${data.act || ''}" list="actorOptions" placeholder="..."></div>
+        <div class="timing-cell"><input type="text" class="t-notes" value="${data.notes || ''}" placeholder="..."></div>
+        <div class="timing-cell"><input type="url" class="t-link" value="${data.link || ''}" placeholder="URL..."></div>
+        <div class="timing-cell"><span class="timing-remove" onclick="this.closest('.timing-row').remove()">×</span></div>
+      `;
+      container.appendChild(row);
+    }
+
+    function getTimingData() {
+      const rows = document.querySelectorAll('#timingRows .timing-row');
+      const data = [];
+      rows.forEach(row => {
+        const start = row.querySelector('.t-start').value;
+        const end = row.querySelector('.t-end').value;
+        const loc = row.querySelector('.t-loc').value;
+        const task = row.querySelector('.t-task').value;
+        const act = row.querySelector('.t-act').value;
+        const notes = row.querySelector('.t-notes').value;
+        const link = row.querySelector('.t-link').value;
+        if (start || end || loc || task || act || notes || link) {
+          data.push({ start, end, loc, task, act, notes, link });
+        }
+      });
+      return data;
+    }
+
+    function setTimingData(raw) {
+      const container = document.getElementById('timingRows');
+      container.innerHTML = '';
+      try {
+        const data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          data.forEach(d => addTimingRow(d));
+        }
+      } catch (e) {
+        // Fallback for old text-based schedule
+        if (raw) addTimingRow({ task: raw });
+      }
+      // Ensure at least 4 rows for new or empty
+      while (container.children.length < 4) {
+        addTimingRow();
+      }
+    }
+
     // 3. СОХРАНЕНИЕ В ОБЛАКО
     document.getElementById("form").onsubmit = async (ev) => {
       ev.preventDefault();
+      const scheduleData = getTimingData();
       const payload = {
         id: selectedId || Math.random().toString(36).substring(2, 15),
         date: toISO(selectedDate),
@@ -1567,10 +1747,10 @@
         post_production: f.post_production.value.trim(),
         casting_project: f.casting_project.value.trim(),
         actors: f.actors.value.trim(),
-        schedule: f.schedule.value.trim(),
+        schedule: JSON.stringify(scheduleData),
         gear: f.gear.value.trim(),
         notes: f.notes.value.trim(),
-        status: 'pending' // Default status for new/edited (unless explicitly handled logic changes)
+        status: 'pending'
       };
 
       // Preserve existing status if editing and not explicitly reset
@@ -1838,6 +2018,7 @@
       f.casting_project.value = e.casting_project || '';
       f.actors.value = e.actors || '';
       f.schedule.value = e.schedule || '';
+      setTimingData(e.schedule || '');
       f.gear.value = e.gear || '';
       f.notes.value = e.notes || '';
       renderCrewTags();
@@ -1873,6 +2054,27 @@
         lines.push(`\n— — —\n${stat}🎥 Проект #${i + 1}\nПроект: ${e.project}\nCall: ${e.callTime}\nЛокация: ${displayLoc}\nАдрес: ${displayAddr}\nКоманда: ${e.crew}`);
         if (e.post_production) lines.push(`Пост/монтаж: ${e.post_production}`);
         if (e.casting_project || e.actors) lines.push(`Кастинг: ${e.casting_project || '—'} (Актеры: ${e.actors || '—'})`);
+
+        // Format Timing
+        if (e.schedule) {
+          try {
+            const sch = JSON.parse(e.schedule);
+            if (Array.isArray(sch) && sch.length > 0) {
+              lines.push(`🕒 Тайминг:`);
+              sch.forEach(row => {
+                const time = row.start ? (row.end ? `${row.start}—${row.end}` : row.start) : '';
+                const task = row.task || '';
+                const obj = row.loc ? ` (${row.loc})` : '';
+                if (time || task || obj) lines.push(`  ${time ? time + ' ' : ''}${task}${obj}`);
+              });
+            } else {
+              lines.push(`🕒 План: ${e.schedule}`);
+            }
+          } catch (ex) {
+            lines.push(`🕒 План: ${e.schedule}`);
+          }
+        }
+
         lines.push(`Заметки: ${e.notes}`);
       });
       return lines.join("\n");
@@ -1900,9 +2102,12 @@
           form.reset();
           selectedId = null;
           f.address.dataset.full = ''; // Clear hidden link
+          setTimingData(''); // Reset timing grid
           renderCrewTags();
           renderPostTags();
           renderActorsTags();
+        } else if (selectedId === null) {
+          setTimingData(''); // Default 4 rows for new
         }
       }
     }
