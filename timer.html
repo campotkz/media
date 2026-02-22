@@ -642,8 +642,8 @@
                     onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>
             </div>
 
-            <button id="btnStartShift" class="btn btn-primary hidden" style="font-size: 16px; padding: 15px;"
-                onclick="doStart()">СТАРТ СМЕНЫ</button>
+            <button id="btnMainStart" class="start-ring hidden">НАЧАТЬ СМЕНУ</button>
+
             <button class="btn btn-secondary btn-sm" style="margin-top: 15px; opacity: 0.8;" onclick="exitApp()">✕
                 ОТМЕНА (ЗАКРЫТЬ)</button>
         </div>
@@ -1067,14 +1067,13 @@
             const d = new Date();
             const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-            // Fetch shoots for Yesterday, Today, and Tomorrow to be safe (timezone/late night)
+            // Backup/Safety range (Yesterday and Tomorrow)
             const yest = new Date(d); yest.setDate(d.getDate() - 1);
             const yestDate = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
-
             const tom = new Date(d); tom.setDate(d.getDate() + 1);
             const tomDate = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
 
-            console.log("Checking calendar for range:", yestDate, "to", tomDate);
+            console.log("Checking calendar for localDate:", localDate);
 
             const { data, error } = await sb.from('shoots')
                 .select('*')
@@ -1082,7 +1081,7 @@
                 .lte('date', tomDate);
 
             const container = document.getElementById('shootSelector');
-            container.innerHTML = `<div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue);" onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>`;
+            container.innerHTML = `<div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue); margin-bottom:15px;" onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>`;
 
             if (error) {
                 console.error("Calendar fetch error:", error);
@@ -1091,18 +1090,12 @@
             }
 
             if (data && data.length > 0) {
-                const curCid = state.project.cid ? String(state.project.cid) : null;
-                const curTid = state.project.tid ? String(state.project.tid) : null;
                 const curName = (state.project.name || '').trim().toLowerCase();
 
-                // Sort: exact matches first, then by date
+                // Sort: Today first, then by date
                 data.sort((a, b) => {
-                    const aCid = a.chat_id ? String(a.chat_id) : null;
-                    const bCid = b.chat_id ? String(b.chat_id) : null;
-                    const aMatch = curCid && aCid === curCid;
-                    const bMatch = curCid && bCid === curCid;
-                    if (aMatch && !bMatch) return -1;
-                    if (!aMatch && bMatch) return 1;
+                    if (a.date === localDate && b.date !== localDate) return -1;
+                    if (a.date !== localDate && b.date === localDate) return 1;
                     return b.date.localeCompare(a.date);
                 });
 
@@ -1110,25 +1103,16 @@
                     const div = document.createElement('div');
                     div.className = 'opt-item';
 
-                    const sCid = s.chat_id ? String(s.chat_id) : null;
-                    const sTid = s.thread_id ? String(s.thread_id) : null;
-                    const sName = (s.project || '').trim().toLowerCase();
-                    const sDate = s.date;
-
-                    const idMatch = curCid && sCid === curCid && curTid && sTid === curTid;
-                    const nameMatch = curName && sName === curName;
-                    const isSpecific = idMatch || nameMatch;
+                    const isToday = s.date === localDate;
+                    const isMatch = s.project && s.project.trim().toLowerCase() === curName;
 
                     const actorCount = (s.actors || '').split(',').filter(a => a.trim()).length;
-                    const crewCount = (s.crew || '').split(',').filter(a => a.trim()).length;
-
                     const pName = (s.project || 'БЕЗ НАЗВАНИЯ').toUpperCase();
-                    const dateTag = sDate === localDate ? 'СЕГОДНЯ' : (sDate === yestDate ? 'ВЧЕРА' : 'ЗАВТРА');
 
                     div.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-                            <span style="font-size:13px; font-weight:700; color:var(--accent-yellow)">${pName}</span>
-                            ${isSpecific ? `<span style="font-size:8px; padding:2px 6px; background:${idMatch ? 'var(--accent-blue)' : 'var(--accent-green)'}; border-radius:6px; color:#000; font-weight:700">${idMatch ? 'ТОПИК' : 'ПЛАН'}</span>` : ''}
+                            <span style="font-size:13px; font-weight:700; color:${isToday ? 'var(--accent-yellow)' : 'var(--text-dim)'}">${pName}</span>
+                            ${isToday ? '<span style="font-size:8px; padding:2px 6px; background:var(--accent-green); border-radius:6px; color:#000; font-weight:700">СЕГОДНЯ</span>' : ''}
                         </div>
                         <div style="font-size:14px; margin:2px 0">📍 ${s.location || 'Локация...'}</div>
                         <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; opacity:0.7">
@@ -1136,15 +1120,15 @@
                                 <span>🕐 ${s.callTime || '?'}</span>
                                 ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
                             </div>
-                            <span style="color:${sDate === localDate ? 'var(--accent-green)' : 'inherit'}">${dateTag}</span>
+                            ${!isToday ? `<span style="font-size:9px">${s.date}</span>` : ''}
                         </div>`;
 
                     div.onclick = () => selectShoot(s);
-                    if (idMatch) div.style.borderColor = 'var(--accent-blue)';
-                    container.prepend(div);
+                    if (isToday && isMatch) div.style.borderColor = 'var(--accent-green)';
+                    container.prepend(div); // Match backup: Prepend to push Manual Shift to bottom
                 });
             } else {
-                container.innerHTML += `<div style="color:var(--text-dim); font-size:12px; padding:10px; text-align:center">Нет запланированных смен на ${localDate}</div>`;
+                container.innerHTML += `<div style="color:var(--text-dim); font-size:12px; padding:10px; text-align:center">Нет запланированных смен</div>`;
             }
         }
 
@@ -1355,7 +1339,7 @@
             state.shootId = shoot.id;
             state.location = shoot.location;
             state.pool_crew = (shoot.crew || '').split(',').map(s => s.trim()).filter(s => s);
-            state.pool_client = (shoot.contact || '').split(',').map(s => s.trim()).filter(s => s);
+            state.pool_client = (shoot.post_production || '').split(',').map(s => s.trim()).filter(s => s);
             state.pool_actor = (shoot.actors || '').split(',').map(s => s.trim()).filter(s => s);
             // Reset tracking from previous shift
             state.arrived_crew = [];
@@ -1382,7 +1366,12 @@
             ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
             ui.sceneLabel.textContent = 1; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 0;
             saveState();
-            startSequence();
+
+            // Show the Red Ring
+            document.getElementById('shootSelector').classList.add('hidden');
+            document.getElementById('startOverlayDesc').textContent = "Смена выбрана. Нажмите на кольцо, чтобы начать!";
+            const btnRing = document.getElementById('btnMainStart');
+            if (btnRing) btnRing.classList.remove('hidden');
         }
 
         function startManualShift() {
@@ -1406,7 +1395,12 @@
                 ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
                 ui.sceneLabel.textContent = 1; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 0;
                 saveState();
-                startSequence();
+
+                // Show the Red Ring
+                document.getElementById('shootSelector').classList.add('hidden');
+                document.getElementById('startOverlayDesc').textContent = "Ручной запуск. Нажмите на кольцо!";
+                const btnRing = document.getElementById('btnMainStart');
+                if (btnRing) btnRing.classList.remove('hidden');
             }
         }
 
@@ -1605,10 +1599,13 @@
             }
         }
 
-        document.getElementById('btnMainStart').onclick = () => {
-            startStep = 0;
-            showConfirm(startChecks[0].t, startChecks[0].d, () => nextStartStep());
-        };
+        const btnMainStart = document.getElementById('btnMainStart');
+        if (btnMainStart) {
+            btnMainStart.onclick = () => {
+                startStep = 0;
+                showConfirm(startChecks[0].t, startChecks[0].d, () => nextStartStep());
+            };
+        }
 
         let startStep = 0;
         const startChecks = [
@@ -1625,17 +1622,14 @@
             } else {
                 doStart();
             }
-            // Explicitly ensure the start shift button is ALSO visible and usable
-            const btnStart = document.getElementById('btnStartShift');
-            if (btnStart) {
-                btnStart.classList.remove('hidden');
-                btnStart.onclick = doStart;
-            }
         }
 
         async function doStart() {
-            const btn = document.getElementById('btnStartShift');
-            if (btn) btn.textContent = 'ЗАПУСК...';
+            const btn = document.getElementById('btnMainStart');
+            if (btn) {
+                btn.textContent = 'ЗАПУСК...';
+                btn.disabled = true;
+            }
 
             const now = new Date().toISOString();
             console.log("Starting shift for project:", state.project.id);
@@ -1643,23 +1637,23 @@
             // Safety check: Avoid duplicate shifts on the same day
             const todayStr = new Date().toISOString().split('T')[0];
             try {
-                const { data: existing } = await sb.from('production_shifts')
-                    .select('id, start_time')
-                    .eq('project_id', state.project.id)
-                    .gte('start_time', todayStr + 'T00:00:00Z')
-                    .limit(1);
+                if (state.project.id) {
+                    const { data: existing } = await sb.from('production_shifts')
+                        .select('id, start_time')
+                        .eq('project_id', state.project.id)
+                        .gte('start_time', todayStr + 'T00:00:00Z')
+                        .limit(1);
 
-                if (existing && existing.length > 0) {
-                    if (!confirm("⚠️ ВНИМАНИЕ: На сегодня уже есть запись смены для этого проекта. Вы уверены, что хотите начать НОВУЮ смену?")) {
-                        return;
+                    if (existing && existing.length > 0) {
+                        if (!confirm("⚠️ ВНИМАНИЕ: На сегодня уже есть запись смены для этого проекта. Вы уверены, что хотите начать НОВУЮ смену?")) {
+                            if (btn) { btn.textContent = 'НАЧАТЬ СМЕНУ'; btn.disabled = false; }
+                            return;
+                        }
                     }
                 }
-            } catch (e) {
-                console.warn("Collision check failed, proceeding anyway...", e);
-            }
+            } catch (e) { console.warn("Collision check failed:", e); }
 
             try {
-                // Ensure chat/thread IDs are actual integers or null (avoid bigint errors)
                 const cId = parseInt(state.project.cid);
                 const tId = parseInt(state.project.tid);
 
@@ -1689,9 +1683,9 @@
                     throw new Error("No data returned from insert");
                 }
             } catch (err) {
-                console.error("Start shift error:", err);
-                alert("ОШИБКА ПРИ ЗАПУСКЕ: " + (err.message || 'Нет связи с базой'));
-                if (btn) btn.textContent = 'ПОПРОБОВАТЬ СНОВА';
+                console.error("Shift start error:", err);
+                alert("Ошибка при запуске смены: " + (err.message || err));
+                if (btn) { btn.textContent = 'ОШИБКА (ПОВТОР)'; btn.disabled = false; }
             }
         }
 
