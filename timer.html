@@ -643,9 +643,6 @@
             </div>
 
             <button id="btnMainStart" class="start-ring hidden">НАЧАТЬ СМЕНУ</button>
-
-            <button class="btn btn-secondary btn-sm" style="margin-top: 15px; opacity: 0.8;" onclick="exitApp()">✕
-                ОТМЕНА (ЗАКРЫТЬ)</button>
         </div>
 
         <!-- FINISH OVERLAY -->
@@ -1358,8 +1355,17 @@
             // Parse unique locations from schedule (timing rows)
             state.shootLocations = [shoot.location];
             try {
-                const sched = typeof shoot.schedule === 'string' ? JSON.parse(shoot.schedule) : shoot.schedule;
+                let sched = typeof shoot.schedule === 'string' ? JSON.parse(shoot.schedule) : shoot.schedule;
                 if (Array.isArray(sched)) {
+                    // Reset "done" status for new shift
+                    sched = sched.map(item => ({ ...item, done: false }));
+                    state.currentSchedule = sched; // Store in state for rendering
+
+                    // Persist reset to DB immediately
+                    sb.from('shoots').update({ schedule: JSON.stringify(sched) }).eq('id', shoot.id).then(({ error }) => {
+                        if (error) console.error("Initial schedule reset failed:", error);
+                    });
+
                     sched.forEach(row => {
                         const loc = (row.loc || row.LOC || '').trim();
                         if (loc && !state.shootLocations.includes(loc)) {
@@ -2010,8 +2016,12 @@
                 container.appendChild(div);
             });
 
-            // Re-init Sortable
-            new Sortable(container, {
+            // Re-init Sortable correctly
+            if (window.sortableInstance) {
+                window.sortableInstance.destroy();
+            }
+
+            window.sortableInstance = new Sortable(container, {
                 animation: 150,
                 handle: '.sch-handle',
                 onEnd: (evt) => {
