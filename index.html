@@ -1534,6 +1534,7 @@
               addTag('crew', 'crewTags', 'crewInput', 'crewDropdown', roman.full_name);
             }
           }
+          updateDatalists(); // Refresh suggestions!
         };
         locDropdown.appendChild(div);
       });
@@ -1544,6 +1545,7 @@
       renderLocations();
       updateDatalists(); // Update timing grid suggestions when location changes
     });
+    locInput.addEventListener('change', updateDatalists);
     locInput.addEventListener('focus', renderLocations);
     locInput.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1609,17 +1611,24 @@
       const linkList = document.getElementById('linkOptions');
 
       if (locList) {
-        const mainLoc = (document.getElementById('location').value || '').trim();
-        const mainProjName = (document.getElementById('project').value || '').trim();
+        const mainLocInput = document.getElementById('location');
+        const mainProjInput = document.getElementById('project');
+        if (!mainLocInput || !mainProjInput) return;
+
+        const mainLoc = (mainLocInput.value || '').trim();
+        const mainLocLC = mainLoc.toLowerCase();
+        const mainProjName = (mainProjInput.value || '').trim();
+
         const studioRooms = ["Бали", "Экспертный кабинет", "Классический", "Ванная комната", "Кухня", "Кофейня", "Minimalistic", "Циклорама", "Лестница", "Студия Campot"];
+        const studioRoomsLC = studioRooms.map(r => r.toLowerCase());
 
         let filtered = [];
         const mainProj = clientsData.find(c => c.name === mainProjName);
         const pLocs = mainProj ? projectLocationsData.filter(pl => pl.project_id === mainProj.id).map(pl => pl.name) : [];
 
-        if (mainLoc === "Студия Campot") {
+        if (mainLocLC === "студия campot") {
           // If Studio Campot - show all studio rooms + project-specific ones
-          const studio = locationsData.filter(l => studioRooms.includes(l.name)).map(l => l.name);
+          const studio = locationsData.filter(l => studioRoomsLC.includes(l.name.toLowerCase())).map(l => l.name);
           filtered = [...new Set([...studio, ...pLocs])];
         } else if (mainLoc) {
           // If specific location - show only that + project-specific ones as secondary
@@ -1630,7 +1639,7 @@
         }
 
         // Final fallback to ensure current mainLoc is always there if set
-        if (mainLoc && !filtered.includes(mainLoc)) filtered.unshift(mainLoc);
+        if (mainLoc && !filtered.some(f => f.toLowerCase() === mainLocLC)) filtered.unshift(mainLoc);
 
         locList.innerHTML = filtered.map(name => `<option value="${name}">${name}</option>`).join('');
       }
@@ -2468,6 +2477,7 @@
         } else if (selectedId === null) {
           setTimingData(''); // Default 4 rows for new
         }
+        updateDatalists();
       }
     }
 
