@@ -730,20 +730,29 @@
         const SUPABASE_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        const params = new URLSearchParams(window.location.search);
+        const PID = params.get('pid') || '0';
+
+        // Namespaced helpers
+        const pKey = (k) => `p${PID}_${k}`;
+        const pGet = (k) => localStorage.getItem(pKey(k));
+        const pSet = (k, v) => localStorage.setItem(pKey(k), v);
+        const pRem = (k) => localStorage.removeItem(pKey(k));
+
         let state = {
-            shiftId: localStorage.getItem('shift_id'),
-            shootId: localStorage.getItem('shoot_id'),
-            startTime: localStorage.getItem('start_time'),
-            status: localStorage.getItem('status') || 'inactive',
-            phase: localStorage.getItem('phase') || 'IDLE',
-            phaseStartTime: localStorage.getItem('phase_start') || null,
-            location: localStorage.getItem('location') || 'КВАРТИРА',
-            scene: parseInt(localStorage.getItem('scene')) || 1,
-            shot: parseInt(localStorage.getItem('shot')) || 1,
-            take: parseInt(localStorage.getItem('take')) || 0,
+            shiftId: pGet('shift_id'),
+            shootId: pGet('shoot_id'),
+            startTime: pGet('start_time'),
+            status: pGet('status') || 'inactive',
+            phase: pGet('phase') || 'IDLE',
+            phaseStartTime: pGet('phase_start') || null,
+            location: pGet('location') || 'КВАРТИРА',
+            scene: parseInt(pGet('scene')) || 1,
+            shot: parseInt(pGet('shot')) || 1,
+            take: parseInt(pGet('take')) || 0,
             isMotor: false,
-            project: { id: null, name: '...' },
-            activeTimers: JSON.parse(localStorage.getItem('active_timers') || '{}')
+            project: { id: PID, name: '...' },
+            activeTimers: JSON.parse(pGet('active_timers') || '{}')
         };
 
         const ui = {
@@ -766,9 +775,8 @@
         };
 
         async function initApp() {
-            const params = new URLSearchParams(window.location.search);
             state.project = {
-                id: params.get('pid'),
+                id: PID,
                 name: params.get('proj') || 'Проект',
                 cid: params.get('cid'),
                 tid: params.get('tid')
@@ -778,7 +786,7 @@
             ui.sceneLabel.textContent = state.scene;
             ui.shotLabel.textContent = state.shot;
             ui.takeLabel.textContent = state.take;
-            ui.phaseLabel.textContent = localStorage.getItem('phase_label') || 'ОЖИДАНИЕ';
+            ui.phaseLabel.textContent = pGet('phase_label') || 'ОЖИДАНИЕ';
 
             if (state.status === 'active') {
                 ui.overlay.classList.add('hidden');
@@ -836,18 +844,18 @@
         }
 
         function saveState() {
-            localStorage.setItem('shift_id', state.shiftId || '');
-            localStorage.setItem('shoot_id', state.shootId || '');
-            localStorage.setItem('start_time', state.startTime || '');
-            localStorage.setItem('status', state.status);
-            localStorage.setItem('location', state.location);
-            localStorage.setItem('scene', state.scene);
-            localStorage.setItem('shot', state.shot);
-            localStorage.setItem('take', state.take);
-            localStorage.setItem('phase', state.phase);
-            localStorage.setItem('phase_start', state.phaseStartTime || '');
-            localStorage.setItem('phase_label', ui.phaseLabel.textContent);
-            localStorage.setItem('active_timers', JSON.stringify(state.activeTimers));
+            pSet('shift_id', state.shiftId || '');
+            pSet('shoot_id', state.shootId || '');
+            pSet('start_time', state.startTime || '');
+            pSet('status', state.status);
+            pSet('location', state.location);
+            pSet('scene', state.scene);
+            pSet('shot', state.shot);
+            pSet('take', state.take);
+            pSet('phase', state.phase);
+            pSet('phase_start', state.phaseStartTime || '');
+            pSet('phase_label', ui.phaseLabel.textContent);
+            pSet('active_timers', JSON.stringify(state.activeTimers));
         }
 
         async function logEvent(type, data = {}, blink = false) {
@@ -892,7 +900,7 @@
                     const diff = new Date() - start;
 
                     if (id === 'makeup' || id === 'wardrobe' || id === 'sound') {
-                        const promised = parseInt(localStorage.getItem('promised_' + id) || 0) * 60000;
+                        const promised = parseInt(pGet('promised_' + id) || 0) * 60000;
                         const remaining = promised - diff;
                         if (remaining < 0) {
                             timerEl.textContent = '-' + formatTimeShort(Math.abs(remaining));
