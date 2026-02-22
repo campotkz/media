@@ -2494,6 +2494,10 @@
     // 3. СОХРАНЕНИЕ В ОБЛАКО
     document.getElementById("form").onsubmit = async (ev) => {
       ev.preventDefault();
+      await saveShootData();
+    };
+
+    async function saveShootData(isAutoSave = false) {
       const scheduleData = getTimingData();
       const gearData = getGearData();
       const payload = {
@@ -2517,19 +2521,48 @@
         status: 'pending'
       };
 
-      // Preserve existing status if editing and not explicitly reset
       if (selectedId) {
         const existing = allEvents.find(e => e.id === selectedId);
         if (existing) payload.status = existing.status;
       }
 
+      const saveBtn = document.querySelector('#form button[type="submit"]');
+      if (saveBtn) saveBtn.innerHTML = '⏳...';
+
       const { error } = await supabaseClient.from('shoots').upsert(payload);
       if (!error) {
-        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-        toggleForm(false);
-        await loadFromCloud();
+        if (!selectedId) selectedId = payload.id;
+        if (tg && tg.HapticFeedback && !isAutoSave) tg.HapticFeedback.notificationOccurred('success');
+        if (saveBtn) {
+          saveBtn.innerHTML = '✅';
+          setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
+        }
+        if (!isAutoSave) {
+          toggleForm(false);
+          await loadFromCloud();
+        } else {
+          // Silently update local cache
+          const idx = allEvents.findIndex(e => e.id === payload.id);
+          if (idx >= 0) Object.assign(allEvents[idx], payload);
+          else allEvents.push(payload);
+          render();
+        }
+      } else {
+        if (saveBtn) { saveBtn.innerHTML = '❌'; setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 2000); }
       }
-    };
+    }
+
+    // --- AUTOSAVE ---
+    let autoSaveTimer = null;
+    function triggerAutoSave() {
+      if (!selectedId) return; // Only autosave existing shoots
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => saveShootData(true), 1500);
+    }
+
+    // Attach autosave to all form fields
+    document.getElementById('form').addEventListener('input', triggerAutoSave);
+    document.getElementById('form').addEventListener('change', triggerAutoSave);
 
     // 4. УДАЛЕНИЕ
     document.getElementById("deleteBtn").onclick = async () => {
