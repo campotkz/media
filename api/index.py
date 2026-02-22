@@ -858,16 +858,16 @@ def generate_timer_report():
         df_logs = pd.DataFrame(logs)
         df_logs['time'] = pd.to_datetime(df_logs['event_time']).dt.tz_convert('Asia/Almaty')
         
-        # 2. Create Excel
+        # 2. Create Excel with Formatting
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            # Sheet 1: Chronology (Detailed)
+            # Sheet 1: Chronology
             chrono = []
             for _, row in df_logs.iterrows():
                 d = row['data'] or {}
                 chrono.append({
                     'Время': row['time'].strftime('%H:%M:%S'),
-                    'Событие': row['event_type'].upper(),
+                    'Событие': row['event_type'].upper().replace('_', ' '),
                     'Локация': d.get('loc', '-'),
                     'Сцена': d.get('scene_no', '-'),
                     'Кадр': d.get('shot_no', '-'),
@@ -888,19 +888,9 @@ def generate_timer_report():
                 })
             pd.DataFrame(delays).to_excel(writer, sheet_name='Задержки', index=False)
 
-            # Sheet 3: Actor & Tech Prep (Analytics)
+            # Sheet 3: Prep
             prep_data = []
-            prep_types = {
-                'makeup': 'ГРИМ',
-                'wardrobe': 'КОСТЮМ',
-                'sound': 'ОПЕТЛИЧИВАНИЕ',
-                'light': 'СВЕТ',
-                'camera': 'КАМЕРА',
-                'art': 'ХУДОЖКА',
-                'props': 'РЕКВИЗИТ',
-                'sfx': 'ПИРОТЕХНИКА',
-                'stunts': 'КАСКАДЕРЫ'
-            }
+            prep_types = {'makeup':'ГРИМ','wardrobe':'КОСТЮМ','sound':'ОПЕТЛИЧИВАНИЕ','light':'СВЕТ','camera':'КАМЕРА','art':'ХУДОЖКА','props':'РЕКВИЗИТ','sfx':'ПИРОТЕХНИКА','stunts':'КАСКАДЕРЫ'}
             for pt_id, pt_label in prep_types.items():
                 starts = df_logs[df_logs['event_type'] == f'{pt_id}_start']
                 ends = df_logs[df_logs['event_type'] == f'{pt_id}_end']
@@ -910,75 +900,96 @@ def generate_timer_report():
                     if not e_match.empty:
                         e_row = e_match.iloc[0]
                         actual_min = round((e_row['time'] - s_row['time']).total_seconds() / 60)
-                        diff = 0
-                        try:
-                            if str(promised).isdigit(): 
-                                diff = max(0, actual_min - int(promised)) # Only show positive delay
-                        except: pass
                         prep_data.append({
-                            'Сервис': pt_label,
-                            'Старт': s_row['time'].strftime('%H:%M'),
-                            'Финиш': e_row['time'].strftime('%H:%M'),
-                            'План (мин)': promised,
-                            'Факт (мин)': actual_min,
-                            'Задержка (мин)': diff
+                            'Сервис': pt_label, 'Старт': s_row['time'].strftime('%H:%M'), 'Финиш': e_row['time'].strftime('%H:%M'),
+                            'План (мин)': promised, 'Факт (мин)': actual_min, 'Задержка': max(0, actual_min - int(promised)) if str(promised).isdigit() else 0
                         })
             pd.DataFrame(prep_data).to_excel(writer, sheet_name='Подготовка', index=False)
 
-            # Sheet 4: Arrivals (Crew, Actors, Clients)
+            # Sheet 4: Arrivals
             arrivals = []
             arrival_types = ['crew_arrival', 'actor_arrival', 'client_arrival', 'actor_departure']
             arrival_logs = df_logs[df_logs['event_type'].isin(arrival_types)]
             for _, row in arrival_logs.iterrows():
                 d = row['data'] or {}
-                event = row['event_type'].upper().replace('_', ' ')
                 arrivals.append({
-                    'Время': row['time'].strftime('%H:%M:%S'),
-                    'Событие': event,
-                    'Имя': d.get('name', 'N/A'),
-                    'Объект': d.get('loc', '-')
+                    'Время': row['time'].strftime('%H:%M:%S'), 'Событие': row['event_type'].upper().replace('_', ' '),
+                    'Имя': d.get('name', 'N/A'), 'Объект': d.get('loc', '-')
                 })
             pd.DataFrame(arrivals).to_excel(writer, sheet_name='Прибытие', index=False)
 
-            # Sheet 5: Summary (Totals)
+            # Sheet 5: Summary
             start_t = pd.to_datetime(shift['start_time']).tz_convert('Asia/Almaty')
             end_t = pd.to_datetime(shift['end_time']).tz_convert('Asia/Almaty') if shift.get('end_time') else df_logs['time'].max()
-            duration = end_t - start_t
-            
-            # Aggregate stats
             all_data = df_logs['data'].apply(lambda x: x if isinstance(x, dict) else {})
-            max_scene = all_data.apply(lambda x: x.get('scene_no', 0)).max()
-            max_shot = all_data.apply(lambda x: x.get('shot_no', 0)).max()
-            total_takes = len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])
-            good_takes = len(df_logs[all_data.apply(lambda x: x.get('result') == 'good')])
-            
             summary = [
                 {'Параметр': 'Дата', 'Значение': start_t.strftime('%d.%m.%Y')},
                 {'Параметр': 'Начало смены', 'Значение': start_t.strftime('%H:%M:%S')},
                 {'Параметр': 'Конец смены', 'Значение': end_t.strftime('%H:%M:%S') if shift.get('end_time') else 'В работе'},
-                {'Параметр': 'Общее время', 'Значение': str(duration).split('.')[0]},
-                {'Параметр': 'Всего сцен', 'Значение': max_scene},
-                {'Параметр': 'Всего кадров', 'Значение': max_shot},
-                {'Параметр': 'Всего дублей', 'Значение': total_takes},
-                {'Параметр': 'Хороших дублей', 'Значение': good_takes},
+                {'Параметр': 'Общее время', 'Значение': str(end_t - start_t).split('.')[0]},
+                {'Параметр': 'Всего сцен', 'Значение': all_data.apply(lambda x: x.get('scene_no', 0)).max()},
+                {'Параметр': 'Всего кадров', 'Значение': all_data.apply(lambda x: x.get('shot_no', 0)).max()},
+                {'Параметр': 'Всего дублей', 'Значение': len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])},
             ]
             pd.DataFrame(summary).to_excel(writer, sheet_name='Итоги', index=False)
 
+            # APPLY FORMATTING
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            header_fill = PatternFill(start_color="333333", end_color="333333", fill_type="solid")
+            header_font = Font(color="FFFFFF", bold=True)
+            center_align = Alignment(horizontal='center')
+            thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+            for sheet_name in writer.sheets:
+                ws = writer.sheets[sheet_name]
+                # Auto-width and Styles
+                for col in ws.columns:
+                    max_length = 0
+                    column = col[0].column_letter # Get the column name
+                    for cell in col:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except: pass
+                        cell.border = thin_border
+                    ws.column_dimensions[column].width = max_length + 4
+                
+                # Header Style
+                for cell in ws[1]:
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = center_align
+
         output.seek(0)
+        file_bytes = output.read()
         file_name = f"DPR_{start_t.strftime('%d%m')}_Shift_{shift_id}.xlsx"
         
         # 4. Send to Telegram
-        msg = bot.send_document(chat_id, ('report.xlsx', output.read()), 
-                          caption=f"📋 **ОТЧЕТ ЗА СМЕНУ (DPR)**\nДата: {start_t.strftime('%d.%m.%Y')}\nСмена завершена: {end_t.strftime('%H:%M')}\nВсего отснято дублей: {len(df_logs[df_logs['event_type']=='motor'])}", 
-                         message_thread_id=thread_id, visible_file_name=file_name, parse_mode="Markdown")
+        print(f"Sending report to chat {chat_id}, thread {thread_id}...")
+        try:
+            target_chat = int(chat_id) if chat_id else None
+            target_thread = int(thread_id) if thread_id else None
+            
+            if not target_chat:
+                raise ValueError("Missing chat_id for report delivery")
+
+            msg = bot.send_document(
+                target_chat, 
+                (file_name, file_bytes), 
+                caption=f"📋 **ОТЧЕТ ЗА СМЕНУ (DPR)**\n📅 Дата: {start_t.strftime('%d.%m.%Y')}\n🎬 Проект: {shift.get('project_id', 'N/A')}\n⏱ Смена: {start_t.strftime('%H:%M')} - {end_t.strftime('%H:%M')}\n🔥 Всего дублей: {total_takes}", 
+                message_thread_id=target_thread, 
+                visible_file_name=file_name, 
+                parse_mode="Markdown"
+            )
+        except Exception as tel_err:
+            print(f"Telegram send error: {tel_err}")
+            # Try sending to a fallback or just log it
+            raise tel_err
 
         report_link = None
         if msg:
-            # Construct private Telegram link: https://t.me/c/CHATID/MSGID
-            # Private chat IDs usually start with -100
-            s_cid = str(chat_id)
-            if s_cid.startswith("-100"):
-                s_cid = s_cid[4:]
+            s_cid = str(target_chat)
+            if s_cid.startswith("-100"): s_cid = s_cid[4:]
             report_link = f"https://t.me/c/{s_cid}/{msg.message_id}"
 
         res = jsonify({'status': 'ok', 'report_link': report_link})
@@ -986,6 +997,8 @@ def generate_timer_report():
         return res
     except Exception as e:
         print(f"Report generator error: {e}")
+        import traceback
+        traceback.print_exc()
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
 
 def ensure_project(chat_id, thread_id, chat_title, content="", message=None, forced_name=None):
