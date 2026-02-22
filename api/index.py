@@ -248,6 +248,128 @@ def handle_project_location(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка добавления локации: {e}")
 
+@bot.message_handler(commands=['del'])
+def handle_delete(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
+        
+        # 1. CONTEXTUAL MODE (Reply)
+        if message.reply_to_message:
+            reply = message.reply_to_message
+            txt = (reply.text or reply.caption or "")
+            
+            # 1.1 Check for Links
+            urls = re.findall(r'(https?://[^\s]+)', txt)
+            if urls:
+                deleted_urls = []
+                for url in urls:
+                    res = supabase.table("project_resources").delete().eq("chat_id", cid).eq("thread_id", tid).eq("url", url).execute()
+                    if res.data: deleted_urls.append(url)
+                
+                if deleted_urls:
+                    bot.reply_to(message, f"🗑️ Удалено ресурсов: {len(deleted_urls)}")
+                    return
+
+            # 1.2 Check for Bot Confirmations (Contacts)
+            # ✅ Контакт **{name}** ({ph}) сохранен!
+            c_match = re.search(r"Контакт \*\*(.*?)\*\* \((.*?)\) сохранен", txt)
+            if c_match:
+                ph = c_match.group(2)
+                supabase.table("contacts").delete().eq("phone", ph).eq("thread_id", tid).execute()
+                bot.reply_to(message, f"🗑️ Контакт **{c_match.group(1)}** удален из проекта.")
+                return
+
+            # 1.3 Check for Bot Confirmations (Locations)
+            # 📍 Локация **{loc_name}** сохранена
+            l_match = re.search(r"Локация \*\*(.*?)\*\*", txt)
+            if l_match and "сохранена" in txt:
+                loc_name = l_match.group(1)
+                p_res = supabase.from_("clients").select("id").eq("chat_id", cid).eq("thread_id", tid).execute()
+                if p_res.data:
+                    pid = p_res.data[0]['id']
+                    supabase.table("project_locations").delete().eq("project_id", pid).eq("name", loc_name).execute()
+                    bot.reply_to(message, f"🗑️ Локация **{loc_name}** удалена из проекта.")
+                    return
+
+            bot.reply_to(message, "❓ Не узнаю данные для удаления. Попробуйте просто `/del` для вызова меню.")
+            return
+
+        # 2. INTERACTIVE MODE (Menu)
+        if not tid:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика.")
+            return
+
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            types.InlineKeyboardButton("👥 Актеры", callback_query_data=f"del_cat:actors:{tid}"),
+            types.InlineKeyboardButton("📍 Локации", callback_query_data=f"del_cat:locs:{tid}"),
+            types.InlineKeyboardButton("🔗 Ссылки", callback_query_data=f"del_cat:links:{tid}"),
+            types.InlineKeyboardButton("❌ Отмена", callback_query_data="del_cancel")
+        )
+        bot.send_message(cid, "🧹 **ОЧИСТКА ДАННЫХ**\nЧто именно вы хотите удалить из этого проекта?", reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка удаления: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('del_'))
+def handle_del_callback(call):
+    try:
+        cid = call.message.chat.id
+        tid = call.message.message_thread_id
+        data = call.data.split(':')
+        cmd = data[0]
+
+        if cmd == "del_cancel":
+            bot.delete_message(cid, call.message.message_id)
+            return
+
+        if cmd == "del_cat":
+            cat = data[1]
+            markup = types.InlineKeyboardMarkup()
+            
+            if cat == "actors":
+                res = supabase.table("contacts").select("id, name, phone").eq("chat_id", cid).eq("thread_id", tid).execute()
+                for item in (res.data or []):
+                    markup.add(types.InlineKeyboardButton(f"🗑 {item['name']} ({item['phone']})", callback_query_data=f"del_exe:contacts:{item['id']}"))
+            elif cat == "locs":
+                p_res = supabase.from_("clients").select("id").eq("chat_id", cid).eq("thread_id", tid).execute()
+                if p_res.data:
+                    pid = p_res.data[0]['id']
+                    res = supabase.table("project_locations").select("id, name").eq("project_id", pid).execute()
+                    for item in (res.data or []):
+                        markup.add(types.InlineKeyboardButton(f"🗑 {item['name']}", callback_query_data=f"del_exe:project_locations:{item['id']}"))
+            elif cat == "links":
+                res = supabase.table("project_resources").select("id, url").eq("chat_id", cid).eq("thread_id", tid).execute()
+                for item in (res.data or []):
+                    # Shorten URL for display
+                    short_url = item['url'].replace('https://', '').replace('http://', '')[:25] + '...'
+                    markup.add(types.InlineKeyboardButton(f"🗑 {short_url}", callback_query_data=f"del_exe:project_resources:{item['id']}"))
+
+            markup.add(types.InlineKeyboardButton("⬅️ Назад", callback_query_data=f"del_back:{tid}"))
+            
+            bot.edit_message_text("Выберите элемент для удаления:", cid, call.message.message_id, reply_markup=markup)
+
+        elif cmd == "del_back":
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            markup.add(
+                types.InlineKeyboardButton("👥 Актеры", callback_query_data=f"del_cat:actors:{tid}"),
+                types.InlineKeyboardButton("📍 Локации", callback_query_data=f"del_cat:locs:{tid}"),
+                types.InlineKeyboardButton("🔗 Ссылки", callback_query_data=f"del_cat:links:{tid}"),
+                types.InlineKeyboardButton("❌ Отмена", callback_query_data="del_cancel")
+            )
+            bot.edit_message_text("🧹 **ОЧИСТКА ДАННЫХ**\nЧто именно вы хотите удалить?", cid, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+
+        elif cmd == "del_exe":
+            table, item_id = data[1], data[2]
+            supabase.table(table).delete().eq("id", item_id).execute()
+            bot.answer_callback_query(call.id, "✅ Удалено")
+            # Return to categories
+            handle_del_callback(types.CallbackQuery(id=call.id, from_user=call.from_user, chat_instance=call.chat_instance, message=call.message, data=f"del_back:{tid}"))
+
+    except Exception as e:
+        bot.answer_callback_query(call.id, f"❌ Ошибка: {e}")
+
 @app.route('/api/casting', methods=['POST', 'OPTIONS'])
 def notify_casting():
     if request.method == 'OPTIONS':
