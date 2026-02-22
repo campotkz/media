@@ -1560,6 +1560,29 @@
     setupTagInput('t_actorsInput', 't_actorsDropdown', 't_actors', 't_actorsTags', 'actor');
     setupTagInput('assigneeInput', 'assigneeDropdown', 't_assignees', 'assigneeTags', null); // All for tasks
 
+    function setupMultiDatalist(input) {
+      input.addEventListener('input', () => {
+        const listId = input.getAttribute('list');
+        if (!listId) return;
+        const opts = Array.from(document.querySelectorAll(`#${listId} option`)).map(o => o.value);
+        const val = input.value;
+        if (opts.includes(val)) {
+          const prev = input.dataset.prev || "";
+          const parts = prev.split(',').map(s => s.trim()).filter(s => s);
+          if (!parts.includes(val)) {
+            parts.push(val);
+            input.value = parts.join(', ') + ', ';
+            input.dataset.prev = input.value;
+          } else {
+            input.value = parts.join(', ') + ', ';
+            input.dataset.prev = input.value;
+          }
+        } else {
+          input.dataset.prev = val;
+        }
+      });
+    }
+
     function updateContactPool() {
       // 1. Media Pool
       const mProj = clientsData.find(c => c.name === f.project.value.trim());
@@ -1709,6 +1732,9 @@
         <div class="timing-cell"><input type="url" class="t-link" value="${data.link || ''}" list="linkOptions" placeholder="URL..."></div>
         <div class="timing-cell"><span class="timing-remove" onclick="this.closest('.timing-row').remove()">×</span></div>
       `;
+      const actInput = row.querySelector('.t-act');
+      actInput.dataset.prev = data.act || '';
+      setupMultiDatalist(actInput);
       container.appendChild(row);
     }
 
