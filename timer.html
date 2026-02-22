@@ -532,6 +532,14 @@
                             class="btn-label">Развертывание</span><span class="btn-val">DEPLOYMENT</span>
                         <div class="btn-timer">00:00</div>
                     </div>
+                    <!-- NEW RELOCATION BLOCK -->
+                    <div id="btn_loc_move" class="btn c-blue" onclick="toggleBtn('loc_move', 'ПЕРЕЕЗД', 'ПЕРЕЕЗД')">
+                        <span class="btn-label">Время переезда</span><span class="btn-val">ПЕРЕЕЗД</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_loc_select" class="btn c-blue" onclick="showOptionModal('location_change')">
+                        <span class="btn-label">Куда</span><span class="btn-val">ВЫБОР ОБЪЕКТА</span>
+                    </div>
                 </div>
             </div>
 
@@ -644,8 +652,10 @@
                             class="btn-label">Перерыв</span><span class="btn-val">ТЕХ. ПЕРЕРЫВ</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div class="btn c-blue" onclick="showOptionModal('location_change')"><span class="btn-label">Смена
-                            объекта</span><span class="btn-val">ПЕРЕЕЗД</span></div>
+                    <div id="btn_current_lunch" class="btn c-blue"
+                        onclick="toggleBtn('current_lunch', 'ОБЕД', 'ОБЕД ИДЕТ')">
+                        <span class="btn-label">Статус</span><span class="btn-val">ТЕКУЩИЙ ОБЕД</span>
+                    </div>
                     <div class="btn c-blue" onclick="logEvent('catering_arrival', {}, true)"><span
                             class="btn-label">Горячее</span><span class="btn-val">БУФЕТ ПРИЕХАЛ</span></div>
                 </div>
@@ -1380,14 +1390,7 @@
             ], (val) => logEvent('take_evaluation', { result: val }));
         }
 
-        document.getElementById('elLocation').onclick = () => {
-            const loc = prompt("Новая локация (Объект):", state.location);
-            if (loc) {
-                state.location = loc; ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
-                saveState(); logEvent('location_change', { new_loc: loc });
-                if (!state.activeTimers['travel']) toggleBtn('travel', 'ДВИЖЕНИЕ', 'ДВИЖЕНИЕ');
-            }
-        };
+        document.getElementById('elLocation').onclick = () => showOptionModal('location_change');
 
         function showOptionModal(type) {
             if (type === 'next_scene' || type === 'edit_scene') {
@@ -1403,6 +1406,15 @@
                     state.shot = parseInt(next); state.take = 0;
                     ui.shotLabel.textContent = state.shot; ui.takeLabel.textContent = 0;
                     saveState(); logEvent('edit_shot', { shot: next }, true);
+                }
+            } else if (type === 'location_change') {
+                const loc = prompt("Новая локация (Объект):", state.location);
+                if (loc) {
+                    state.location = loc; ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
+                    saveState(); logEvent('location_change', { new_loc: loc });
+                    if (!state.activeTimers['travel'] && !state.activeTimers['loc_move']) {
+                        toggleBtn('loc_move', 'ПЕРЕЕЗД', 'ПЕРЕЕЗД');
+                    }
                 }
             } else if (type === 'actor_checkin') {
                 const name = prompt("Имя актера:");
