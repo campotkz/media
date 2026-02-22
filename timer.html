@@ -1062,6 +1062,8 @@
             ui.modalOptions.innerHTML = ''; ui.modalOptions.classList.remove('hidden');
             ui.modalButtons.classList.remove('hidden');
             ui.modal.style.display = 'flex';
+            // Close on backdrop click
+            ui.modal.onclick = (e) => { if (e.target === ui.modal) ui.modal.style.display = 'none'; };
 
             // Add Header Buttons (Select All, Add)
             const headerActions = document.createElement('div');
@@ -1627,6 +1629,8 @@
             ui.modal.style.display = 'flex';
             document.getElementById('btnModalConfirm').onclick = () => { ui.modal.style.display = 'none'; onOk(); };
             document.getElementById('btnModalCancel').onclick = () => { ui.modal.style.display = 'none'; };
+            // Close on backdrop click
+            ui.modal.onclick = (e) => { if (e.target === ui.modal) ui.modal.style.display = 'none'; };
         }
 
         function showOptions(title, desc, options, onSelect) {
@@ -1638,7 +1642,16 @@
                 div.onclick = () => { ui.modal.style.display = 'none'; onSelect(o.v); };
                 ui.modalOptions.appendChild(div);
             });
+            // Close button
+            const closeDiv = document.createElement('div');
+            closeDiv.className = 'opt-item';
+            closeDiv.style = 'border-color: var(--text-dim); color: var(--text-dim); margin-top: 8px; font-size: 12px';
+            closeDiv.textContent = '✕ ЗАКРЫТЬ';
+            closeDiv.onclick = () => { ui.modal.style.display = 'none'; };
+            ui.modalOptions.appendChild(closeDiv);
             ui.modal.style.display = 'flex';
+            // Close on backdrop click
+            ui.modal.onclick = (e) => { if (e.target === ui.modal) ui.modal.style.display = 'none'; };
         }
 
         initApp();
