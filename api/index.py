@@ -252,7 +252,7 @@ def handle_project_location(message):
 def handle_delete(message):
     try:
         cid = message.chat.id
-        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
+        tid = message.message_thread_id
         
         # 1. CONTEXTUAL MODE (Reply)
         if message.reply_to_message:
@@ -272,7 +272,6 @@ def handle_delete(message):
                     return
 
             # 1.2 Check for Bot Confirmations (Contacts)
-            # ✅ Контакт **{name}** ({ph}) сохранен!
             c_match = re.search(r"Контакт \*\*(.*?)\*\* \((.*?)\) сохранен", txt)
             if c_match:
                 ph = c_match.group(2)
@@ -281,7 +280,6 @@ def handle_delete(message):
                 return
 
             # 1.3 Check for Bot Confirmations (Locations)
-            # 📍 Локация **{loc_name}** сохранена
             l_match = re.search(r"Локация \*\*(.*?)\*\*", txt)
             if l_match and "сохранена" in txt:
                 loc_name = l_match.group(1)
@@ -292,12 +290,12 @@ def handle_delete(message):
                     bot.reply_to(message, f"🗑️ Локация **{loc_name}** удалена из проекта.")
                     return
 
-            bot.reply_to(message, "❓ Не узнаю данные для удаления. Попробуйте просто `/del` для вызова меню.")
-            return
+            # If reply but no data found, just fall through to the Menu!
+            # The user might be replying to bot's own instruction or something irrelevant.
 
         # 2. INTERACTIVE MODE (Menu)
-        if not tid:
-            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика.")
+        if tid is None:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
             return
 
         markup = types.InlineKeyboardMarkup(row_width=2)
@@ -307,7 +305,7 @@ def handle_delete(message):
             types.InlineKeyboardButton("🔗 Ссылки", callback_query_data=f"del_cat:links:{tid}"),
             types.InlineKeyboardButton("❌ Отмена", callback_query_data="del_cancel")
         )
-        bot.send_message(cid, "🧹 **ОЧИСТКА ДАННЫХ**\nЧто именно вы хотите удалить из этого проекта?", reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
+        bot.send_message(cid, "🧹 **ОЧИСТКА ДАННЫХ**\nВы можете удалить данные этого проекта:", reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
         
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка удаления: {e}")
