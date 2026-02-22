@@ -1124,6 +1124,15 @@
             state.pool_crew = (shoot.crew || '').split(',').map(s => s.trim()).filter(s => s);
             state.pool_client = (shoot.post_production || '').split(',').map(s => s.trim()).filter(s => s);
             state.pool_actor = (shoot.actors || '').split(',').map(s => s.trim()).filter(s => s);
+            // Reset tracking from previous shift
+            state.arrived_crew = [];
+            state.arrived_client = [];
+            state.arrived_actor = [];
+            state.departed_actor = [];
+            state.ready_actor = [];
+            state.activeTimers = {};
+            state.scene = 1; state.shot = 1; state.take = 0;
+            state.isMotor = false;
             // Parse unique locations from schedule (timing rows)
             state.shootLocations = [shoot.location];
             try {
@@ -1138,6 +1147,7 @@
                 }
             } catch (e) { console.warn('Schedule parse:', e); }
             ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
+            ui.sceneLabel.textContent = 1; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 0;
             saveState();
             startSequence();
         }
@@ -1148,7 +1158,20 @@
                 state.location = loc;
                 state.shootId = 'manual';
                 state.pool_crew = [];
+                state.pool_client = [];
+                state.pool_actor = [];
+                state.shootLocations = [loc];
+                // Reset tracking
+                state.arrived_crew = [];
+                state.arrived_client = [];
+                state.arrived_actor = [];
+                state.departed_actor = [];
+                state.ready_actor = [];
+                state.activeTimers = {};
+                state.scene = 1; state.shot = 1; state.take = 0;
+                state.isMotor = false;
                 ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
+                ui.sceneLabel.textContent = 1; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 0;
                 saveState();
                 startSequence();
             }
