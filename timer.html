@@ -10,6 +10,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600;700&display=swap"
         rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         :root {
             --bg-deep: #0e0e11;
@@ -481,6 +482,108 @@
                 padding: 12px 8px;
             }
         }
+
+        /* PLAN DRAWER */
+        .drawer {
+            position: fixed;
+            top: -40vh;
+            left: 0;
+            width: 100%;
+            height: 40vh;
+            background: #1c1c1e;
+            border-bottom: 2px solid var(--accent-blue);
+            z-index: 4000;
+            transition: transform 0.4s var(--ease);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            padding: calc(var(--safe-top) + 10px) 15px 15px;
+        }
+
+        .drawer.open {
+            transform: translateY(40vh);
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+        }
+
+        .drawer-title {
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: var(--accent-blue);
+        }
+
+        .drawer-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .sch-item {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: grab;
+        }
+
+        .sch-item.done {
+            opacity: 0.5;
+            text-decoration: line-through;
+            border-color: transparent;
+        }
+
+        .sch-time {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            color: var(--accent-yellow);
+            min-width: 45px;
+        }
+
+        .sch-text {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .sch-handle {
+            color: var(--text-dim);
+            font-size: 16px;
+        }
+
+        .sch-check {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .sch-check.checked {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+        }
+
+        .sch-check.checked::after {
+            content: '✓';
+            color: white;
+            font-weight: 900;
+            font-size: 14px;
+        }
     </style>
 </head>
 
@@ -516,9 +619,25 @@
 
         <!-- HEADER -->
         <div class="header">
-            <span class="project-tag" id="elProjName">PROJECT_NAME</span>
+            <div
+                style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+                <button class="btn-sm c-blue" onclick="toggleDrawer()">📋 ПЛАН</button>
+                <span class="project-tag" id="elProjName">PROJECT_NAME</span>
+                <button class="btn-sm" style="opacity:0; pointer-events:none">X</button>
+            </div>
             <div id="elShiftTimer" class="main-timer">00:00:00</div>
             <div id="elLocation" class="location-tag">📍 <span id="valLocation">ЛОКАЦИЯ: КВАРТИРА</span> ⚙️</div>
+        </div>
+
+        <!-- PLAN DRAWER -->
+        <div id="planDrawer" class="drawer">
+            <div class="drawer-header">
+                <div class="drawer-title">ПЛАН-ТАЙМИНГ СМЕНЫ</div>
+                <button class="btn-sm c-red" onclick="toggleDrawer()">ЗАКРЫТЬ ✕</button>
+            </div>
+            <div id="drawerContent" class="drawer-content">
+                <!-- Items here -->
+            </div>
         </div>
 
         <!-- STATUS -->
@@ -1736,6 +1855,74 @@
             ui.modal.style.display = 'flex';
             // Close on backdrop click
             ui.modal.onclick = (e) => { if (e.target === ui.modal) ui.modal.style.display = 'none'; };
+        }
+
+        // PLAN DRAWER LOGIC
+        let currentSchedule = [];
+        async function toggleDrawer() {
+            const dr = document.getElementById('planDrawer');
+            dr.classList.toggle('open');
+            if (dr.classList.contains('open')) {
+                loadScheduleFromDB();
+            }
+        }
+
+        async function loadScheduleFromDB() {
+            if (!state.shootId) return;
+            const { data, error } = await sb.from('shoots').select('schedule').eq('id', state.shootId).single();
+            if (data && data.schedule) {
+                try {
+                    currentSchedule = JSON.parse(data.schedule);
+                    renderSchedule();
+                } catch (e) { console.error("Schedule parse error", e); }
+            }
+        }
+
+        function renderSchedule() {
+            const container = document.getElementById('drawerContent');
+            container.innerHTML = '';
+
+            if (!currentSchedule || currentSchedule.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim)">План не заполнен</div>';
+                return;
+            }
+
+            currentSchedule.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = `sch-item ${item.done ? 'done' : ''}`;
+                div.dataset.index = idx;
+
+                div.innerHTML = `
+                    <div class="sch-check ${item.done ? 'checked' : ''}" onclick="toggleSchItem(${idx})"></div>
+                    <div class="sch-time">${item.start || ''}</div>
+                    <div class="sch-text">${item.task || item.notes || 'Без названия'}</div>
+                    <div class="sch-handle">☰</div>
+                `;
+                container.appendChild(div);
+            });
+
+            // Re-init Sortable
+            new Sortable(container, {
+                animation: 150,
+                handle: '.sch-handle',
+                onEnd: (evt) => {
+                    const movedItem = currentSchedule.splice(evt.oldIndex, 1)[0];
+                    currentSchedule.splice(evt.newIndex, 0, movedItem);
+                    saveScheduleToDB();
+                }
+            });
+        }
+
+        function toggleSchItem(idx) {
+            currentSchedule[idx].done = !currentSchedule[idx].done;
+            renderSchedule();
+            saveScheduleToDB();
+        }
+
+        async function saveScheduleToDB() {
+            if (!state.shootId) return;
+            const { error } = await sb.from('shoots').update({ schedule: JSON.stringify(currentSchedule) }).eq('id', state.shootId);
+            if (error) console.error("Schedule save error", error);
         }
 
         initApp();
