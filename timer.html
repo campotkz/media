@@ -1076,61 +1076,63 @@
             container.innerHTML = `<div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue);" onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>`;
 
             if (data && data.length > 0) {
-                // Priority matching logic
                 const curCid = state.project.cid ? String(state.project.cid) : null;
                 const curTid = state.project.tid ? String(state.project.tid) : null;
-                const curName = state.project.name.trim().toLowerCase();
+                const curName = (state.project.name || '').trim().toLowerCase();
 
                 let matches = data.filter(s => {
-                    // Try to match by Telegram IDs first
                     const sCid = s.chat_id ? String(s.chat_id) : null;
                     const sTid = s.thread_id ? String(s.thread_id) : null;
+                    const sName = (s.project || '').trim().toLowerCase();
 
                     if (curCid && sCid === curCid && curTid && sTid === curTid) return true;
-
-                    // Fallback to name match
-                    return s.project.trim().toLowerCase() === curName;
+                    return curName && sName === curName;
                 });
 
                 if (matches.length === 0) {
-                    console.log("No specific project/ID matches. Showing all shoots for today.");
+                    console.log("No specific matches, showing all available shoots.");
                     matches = data;
                 }
 
-                // If only one match found and it's a "Perfect Match" (IDs match), maybe auto-select?
-                // For now, just prepend them and highlight them.
                 matches.forEach(s => {
                     const div = document.createElement('div');
                     div.className = 'opt-item';
 
                     const sCid = s.chat_id ? String(s.chat_id) : null;
                     const sTid = s.thread_id ? String(s.thread_id) : null;
+                    const sName = (s.project || '').trim().toLowerCase();
+
                     const idMatch = curCid && sCid === curCid && curTid && sTid === curTid;
-                    const nameMatch = s.project.trim().toLowerCase() === curName;
+                    const nameMatch = curName && sName === curName;
                     const isSpecific = idMatch || nameMatch;
 
                     const actorCount = (s.actors || '').split(',').filter(a => a.trim()).length;
                     const crewCount = (s.crew || '').split(',').filter(a => a.trim()).length;
 
+                    const pName = (s.project || 'БЕЗ НАЗВАНИЯ').toUpperCase();
                     div.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-                            <span style="font-size:13px; font-weight:700; color:var(--accent-yellow)">${s.project.toUpperCase()}</span>
-                            ${isSpecific ? `<span style="font-size:8px; padding:2px 6px; background:${idMatch ? 'var(--accent-blue)' : 'var(--accent-green)'}; border-radius:6px; color:#000; font-weight:700">${idMatch ? 'ТОПИК' : 'В ПЛАНЕ'}</span>` : ''}
+                            <span style="font-size:13px; font-weight:700; color:var(--accent-yellow)">${pName}</span>
+                            ${isSpecific ? `<span style="font-size:8px; padding:2px 6px; background:${idMatch ? 'var(--accent-blue)' : 'var(--accent-green)'}; border-radius:6px; color:#000; font-weight:700">${idMatch ? 'ТОПИК' : 'ПЛАН'}</span>` : ''}
                         </div>
-                        <div style="font-size:14px; margin:2px 0">📍 ${s.location}</div>
+                        <div style="font-size:14px; margin:2px 0">📍 ${s.location || 'Локация не указана'}</div>
                         <div style="display:flex; gap:10px; font-size:11px; opacity:0.7">
                             <span>🕐 ${s.callTime || '?'}</span>
                             ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
                             ${crewCount ? `<span>👥 ${crewCount}</span>` : ''}
                         </div>`;
                     div.onclick = () => selectShoot(s);
-
-                    if (idMatch) {
-                        div.style.borderColor = 'var(--accent-blue)';
-                    }
-
+                    if (idMatch) div.style.borderColor = 'var(--accent-blue)';
                     container.prepend(div);
                 });
+            } else if (error) {
+                console.error("Calendar fetch error:", error);
+                const errDiv = document.createElement('div');
+                errDiv.style.color = '#ff6b6b';
+                errDiv.style.fontSize = '12px';
+                errDiv.style.marginTop = '10px';
+                errDiv.textContent = 'Ошибка загрузки календаря: ' + error.message;
+                container.appendChild(errDiv);
             }
         }
 
