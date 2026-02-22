@@ -5,6 +5,7 @@ from telebot import types
 from flask import Flask, request, jsonify
 from supabase import create_client, Client
 import pandas as pd
+import base64
 import io
 import json
 from datetime import datetime
@@ -57,6 +58,51 @@ def submit_report():
         return r
     except Exception as e:
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
+
+@app.route('/api/send_excel', methods=['POST', 'OPTIONS'])
+def send_excel():
+    if request.method == 'OPTIONS':
+        r = app.make_response('')
+        r.headers.add('Access-Control-Allow-Origin', '*')
+        r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        r.headers.add('Access-Control-Allow-Methods', 'POST')
+        return r
+    try:
+        data = request.json or {}
+        project_name = data.get('project_name')
+        filename = data.get('filename', 'Shoot_Export.xlsx')
+        base64_data = data.get('base64_data')
+
+        if not project_name or not base64_data:
+            return jsonify({'error': 'Missing project_name or base64_data'}), 400
+
+        # Find target chat/thread from database
+        res = supabase.from_("clients").select("chat_id, thread_id").eq("name", project_name).execute()
+        if not res.data:
+            return jsonify({'error': f'Project "{project_name}" not found in database'}), 404
+        
+        target = res.data[0]
+        chat_id = target.get('chat_id')
+        thread_id = target.get('thread_id')
+
+        if not chat_id:
+            return jsonify({'error': f'Project "{project_name}" has no linked chat_id'}), 400
+
+        # Decode base64 file
+        file_bytes = base64.b64decode(base64_data)
+        file_io = io.BytesIO(file_bytes)
+        file_io.name = filename
+
+        # Send to Telegram
+        bot.send_document(chat_id, file_io, message_thread_id=thread_id)
+
+        r = jsonify({'status': 'ok', 'message': f'File sent to {project_name}'})
+        r.headers.add('Access-Control-Allow-Origin', '*')
+        return r
+    except Exception as e:
+        r = jsonify({'error': str(e)})
+        r.headers.add('Access-Control-Allow-Origin', '*')
+        return r, 500
 
 @bot.message_handler(commands=['start', 'cal'])
 def handle_start(message):

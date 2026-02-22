@@ -1104,7 +1104,7 @@
           <div class="actions">
             <button type="button" id="copyBtn" style="color:#7aa2ff; border-color:#7aa2ff;">Копировать</button>
             <button type="button" id="excelExportBtn" style="color:#4caf50; border-color:#4caf50;"
-              onclick="exportShootToExcel()">📊 Excel</button>
+              onclick="exportShootToExcel(event)">📊 Excel</button>
             <button type="button" id="excelImportBtn" style="color:#ffcc00; border-color:#ffcc00;"
               onclick="triggerExcelImport()">📥 Импорт</button>
             <input type="file" id="excelFileInput" style="display:none" accept=".xlsx, .xls"
@@ -2215,7 +2215,46 @@
       if (timing.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(timing), "ТАЙМИНГ");
       if (gear.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gear), "ТЕХНИКА");
 
-      XLSX.writeFile(wb, `Shoot_${e.project}_${e.date}.xlsx`);
+      const fileName = `Shoot_${e.project.replace(/\s+/g, '_')}_${e.date.replace(/[^\d.]/g, '')}.xlsx`;
+
+      // 1. Try local download (might be blocked in TG browser)
+      try { XLSX.writeFile(wb, fileName); } catch (ex) { console.warn("Local DL failed", ex); }
+
+      // 2. Telegram Send (Reliable)
+      const base64Data = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+      const exportBtn = (event && event.target) ? (event.target.tagName === 'BUTTON' ? event.target : event.target.closest('button')) : null;
+
+      if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = "⌛...";
+      }
+
+      fetch('/api/send_excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_name: e.project,
+          filename: fileName,
+          base64_data: base64Data
+        })
+      })
+        .then(res => res.json())
+        .then(res => {
+          if (res.status === 'ok') {
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            if (exportBtn) {
+              exportBtn.innerHTML = "✅ В ТГ";
+              setTimeout(() => { exportBtn.innerHTML = "📊 Excel"; exportBtn.disabled = false; }, 2000);
+            }
+          } else {
+            alert("Ошибка TG: " + res.error);
+            if (exportBtn) { exportBtn.innerHTML = "❌"; exportBtn.disabled = false; }
+          }
+        })
+        .catch(err => {
+          console.error("Fetch Error:", err);
+          if (exportBtn) { exportBtn.innerHTML = "⚠️"; exportBtn.disabled = false; }
+        });
     }
 
     function triggerExcelImport() { document.getElementById('excelFileInput').click(); }
