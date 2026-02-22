@@ -2524,15 +2524,16 @@
       if (e.schedule) {
         try {
           const sch = JSON.parse(e.schedule);
-          if (Array.isArray(sch) && sch.some(r => r.start || r.task || r.loc || r.act)) {
+          if (Array.isArray(sch) && sch.some(r => r.start || r.task || r.loc || r.act || r.link)) {
             lines.push(`\n${hlL('🕒 ТАЙМИНГ:', isHtml)}`);
             sch.forEach(row => {
               const timeStr = row.start ? (row.end ? `${row.start}—${row.end}` : row.start) : '';
               const task = row.task || '';
               const obj = row.loc ? ` (${row.loc})` : '';
               const acts = row.act ? ` — 👤 ${row.act}` : '';
-              if (timeStr || task || obj || row.act) {
-                lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${task}${obj}${acts}`);
+              const link = row.link ? ` [🔗](${row.link})` : '';
+              if (timeStr || task || obj || row.act || row.link) {
+                lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${task}${obj}${acts}${link}`);
               }
             });
           }
