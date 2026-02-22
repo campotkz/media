@@ -415,6 +415,21 @@
             transform: scale(0.98);
         }
 
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 8px;
+            border: none;
+            color: white;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .btn-sm:active {
+            transform: scale(0.95);
+        }
+
         .m-btn {
             padding: 16px;
             border-radius: 14px;
@@ -502,8 +517,8 @@
                             class="btn-label">Едем</span><span class="btn-val">TRAVEL TO LOC</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div id="btn_onsite" class="btn" onclick="showCrewChecklist()"><span class="btn-label">На
-                            месте</span><span class="btn-val">ON SITE</span>
+                    <div id="btn_onsite" class="btn" onclick="toggleBtn('onsite', 'РАЗВЕРТ.', 'НА МЕСТЕ')"><span
+                            class="btn-label">Развертывание</span><span class="btn-val">DEPLOYMENT</span>
                         <div class="btn-timer">00:00</div>
                     </div>
                 </div>
@@ -513,12 +528,12 @@
             <div class="section">
                 <div class="section-header">ПРИБЫТИЕ (CHECK-IN)</div>
                 <div class="grid">
-                    <div class="btn" onclick="logEvent('crew_arrival', {}, true)"><span
-                            class="btn-label">Группа</span><span class="btn-val">CREW ARRIVAL</span></div>
-                    <div class="btn" onclick="logEvent('client_arrival', {}, true)"><span
-                            class="btn-label">Заказчик</span><span class="btn-val">CLIENT / AGENCY</span></div>
-                    <div class="btn" style="grid-column: span 2" onclick="showOptionModal('actor_checkin')"><span
-                            class="btn-label">Актеры</span><span class="btn-val">ACTOR CHECK-IN</span></div>
+                    <div class="btn" onclick="showChecklist('crew')"><span class="btn-label">Группа</span><span
+                            class="btn-val">CREW ARRIVAL</span></div>
+                    <div class="btn" onclick="showChecklist('client')"><span class="btn-label">Заказчик</span><span
+                            class="btn-val">CLIENT / AGENCY</span></div>
+                    <div class="btn" style="grid-column: span 2" onclick="showChecklist('actor')"><span
+                            class="btn-label">Актеры</span><span class="btn-val">ACTOR CHECK-IN / OUT</span></div>
                 </div>
             </div>
 
@@ -752,8 +767,15 @@
             take: parseInt(pGet('take')) || 0,
             isMotor: false,
             project: { id: PID, name: '...' },
-            shootCrew: [],
-            arrivedCrew: JSON.parse(pGet('arrived_crew') || '[]'),
+            // Data pools from calendar
+            pool_crew: JSON.parse(pGet('pool_crew') || '[]'),
+            pool_client: JSON.parse(pGet('pool_client') || '[]'),
+            pool_actor: JSON.parse(pGet('pool_actor') || '[]'),
+            // Tracking
+            arrived_crew: JSON.parse(pGet('arrived_crew') || '[]'),
+            arrived_client: JSON.parse(pGet('arrived_client') || '[]'),
+            arrived_actor: JSON.parse(pGet('arrived_actor') || '[]'),
+            departed_actor: JSON.parse(pGet('departed_actor') || '[]'),
             activeTimers: JSON.parse(pGet('active_timers') || '{}')
         };
 
@@ -836,88 +858,148 @@
             }
         }
 
-        async function selectShoot(shoot) {
-            state.shootId = shoot.id;
-            state.location = shoot.location;
-            state.shootCrew = (shoot.crew || '').split(',').map(s => s.trim()).filter(s => s);
-            ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
-            saveState();
-            startSequence();
-        }
-
-        async function showCrewChecklist() {
+        async function showChecklist(type) {
             if (!state.shiftId) return;
-            if (!state.shootCrew.length && state.shootId && state.shootId !== 'manual') {
-                const { data } = await sb.from('shoots').select('crew').eq('id', state.shootId).single();
-                if (data) state.shootCrew = (data.crew || '').split(',').map(s => s.trim()).filter(s => s);
-            }
+            const poolKey = 'pool_' + type;
+            const arrivedKey = 'arrived_' + type;
+            const departedKey = 'departed_' + type;
 
-            if (!state.shootCrew.length) {
-                // Fallback to manual phase toggle if no crew list
-                if (!state.activeTimers['onsite']) toggleBtn('onsite', 'РАЗВЕРТ.', 'НА МЕСТЕ');
-                else alert("Список группы пуст.");
-                return;
-            }
+            let pool = state[poolKey];
+            let arrived = state[arrivedKey];
 
-            const options = state.shootCrew.map(name => ({
-                l: name,
-                v: name,
-                selected: state.arrivedCrew.includes(name)
-            }));
+            const titleMap = { crew: 'ГРУППА', client: 'ЗАКАЗЧИК', actor: 'АКТЕРЫ' };
+            const title = titleMap[type] || 'СПИСОК';
 
-            showChecklistModal("КТО НА МЕСТЕ?", "Отметьте прибывших участников группы:", options, (selected) => {
-                const now = new Date().toISOString();
-                let newlyArrived = [];
-                selected.forEach(name => {
-                    if (!state.arrivedCrew.includes(name)) {
-                        state.arrivedCrew.push(name);
-                        newlyArrived.push(name);
-                        // Log event for each individual
-                        logEvent('crew_arrival', { name: name });
-                    }
-                });
+            const renderOptions = () => {
+                let options = [];
+                if (type === 'actor') {
+                    // Actors: Show those not arrived, and those arrived but not departed
+                    pool.forEach(name => {
+                        const isArrived = state.arrived_actor.includes(name);
+                        const isDeparted = state.departed_actor.includes(name);
 
-                if (newlyArrived.length > 0) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                    flashStatusBar();
+                        if (!isArrived) {
+                            options.push({ l: `[ПРИБЫТИЕ] ${name}`, v: name, type: 'in', selected: false });
+                        } else if (!isDeparted) {
+                            options.push({ l: `[УБЫТИЕ] ${name}`, v: name, type: 'out', selected: false });
+                        } else {
+                            options.push({ l: `[ГОТОВО] ${name}`, v: name, type: 'done', selected: true, disabled: true });
+                        }
+                    });
+                } else {
+                    pool.forEach(name => {
+                        const isArrived = arrived.includes(name);
+                        options.push({ l: name, v: name, selected: isArrived, disabled: isArrived });
+                    });
                 }
+                return options;
+            };
 
-                // If this is the first check-in, also start the 'onsite' phase timer if not active
-                if (!state.activeTimers['onsite']) {
-                    toggleBtn('onsite', 'РАЗВЕРТ.', 'НА МЕСТЕ');
+            const onConfirm = (selectedValues) => {
+                if (type === 'actor') {
+                    selectedValues.forEach(val => {
+                        // val is index or object? Let's use name + suffix
+                        const [action, name] = val.split('|');
+                        if (action === 'in') {
+                            state.arrived_actor.push(name);
+                            logEvent('actor_arrival', { name });
+                        } else if (action === 'out') {
+                            state.departed_actor.push(name);
+                            logEvent('actor_departure', { name });
+                        }
+                    });
+                } else {
+                    selectedValues.forEach(name => {
+                        if (!state[arrivedKey].includes(name)) {
+                            state[arrivedKey].push(name);
+                            logEvent(type + '_arrival', { name });
+                        }
+                    });
                 }
-
                 saveState();
-            });
+                tg.HapticFeedback.notificationOccurred('success');
+                flashStatusBar();
+            };
+
+            const onAdd = () => {
+                const name = prompt("Введите имя:");
+                if (name) {
+                    if (!state[poolKey].includes(name)) {
+                        state[poolKey].push(name);
+                        saveState();
+                        showChecklist(type); // Refresh
+                    }
+                }
+            };
+
+            const options = renderOptions();
+            showChecklistModal(
+                `ЧЕК-ЛИСТ: ${title}`,
+                "Отметьте участников:",
+                options,
+                (vals) => onConfirm(vals),
+                () => { // Select All logic
+                    const toSelect = options.filter(o => !o.disabled).map(o => {
+                        if (type === 'actor') return (o.type === 'in' ? 'in|' : 'out|') + o.v;
+                        return o.v;
+                    });
+                    onConfirm(toSelect);
+                },
+                onAdd
+            );
         }
 
-        function showChecklistModal(title, desc, options, onConfirm) {
+        function showChecklistModal(title, desc, options, onConfirm, onSelectAll, onAdd) {
             ui.modalTitle.textContent = title; ui.modalDesc.textContent = desc;
             ui.modalOptions.innerHTML = ''; ui.modalOptions.classList.remove('hidden');
             ui.modalButtons.classList.remove('hidden');
             ui.modal.style.display = 'flex';
 
+            // Add Header Buttons (Select All, Add)
+            const headerActions = document.createElement('div');
+            headerActions.style = "display:flex; gap:10px; margin-bottom:15px";
+            headerActions.innerHTML = `
+                <button class="btn-sm" style="flex:1; background:var(--accent-blue)">ВЫБРАТЬ ВСЕХ</button>
+                <button class="btn-sm" style="width:50px; background:var(--accent-green)">+</button>
+            `;
+            const [btnAll, btnAdd] = headerActions.querySelectorAll('button');
+            btnAll.onclick = () => { ui.modal.style.display = 'none'; onSelectAll(); };
+            btnAdd.onclick = () => { ui.modal.style.display = 'none'; onAdd(); };
+            ui.modalOptions.appendChild(headerActions);
+
             const checkboxes = [];
             options.forEach(o => {
                 const div = document.createElement('div');
                 div.className = 'opt-item';
-                div.style.display = 'flex';
-                div.style.justifyContent = 'space-between';
-                div.style.alignItems = 'center';
-                div.innerHTML = `<span>${o.l}</span><input type="checkbox" style="width:20px;height:20px" ${o.selected ? 'checked disabled' : ''}>`;
+                div.style = "display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:5px";
+                if (o.disabled) div.style.opacity = '0.4';
+
+                const val = o.type ? (o.type + '|' + o.v) : o.v;
+                div.innerHTML = `<span>${o.l}</span><input type="checkbox" style="width:20px;height:20px" ${o.selected ? 'checked' : ''} ${o.disabled ? 'disabled' : ''}>`;
 
                 const cb = div.querySelector('input');
-                div.onclick = () => { if (!o.selected) cb.checked = !cb.checked; };
+                if (!o.disabled) div.onclick = () => { cb.checked = !cb.checked; };
                 ui.modalOptions.appendChild(div);
-                checkboxes.push({ v: o.v, cb: cb, already: o.selected });
+                checkboxes.push({ v: val, cb: cb, already: o.selected, disabled: o.disabled });
             });
 
             document.getElementById('btnModalConfirm').onclick = () => {
                 ui.modal.style.display = 'none';
-                const selected = checkboxes.filter(c => c.cb.checked && !c.already).map(c => c.v);
+                const selected = checkboxes.filter(c => c.cb.checked && !c.disabled && !c.already).map(c => c.v);
                 onConfirm(selected);
             };
             document.getElementById('btnModalCancel').onclick = () => { ui.modal.style.display = 'none'; };
+        }
+
+        async function selectShoot(shoot) {
+            state.shootId = shoot.id;
+            state.location = shoot.location;
+            state.pool_crew = (shoot.crew || '').split(',').map(s => s.trim()).filter(s => s);
+            state.pool_client = (shoot.post_production || '').split(',').map(s => s.trim()).filter(s => s);
+            state.pool_actor = (shoot.actors || '').split(',').map(s => s.trim()).filter(s => s);
+            ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
+            saveState();
+            startSequence();
         }
 
         function startManualShift() {
@@ -925,7 +1007,7 @@
             if (loc) {
                 state.location = loc;
                 state.shootId = 'manual';
-                state.shootCrew = []; // No predefined crew for manual
+                state.pool_crew = [];
                 ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
                 saveState();
                 startSequence();
@@ -949,7 +1031,15 @@
             pSet('phase', state.phase);
             pSet('phase_start', state.phaseStartTime || '');
             pSet('phase_label', ui.phaseLabel.textContent);
-            pSet('arrived_crew', JSON.stringify(state.arrivedCrew));
+            // Pools
+            pSet('pool_crew', JSON.stringify(state.pool_crew));
+            pSet('pool_client', JSON.stringify(state.pool_client));
+            pSet('pool_actor', JSON.stringify(state.pool_actor));
+            // Tracking
+            pSet('arrived_crew', JSON.stringify(state.arrived_crew));
+            pSet('arrived_client', JSON.stringify(state.arrived_client));
+            pSet('arrived_actor', JSON.stringify(state.arrived_actor));
+            pSet('departed_actor', JSON.stringify(state.departed_actor));
             pSet('active_timers', JSON.stringify(state.activeTimers));
         }
 
