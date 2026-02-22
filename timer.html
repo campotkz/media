@@ -1434,8 +1434,8 @@
             try {
                 const { data, error } = await sb.from('production_shifts').insert({
                     project_id: state.project.id,
-                    chat_id: state.project.cid,
-                    thread_id: state.project.tid,
+                    chat_id: state.project.cid ? parseInt(state.project.cid) : null,
+                    thread_id: state.project.tid ? parseInt(state.project.tid) : null,
                     shoot_id: state.shootId,
                     start_time: now,
                     status: 'active'
