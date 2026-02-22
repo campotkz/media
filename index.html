@@ -406,8 +406,11 @@
     }
 
     input,
-    textarea {
+    textarea,
+    .multi-select-wrap {
       width: 100%;
+      box-sizing: border-box;
+      /* Ensure padding doesn't break alignment */
       border-radius: var(--r-2);
       border: 1px solid rgba(255, 255, 255, .12);
       background: rgba(0, 0, 0, .18);
@@ -514,6 +517,29 @@
 
       .item-actions {
         justify-content: flex-end;
+      }
+
+      /* Stack two-column rows on mobile for more space */
+      .row2 {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      /* Reduce tag size slightly to fit long text */
+      .tag {
+        padding: 3px 8px;
+        font-size: 12px;
+      }
+
+      .multi-select-wrap {
+        min-height: 42px;
+        padding: 6px;
+        gap: 6px;
+      }
+
+      /* Improved safe-area for mobile form */
+      form {
+        padding-bottom: 80px;
       }
     }
 
