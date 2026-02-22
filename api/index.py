@@ -248,6 +248,56 @@ def handle_project_location(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка добавления локации: {e}")
 
+@bot.message_handler(commands=['add'])
+def handle_add(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id
+        
+        if tid is None:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
+            return
+
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            types.InlineKeyboardButton("👥 Актер", callback_data=f"add_cat:actors:{tid}"),
+            types.InlineKeyboardButton("🛠 Сотрудник", callback_data=f"add_cat:crew:{tid}"),
+            types.InlineKeyboardButton("🤝 Клиент", callback_data=f"add_cat:clients:{tid}"),
+            types.InlineKeyboardButton("📍 Локация", callback_data=f"add_cat:locs:{tid}"),
+            types.InlineKeyboardButton("🔗 Ссылка", callback_data=f"add_cat:links:{tid}"),
+            types.InlineKeyboardButton("❌ Отмена", callback_data="add_cancel")
+        )
+        bot.send_message(cid, "➕ **ДОБАВЛЕНИЕ ДАННЫХ**\nЧто вы хотите добавить в этот проект?", 
+                         reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка добавления: {e}")
+
+@bot.message_handler(commands=['rename'])
+def handle_rename(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id
+        
+        if tid is None:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
+            return
+
+        new_name = (message.text or "").replace('/rename', '').strip()
+        if not new_name:
+            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Проект А` (Бот должен быть админом)", parse_mode="Markdown")
+            return
+
+        # Attempt to rename topic
+        bot.edit_forum_topic(cid, tid, name=new_name)
+        
+        # Also update in DB
+        supabase.table("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        
+        bot.reply_to(message, f"✅ Топик переименован в **{new_name}** и обновлен в базе.")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка переименования: {e}\n(Проверьте, является ли бот администратором с правом управления темами)")
+
 @bot.message_handler(commands=['del'])
 def handle_delete(message):
     try:
@@ -309,6 +359,104 @@ def handle_delete(message):
         
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка удаления: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('add_'))
+def handle_add_callback(call):
+    try:
+        cid = call.message.chat.id
+        tid = call.message.message_thread_id
+        data = call.data.split(':')
+        cmd = data[0]
+
+        if cmd == "add_cancel":
+            bot.delete_message(cid, call.message.message_id)
+            return
+
+        if cmd == "add_cat":
+            cat = data[1]
+            prompts = {
+                "actors": "👤 Отправьте имя актера или карточку контакта:",
+                "crew": "🛠 Отправьте имя сотрудника или карточку контакта:",
+                "clients": "🤝 Отправьте имя клиента или карточку контакта:",
+                "locs": "📍 Отправьте название локации:",
+                "links": "🔗 Отправьте ссылку (URL):"
+            }
+            # Use ForceReply to catch the answer
+            bot.send_message(cid, prompts.get(cat, "Отправьте данные:"), 
+                                   reply_markup=types.ForceReply(selective=True), 
+                                   message_thread_id=tid)
+            bot.answer_callback_query(call.id)
+            
+        elif cmd == "add_back":
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            markup.add(
+                types.InlineKeyboardButton("👥 Актер", callback_data=f"add_cat:actors:{tid}"),
+                types.InlineKeyboardButton("🛠 Сотрудник", callback_data=f"add_cat:crew:{tid}"),
+                types.InlineKeyboardButton("🤝 Клиент", callback_data=f"add_cat:clients:{tid}"),
+                types.InlineKeyboardButton("📍 Локация", callback_data=f"add_cat:locs:{tid}"),
+                types.InlineKeyboardButton("🔗 Ссылка", callback_data=f"add_cat:links:{tid}"),
+                types.InlineKeyboardButton("❌ Отмена", callback_data="add_cancel")
+            )
+            bot.edit_message_text("➕ **ДОБАВЛЕНИЕ ДАННЫХ**\nЧто вы хотите добавить в этот проект?", 
+                                 cid, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+
+    except Exception as e:
+        bot.answer_callback_query(call.id, f"❌ Ошибка: {e}")
+
+@bot.message_handler(func=lambda m: m.reply_to_message and m.reply_to_message.from_user.id == bot.get_me().id)
+def handle_reply_input(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id
+        orig_text = message.reply_to_message.text
+        
+        # Identify category from prompt emoji
+        cat = None
+        if "👤" in orig_text: cat = "actors"
+        elif "🛠" in orig_text: cat = "crew"
+        elif "🤝" in orig_text: cat = "clients"
+        elif "📍" in orig_text: cat = "locs"
+        elif "🔗" in orig_text: cat = "links"
+        
+        if not cat: return 
+
+        if cat in ["actors", "crew", "clients"]:
+            name = ""
+            phone = "—"
+            if message.contact:
+                name = f"{message.contact.first_name} {message.contact.last_name or ''}".strip()
+                phone = message.contact.phone_number
+            else:
+                name = (message.text or "").strip()
+            
+            if not name: return
+
+            db_cat = "casting" if cat == "actors" else ("media" if cat == "clients" else "crew")
+            
+            supabase.table("contacts").upsert({
+                "name": name, "phone": phone, "thread_id": tid, "chat_id": cid, "category": db_cat
+            }, on_conflict="phone,chat_id,thread_id").execute()
+            
+            bot.reply_to(message, f"✅ **{name}** сохранен в разделе категорий.")
+
+        elif cat == "locs":
+            loc_name = (message.text or "").strip()
+            if not loc_name: return
+            p_res = supabase.from_("clients").select("id").eq("chat_id", cid).eq("thread_id", tid).execute()
+            if p_res.data:
+                pid = p_res.data[0]['id']
+                supabase.table("project_locations").upsert({"project_id": pid, "name": loc_name}, on_conflict="project_id, name").execute()
+                bot.reply_to(message, f"✅ Локация **{loc_name}** добавлена в проект.")
+
+        elif cat == "links":
+            url = (message.text or "").strip()
+            if not url: return
+            if not url.startswith('http'): url = 'https://' + url
+            supabase.table("project_resources").upsert({"chat_id": cid, "thread_id": tid, "url": url}, on_conflict="chat_id,thread_id,url").execute()
+            bot.reply_to(message, f"✅ Ссылка сохранена в ресурсах проекта.")
+
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка сохранения: {e}")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('del_'))
 def handle_del_callback(call):
