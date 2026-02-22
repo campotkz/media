@@ -9,6 +9,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
   <style>
     /* ПОЛНОСТЬЮ ТВОИ ОРИГИНАЛЬНЫЕ СТИЛИ */
@@ -851,8 +852,23 @@
       font-size: 11px;
       padding: 6px 4px;
       outline: none;
-      white-space: nowrap;
       overflow-x: auto;
+    }
+
+    /* Equipment Table Columns */
+    .gear-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 60px 120px 30px;
+      gap: 1px;
+      background: var(--stroke);
+      border-bottom: 2px solid var(--stroke);
+    }
+
+    .gear-header {
+      background: rgba(122, 162, 255, 0.1);
+      font-weight: bold;
+      font-size: 10px;
+      text-transform: uppercase;
     }
 
     /* Hide native time picker indicator to give more room for text */
@@ -1067,11 +1083,32 @@
             </div>
             <textarea id="schedule" style="display:none"></textarea>
           </label>
-          <label>Техника<textarea id="gear" placeholder="Камера, свет..."></textarea></label>
+          <label>Техника
+            <div class="timing-wrap">
+              <div class="timing-table" id="gearTable">
+                <div class="gear-header gear-row">
+                  <div class="timing-cell">Категория</div>
+                  <div class="timing-cell">Модель/Название</div>
+                  <div class="timing-cell">Кол-во</div>
+                  <div class="timing-cell">Заметки</div>
+                  <div class="timing-cell"></div>
+                </div>
+                <div id="gearRows"></div>
+                <div class="timing-add-btn" onclick="addGearRow({}, event)">+ ДОБАВИТЬ ТЕХНИКУ</div>
+              </div>
+            </div>
+            <textarea id="gear" style="display:none"></textarea>
+          </label>
           <label>Примечания<textarea id="notes" placeholder="Парковка, пропуск..."></textarea></label>
           <label>Отчет (Тайминг)<input id="report_link" placeholder="Ссылка на PDF/Excel..." /></label>
           <div class="actions">
             <button type="button" id="copyBtn" style="color:#7aa2ff; border-color:#7aa2ff;">Копировать</button>
+            <button type="button" id="excelExportBtn" style="color:#4caf50; border-color:#4caf50;"
+              onclick="exportShootToExcel()">📊 Excel</button>
+            <button type="button" id="excelImportBtn" style="color:#ffcc00; border-color:#ffcc00;"
+              onclick="triggerExcelImport()">📥 Импорт</button>
+            <input type="file" id="excelFileInput" style="display:none" accept=".xlsx, .xls"
+              onchange="handleExcelImport(event)">
             <button type="button" id="deleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
             <button class="primary" type="submit">Сохранить</button>
           </div>
@@ -2105,6 +2142,127 @@
       setTimeout(initTimingSortable, 10);
     }
 
+    // --- GEAR GRID LOGIC ---
+    function addGearRow(data = {}, event) {
+      if (event) event.preventDefault();
+      const row = document.createElement('div');
+      row.className = 'gear-row';
+      row.innerHTML = `
+        <div class="timing-cell">
+          <select class="g-cat">
+            <option value="Камера" ${data.cat === 'Камера' ? 'selected' : ''}>Камера</option>
+            <option value="Оптика" ${data.cat === 'Оптика' ? 'selected' : ''}>Оптика</option>
+            <option value="Свет" ${data.cat === 'Свет' ? 'selected' : ''}>Свет</option>
+            <option value="Звук" ${data.cat === 'Звук' ? 'selected' : ''}>Звук</option>
+            <option value="Другое" ${data.cat === 'Другое' ? 'selected' : ''}>Другое</option>
+          </select>
+        </div>
+        <div class="timing-cell"><input type="text" class="g-model" value="${data.model || ''}" placeholder="Модель..."></div>
+        <div class="timing-cell"><input type="number" class="g-qty" value="${data.qty || 1}" style="text-align:center;"></div>
+        <div class="timing-cell"><input type="text" class="g-note" value="${data.note || ''}" placeholder="..."></div>
+        <div class="timing-cell" style="text-align:center;">
+          <button type="button" class="timing-del-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+      `;
+      document.getElementById('gearRows').appendChild(row);
+    }
+
+    // --- EXCEL LOGIC ---
+    function exportShootToExcel() {
+      const e = {
+        project: document.getElementById("project").value,
+        location: document.getElementById("location").value,
+        date: document.getElementById("selectedLabel").textContent,
+        callTime: document.getElementById("callTime").value,
+        wrapTime: document.getElementById("wrapTime").value,
+        address: document.getElementById("address").value,
+        contact: document.getElementById("contact").value,
+        deliverables: document.getElementById("deliverables").value,
+        notes: document.getElementById("notes").value,
+        crew: document.getElementById("crew").value,
+        actors: document.getElementById("actors").value,
+      };
+
+      const timing = [];
+      document.querySelectorAll("#timingRows .timing-row").forEach(row => {
+        timing.push({
+          START: row.querySelector(".t-start").value,
+          END: row.querySelector(".t-end").value,
+          LOC: row.querySelector(".t-loc").value,
+          TASK: row.querySelector(".t-task").value,
+          ACTORS: row.querySelector(".t-act").value,
+          NOTES: row.querySelector(".t-notes").value
+        });
+      });
+
+      const gear = [];
+      document.querySelectorAll("#gearRows .gear-row").forEach(row => {
+        gear.push({
+          CAT: row.querySelector(".g-cat").value,
+          MODEL: row.querySelector(".g-model").value,
+          QTY: row.querySelector(".g-qty").value,
+          NOTES: row.querySelector(".g-note").value
+        });
+      });
+
+      const wb = XLSX.utils.book_new();
+      const infoData = [
+        ["ПРОЕКТ", e.project], ["ДАТА", e.date], ["ЛОКАЦИЯ", e.location],
+        ["АДРЕС", e.address], ["КОНТАКТ", e.contact], ["CALL", e.callTime], ["WRAP", e.wrapTime],
+        [""], ["ТЗ", e.deliverables], ["ПРИМЕЧАНИЯ", e.notes], ["КОМАНДА", e.crew], ["АКТЕРЫ", e.actors]
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(infoData), "ИНФО");
+      if (timing.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(timing), "ТАЙМИНГ");
+      if (gear.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gear), "ТЕХНИКА");
+
+      XLSX.writeFile(wb, `Shoot_${e.project}_${e.date}.xlsx`);
+    }
+
+    function triggerExcelImport() { document.getElementById('excelFileInput').click(); }
+
+    function handleExcelImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        const data = new Uint8Array(re.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+
+        const wsInfo = wb.Sheets["ИНФО"];
+        if (wsInfo) {
+          const info = XLSX.utils.sheet_to_json(wsInfo, { header: 1 });
+          info.forEach(r => {
+            if (!r[0]) return;
+            const k = r[0].toString().toUpperCase(); const v = r[1] || "";
+            if (k === "ПРОЕКТ") document.getElementById("project").value = v;
+            if (k === "ЛОКАЦИЯ") document.getElementById("location").value = v;
+            if (k === "АДРЕС") document.getElementById("address").value = v;
+            if (k === "КОНТАКТ") document.getElementById("contact").value = v;
+            if (k === "CALL") document.getElementById("callTime").value = v;
+            if (k === "WRAP") document.getElementById("wrapTime").value = v;
+            if (k === "ТЗ") document.getElementById("deliverables").value = v;
+            if (k === "ПРИМЕЧАНИЯ") document.getElementById("notes").value = v;
+            if (k === "КОМАНДА") { document.getElementById("crew").value = v; renderCrewTags(); }
+            if (k === "АКТЕРЫ") { document.getElementById("actors").value = v; renderActorsTags(); }
+          });
+        }
+        const wsTiming = wb.Sheets["ТАЙМИНГ"];
+        if (wsTiming) {
+          const rows = XLSX.utils.sheet_to_json(wsTiming);
+          document.getElementById('timingRows').innerHTML = '';
+          rows.forEach(r => addTimingRow({ start: r.START || '', end: r.END || '', loc: r.LOC || '', task: r.TASK || '', act: r.ACTORS || '', notes: r.NOTES || '' }));
+        }
+        const wsGear = wb.Sheets["ТЕХНИКА"];
+        if (wsGear) {
+          const rows = XLSX.utils.sheet_to_json(wsGear);
+          document.getElementById('gearRows').innerHTML = '';
+          rows.forEach(r => addGearRow({ cat: r.CAT, model: r.MODEL, qty: r.QTY, note: r.NOTES }));
+        }
+        alert("Excel импортирован!");
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
     function setupTimingInput(input, type) {
       const dropdown = document.getElementById('timingDropdown');
 
@@ -2219,6 +2377,21 @@
       return data;
     }
 
+    function getGearData() {
+      const rows = document.querySelectorAll('#gearRows .gear-row');
+      const data = [];
+      rows.forEach(row => {
+        const cat = row.querySelector('.g-cat').value;
+        const model = row.querySelector('.g-model').value.trim();
+        const qty = row.querySelector('.g-qty').value;
+        const note = row.querySelector('.g-note').value.trim();
+        if (model) {
+          data.push({ cat, model, qty, note });
+        }
+      });
+      return data;
+    }
+
     function removeTimingRow(btn, event) {
       if (event) {
         event.preventDefault();
@@ -2247,10 +2420,32 @@
       }
     }
 
+    function setGearData(raw) {
+      const container = document.getElementById('gearRows');
+      container.innerHTML = '';
+      if (!raw) {
+        addGearRow(); return;
+      }
+      try {
+        const data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          data.forEach(d => addGearRow(d));
+        } else if (raw.trim()) {
+          // Migration for old plain text
+          addGearRow({ cat: 'Другое', model: raw.trim(), qty: 1 });
+        }
+      } catch (e) {
+        // Fallback or migration
+        if (raw.trim()) addGearRow({ cat: 'Другое', model: raw.trim(), qty: 1 });
+      }
+      if (container.children.length === 0) addGearRow();
+    }
+
     // 3. СОХРАНЕНИЕ В ОБЛАКО
     document.getElementById("form").onsubmit = async (ev) => {
       ev.preventDefault();
       const scheduleData = getTimingData();
+      const gearData = getGearData();
       const payload = {
         id: selectedId || Math.random().toString(36).substring(2, 15),
         date: toISO(selectedDate),
@@ -2266,7 +2461,7 @@
         casting_project: f.casting_project.value.trim(),
         actors: f.actors.value.trim(),
         schedule: JSON.stringify(scheduleData),
-        gear: f.gear.value.trim(),
+        gear: JSON.stringify(gearData),
         notes: f.notes.value.trim(),
         report_link: f.report_link.value.trim(),
         status: 'pending'
@@ -2541,6 +2736,7 @@
       f.schedule.value = e.schedule || '';
       setTimingData(e.schedule || '');
       f.gear.value = e.gear || '';
+      setGearData(e.gear || '');
       f.notes.value = e.notes || '';
       f.report_link.value = e.report_link || '';
       updateDatalists(); // Refresh autocomplete for timing grid
@@ -2607,7 +2803,21 @@
       }
 
       if (fullDetails && e.deliverables) lines.push(`\n${hlL('📝 ЗАДАЧИ:', isHtml)}\n${e.deliverables}`);
-      if (e.gear) lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}\n${e.gear}`);
+      if (e.gear) {
+        try {
+          const gd = JSON.parse(e.gear);
+          if (Array.isArray(gd) && gd.length > 0) {
+            lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}`);
+            gd.forEach(g => {
+              lines.push(`  • ${g.cat}: ${g.model}${g.qty > 1 ? ` (x${g.qty})` : ''}${g.note ? ` — ${g.note}` : ''}`);
+            });
+          } else if (typeof e.gear === 'string' && e.gear.trim()) {
+            lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}\n${e.gear}`);
+          }
+        } catch (ex) {
+          if (e.gear && e.gear.trim()) lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}\n${e.gear}`);
+        }
+      }
       if (e.notes) lines.push(`\n${hlL('⚠️ ИНФО:', isHtml)}\n${e.notes}`);
       if (e.contact) lines.push(`${hlL('📞 КОНТАКТ:', isHtml)} ${e.contact}`);
       if (e.report_link) lines.push(`${hlL('📊 ОТЧЕТ:', isHtml)} ${e.report_link}`);
@@ -2641,6 +2851,7 @@
           form.reset();
           f.address.dataset.full = '';
           setTimingData('');
+          setGearData('');
           renderCrewTags();
           renderPostTags();
           renderActorsTags();
@@ -2652,6 +2863,7 @@
         form.reset();
         f.address.dataset.full = '';
         setTimingData('');
+        setGearData('');
         renderCrewTags();
         renderPostTags();
         renderActorsTags();
