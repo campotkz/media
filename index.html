@@ -860,6 +860,8 @@
           </label>
           <label>Техника<textarea id="gear" placeholder="Камера, свет..."></textarea></label>
           <label>Примечания<textarea id="notes" placeholder="Парковка, пропуск..."></textarea></label>
+          <label>Отчет (Тайминг)<input id="report_link" placeholder="Ссылка на PDF/Excel..."
+              list="linkOptions" /></label>
           <div class="actions">
             <button type="button" id="copyBtn" style="color:#7aa2ff; border-color:#7aa2ff;">Копировать</button>
             <button type="button" id="deleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
@@ -991,6 +993,7 @@
       schedule: document.getElementById("schedule"),
       gear: document.getElementById("gear"),
       notes: document.getElementById("notes"),
+      report_link: document.getElementById("report_link"),
     };
 
     // --- TABS LOGIC REMOVED (Unified View) ---
@@ -1765,6 +1768,7 @@
         schedule: JSON.stringify(scheduleData),
         gear: f.gear.value.trim(),
         notes: f.notes.value.trim(),
+        report_link: f.report_link.value.trim(),
         status: 'pending'
       };
 
@@ -2036,6 +2040,7 @@
       setTimingData(e.schedule || '');
       f.gear.value = e.gear || '';
       f.notes.value = e.notes || '';
+      f.report_link.value = e.report_link || '';
       renderCrewTags();
       renderPostTags();
       renderActorsTags();
@@ -2091,6 +2096,7 @@
         }
 
         lines.push(`Заметки: ${e.notes}`);
+        if (e.report_link) lines.push(`📊 Отчет: ${e.report_link}`);
       });
       return lines.join("\n");
     }
