@@ -1237,7 +1237,7 @@
                 logEvent(id + '_stop', { label, duration: dur });
                 document.getElementById('btn_' + id).classList.remove('active');
                 tg.HapticFeedback.impactOccurred('medium');
-                
+
                 // Linked Motor logic
                 if ((id === 'shoot_reh' || id === 'series') && state.isMotor) {
                     stopMotor(false); // don't recursively stop
@@ -1248,7 +1248,7 @@
                 logEvent(id + '_start', { label });
                 document.getElementById('btn_' + id).classList.add('active');
                 tg.HapticFeedback.impactOccurred('heavy');
-                
+
                 // Linked Motor logic
                 if ((id === 'shoot_reh' || id === 'series') && !state.isMotor) {
                     startMotor();
@@ -1388,12 +1388,12 @@
             logEvent('motor_stop', { scene: state.scene, shot: state.shot, take: state.take });
             tg.HapticFeedback.notificationOccurred('warning');
             saveState();
-            
+
             if (autoStopLinked) {
                 if (state.activeTimers['shoot_reh']) toggleBtn('shoot_reh', 'СЪЕМКА РЕПЕТИЦИИ', 'СЪЕМКА РЕПЕТИЦИИ');
                 if (state.activeTimers['series']) toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ');
             }
-            
+
             showEvaluation();
         }
 
@@ -1483,11 +1483,21 @@
             }
             state.activeTimers = {};
 
+            // 3. Stop the main shift timer
+            state.status = 'finished';
+            state.startTime = null;
+            state.phaseStartTime = null;
+            ui.shiftTimer.textContent = 'ЗАВЕРШЕНА';
+            ui.phaseTimer.textContent = '--:--';
+            ui.phaseLabel.textContent = 'СМЕНА ЗАВЕРШЕНА';
+            document.getElementById('elStatusDot').classList.remove('active');
+
             const end = new Date().toISOString();
             await sb.from('production_shifts').update({ status: 'finished', end_time: end }).eq('id', state.shiftId);
             await logEvent('shift_finish');
+            saveState();
 
-            fetch('/api/timer/report', {
+            fetch('https://media-seven-eta.vercel.app/api/timer/report', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ shift_id: state.shiftId, chat_id: state.project.cid, thread_id: state.project.tid })
             }).then(r => r.json()).then(res => {
@@ -1495,7 +1505,7 @@
                     state.lastReportUrl = res.report_link;
                     saveState();
                 }
-            });
+            }).catch(e => console.warn('Report API not available:', e));
 
             document.getElementById('finishOverlay').classList.remove('hidden');
         }
@@ -1540,7 +1550,11 @@
         }
 
         function exitApp() {
-            localStorage.clear();
+            // Clear only this project's keys (not other projects)
+            const prefix = `p${PID}_`;
+            Object.keys(localStorage).forEach(k => {
+                if (k.startsWith(prefix)) localStorage.removeItem(k);
+            });
             tg.disableClosingConfirmation();
             tg.close();
         }
