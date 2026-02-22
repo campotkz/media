@@ -618,11 +618,20 @@ def generate_timer_report():
         file_name = f"DPR_{start_t.strftime('%d%m')}_Shift_{shift_id}.xlsx"
         
         # 4. Send to Telegram
-        bot.send_document(chat_id, ('report.xlsx', output.read()), 
+        msg = bot.send_document(chat_id, ('report.xlsx', output.read()), 
                           caption=f"📋 **ОТЧЕТ ЗА СМЕНУ (DPR)**\nДата: {start_t.strftime('%d.%m.%Y')}\nСмена завершена: {end_t.strftime('%H:%M')}\nВсего отснято дублей: {len(df_logs[df_logs['event_type']=='motor'])}", 
                          message_thread_id=thread_id, visible_file_name=file_name, parse_mode="Markdown")
 
-        res = jsonify({'status': 'ok'})
+        report_link = None
+        if msg:
+            # Construct private Telegram link: https://t.me/c/CHATID/MSGID
+            # Private chat IDs usually start with -100
+            s_cid = str(chat_id)
+            if s_cid.startswith("-100"):
+                s_cid = s_cid[4:]
+            report_link = f"https://t.me/c/{s_cid}/{msg.message_id}"
+
+        res = jsonify({'status': 'ok', 'report_link': report_link})
         res.headers.add('Access-Control-Allow-Origin', '*')
         return res
     except Exception as e:

@@ -506,10 +506,11 @@
         <div id="finishOverlay" class="overlay hidden">
             <span class="project-tag">ОТЧЕТ ОТПРАВЛЕН В ЧАТ ✅</span>
             <h1 style="margin: 10px 0 0; font-size: 26px; font-weight: 800;">СМЕНА ЗАВЕРШЕНА</h1>
-            <p
+            <p id="finishDesc"
                 style="font-size: 15px; color: var(--text-dim); margin: 12px 0 20px; max-width: 260px; line-height: 1.5;">
                 Все таймеры остановлены. Отчет сформирован и отправлен в Telegram канал проекта.</p>
-            <button class="btn c-red" style="width: 200px; padding: 18px 0;" onclick="exitApp()">ВЫХОД</button>
+            <button id="btnFinishAction" class="btn c-green" style="width: 200px; padding: 18px 0;"
+                onclick="saveReportLink()">СОХРАНИТЬ ССЫЛКУ</button>
         </div>
 
         <!-- HEADER -->
@@ -1459,9 +1460,53 @@
             fetch('/api/timer/report', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ shift_id: state.shiftId, chat_id: state.project.cid, thread_id: state.project.tid })
+            }).then(r => r.json()).then(res => {
+                if (res.report_link) {
+                    state.lastReportUrl = res.report_link;
+                    saveState();
+                }
             });
 
             document.getElementById('finishOverlay').classList.remove('hidden');
+        }
+
+        let isSavingLink = false;
+        async function saveReportLink() {
+            if (isSavingLink) return;
+            if (!state.shootId || !state.lastReportUrl) {
+                // If no URL yet (API still processing), wait
+                if (!state.lastReportUrl) alert("Отчет еще генерируется... Подождите пару секунд и нажмите снова.");
+                else exitApp(); // No shoot to link to
+                return;
+            }
+
+            isSavingLink = true;
+            const btn = document.getElementById('btnFinishAction');
+            btn.textContent = "СОХРАНЕНИЕ...";
+            btn.disabled = true;
+
+            try {
+                const { error } = await sb.from('shoots').update({ report_link: state.lastReportUrl }).eq('id', state.shootId);
+                if (error) throw error;
+
+                btn.textContent = "ГОТОВО ✅";
+                btn.classList.remove('c-green');
+                btn.classList.add('c-blue');
+                document.getElementById('finishDesc').textContent = "Ссылка на отчет успешно привязана к календарю!";
+
+                setTimeout(() => {
+                    btn.textContent = "ВЫХОД";
+                    btn.onclick = exitApp;
+                    btn.disabled = false;
+                    btn.style.background = "#ff6b6b";
+                }, 1500);
+
+            } catch (err) {
+                console.error("Save link error:", err);
+                btn.textContent = "ОШИБКА ❌";
+                btn.disabled = false;
+                isSavingLink = false;
+            }
         }
 
         function exitApp() {
