@@ -846,6 +846,12 @@
         };
 
         async function initApp() {
+            // Priority 0: Ensure UI is actually loaded before classList calls
+            if (!ui.overlay) {
+                console.warn("UI elements not found, re-binding...");
+                ui.overlay = document.getElementById('startOverlay');
+            }
+
             state.project = {
                 id: PID,
                 name: params.get('proj') || 'Проект',
@@ -862,7 +868,7 @@
             // Priority 1: Local Storage state (already running)
             if (state.status === 'active' && state.startTime) {
                 console.log("Resuming from localStorage...");
-                ui.overlay.classList.add('hidden');
+                ui.overlay?.classList.add('hidden');
                 refreshUI();
                 return;
             }
@@ -1351,6 +1357,7 @@
                     logEvent(id + '_end', { resolution: res, duration_m: dur });
                     delete state.activeTimers[id];
                     el.classList.remove('active');
+                    setPhase('IDLE', 'ОЖИДАНИЕ');
                     saveState();
                 }
             } else {
@@ -1432,10 +1439,14 @@
             console.log("Starting shift for project:", state.project.id);
 
             try {
+                // Ensure chat/thread IDs are actual integers or null (avoid bigint errors)
+                const cId = parseInt(state.project.cid);
+                const tId = parseInt(state.project.tid);
+
                 const { data, error } = await sb.from('production_shifts').insert({
                     project_id: state.project.id,
-                    chat_id: state.project.cid ? parseInt(state.project.cid) : null,
-                    thread_id: state.project.tid ? parseInt(state.project.tid) : null,
+                    chat_id: isNaN(cId) ? null : cId,
+                    thread_id: isNaN(tId) ? null : tId,
                     shoot_id: state.shootId,
                     start_time: now,
                     status: 'active'
@@ -1448,10 +1459,10 @@
                     state.startTime = now;
                     state.status = 'active';
                     state.phaseStartTime = now;
-                    ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
+                    if (ui.phaseLabel) ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
                     saveState();
-                    ui.overlay.classList.add('hidden');
-                    ui.modal.style.display = 'none';
+                    ui.overlay?.classList.add('hidden');
+                    if (ui.modal) ui.modal.style.display = 'none';
                     logEvent('shift_start');
                     tg.HapticFeedback.notificationOccurred('success');
                 } else {
@@ -1479,6 +1490,7 @@
             ui.motorBtn.classList.add('active');
             ui.motorTitle.textContent = "STOP";
             logEvent('motor_start', { scene: state.scene, shot: state.shot, take: state.take });
+            setPhase('MOTOR', 'МОТОР');
             tg.HapticFeedback.notificationOccurred('success');
             saveState();
         }
@@ -1489,6 +1501,7 @@
             ui.motorBtn.classList.remove('active');
             ui.motorTitle.textContent = "МОТОР";
             logEvent('motor_stop', { scene: state.scene, shot: state.shot, take: state.take });
+            setPhase('IDLE', 'ОЖИДАНИЕ');
             tg.HapticFeedback.notificationOccurred('warning');
             saveState();
 
