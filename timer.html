@@ -412,6 +412,15 @@
             overflow-y: auto;
         }
 
+        .header {
+            background: var(--bg-card);
+            padding: calc(var(--safe-top) + 12px) 15px 15px;
+            border-bottom: 2px solid var(--accent-blue);
+            text-align: center;
+            z-index: 100;
+            position: relative;
+        }
+
         .opt-item {
             background: var(--glass);
             padding: 15px;
@@ -633,7 +642,10 @@
                     onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>
             </div>
 
-            <button id="btnMainStart" class="start-ring hidden">НАЧАТЬ СМЕНУ</button>
+            <button id="btnStartShift" class="btn btn-primary hidden" style="font-size: 16px; padding: 15px;"
+                onclick="doStart()">СТАРТ СМЕНЫ</button>
+            <button class="btn btn-secondary btn-sm" style="margin-top: 15px; opacity: 0.8;" onclick="exitApp()">✕
+                ОТМЕНА (ЗАКРЫТЬ)</button>
         </div>
 
         <!-- FINISH OVERLAY -->
@@ -643,10 +655,8 @@
             <p id="finishDesc"
                 style="font-size: 15px; color: var(--text-dim); margin: 12px 0 20px; max-width: 260px; line-height: 1.5;">
                 Все таймеры остановлены. Отчет сформирован и отправлен в Telegram канал проекта.</p>
-            <button id="btnStartShift" class="btn btn-primary" style="font-size: 16px; padding: 15px;"
-                onclick="doStart()">СТАРТ СМЕНЫ</button>
-            <button class="btn btn-secondary btn-sm" style="margin-top: 15px; opacity: 0.8;" onclick="exitApp()">✕
-                ОТМЕНА (ЗАКРЫТЬ)</button>
+            <button id="btnFinishAction" class="btn c-green" style="width: 200px; padding: 18px 0;"
+                onclick="saveReportLink()">СОХРАНИТЬ ССЫЛКУ</button>
         </div>
     </div>
 
@@ -1579,10 +1589,16 @@
             } else {
                 doStart();
             }
+            // Explicitly ensure the start shift button is ALSO visible and usable
+            const btnStart = document.getElementById('btnStartShift');
+            if (btnStart) {
+                btnStart.classList.remove('hidden');
+                btnStart.onclick = doStart;
+            }
         }
 
         async function doStart() {
-            const btn = document.getElementById('btnModalConfirm');
+            const btn = document.getElementById('btnStartShift');
             if (btn) btn.textContent = 'ЗАПУСК...';
 
             const now = new Date().toISOString();
