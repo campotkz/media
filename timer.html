@@ -1450,7 +1450,7 @@
                     state.phaseStartTime = now;
                     ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
                     saveState();
-                    ui.startOverlay.classList.add('hidden');
+                    ui.overlay.classList.add('hidden');
                     ui.modal.style.display = 'none';
                     logEvent('shift_start');
                     tg.HapticFeedback.notificationOccurred('success');
