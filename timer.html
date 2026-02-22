@@ -1064,43 +1064,56 @@
         }
 
         async function checkCalendar() {
-            // Use Local Date instead of UTC ISO to match index.html logic
             const d = new Date();
             const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+            // Fetch shoots for Yesterday, Today, and Tomorrow to be safe (timezone/late night)
+            const yest = new Date(d); yest.setDate(d.getDate() - 1);
+            const yestDate = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+
+            const tom = new Date(d); tom.setDate(d.getDate() + 1);
+            const tomDate = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
+
+            console.log("Checking calendar for range:", yestDate, "to", tomDate);
+
             const { data, error } = await sb.from('shoots')
                 .select('*')
-                .eq('date', localDate);
+                .gte('date', yestDate)
+                .lte('date', tomDate);
 
             const container = document.getElementById('shootSelector');
             container.innerHTML = `<div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue);" onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>`;
+
+            if (error) {
+                console.error("Calendar fetch error:", error);
+                container.innerHTML += `<div style="color:#ff6b6b; font-size:12px; padding:10px; text-align:center">Ошибка базы: ${error.message}</div>`;
+                return;
+            }
 
             if (data && data.length > 0) {
                 const curCid = state.project.cid ? String(state.project.cid) : null;
                 const curTid = state.project.tid ? String(state.project.tid) : null;
                 const curName = (state.project.name || '').trim().toLowerCase();
 
-                let matches = data.filter(s => {
-                    const sCid = s.chat_id ? String(s.chat_id) : null;
-                    const sTid = s.thread_id ? String(s.thread_id) : null;
-                    const sName = (s.project || '').trim().toLowerCase();
-
-                    if (curCid && sCid === curCid && curTid && sTid === curTid) return true;
-                    return curName && sName === curName;
+                // Sort: exact matches first, then by date
+                data.sort((a, b) => {
+                    const aCid = a.chat_id ? String(a.chat_id) : null;
+                    const bCid = b.chat_id ? String(b.chat_id) : null;
+                    const aMatch = curCid && aCid === curCid;
+                    const bMatch = curCid && bCid === curCid;
+                    if (aMatch && !bMatch) return -1;
+                    if (!aMatch && bMatch) return 1;
+                    return b.date.localeCompare(a.date);
                 });
 
-                if (matches.length === 0) {
-                    console.log("No specific matches, showing all available shoots.");
-                    matches = data;
-                }
-
-                matches.forEach(s => {
+                data.forEach(s => {
                     const div = document.createElement('div');
                     div.className = 'opt-item';
 
                     const sCid = s.chat_id ? String(s.chat_id) : null;
                     const sTid = s.thread_id ? String(s.thread_id) : null;
                     const sName = (s.project || '').trim().toLowerCase();
+                    const sDate = s.date;
 
                     const idMatch = curCid && sCid === curCid && curTid && sTid === curTid;
                     const nameMatch = curName && sName === curName;
@@ -1110,29 +1123,28 @@
                     const crewCount = (s.crew || '').split(',').filter(a => a.trim()).length;
 
                     const pName = (s.project || 'БЕЗ НАЗВАНИЯ').toUpperCase();
+                    const dateTag = sDate === localDate ? 'СЕГОДНЯ' : (sDate === yestDate ? 'ВЧЕРА' : 'ЗАВТРА');
+
                     div.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
                             <span style="font-size:13px; font-weight:700; color:var(--accent-yellow)">${pName}</span>
                             ${isSpecific ? `<span style="font-size:8px; padding:2px 6px; background:${idMatch ? 'var(--accent-blue)' : 'var(--accent-green)'}; border-radius:6px; color:#000; font-weight:700">${idMatch ? 'ТОПИК' : 'ПЛАН'}</span>` : ''}
                         </div>
-                        <div style="font-size:14px; margin:2px 0">📍 ${s.location || 'Локация не указана'}</div>
-                        <div style="display:flex; gap:10px; font-size:11px; opacity:0.7">
-                            <span>🕐 ${s.callTime || '?'}</span>
-                            ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
-                            ${crewCount ? `<span>👥 ${crewCount}</span>` : ''}
+                        <div style="font-size:14px; margin:2px 0">📍 ${s.location || 'Локация...'}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; opacity:0.7">
+                            <div style="display:flex; gap:10px">
+                                <span>🕐 ${s.callTime || '?'}</span>
+                                ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
+                            </div>
+                            <span style="color:${sDate === localDate ? 'var(--accent-green)' : 'inherit'}">${dateTag}</span>
                         </div>`;
+
                     div.onclick = () => selectShoot(s);
                     if (idMatch) div.style.borderColor = 'var(--accent-blue)';
                     container.prepend(div);
                 });
-            } else if (error) {
-                console.error("Calendar fetch error:", error);
-                const errDiv = document.createElement('div');
-                errDiv.style.color = '#ff6b6b';
-                errDiv.style.fontSize = '12px';
-                errDiv.style.marginTop = '10px';
-                errDiv.textContent = 'Ошибка загрузки календаря: ' + error.message;
-                container.appendChild(errDiv);
+            } else {
+                container.innerHTML += `<div style="color:var(--text-dim); font-size:12px; padding:10px; text-align:center">Нет запланированных смен на ${localDate}</div>`;
             }
         }
 
