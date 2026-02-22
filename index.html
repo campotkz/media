@@ -623,12 +623,12 @@
     .tag {
       background: rgba(122, 162, 255, .20);
       color: #fff;
-      padding: 3px 8px;
+      padding: 2px 6px;
       border-radius: var(--r-pill);
-      font-size: 11px;
+      font-size: 10px;
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
       border: 1px solid rgba(122, 162, 255, .3);
     }
 
@@ -1551,14 +1551,26 @@
     const renderLocations = () => {
       const val = locInput.value.toLowerCase();
       locDropdown.innerHTML = '';
+
+      // 1. Get Project Specific Locations
+      const mProj = clientsData.find(c => c.name === f.project.value.trim());
+      let pLocs = [];
+      if (mProj) {
+        pLocs = projectLocationsData.filter(pl => String(pl.project_id) === String(mProj.id)).map(pl => ({ name: pl.name, isProjectSpecific: true }));
+      }
+
+      // 2. Combine with General
+      let allLocs = [...pLocs, ...locationsData.filter(l => !pLocs.some(p => p.name === l.name))];
+
       const matches = val
-        ? locationsData.filter(l => l.name.toLowerCase().includes(val))
-        : locationsData;
+        ? allLocs.filter(l => l.name.toLowerCase().includes(val))
+        : allLocs;
+
       if (!matches.length) { locDropdown.style.display = 'none'; return; }
       matches.forEach(l => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.textContent = l.name;
+        div.innerHTML = l.isProjectSpecific ? `📌 ${l.name} <small>(Проект)</small>` : l.name;
         div.onclick = () => {
           locInput.value = l.name;
           locDropdown.style.display = 'none';
@@ -1844,11 +1856,21 @@
       container.innerHTML = '';
 
       updateContactPool();
-      let pool = [...new Set([
-        ...teamData.filter(t => t.roles && t.roles.includes('actor')).map(t => t.full_name),
-        ...currentCastingContacts.map(c => c.name),
-        ...currentMediaContacts.map(c => c.name)
-      ])].filter(n => n).sort();
+      let pool = [];
+      if (currentChecklistTarget.target === 'grid') {
+        const mainActors = document.getElementById("actors").value;
+        pool = mainActors ? mainActors.split(",").map(s => s.trim()).filter(s => s) : [];
+        if (!pool.length) {
+          container.innerHTML = "<div style='padding:10px; opacity:0.6; text-align:center;'>Сначала добавьте актеров в общую ячейку 'Актеры'</div>";
+          return;
+        }
+      } else {
+        pool = [...new Set([
+          ...teamData.filter(t => t.roles && t.roles.includes('actor')).map(t => t.full_name),
+          ...currentCastingContacts.map(c => c.name),
+          ...currentMediaContacts.map(c => c.name)
+        ])].filter(n => n).sort();
+      }
 
       let selectedStr = "";
       if (currentChecklistTarget.target === 'grid') {
