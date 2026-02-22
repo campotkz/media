@@ -2083,10 +2083,10 @@
           dropdown.appendChild(div);
         });
 
-        // Position dropdown
+        // Position dropdown (it's fixed, so use viewport coords)
         const rect = input.getBoundingClientRect();
         dropdown.style.left = rect.left + 'px';
-        dropdown.style.top = (rect.bottom + window.scrollY) + 'px';
+        dropdown.style.top = rect.bottom + 'px';
         dropdown.style.width = rect.width + 'px';
         dropdown.style.display = 'block';
       };
@@ -2571,33 +2571,32 @@
       const form = document.getElementById("form");
       const btn = document.getElementById("newBtn");
 
-      if (show === undefined) {
-        const isHidden = form.style.display === "none";
-        form.style.display = isHidden ? "grid" : "none";
-        btn.textContent = isHidden ? "Свернуть" : "Новая";
-        if (isHidden) {
-          selectedId = null;
+      if (show === undefined) show = (form.style.display === "none");
+
+      form.style.display = show ? "grid" : "none";
+      btn.textContent = show ? "Свернуть" : "Новая";
+
+      if (show) {
+        if (selectedId === null) {
           form.reset();
-          renderCrewTags();
-          document.getElementById("deleteBtn").style.display = "none";
-          form.scrollIntoView({ behavior: "smooth" });
-        }
-      } else {
-        form.style.display = show ? "grid" : "none";
-        btn.textContent = show ? "Свернуть" : "Новая";
-        if (!show) {
-          form.reset();
-          selectedId = null;
-          f.address.dataset.full = ''; // Clear hidden link
-          setTimingData(''); // Reset timing grid
+          f.address.dataset.full = '';
+          setTimingData('');
           renderCrewTags();
           renderPostTags();
           renderActorsTags();
-        } else if (selectedId === null) {
-          setTimingData(''); // Default 4 rows for new
+          document.getElementById("deleteBtn").style.display = "none";
         }
-        updateDatalists();
+        form.scrollIntoView({ behavior: "smooth" });
+      } else {
+        selectedId = null;
+        form.reset();
+        f.address.dataset.full = '';
+        setTimingData('');
+        renderCrewTags();
+        renderPostTags();
+        renderActorsTags();
       }
+      updateDatalists();
     }
 
     function moveMonth(n) { currentMonth.setMonth(currentMonth.getMonth() + n); render(); }
