@@ -553,8 +553,8 @@
                             class="btn-label">Установка</span><span class="btn-val">ОПЕТЛИЧИВАНИЕ</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div class="btn c-green" onclick="logEvent('actor_ready', {}, true)"><span
-                            class="btn-label">Финальный статус</span><span class="btn-val">АКТЕР ГОТОВ</span></div>
+                    <div class="btn c-green" onclick="showReadyChecklist()"><span class="btn-label">Финальный
+                            статус</span><span class="btn-val">АКТЕР ГОТОВ</span></div>
                 </div>
             </div>
 
@@ -776,6 +776,7 @@
             arrived_client: JSON.parse(pGet('arrived_client') || '[]'),
             arrived_actor: JSON.parse(pGet('arrived_actor') || '[]'),
             departed_actor: JSON.parse(pGet('departed_actor') || '[]'),
+            ready_actor: JSON.parse(pGet('ready_actor') || '[]'),
             activeTimers: JSON.parse(pGet('active_timers') || '{}')
         };
 
@@ -856,6 +857,58 @@
                     container.prepend(div);
                 });
             }
+        }
+
+        async function showReadyChecklist() {
+            if (!state.shiftId) return;
+            // Filter actors: Arrived but not Departed
+            const present = state.arrived_actor.filter(name => !state.departed_actor.includes(name));
+            if (present.length === 0) {
+                tg.MainButton.setText('НЕТ АКТЕРОВ НА ПЛОЩАДКЕ');
+                tg.MainButton.show();
+                setTimeout(() => tg.MainButton.hide(), 2000);
+                return;
+            }
+
+            const options = present.map(name => ({
+                l: name,
+                v: name,
+                checks: [{ id: 'ready', label: 'ГОТОВ', selected: state.ready_actor.includes(name), disabled: state.ready_actor.includes(name) }]
+            }));
+
+            showChecklistModal(
+                "АКТЕР ГОТОВ",
+                "Отметьте готовность:",
+                options,
+                (vals) => {
+                    vals.forEach(ch => {
+                        const [id, name] = ch.split('|');
+                        if (!state.ready_actor.includes(name)) {
+                            state.ready_actor.push(name);
+                            logEvent('actor_ready', { name });
+                        }
+                    });
+                    saveState();
+                    tg.HapticFeedback.notificationOccurred('success');
+                    flashStatusBar();
+                },
+                () => { // Select All
+                    const ch = options.filter(o => !o.checks[0].disabled).map(o => 'ready|' + o.v);
+                    if (ch.length > 0) {
+                        ch.forEach(val => {
+                            const [id, name] = val.split('|');
+                            if (!state.ready_actor.includes(name)) {
+                                state.ready_actor.push(name);
+                                logEvent('actor_ready', { name });
+                            }
+                        });
+                        saveState();
+                        tg.HapticFeedback.notificationOccurred('success');
+                        flashStatusBar();
+                    }
+                },
+                null // No "Add manual" for ready status, only those on set
+            );
         }
 
         async function showChecklist(type) {
@@ -1056,6 +1109,7 @@
             pSet('arrived_client', JSON.stringify(state.arrived_client));
             pSet('arrived_actor', JSON.stringify(state.arrived_actor));
             pSet('departed_actor', JSON.stringify(state.departed_actor));
+            pSet('ready_actor', JSON.stringify(state.ready_actor));
             pSet('active_timers', JSON.stringify(state.activeTimers));
         }
 
