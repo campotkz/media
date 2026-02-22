@@ -265,7 +265,7 @@
         }
 
         .btn-motor-main .btn-val {
-            font-size: 22px;
+            font-size: 26px;
             font-weight: 900;
             letter-spacing: 2px;
         }
@@ -300,13 +300,14 @@
         .footer {
             background: #16161a;
             border-top: 1px solid var(--border);
-            padding: 10px 14px 25px;
-            /* Added bottom padding for mobile */
+            padding: 10px 14px 30px;
+            /* Extra room for mobile gestures */
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 15px;
             flex-shrink: 0;
-            z-index: 100;
+            height: 90px;
+            z-index: 1000;
         }
 
         .stat {
@@ -732,36 +733,36 @@
                             съемки</span><span class="btn-val">WRAP (STOP CAM)</span></div>
                     <div class="btn c-red" onclick="logEvent('last_man_out', {}, true)"><span
                             class="btn-label">Последний человек</span><span class="btn-val">LAST MAN OUT</span></div>
-                    <div id="btnFinalWrap" class="btn c-red"
-                        style="grid-column: span 2; padding: 18px 0; margin-top: 10px;">
-                        <span class="btn-label">ЗАВЕРШИТЬ СМЕНУ</span><span class="btn-val"
-                            style="font-size: 16px;">FINISH SHIFT</span>
-                    </div>
                 </div>
+                <button id="btnFinalWrap" class="btn c-red"
+                    style="width: 100%; padding: 20px; margin-top: 15px; grid-column: span 2; border-width: 2px;">
+                    <span class="btn-label">ЗАВЕРШИТЬ СМЕНУ</span><span class="btn-val" style="font-size: 18px;">FINISH
+                        SHIFT</span>
+                </button>
             </div>
         </div>
 
         <!-- FOOTER -->
         <div class="footer">
-            <div class="stat" onclick="showOptionModal('edit_scene')">
+            <div class="stat" onclick="editManual('scene')">
                 <div class="stat-label">СЦЕНА</div>
                 <div id="valScene" class="stat-val">1</div>
             </div>
-            <div class="stat" style="display: flex; flex-direction: column; align-items: center;">
+            <div class="stat" style="display: flex; flex-direction: column; align-items: center; flex: 1.2;">
                 <div class="stat-label">КАДР</div>
-                <div style="display: flex; align-items: center; gap: 4px;">
-                    <span id="valShot" class="stat-val" onclick="showOptionModal('edit_shot')">1</span>
-                    <span class="stat-plus" id="elShotBtn">+</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="valShot" class="stat-val" onclick="editManual('shot')">1</span>
+                    <span class="stat-plus" id="elShotBtn" onclick="incrementShot(event)">+</span>
                 </div>
+            </div>
+            <div id="btnMotor" class="btn c-red btn-motor-main"
+                style="flex: 2.5; height: 64px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0;">
+                <span class="btn-label" style="font-size: 9px; letter-spacing: 1px;">RECORD</span>
+                <span id="motorTitle" class="btn-val" style="font-size: 20px; margin: 0; line-height: 1;">МОТОР</span>
             </div>
             <div class="stat" id="elTakeBtn">
                 <div class="stat-label">ДУБЛЬ</div>
                 <div id="valTake" class="stat-val">0</div>
-            </div>
-            <div id="btnMotor" class="btn c-red"
-                style="flex: 2; height: 50px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0;">
-                <span class="btn-label" style="font-size: 8px;">RECORD</span>
-                <span id="motorTitle" class="btn-val" style="font-size: 16px; margin: 0;">МОТОР</span>
             </div>
         </div>
     </div>
@@ -1229,23 +1230,33 @@
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
-        function toggleBtn(id, label, phaseLabel, syncMotor = true) {
-            const el = document.getElementById('btn_' + id);
+        function toggleBtn(id, label, phaseLabel) {
             if (state.activeTimers[id]) {
                 const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
-                logEvent(id + '_end', { duration_m: dur });
                 delete state.activeTimers[id];
-                el.classList.remove('active');
+                logEvent(id + '_stop', { label, duration: dur });
+                document.getElementById('btn_' + id).classList.remove('active');
+                tg.HapticFeedback.impactOccurred('medium');
+                
+                // Linked Motor logic
+                if ((id === 'shoot_reh' || id === 'series') && state.isMotor) {
+                    stopMotor(false); // don't recursively stop
+                }
                 setPhase('IDLE', 'ОЖИДАНИЕ');
-                if (syncMotor && (id === 'shoot_reh' || id === 'series')) stopMotor(false);
             } else {
                 state.activeTimers[id] = new Date().toISOString();
-                el.classList.add('active');
-                logEvent(id + '_start');
+                logEvent(id + '_start', { label });
+                document.getElementById('btn_' + id).classList.add('active');
+                tg.HapticFeedback.impactOccurred('heavy');
+                
+                // Linked Motor logic
+                if ((id === 'shoot_reh' || id === 'series') && !state.isMotor) {
+                    startMotor();
+                }
                 setPhase(id.toUpperCase(), phaseLabel);
-                if (syncMotor && (id === 'shoot_reh' || id === 'series')) startMotor();
             }
             saveState();
+            refreshUI();
         }
 
         function toggleDelay(category) {
@@ -1360,23 +1371,30 @@
         function startMotor() {
             if (state.isMotor) return;
             state.isMotor = true;
-            state.take++; ui.takeLabel.textContent = state.take;
-            ui.motorBtn.classList.add('active'); ui.motorTitle.textContent = 'СТОП';
-            setPhase('MOTOR', 'СЪЕМКА'); tg.HapticFeedback.impactOccurred('heavy');
-            logEvent('motor');
+            state.take++;
+            ui.takeLabel.textContent = state.take;
+            ui.motorBtn.classList.add('active');
+            ui.motorTitle.textContent = "STOP";
+            logEvent('motor_start', { scene: state.scene, shot: state.shot, take: state.take });
+            tg.HapticFeedback.notificationOccurred('success');
             saveState();
         }
 
-        function stopMotor(autoStopLinked = true) {
+        function stopMotor(autoStopLinked = false) {
             if (!state.isMotor) return;
             state.isMotor = false;
-            ui.motorBtn.classList.remove('active'); ui.motorTitle.textContent = 'МОТОР';
-            setPhase('CUT', 'ПАУЗА'); logEvent('cut'); showEvaluation();
-            if (autoStopLinked) {
-                if (state.activeTimers['shoot_reh']) toggleBtn('shoot_reh', 'СЪЕМКА РЕПЕТИЦИИ', 'СЪЕМКА РЕПЕТИЦИИ', false);
-                if (state.activeTimers['series']) toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ', false);
-            }
+            ui.motorBtn.classList.remove('active');
+            ui.motorTitle.textContent = "МОТОР";
+            logEvent('motor_stop', { scene: state.scene, shot: state.shot, take: state.take });
+            tg.HapticFeedback.notificationOccurred('warning');
             saveState();
+            
+            if (autoStopLinked) {
+                if (state.activeTimers['shoot_reh']) toggleBtn('shoot_reh', 'СЪЕМКА РЕПЕТИЦИИ', 'СЪЕМКА РЕПЕТИЦИИ');
+                if (state.activeTimers['series']) toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ');
+            }
+            
+            showEvaluation();
         }
 
         ui.motorBtn.onclick = () => {
@@ -1403,22 +1421,37 @@
 
         document.getElementById('elLocation').onclick = () => showOptionModal('location_change');
 
-        function showOptionModal(type) {
-            if (type === 'next_scene' || type === 'edit_scene') {
-                const next = prompt("Номер сцены:", (type === 'next_scene' ? state.scene + 1 : state.scene));
+        function editManual(type) {
+            if (type === 'scene') {
+                const next = prompt("Номер сцены:", state.scene);
                 if (next) {
                     state.scene = parseInt(next); state.shot = 1; state.take = 0;
                     ui.sceneLabel.textContent = state.scene; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 0;
                     saveState(); logEvent('edit_scene', { scene: next }, true);
                 }
-            } else if (type === 'edit_shot') {
+            } else if (type === 'shot') {
                 const next = prompt("Номер кадра:", state.shot);
                 if (next) {
                     state.shot = parseInt(next); state.take = 0;
                     ui.shotLabel.textContent = state.shot; ui.takeLabel.textContent = 0;
                     saveState(); logEvent('edit_shot', { shot: next }, true);
                 }
-            } else if (type === 'location_change') {
+            }
+        }
+
+        function incrementShot(event) {
+            if (event) event.stopPropagation();
+            state.shot++;
+            state.take = 0;
+            ui.shotLabel.textContent = state.shot;
+            ui.takeLabel.textContent = 0;
+            saveState();
+            logEvent('auto_increment_shot', { shot: state.shot }, true);
+            tg.HapticFeedback.impactOccurred('light');
+        }
+
+        function showOptionModal(type) {
+            if (type === 'location_change') {
                 const loc = prompt("Новая локация (Объект):", state.location);
                 if (loc) {
                     state.location = loc; ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
@@ -1427,9 +1460,6 @@
                         toggleBtn('loc_move', 'ПЕРЕЕЗД', 'ПЕРЕЕЗД');
                     }
                 }
-            } else if (type === 'actor_checkin') {
-                const name = prompt("Имя актера:");
-                if (name) logEvent('actor_arrival', { name }, true);
             } else if (type === 'note') {
                 const txt = prompt("Заметка / Комментарий:");
                 if (txt) logEvent('note', { text: txt }, true);
@@ -1437,7 +1467,7 @@
         }
 
         document.getElementById('btnFinalWrap').onclick = () => {
-            showConfirm("ЗАВЕРШИТЬ СМЕНУ?", "Точно ничего не забыли? Это остановит все таймеры и отправит отчет.", () => finishShift());
+            showConfirm("ЗАВЕРШИТЬ СМЕНУ?", "Точно ничего не забыли? Все таймеры остановятся.", () => finishShift());
         };
 
         async function finishShift() {
