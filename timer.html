@@ -502,8 +502,8 @@
                             class="btn-label">Едем</span><span class="btn-val">TRAVEL TO LOC</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div id="btn_onsite" class="btn" onclick="toggleBtn('onsite', 'РАЗВЕРТ.', 'НА МЕСТЕ')"><span
-                            class="btn-label">На месте</span><span class="btn-val">ON SITE</span>
+                    <div id="btn_onsite" class="btn" onclick="showCrewChecklist()"><span class="btn-label">На
+                            месте</span><span class="btn-val">ON SITE</span>
                         <div class="btn-timer">00:00</div>
                     </div>
                 </div>
@@ -752,6 +752,8 @@
             take: parseInt(pGet('take')) || 0,
             isMotor: false,
             project: { id: PID, name: '...' },
+            shootCrew: [],
+            arrivedCrew: JSON.parse(pGet('arrived_crew') || '[]'),
             activeTimers: JSON.parse(pGet('active_timers') || '{}')
         };
 
@@ -834,12 +836,88 @@
             }
         }
 
-        function selectShoot(shoot) {
+        async function selectShoot(shoot) {
             state.shootId = shoot.id;
             state.location = shoot.location;
+            state.shootCrew = (shoot.crew || '').split(',').map(s => s.trim()).filter(s => s);
             ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
             saveState();
             startSequence();
+        }
+
+        async function showCrewChecklist() {
+            if (!state.shiftId) return;
+            if (!state.shootCrew.length && state.shootId && state.shootId !== 'manual') {
+                const { data } = await sb.from('shoots').select('crew').eq('id', state.shootId).single();
+                if (data) state.shootCrew = (data.crew || '').split(',').map(s => s.trim()).filter(s => s);
+            }
+
+            if (!state.shootCrew.length) {
+                // Fallback to manual phase toggle if no crew list
+                if (!state.activeTimers['onsite']) toggleBtn('onsite', 'РАЗВЕРТ.', 'НА МЕСТЕ');
+                else alert("Список группы пуст.");
+                return;
+            }
+
+            const options = state.shootCrew.map(name => ({
+                l: name,
+                v: name,
+                selected: state.arrivedCrew.includes(name)
+            }));
+
+            showChecklistModal("КТО НА МЕСТЕ?", "Отметьте прибывших участников группы:", options, (selected) => {
+                const now = new Date().toISOString();
+                let newlyArrived = [];
+                selected.forEach(name => {
+                    if (!state.arrivedCrew.includes(name)) {
+                        state.arrivedCrew.push(name);
+                        newlyArrived.push(name);
+                        // Log event for each individual
+                        logEvent('crew_arrival', { name: name });
+                    }
+                });
+
+                if (newlyArrived.length > 0) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                    flashStatusBar();
+                }
+
+                // If this is the first check-in, also start the 'onsite' phase timer if not active
+                if (!state.activeTimers['onsite']) {
+                    toggleBtn('onsite', 'РАЗВЕРТ.', 'НА МЕСТЕ');
+                }
+
+                saveState();
+            });
+        }
+
+        function showChecklistModal(title, desc, options, onConfirm) {
+            ui.modalTitle.textContent = title; ui.modalDesc.textContent = desc;
+            ui.modalOptions.innerHTML = ''; ui.modalOptions.classList.remove('hidden');
+            ui.modalButtons.classList.remove('hidden');
+            ui.modal.style.display = 'flex';
+
+            const checkboxes = [];
+            options.forEach(o => {
+                const div = document.createElement('div');
+                div.className = 'opt-item';
+                div.style.display = 'flex';
+                div.style.justifyContent = 'space-between';
+                div.style.alignItems = 'center';
+                div.innerHTML = `<span>${o.l}</span><input type="checkbox" style="width:20px;height:20px" ${o.selected ? 'checked disabled' : ''}>`;
+
+                const cb = div.querySelector('input');
+                div.onclick = () => { if (!o.selected) cb.checked = !cb.checked; };
+                ui.modalOptions.appendChild(div);
+                checkboxes.push({ v: o.v, cb: cb, already: o.selected });
+            });
+
+            document.getElementById('btnModalConfirm').onclick = () => {
+                ui.modal.style.display = 'none';
+                const selected = checkboxes.filter(c => c.cb.checked && !c.already).map(c => c.v);
+                onConfirm(selected);
+            };
+            document.getElementById('btnModalCancel').onclick = () => { ui.modal.style.display = 'none'; };
         }
 
         function startManualShift() {
@@ -847,6 +925,7 @@
             if (loc) {
                 state.location = loc;
                 state.shootId = 'manual';
+                state.shootCrew = []; // No predefined crew for manual
                 ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
                 saveState();
                 startSequence();
@@ -870,6 +949,7 @@
             pSet('phase', state.phase);
             pSet('phase_start', state.phaseStartTime || '');
             pSet('phase_label', ui.phaseLabel.textContent);
+            pSet('arrived_crew', JSON.stringify(state.arrivedCrew));
             pSet('active_timers', JSON.stringify(state.activeTimers));
         }
 

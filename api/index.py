@@ -564,7 +564,19 @@ def generate_timer_report():
                         })
             pd.DataFrame(prep_data).to_excel(writer, sheet_name='Подготовка', index=False)
 
-            # Sheet 4: Summary (Totals)
+            # Sheet 4: Arrivals (Crew & Actors)
+            arrivals = []
+            arrival_logs = df_logs[df_logs['event_type'].isin(['crew_arrival', 'actor_arrival', 'client_arrival'])]
+            for _, row in arrival_logs.iterrows():
+                d = row['data'] or {}
+                arrivals.append({
+                    'Время': row['time'].strftime('%H:%M:%S'),
+                    'Имя / Тип': d.get('name', row['event_type'].replace('_arrival', '').upper()),
+                    'Смена': d.get('loc', '-')
+                })
+            pd.DataFrame(arrivals).to_excel(writer, sheet_name='Прибытие', index=False)
+
+            # Sheet 5: Summary (Totals)
             start_t = pd.to_datetime(shift['start_time']).tz_convert('Asia/Almaty')
             end_t = pd.to_datetime(shift['end_time']).tz_convert('Asia/Almaty') if shift.get('end_time') else df_logs['time'].max()
             duration = end_t - start_t
