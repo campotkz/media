@@ -547,18 +547,48 @@
             font-family: 'Orbitron', sans-serif;
             font-size: 11px;
             color: var(--accent-yellow);
-            min-width: 45px;
+            min-width: 85px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .sch-time span {
+            color: var(--text-dim);
+            font-size: 9px;
+            font-family: 'Inter', sans-serif;
         }
 
         .sch-text {
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sch-task {
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
+        }
+
+        .sch-meta {
+            font-size: 11px;
+            color: var(--text-dim);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .sch-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .sch-handle {
             color: var(--text-dim);
             font-size: 16px;
+            padding: 5px;
         }
 
         .sch-check {
@@ -613,277 +643,278 @@
             <p id="finishDesc"
                 style="font-size: 15px; color: var(--text-dim); margin: 12px 0 20px; max-width: 260px; line-height: 1.5;">
                 Все таймеры остановлены. Отчет сформирован и отправлен в Telegram канал проекта.</p>
-            <button id="btnFinishAction" class="btn c-green" style="width: 200px; padding: 18px 0;"
-                onclick="saveReportLink()">СОХРАНИТЬ ССЫЛКУ</button>
+            <button id="btnStartShift" class="btn btn-primary" style="font-size: 16px; padding: 15px;"
+                onclick="doStart()">СТАРТ СМЕНЫ</button>
+            <button class="btn btn-secondary btn-sm" style="margin-top: 15px; opacity: 0.8;" onclick="exitApp()">✕
+                ОТМЕНА (ЗАКРЫТЬ)</button>
         </div>
+    </div>
 
-        <!-- HEADER -->
-        <div class="header">
-            <div
-                style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
-                <button class="btn-sm c-blue" onclick="toggleDrawer()">📋 ПЛАН</button>
-                <span class="project-tag" id="elProjName">PROJECT_NAME</span>
-                <button class="btn-sm" style="opacity:0; pointer-events:none">X</button>
-            </div>
-            <div id="elShiftTimer" class="main-timer">00:00:00</div>
-            <div id="elLocation" class="location-tag">📍 <span id="valLocation">ЛОКАЦИЯ: КВАРТИРА</span> ⚙️</div>
+    <!-- HEADER -->
+    <div class="header">
+        <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+            <button class="btn-sm c-blue" onclick="toggleDrawer()">📋 ПЛАН</button>
+            <span class="project-tag" id="elProjName">PROJECT_NAME</span>
+            <button class="btn-sm" style="opacity:0; pointer-events:none">X</button>
         </div>
+        <div id="elShiftTimer" class="main-timer">00:00:00</div>
+        <div id="elLocation" class="location-tag">📍 <span id="valLocation">ЛОКАЦИЯ: КВАРТИРА</span> ⚙️</div>
+    </div>
 
-        <!-- PLAN DRAWER -->
-        <div id="planDrawer" class="drawer">
-            <div class="drawer-header">
-                <div class="drawer-title">ПЛАН-ТАЙМИНГ СМЕНЫ</div>
-                <button class="btn-sm c-red" onclick="toggleDrawer()">ЗАКРЫТЬ ✕</button>
-            </div>
-            <div id="drawerContent" class="drawer-content">
-                <!-- Items here -->
-            </div>
+    <!-- PLAN DRAWER -->
+    <div id="planDrawer" class="drawer">
+        <div class="drawer-header">
+            <div class="drawer-title">ПЛАН-ТАЙМИНГ СМЕНЫ</div>
+            <button class="btn-sm c-red" onclick="toggleDrawer()">ЗАКРЫТЬ ✕</button>
         </div>
-
-        <!-- STATUS -->
-        <div class="status-bar">
-            <div class="status-info">
-                <div id="elStatusDot" class="dot active"></div>
-                <span id="elPhaseLabel">ОЖИДАНИЕ</span>
-            </div>
-            <div id="elPhaseTimer" class="phase-timer">00:00</div>
+        <div id="drawerContent" class="drawer-content">
+            <!-- Items here -->
         </div>
+    </div>
 
-        <!-- CONTROLS -->
-        <div id="controls" class="controls">
-            <!-- 1. ГЛОБАЛЬНЫЕ -->
-            <div class="section">
-                <div class="section-header">ГЛОБАЛЬНЫЕ / ТАЙМИНГ</div>
-                <div class="grid">
-                    <div id="btn_travel" class="btn" onclick="toggleBtn('travel', 'ДВИЖЕНИЕ', 'ДВИЖЕНИЕ')"><span
-                            class="btn-label">Едем</span><span class="btn-val">TRAVEL TO LOC</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_onsite" class="btn" onclick="toggleBtn('onsite', 'РАЗВЕРТ.', 'НА МЕСТЕ')"><span
-                            class="btn-label">Развертывание</span><span class="btn-val">DEPLOYMENT</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <!-- NEW RELOCATION BLOCK -->
-                    <div id="btn_loc_move" class="btn c-blue" onclick="toggleBtn('loc_move', 'ПЕРЕЕЗД', 'ПЕРЕЕЗД')">
-                        <span class="btn-label">Время переезда</span><span class="btn-val">ПЕРЕЕЗД</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_loc_select" class="btn c-blue" onclick="showOptionModal('location_change')">
-                        <span class="btn-label">Куда</span><span class="btn-val">ВЫБОР ОБЪЕКТА</span>
-                    </div>
-                </div>
-            </div>
+    <!-- STATUS -->
+    <div class="status-bar">
+        <div class="status-info">
+            <div id="elStatusDot" class="dot active"></div>
+            <span id="elPhaseLabel">ОЖИДАНИЕ</span>
+        </div>
+        <div id="elPhaseTimer" class="phase-timer">00:00</div>
+    </div>
 
-            <!-- 2. ПРИБЫТИЕ -->
-            <div class="section">
-                <div class="section-header">ПРИБЫТИЕ (CHECK-IN)</div>
-                <div class="grid">
-                    <div class="btn" onclick="showChecklist('crew')"><span class="btn-label">Группа</span><span
-                            class="btn-val">CREW ARRIVAL</span></div>
-                    <div class="btn" onclick="showChecklist('client')"><span class="btn-label">Заказчик</span><span
-                            class="btn-val">CLIENT / AGENCY</span></div>
-                    <div class="btn" style="grid-column: span 2" onclick="showChecklist('actor')"><span
-                            class="btn-label">Актеры</span><span class="btn-val">ACTOR CHECK-IN / OUT</span></div>
+    <!-- CONTROLS -->
+    <div id="controls" class="controls">
+        <!-- 1. ГЛОБАЛЬНЫЕ -->
+        <div class="section">
+            <div class="section-header">ГЛОБАЛЬНЫЕ / ТАЙМИНГ</div>
+            <div class="grid">
+                <div id="btn_travel" class="btn" onclick="toggleBtn('travel', 'ДВИЖЕНИЕ', 'ДВИЖЕНИЕ')"><span
+                        class="btn-label">Едем</span><span class="btn-val">TRAVEL TO LOC</span>
+                    <div class="btn-timer">00:00</div>
                 </div>
-            </div>
-
-            <!-- 3. ПОДГОТОВКА АКТЕРОВ -->
-            <div class="section">
-                <div class="section-header">ПОДГОТОВКА АКТЕРОВ</div>
-                <div class="grid">
-                    <div id="btn_makeup" class="btn c-blue" data-prep="makeup"><span
-                            class="btn-label">Начало/Конец</span><span class="btn-val">ГРИМ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_wardrobe" class="btn c-blue" data-prep="wardrobe"><span
-                            class="btn-label">Начало/Конец</span><span class="btn-val">КОСТЮМ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_sound" class="btn c-blue" data-prep="sound"><span
-                            class="btn-label">Установка</span><span class="btn-val">ОПЕТЛИЧИВАНИЕ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div class="btn c-green" onclick="showReadyChecklist()"><span class="btn-label">Финальный
-                            статус</span><span class="btn-val">АКТЕР ГОТОВ</span></div>
+                <div id="btn_onsite" class="btn" onclick="toggleBtn('onsite', 'РАЗВЕРТ.', 'НА МЕСТЕ')"><span
+                        class="btn-label">Развертывание</span><span class="btn-val">DEPLOYMENT</span>
+                    <div class="btn-timer">00:00</div>
                 </div>
-            </div>
-
-            <!-- 4. ТЕХНИЧЕСКАЯ ПОДГОТОВКА -->
-            <div class="section">
-                <div class="section-header">ТЕХНИЧЕСКАЯ ПОДГОТОВКА</div>
-                <div class="grid">
-                    <div id="btn_light" class="btn c-yellow" data-prep="light"><span
-                            class="btn-label">Начало/Конец</span><span class="btn-val">СВЕТ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_camera" class="btn c-yellow" data-prep="camera"><span
-                            class="btn-label">Начало/Конец</span><span class="btn-val">КАМЕРА</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_art" class="btn c-yellow" data-prep="art"><span
-                            class="btn-label">Начало/Конец</span><span class="btn-val">ХУДОЖКА</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_props" class="btn c-yellow" data-prep="props"><span
-                            class="btn-label">Реквизит</span><span class="btn-val">РЕКВИЗИТ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_sfx" class="btn c-orange" data-prep="sfx"><span
-                            class="btn-label">Спецэффекты</span><span class="btn-val">ПИРОТЕХНИКА</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_stunts" class="btn c-orange" data-prep="stunts"><span
-                            class="btn-label">Каскадеры</span><span class="btn-val">КАСКАДЕРЫ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
+                <!-- NEW RELOCATION BLOCK -->
+                <div id="btn_loc_move" class="btn c-blue" onclick="toggleBtn('loc_move', 'ПЕРЕЕЗД', 'ПЕРЕЕЗД')">
+                    <span class="btn-label">Время переезда</span><span class="btn-val">ПЕРЕЕЗД</span>
+                    <div class="btn-timer">00:00</div>
                 </div>
-            </div>
-
-            <!-- 5. РЕПЕТИЦИИ И СЪЕМКА -->
-            <div class="section">
-                <div class="section-header">РЕПЕТИЦИИ И СЪЕМКА</div>
-                <div class="grid">
-                    <div id="btn_blocking" class="btn c-green"
-                        onclick="toggleBtn('blocking', 'БЛОКИРОВКА', 'МИЗАНСЦЕНА')"><span
-                            class="btn-label">Мизансцена</span><span class="btn-val">БЛОКИРОВКА</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_rehearsal" class="btn c-green" onclick="toggleBtn('rehearsal', 'РЕПЕТИЦИЯ', 'ПРОГОН')">
-                        <span class="btn-label">Без камеры</span><span class="btn-val">РЕПЕТИЦИЯ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_dress_reh" class="btn c-green"
-                        onclick="toggleBtn('dress_reh', 'ГЕН. РЕПЕТИЦИЯ', 'ГЕНЕРАЛЬНАЯ')"><span class="btn-label">В
-                            костюмах</span><span class="btn-val">ГЕН. РЕПЕТИЦИЯ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_shoot_reh" class="btn c-red"
-                        onclick="toggleBtn('shoot_reh', 'СЪЕМКА РЕПЕТИЦИИ', 'СЪЕМКА РЕПЕТИЦИИ')"><span
-                            class="btn-label">С камерой</span><span class="btn-val">СЪЕМКА РЕПЕТИЦИИ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_series" class="btn c-red" style="grid-column: span 2"
-                        onclick="toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ')">
-                        <span class="btn-label">Много дублей</span><span class="btn-val">СЕРИЯ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
+                <div id="btn_loc_select" class="btn c-blue" onclick="showOptionModal('location_change')">
+                    <span class="btn-label">Куда</span><span class="btn-val">ВЫБОР ОБЪЕКТА</span>
                 </div>
-            </div>
-
-            <!-- 6. ЛОГИСТИКА -->
-            <div class="section">
-                <div class="section-header">ЛОГИСТИКА И ПЕРЕРЫВЫ</div>
-                <div class="grid">
-                    <div id="btn_lunch" class="btn c-blue" onclick="toggleBtn('lunch', 'ОБЕД', 'ПЕРЕРЫВ ПИТАНИЕ')"><span
-                            class="btn-label">Обед</span><span class="btn-val">ОБЕД / LUNCH</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_tech_break" class="btn c-blue"
-                        onclick="toggleBtn('tech_break', 'ТЕХ. ПЕРЕРЫВ', 'ТЕХ. ПЕРЕРЫВ')"><span
-                            class="btn-label">Перерыв</span><span class="btn-val">ТЕХ. ПЕРЕРЫВ</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_current_lunch" class="btn c-blue"
-                        onclick="toggleBtn('current_lunch', 'ОБЕД', 'ОБЕД ИДЕТ')">
-                        <span class="btn-label">Статус</span><span class="btn-val">ТЕКУЩИЙ ОБЕД</span>
-                    </div>
-                    <div class="btn c-blue" onclick="logEvent('catering_arrival', {}, true)"><span
-                            class="btn-label">Горячее</span><span class="btn-val">БУФЕТ ПРИЕХАЛ</span></div>
-                </div>
-            </div>
-
-            <!-- 7. ЗАДЕРЖКИ -->
-            <div class="section">
-                <div class="section-header">ЗАДЕРЖКИ (DELAYS)</div>
-                <div class="grid">
-                    <div id="btn_delay_tech" class="btn c-orange" onclick="toggleDelay('tech')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">TECH</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_delay_crew" class="btn c-orange" onclick="toggleDelay('crew')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">CREW</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_delay_actor" class="btn c-orange" onclick="toggleDelay('actor')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">ACTOR</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_delay_client" class="btn c-orange" onclick="toggleDelay('client')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">CLIENT</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_delay_weather" class="btn c-orange" onclick="toggleDelay('weather')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">WEATHER</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_delay_noise" class="btn c-orange" onclick="toggleDelay('noise')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">NOISE</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 8. ДОПОЛНИТЕЛЬНО -->
-            <div class="section">
-                <div class="section-header">ДОПОЛНИТЕЛЬНО</div>
-                <div class="grid">
-                    <div id="btn_dit" class="btn" onclick="toggleBtn('dit', 'BACKUP', 'СЛИВ МАТЕРИАЛА')"><span
-                            class="btn-label">DIT</span><span class="btn-val">BACKUP</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_bts" class="btn" onclick="toggleBtn('bts', 'MARKETING', 'БЕКСТЕЙДЖ / BTS')"><span
-                            class="btn-label">Маркетинг</span><span class="btn-val">BTS / PHOTO</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div id="btn_police" class="btn" onclick="toggleBtn('police', 'POLICE', 'ПРОВЕРКА ВЛАСТИ')"><span
-                            class="btn-label">Власть</span><span class="btn-val">POLICE</span>
-                        <div class="btn-timer">00:00</div>
-                    </div>
-                    <div class="btn c-blue" onclick="showOptionModal('note')"><span
-                            class="btn-label">Заметка</span><span class="btn-val">MEMO</span></div>
-                </div>
-            </div>
-
-            <!-- 9. ЗАВЕРШЕНИЕ -->
-            <div class="section">
-                <div class="section-header">ЗАВЕРШЕНИЕ СЪЕМКИ</div>
-                <div class="grid">
-                    <div class="btn c-red" onclick="logEvent('wrap', {}, true)"><span class="btn-label">Финал
-                            съемки</span><span class="btn-val">WRAP (STOP CAM)</span></div>
-                    <div class="btn c-red" onclick="logEvent('last_man_out', {}, true)"><span
-                            class="btn-label">Последний человек</span><span class="btn-val">LAST MAN OUT</span></div>
-                </div>
-                <button id="btnFinalWrap" class="btn c-red"
-                    style="width: 100%; padding: 20px; margin-top: 15px; grid-column: span 2; border-width: 2px;">
-                    <span class="btn-label">ЗАВЕРШИТЬ СМЕНУ</span><span class="btn-val" style="font-size: 18px;">FINISH
-                        SHIFT</span>
-                </button>
             </div>
         </div>
 
-        <!-- FOOTER -->
-        <div class="footer">
-            <div class="stat" onclick="editManual('scene')">
-                <div class="stat-label">СЦЕНА</div>
-                <div id="valScene" class="stat-val">1</div>
-            </div>
-            <div class="stat" style="display: flex; flex-direction: column; align-items: center; flex: 1.2;">
-                <div class="stat-label">КАДР</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span id="valShot" class="stat-val" onclick="editManual('shot')">1</span>
-                    <span class="stat-plus" id="elShotBtn" onclick="incrementShot(event)">+</span>
-                </div>
-            </div>
-            <div id="btnMotor" class="btn c-red btn-motor-main"
-                style="flex: 2.5; height: 64px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0;">
-                <span class="btn-label" style="font-size: 9px; letter-spacing: 1px;">RECORD</span>
-                <span id="motorTitle" class="btn-val" style="font-size: 20px; margin: 0; line-height: 1;">МОТОР</span>
-            </div>
-            <div class="stat" id="elTakeBtn">
-                <div class="stat-label">ДУБЛЬ</div>
-                <div id="valTake" class="stat-val">0</div>
+        <!-- 2. ПРИБЫТИЕ -->
+        <div class="section">
+            <div class="section-header">ПРИБЫТИЕ (CHECK-IN)</div>
+            <div class="grid">
+                <div class="btn" onclick="showChecklist('crew')"><span class="btn-label">Группа</span><span
+                        class="btn-val">CREW ARRIVAL</span></div>
+                <div class="btn" onclick="showChecklist('client')"><span class="btn-label">Заказчик</span><span
+                        class="btn-val">CLIENT / AGENCY</span></div>
+                <div class="btn" style="grid-column: span 2" onclick="showChecklist('actor')"><span
+                        class="btn-label">Актеры</span><span class="btn-val">ACTOR CHECK-IN / OUT</span></div>
             </div>
         </div>
+
+        <!-- 3. ПОДГОТОВКА АКТЕРОВ -->
+        <div class="section">
+            <div class="section-header">ПОДГОТОВКА АКТЕРОВ</div>
+            <div class="grid">
+                <div id="btn_makeup" class="btn c-blue" data-prep="makeup"><span
+                        class="btn-label">Начало/Конец</span><span class="btn-val">ГРИМ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_wardrobe" class="btn c-blue" data-prep="wardrobe"><span
+                        class="btn-label">Начало/Конец</span><span class="btn-val">КОСТЮМ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_sound" class="btn c-blue" data-prep="sound"><span class="btn-label">Установка</span><span
+                        class="btn-val">ОПЕТЛИЧИВАНИЕ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div class="btn c-green" onclick="showReadyChecklist()"><span class="btn-label">Финальный
+                        статус</span><span class="btn-val">АКТЕР ГОТОВ</span></div>
+            </div>
+        </div>
+
+        <!-- 4. ТЕХНИЧЕСКАЯ ПОДГОТОВКА -->
+        <div class="section">
+            <div class="section-header">ТЕХНИЧЕСКАЯ ПОДГОТОВКА</div>
+            <div class="grid">
+                <div id="btn_light" class="btn c-yellow" data-prep="light"><span
+                        class="btn-label">Начало/Конец</span><span class="btn-val">СВЕТ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_camera" class="btn c-yellow" data-prep="camera"><span
+                        class="btn-label">Начало/Конец</span><span class="btn-val">КАМЕРА</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_art" class="btn c-yellow" data-prep="art"><span class="btn-label">Начало/Конец</span><span
+                        class="btn-val">ХУДОЖКА</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_props" class="btn c-yellow" data-prep="props"><span class="btn-label">Реквизит</span><span
+                        class="btn-val">РЕКВИЗИТ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_sfx" class="btn c-orange" data-prep="sfx"><span class="btn-label">Спецэффекты</span><span
+                        class="btn-val">ПИРОТЕХНИКА</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_stunts" class="btn c-orange" data-prep="stunts"><span
+                        class="btn-label">Каскадеры</span><span class="btn-val">КАСКАДЕРЫ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. РЕПЕТИЦИИ И СЪЕМКА -->
+        <div class="section">
+            <div class="section-header">РЕПЕТИЦИИ И СЪЕМКА</div>
+            <div class="grid">
+                <div id="btn_blocking" class="btn c-green" onclick="toggleBtn('blocking', 'БЛОКИРОВКА', 'МИЗАНСЦЕНА')">
+                    <span class="btn-label">Мизансцена</span><span class="btn-val">БЛОКИРОВКА</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_rehearsal" class="btn c-green" onclick="toggleBtn('rehearsal', 'РЕПЕТИЦИЯ', 'ПРОГОН')">
+                    <span class="btn-label">Без камеры</span><span class="btn-val">РЕПЕТИЦИЯ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_dress_reh" class="btn c-green"
+                    onclick="toggleBtn('dress_reh', 'ГЕН. РЕПЕТИЦИЯ', 'ГЕНЕРАЛЬНАЯ')"><span class="btn-label">В
+                        костюмах</span><span class="btn-val">ГЕН. РЕПЕТИЦИЯ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_shoot_reh" class="btn c-red"
+                    onclick="toggleBtn('shoot_reh', 'СЪЕМКА РЕПЕТИЦИИ', 'СЪЕМКА РЕПЕТИЦИИ')"><span class="btn-label">С
+                        камерой</span><span class="btn-val">СЪЕМКА РЕПЕТИЦИИ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_series" class="btn c-red" style="grid-column: span 2"
+                    onclick="toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ')">
+                    <span class="btn-label">Много дублей</span><span class="btn-val">СЕРИЯ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. ЛОГИСТИКА -->
+        <div class="section">
+            <div class="section-header">ЛОГИСТИКА И ПЕРЕРЫВЫ</div>
+            <div class="grid">
+                <div id="btn_lunch" class="btn c-blue" onclick="toggleBtn('lunch', 'ОБЕД', 'ПЕРЕРЫВ ПИТАНИЕ')"><span
+                        class="btn-label">Обед</span><span class="btn-val">ОБЕД / LUNCH</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_tech_break" class="btn c-blue"
+                    onclick="toggleBtn('tech_break', 'ТЕХ. ПЕРЕРЫВ', 'ТЕХ. ПЕРЕРЫВ')"><span
+                        class="btn-label">Перерыв</span><span class="btn-val">ТЕХ. ПЕРЕРЫВ</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_current_lunch" class="btn c-blue"
+                    onclick="toggleBtn('current_lunch', 'ОБЕД', 'ОБЕД ИДЕТ')">
+                    <span class="btn-label">Статус</span><span class="btn-val">ТЕКУЩИЙ ОБЕД</span>
+                </div>
+                <div class="btn c-blue" onclick="logEvent('catering_arrival', {}, true)"><span
+                        class="btn-label">Горячее</span><span class="btn-val">БУФЕТ ПРИЕХАЛ</span></div>
+            </div>
+        </div>
+
+        <!-- 7. ЗАДЕРЖКИ -->
+        <div class="section">
+            <div class="section-header">ЗАДЕРЖКИ (DELAYS)</div>
+            <div class="grid">
+                <div id="btn_delay_tech" class="btn c-orange" onclick="toggleDelay('tech')"><span
+                        class="btn-label">Проблема</span><span class="btn-val">TECH</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_delay_crew" class="btn c-orange" onclick="toggleDelay('crew')"><span
+                        class="btn-label">Проблема</span><span class="btn-val">CREW</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_delay_actor" class="btn c-orange" onclick="toggleDelay('actor')"><span
+                        class="btn-label">Проблема</span><span class="btn-val">ACTOR</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_delay_client" class="btn c-orange" onclick="toggleDelay('client')"><span
+                        class="btn-label">Проблема</span><span class="btn-val">CLIENT</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_delay_weather" class="btn c-orange" onclick="toggleDelay('weather')"><span
+                        class="btn-label">Проблема</span><span class="btn-val">WEATHER</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_delay_noise" class="btn c-orange" onclick="toggleDelay('noise')"><span
+                        class="btn-label">Проблема</span><span class="btn-val">NOISE</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. ДОПОЛНИТЕЛЬНО -->
+        <div class="section">
+            <div class="section-header">ДОПОЛНИТЕЛЬНО</div>
+            <div class="grid">
+                <div id="btn_dit" class="btn" onclick="toggleBtn('dit', 'BACKUP', 'СЛИВ МАТЕРИАЛА')"><span
+                        class="btn-label">DIT</span><span class="btn-val">BACKUP</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_bts" class="btn" onclick="toggleBtn('bts', 'MARKETING', 'БЕКСТЕЙДЖ / BTS')"><span
+                        class="btn-label">Маркетинг</span><span class="btn-val">BTS / PHOTO</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div id="btn_police" class="btn" onclick="toggleBtn('police', 'POLICE', 'ПРОВЕРКА ВЛАСТИ')"><span
+                        class="btn-label">Власть</span><span class="btn-val">POLICE</span>
+                    <div class="btn-timer">00:00</div>
+                </div>
+                <div class="btn c-blue" onclick="showOptionModal('note')"><span class="btn-label">Заметка</span><span
+                        class="btn-val">MEMO</span></div>
+            </div>
+        </div>
+
+        <!-- 9. ЗАВЕРШЕНИЕ -->
+        <div class="section">
+            <div class="section-header">ЗАВЕРШЕНИЕ СЪЕМКИ</div>
+            <div class="grid">
+                <div class="btn c-red" onclick="logEvent('wrap', {}, true)"><span class="btn-label">Финал
+                        съемки</span><span class="btn-val">WRAP (STOP CAM)</span></div>
+                <div class="btn c-red" onclick="logEvent('last_man_out', {}, true)"><span class="btn-label">Последний
+                        человек</span><span class="btn-val">LAST MAN OUT</span></div>
+            </div>
+            <button id="btnFinalWrap" class="btn c-red"
+                style="width: 100%; padding: 20px; margin-top: 15px; grid-column: span 2; border-width: 2px;">
+                <span class="btn-label">ЗАВЕРШИТЬ СМЕНУ</span><span class="btn-val" style="font-size: 18px;">FINISH
+                    SHIFT</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <div class="stat" onclick="editManual('scene')">
+            <div class="stat-label">СЦЕНА</div>
+            <div id="valScene" class="stat-val">1</div>
+        </div>
+        <div class="stat" style="display: flex; flex-direction: column; align-items: center; flex: 1.2;">
+            <div class="stat-label">КАДР</div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="valShot" class="stat-val" onclick="editManual('shot')">1</span>
+                <span class="stat-plus" id="elShotBtn" onclick="incrementShot(event)">+</span>
+            </div>
+        </div>
+        <div id="btnMotor" class="btn c-red btn-motor-main"
+            style="flex: 2.5; height: 64px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0;">
+            <span class="btn-label" style="font-size: 9px; letter-spacing: 1px;">RECORD</span>
+            <span id="motorTitle" class="btn-val" style="font-size: 20px; margin: 0; line-height: 1;">МОТОР</span>
+        </div>
+        <div class="stat" id="elTakeBtn">
+            <div class="stat-label">ДУБЛЬ</div>
+            <div id="valTake" class="stat-val">0</div>
+        </div>
+    </div>
     </div>
 
     <!-- MODAL -->
@@ -1557,6 +1588,24 @@
             const now = new Date().toISOString();
             console.log("Starting shift for project:", state.project.id);
 
+            // Safety check: Avoid duplicate shifts on the same day
+            const todayStr = new Date().toISOString().split('T')[0];
+            try {
+                const { data: existing } = await sb.from('production_shifts')
+                    .select('id, start_time')
+                    .eq('project_id', state.project.id)
+                    .gte('start_time', todayStr + 'T00:00:00Z')
+                    .limit(1);
+
+                if (existing && existing.length > 0) {
+                    if (!confirm("⚠️ ВНИМАНИЕ: На сегодня уже есть запись смены для этого проекта. Вы уверены, что хотите начать НОВУЮ смену?")) {
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn("Collision check failed, proceeding anyway...", e);
+            }
+
             try {
                 // Ensure chat/thread IDs are actual integers or null (avoid bigint errors)
                 const cId = parseInt(state.project.cid);
@@ -1894,8 +1943,17 @@
 
                 div.innerHTML = `
                     <div class="sch-check ${item.done ? 'checked' : ''}" onclick="toggleSchItem(${idx})"></div>
-                    <div class="sch-time">${item.start || ''}</div>
-                    <div class="sch-text">${item.task || item.notes || 'Без названия'}</div>
+                    <div class="sch-time">
+                        ${item.start || ''}
+                        ${item.end ? `<span>до ${item.end}</span>` : ''}
+                    </div>
+                    <div class="sch-text">
+                        <div class="sch-task">${item.task || item.notes || 'Без названия'}</div>
+                        <div class="sch-meta">
+                            ${item.loc ? `<span>📍 ${item.loc}</span>` : ''}
+                            ${item.act ? `<span>🎭 ${item.act}</span>` : ''}
+                        </div>
+                    </div>
                     <div class="sch-handle">☰</div>
                 `;
                 container.appendChild(div);
