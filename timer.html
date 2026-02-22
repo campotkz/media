@@ -1618,6 +1618,15 @@
                 if (res.report_link) {
                     state.lastReportUrl = res.report_link;
                     saveState();
+                    // If the user already opened the finish overlay and is waiting
+                    const btn = document.getElementById('btnFinishAction');
+                    if (btn && btn.textContent.includes('ГЕНЕРАЦИЯ')) {
+                        btn.textContent = 'ПРИВЯЗАТЬ ОТЧЕТ К КАЛЕНДАРЮ';
+                        btn.disabled = false;
+                        btn.classList.add('c-green');
+                    }
+                } else if (res.error) {
+                    console.error('Report error:', res.error);
                 }
             }).catch(e => console.warn('Report API not available:', e));
 
@@ -1627,15 +1636,27 @@
         let isSavingLink = false;
         async function saveReportLink() {
             if (isSavingLink) return;
-            if (!state.shootId || !state.lastReportUrl) {
-                // If no URL yet (API still processing), wait
-                if (!state.lastReportUrl) alert("Отчет еще генерируется... Подождите пару секунд и нажмите снова.");
-                else exitApp(); // No shoot to link to
+            const btn = document.getElementById('btnFinishAction');
+
+            if (!state.lastReportUrl) {
+                btn.textContent = "⏳ ГЕНЕРАЦИЯ ОТЧЕТА...";
+                btn.disabled = true;
+                btn.classList.remove('c-green');
+                // Auto-retry check in 3 seconds
+                setTimeout(() => {
+                    if (!state.lastReportUrl) {
+                        btn.textContent = "ЕЩЕ СЕКУНДУ... (НАЖМИТЕ)";
+                        btn.disabled = false;
+                    } else {
+                        btn.textContent = 'ПРИВЯЗАТЬ ОТЧЕТ К КАЛЕНДАРЮ';
+                        btn.disabled = false;
+                        btn.classList.add('c-green');
+                    }
+                }, 3000);
                 return;
             }
 
             isSavingLink = true;
-            const btn = document.getElementById('btnFinishAction');
             btn.textContent = "СОХРАНЕНИЕ...";
             btn.disabled = true;
 
