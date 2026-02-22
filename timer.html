@@ -300,10 +300,11 @@
         .footer {
             background: #16161a;
             border-top: 1px solid var(--border);
-            padding: 12px 14px;
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr;
-            gap: 10px;
+            padding: 10px 14px 25px;
+            /* Added bottom padding for mobile */
+            display: flex;
+            align-items: center;
+            gap: 12px;
             flex-shrink: 0;
             z-index: 100;
         }
@@ -311,6 +312,7 @@
         .stat {
             text-align: center;
             cursor: pointer;
+            flex: 1;
         }
 
         .stat-label {
@@ -321,9 +323,18 @@
         }
 
         .stat-val {
-            font-size: 16px;
+            font-size: 18px;
+            /* Slightly larger */
             font-weight: 800;
             margin-top: 2px;
+        }
+
+        .stat-plus {
+            font-size: 14px;
+            font-weight: 900;
+            color: var(--accent-blue);
+            margin-left: 2px;
+            padding: 4px;
         }
 
         /* OVERLAY / MODALS */
@@ -593,8 +604,6 @@
             <div class="section">
                 <div class="section-header">РЕПЕТИЦИИ И СЪЕМКА</div>
                 <div class="grid">
-                    <div id="btnMotor" class="btn btn-motor-main c-red"><span class="btn-label">Запись</span><span
-                            id="motorTitle" class="btn-val">МОТОР</span></div>
                     <div id="btn_blocking" class="btn c-green"
                         onclick="toggleBtn('blocking', 'БЛОКИРОВКА', 'МИЗАНСЦЕНА')"><span
                             class="btn-label">Мизансцена</span><span class="btn-val">БЛОКИРОВКА</span>
@@ -609,12 +618,11 @@
                             костюмах</span><span class="btn-val">ГЕН. РЕПЕТИЦИЯ</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div id="btn_series" class="btn c-orange" onclick="toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ')">
+                    <div id="btn_series" class="btn c-orange" style="grid-column: span 2"
+                        onclick="toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ')">
                         <span class="btn-label">Много дублей</span><span class="btn-val">СЕРИЯ</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div class="btn" onclick="showOptionModal('next_scene')"><span
-                            class="btn-label">Сценария</span><span class="btn-val">СЦЕНА + 1</span></div>
                 </div>
             </div>
 
@@ -698,27 +706,36 @@
                             съемки</span><span class="btn-val">WRAP (STOP CAM)</span></div>
                     <div class="btn c-red" onclick="logEvent('last_man_out', {}, true)"><span
                             class="btn-label">Последний человек</span><span class="btn-val">LAST MAN OUT</span></div>
+                    <div id="btnFinalWrap" class="btn c-red"
+                        style="grid-column: span 2; padding: 18px 0; margin-top: 10px;">
+                        <span class="btn-label">ЗАВЕРШИТЬ СМЕНУ</span><span class="btn-val"
+                            style="font-size: 16px;">FINISH SHIFT</span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- FOOTER -->
         <div class="footer">
-            <div class="stat" onclick="showOptionModal('next_scene')">
+            <div class="stat" onclick="showOptionModal('edit_scene')">
                 <div class="stat-label">СЦЕНА</div>
                 <div id="valScene" class="stat-val">1</div>
             </div>
-            <div class="stat" id="elShotBtn">
+            <div class="stat" style="display: flex; flex-direction: column; align-items: center;">
                 <div class="stat-label">КАДР</div>
-                <div id="valShot" class="stat-val">1</div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <span id="valShot" class="stat-val" onclick="showOptionModal('edit_shot')">1</span>
+                    <span class="stat-plus" id="elShotBtn">+</span>
+                </div>
             </div>
             <div class="stat" id="elTakeBtn">
                 <div class="stat-label">ДУБЛЬ</div>
                 <div id="valTake" class="stat-val">0</div>
             </div>
-            <div class="stat" style="color: var(--accent-red)" id="btnFinalWrap">
-                <div class="stat-label">FINISH</div>
-                <div id="btnFinalWrapVal" class="stat-val">СМЕНА</div>
+            <div id="btnMotor" class="btn c-red"
+                style="flex: 2; height: 50px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0;">
+                <span class="btn-label" style="font-size: 8px;">RECORD</span>
+                <span id="motorTitle" class="btn-val" style="font-size: 16px; margin: 0;">МОТОР</span>
             </div>
         </div>
     </div>
@@ -1353,12 +1370,19 @@
         };
 
         function showOptionModal(type) {
-            if (type === 'next_scene') {
-                const next = prompt("Номер новой сцены:", state.scene + 1);
+            if (type === 'next_scene' || type === 'edit_scene') {
+                const next = prompt("Номер сцены:", (type === 'next_scene' ? state.scene + 1 : state.scene));
                 if (next) {
                     state.scene = parseInt(next); state.shot = 1; state.take = 0;
                     ui.sceneLabel.textContent = state.scene; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 0;
-                    saveState(); logEvent('next_scene', {}, true);
+                    saveState(); logEvent('edit_scene', { scene: next }, true);
+                }
+            } else if (type === 'edit_shot') {
+                const next = prompt("Номер кадра:", state.shot);
+                if (next) {
+                    state.shot = parseInt(next); state.take = 0;
+                    ui.shotLabel.textContent = state.shot; ui.takeLabel.textContent = 0;
+                    saveState(); logEvent('edit_shot', { shot: next }, true);
                 }
             } else if (type === 'actor_checkin') {
                 const name = prompt("Имя актера:");
