@@ -1421,6 +1421,7 @@
     let resourcesData = []; // {chat_id, thread_id, url, username}
     let currentMediaContacts = [];
     let currentCastingContacts = [];
+    let projectLocationsData = []; // {project_id, name}
 
     async function fetchAutocompleteData() {
       const { data: cData } = await supabaseClient.from('clients').select('name, thread_id, chat_id, category, is_active, is_hidden');
@@ -1433,6 +1434,8 @@
       if (ctData) contactsData = ctData || [];
       const { data: rData } = await supabaseClient.from('project_resources').select('chat_id, thread_id, url, username');
       if (rData) resourcesData = rData || [];
+      const { data: plData } = await supabaseClient.from('project_locations').select('project_id, name');
+      if (plData) projectLocationsData = plData || [];
       updateDatalists();
     }
 
@@ -1607,18 +1610,23 @@
 
       if (locList) {
         const mainLoc = (document.getElementById('location').value || '').trim();
+        const mainProjName = (document.getElementById('project').value || '').trim();
         const studioRooms = ["Бали", "Экспертный кабинет", "Классический", "Ванная комната", "Кухня", "Кофейня", "Minimalistic", "Циклорама", "Лестница", "Студия Campot"];
 
         let filtered = [];
+        const mainProj = clientsData.find(c => c.name === mainProjName);
+        const pLocs = mainProj ? projectLocationsData.filter(pl => pl.project_id === mainProj.id).map(pl => pl.name) : [];
+
         if (mainLoc === "Студия Campot") {
-          // If Studio Campot - show all rooms
-          filtered = locationsData.filter(l => studioRooms.includes(l.name)).map(l => l.name);
+          // If Studio Campot - show all studio rooms + project-specific ones
+          const studio = locationsData.filter(l => studioRooms.includes(l.name)).map(l => l.name);
+          filtered = [...new Set([...studio, ...pLocs])];
         } else if (mainLoc) {
-          // If specific location - show only that
-          filtered = [mainLoc];
+          // If specific location - show only that + project-specific ones as secondary
+          filtered = [...new Set([mainLoc, ...pLocs])];
         } else {
-          // Default: all locations
-          filtered = locationsData.map(l => l.name);
+          // Default: all locations + project-specific ones
+          filtered = [...new Set([...locationsData.map(l => l.name), ...pLocs])];
         }
 
         // Final fallback to ensure current mainLoc is always there if set

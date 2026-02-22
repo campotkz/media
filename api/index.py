@@ -214,6 +214,40 @@ def handle_timer(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка таймера: {e}")
 
+@bot.message_handler(commands=['loc'])
+def handle_project_location(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
+        
+        if not tid:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика.")
+            return
+
+        loc_name = (message.text or "").replace('/loc', '').strip()
+        if not loc_name:
+            bot.reply_to(message, "📝 Напишите название локации после команды. Пример: `/loc Магазин очков №1`", parse_mode="Markdown")
+            return
+
+        # 1. Ensure project exists and get its ID
+        ensure_project(cid, tid, message.chat.title)
+        p_res = supabase.from_("clients").select("id, name").eq("chat_id", cid).eq("thread_id", tid).execute()
+        
+        if p_res.data:
+            pid = p_res.data[0]['id']
+            pname = p_res.data[0]['name']
+            
+            # 2. Upsert location
+            supabase.table("project_locations").upsert({
+                "project_id": pid, "name": loc_name
+            }, on_conflict="project_id, name").execute()
+            
+            bot.reply_to(message, f"📍 Локация **{loc_name}** сохранена для проекта **{pname}**.\nТеперь она будет доступна в подсказках на сайте.")
+        else:
+            bot.reply_to(message, "❌ Ошибка: Проект не найден.")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка добавления локации: {e}")
+
 @app.route('/api/casting', methods=['POST', 'OPTIONS'])
 def notify_casting():
     if request.method == 'OPTIONS':
