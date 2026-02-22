@@ -1424,7 +1424,7 @@
     let projectLocationsData = []; // {project_id, name}
 
     async function fetchAutocompleteData() {
-      const { data: cData } = await supabaseClient.from('clients').select('name, thread_id, chat_id, category, is_active, is_hidden');
+      const { data: cData } = await supabaseClient.from('clients').select('id, name, thread_id, chat_id, category, is_active, is_hidden');
       if (cData) clientsData = cData;
       const { data: tData } = await supabaseClient.from('team').select('full_name, username, roles, position');
       if (tData) teamData = tData;
