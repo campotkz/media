@@ -725,6 +725,7 @@
 
         let state = {
             shiftId: localStorage.getItem('shift_id'),
+            shootId: localStorage.getItem('shoot_id'),
             startTime: localStorage.getItem('start_time'),
             status: localStorage.getItem('status') || 'inactive',
             phase: localStorage.getItem('phase') || 'IDLE',
@@ -757,7 +758,7 @@
             controls: document.getElementById('controls')
         };
 
-        function initApp() {
+        async function initApp() {
             const params = new URLSearchParams(window.location.search);
             state.project = {
                 id: params.get('pid'),
@@ -775,11 +776,41 @@
             if (state.status === 'active') {
                 ui.overlay.classList.add('hidden');
                 refreshUI();
+            } else {
+                await checkCalendar();
+            }
+        }
+
+        async function checkCalendar() {
+            const today = new Date().toISOString().split('T')[0];
+            const { data, error } = await sb.from('shoots')
+                .select('*')
+                .eq('date', today)
+                .eq('project', state.project.name);
+
+            if (data && data.length > 0) {
+                const options = data.map(s => ({
+                    l: `${s.location} (${s.callTime || '?'})`,
+                    v: s.id,
+                    loc: s.location
+                }));
+                options.push({ l: "➕ НОВАЯ СМЕНА (ВНЕ ПЛАНА)", v: "new" });
+
+                showOptions("ВЫБОР СЪЕМКИ", "На сегодня запланированы съемки. Выберите нужную:", options, (val) => {
+                    if (val !== 'new') {
+                        const shoot = data.find(s => s.id === val);
+                        state.shootId = val;
+                        state.location = shoot.location;
+                        ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
+                        saveState();
+                    }
+                });
             }
         }
 
         function saveState() {
             localStorage.setItem('shift_id', state.shiftId || '');
+            localStorage.setItem('shoot_id', state.shootId || '');
             localStorage.setItem('start_time', state.startTime || '');
             localStorage.setItem('status', state.status);
             localStorage.setItem('location', state.location);
@@ -798,7 +829,7 @@
                 const entry = {
                     shift_id: state.shiftId,
                     event_type: type,
-                    data: { ...data, scene_no: state.scene, shot_no: state.shot, take_no: state.take, loc: state.location }
+                    data: { ...data, scene_no: state.scene, shot_no: state.shot, take_no: state.take, loc: state.location, shoot_id: state.shootId }
                 };
                 sb.from('production_logs').insert(entry).then();
                 tg.HapticFeedback.impactOccurred('light');
@@ -947,9 +978,10 @@
 
         let startStep = 0;
         const startChecks = [
-            { t: "Команда на месте?", d: "Все цеха прибыли и готовы к работе?" },
-            { t: "Тайминг верный?", d: "Текущее время соответствует вызывному?" },
-            { t: "ПОДТВЕРДИТЬ СТАРТ?", d: "Это официально запустит рабочую смену." }
+            { t: "НАЧИНАЕМ СМЕНУ?", d: "Вы готовы запустить таймер?" },
+            { t: "ВСЕ ЦЕХА ГОТОВЫ?", d: "Прибыл ли весь персонал и техника?" },
+            { t: "АКТЕРЫ НА ПЛОЩАДКЕ?", d: "Актеры готовы к началу работы?" },
+            { t: "ЗАПУСТИТЬ ОФИЦИАЛЬНО?", d: "Это действие зафиксирует время начала в отчете." }
         ];
 
         function nextStartStep() {
@@ -963,9 +995,15 @@
 
         async function doStart() {
             const now = new Date().toISOString();
-            const { data } = await sb.from('production_shifts').insert({
-                project_id: state.project.id, chat_id: state.project.cid, thread_id: state.project.tid, start_time: now, status: 'active'
+            const { data, error } = await sb.from('production_shifts').insert({
+                project_id: state.project.id,
+                chat_id: state.project.cid,
+                thread_id: state.project.tid,
+                shoot_id: state.shootId,
+                start_time: now,
+                status: 'active'
             }).select();
+
             if (data && data[0]) {
                 state.shiftId = data[0].id; state.startTime = now; state.status = 'active';
                 state.phaseStartTime = now; ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
