@@ -799,12 +799,12 @@
 
     .timing-row {
       display: grid;
-      grid-template-columns: 30px 65px 65px 120px 120px 120px 120px 1fr 40px;
+      grid-template-columns: 30px 85px 85px 120px 120px 120px 120px 1fr 40px;
       gap: 1px;
       background: var(--stroke);
       border-bottom: 1px solid var(--stroke);
-      min-width: 850px;
-      /* Ensure columns have room */
+      min-width: 890px;
+      /* Adjusted for wider time cells */
     }
 
     .timing-row:last-child {
@@ -848,6 +848,12 @@
       outline: none;
       white-space: nowrap;
       overflow-x: auto;
+    }
+
+    /* Hide native time picker indicator to give more room for text */
+    .timing-cell input[type="time"]::-webkit-calendar-picker-indicator {
+      display: none;
+      -webkit-appearance: none;
     }
 
     .timing-cell select option {
