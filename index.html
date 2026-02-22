@@ -445,9 +445,23 @@
       border: 1px solid rgba(255, 255, 255, .10);
       background: rgba(0, 0, 0, .18);
       color: rgba(255, 255, 255, .78);
-      font-family: var(--font-mono);
+      font-family: var(--font-sans);
+      /* Changed from mono for better stylized look */
       font-size: 12px;
       white-space: pre-wrap;
+    }
+
+    .hl-label {
+      color: #ff6b6b;
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    .hl-time {
+      color: #ff6b6b;
+      font-weight: 700;
+      font-size: 13px;
     }
 
     @media (max-width: 600px) {
@@ -2147,7 +2161,7 @@
       });
 
       listDiv.innerHTML = html;
-      document.getElementById("preview").textContent = buildExportText();
+      document.getElementById("preview").innerHTML = buildExportText(true);
     }
 
     // Helper to edit shoot (since we construct HTML string)
@@ -2183,9 +2197,13 @@
     // ... (rest of helper functions: buildExportText, toggleForm, etc.) ...
 
     // STARTUP
-    function buildExportText() {
+    function buildExportText(isHtml = false) {
       const list = allEvents.filter(e => e.date === toISO(selectedDate));
       if (!list.length) return "Смен нет.";
+
+      const hlL = (txt, html) => html ? `<span class="hl-label">${txt}</span>` : txt;
+      const hlT = (txt, html) => html ? `<span class="hl-time">${txt}</span>` : txt;
+
       let lines = [`🎬 СЪЁМОЧНЫЙ ДЕНЬ — ${niceDate(selectedDate)}`];
       list.forEach((e, i) => {
         const stat = getStatus(e) === 'done' ? '[OK] ' : '';
@@ -2198,37 +2216,47 @@
 
         if (displayAddr.includes(' | ')) {
           const parts = displayAddr.split(' | ');
-          displayAddr = `[${parts[0]}](${parts[1]})`;
+          displayAddr = (parts[0] === studioAddress) ? `[${studioAddress}](${studioLink})` : `[${parts[0]}](${parts[1]})`;
         } else if (displayAddr.includes("Иванилова, 63з") || displayAddr === studioAddress) {
           displayAddr = `[${studioAddress}](${studioLink})`;
         }
 
-        lines.push(`\n— — —\n${stat}🎥 Проект #${i + 1}\nПроект: ${e.project}\nCall: ${e.callTime}\nЛокация: ${displayLoc}\nАдрес: ${displayAddr}\nКоманда: ${e.crew}`);
-        if (e.post_production) lines.push(`Пост/монтаж: ${e.post_production}`);
-        if (e.casting_project || e.actors) lines.push(`Кастинг: ${e.casting_project || '—'} (Актеры: ${e.actors || '—'})`);
+        const shiftTime = `${e.callTime || '--:--'}—${e.wrapTime || '--:--'}`;
+
+        lines.push(`\n— — —\n${stat}🎥 ${hlL(`ПРОЕКТ #${i + 1}`, isHtml)}`);
+        lines.push(`${hlL('ПРОЕКТ:', isHtml)} ${e.project}`);
+        lines.push(`${hlL('СМЕНА:', isHtml)} ${hlT(shiftTime, isHtml)}`);
+        lines.push(`${hlL('ЛОКАЦИЯ:', isHtml)} ${e.location}`);
+        lines.push(`${hlL('АДРЕС:', isHtml)} ${displayAddr}`);
+        lines.push(`${hlL('КОМАНДА:', isHtml)} ${e.crew}`);
+
+        if (e.post_production) lines.push(`${hlL('ПОСТ/МОНТАЖ:', isHtml)} ${e.post_production}`);
+        if (e.casting_project || e.actors) lines.push(`${hlL('КАСТИНГ:', isHtml)} ${e.casting_project || '—'} (Актеры: ${e.actors || '—'})`);
 
         // Format Timing
         if (e.schedule) {
           try {
             const sch = JSON.parse(e.schedule);
             if (Array.isArray(sch) && sch.length > 0) {
-              lines.push(`🕒 Тайминг:`);
+              lines.push(`${hlL('ТАЙМИНГ:', isHtml)}`);
               sch.forEach(row => {
-                const time = row.start ? (row.end ? `${row.start}—${row.end}` : row.start) : '';
+                const timeStr = row.start ? (row.end ? `${row.start}—${row.end}` : row.start) : '';
                 const task = row.task || '';
                 const obj = row.loc ? ` (${row.loc})` : '';
-                if (time || task || obj) lines.push(`  ${time ? time + ' ' : ''}${task}${obj}`);
+                if (timeStr || task || obj) {
+                  lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${task}${obj}`);
+                }
               });
             } else {
-              lines.push(`🕒 План: ${e.schedule}`);
+              lines.push(`${hlL('ПЛАН:', isHtml)} ${e.schedule}`);
             }
           } catch (ex) {
-            lines.push(`🕒 План: ${e.schedule}`);
+            lines.push(`${hlL('ПЛАН:', isHtml)} ${e.schedule}`);
           }
         }
 
-        lines.push(`Заметки: ${e.notes}`);
-        if (e.report_link) lines.push(`📊 Отчет: ${e.report_link}`);
+        lines.push(`${hlL('ЗАМЕТКИ:', isHtml)} ${e.notes}`);
+        if (e.report_link) lines.push(`${hlL('ОТЧЕТ:', isHtml)} ${e.report_link}`);
       });
       return lines.join("\n");
     }
@@ -2270,7 +2298,7 @@
     document.getElementById("nextBtn").onclick = () => moveMonth(1);
     document.getElementById("todayBtn").onclick = () => { selectedDate = new Date(); currentMonth = startMonth(selectedDate); render(); };
     document.getElementById("newBtn").onclick = () => toggleForm();
-    document.getElementById("copyDayBtn").onclick = () => { navigator.clipboard.writeText(buildExportText()); alert("Скопировано!"); };
+    document.getElementById("copyDayBtn").onclick = () => { navigator.clipboard.writeText(buildExportText(false)); alert("Скопировано!"); };
 
     // Init
     document.getElementById("form").style.display = "none";
