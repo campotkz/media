@@ -2168,7 +2168,7 @@
     }
 
     // --- EXCEL LOGIC ---
-    function exportShootToExcel() {
+    function exportShootToExcel(event) {
       const e = {
         project: document.getElementById("project").value,
         location: document.getElementById("location").value,
@@ -2229,7 +2229,7 @@
         exportBtn.innerHTML = "⌛...";
       }
 
-      fetch('/api/send_excel', {
+      fetch('https://media-seven-eta.vercel.app/api/send_excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
