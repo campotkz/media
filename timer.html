@@ -1208,7 +1208,7 @@
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
-        function toggleBtn(id, label, phaseLabel) {
+        function toggleBtn(id, label, phaseLabel, syncMotor = true) {
             const el = document.getElementById('btn_' + id);
             if (state.activeTimers[id]) {
                 const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
@@ -1216,11 +1216,13 @@
                 delete state.activeTimers[id];
                 el.classList.remove('active');
                 setPhase('IDLE', 'ОЖИДАНИЕ');
+                if (syncMotor && (id === 'shoot_reh' || id === 'series')) stopMotor(false);
             } else {
                 state.activeTimers[id] = new Date().toISOString();
                 el.classList.add('active');
                 logEvent(id + '_start');
                 setPhase(id.toUpperCase(), phaseLabel);
+                if (syncMotor && (id === 'shoot_reh' || id === 'series')) startMotor();
             }
             saveState();
         }
@@ -1334,18 +1336,31 @@
             saveState();
         }
 
-        ui.motorBtn.onclick = () => {
-            state.isMotor = !state.isMotor;
-            if (state.isMotor) {
-                state.take++; ui.takeLabel.textContent = state.take;
-                ui.motorBtn.classList.add('active'); ui.motorTitle.textContent = 'СТОП';
-                setPhase('MOTOR', 'СЪЕМКА'); tg.HapticFeedback.impactOccurred('heavy');
-                logEvent('motor');
-            } else {
-                ui.motorBtn.classList.remove('active'); ui.motorTitle.textContent = 'МОТОР';
-                setPhase('CUT', 'ПАУЗА'); logEvent('cut'); showEvaluation();
+        function startMotor() {
+            if (state.isMotor) return;
+            state.isMotor = true;
+            state.take++; ui.takeLabel.textContent = state.take;
+            ui.motorBtn.classList.add('active'); ui.motorTitle.textContent = 'СТОП';
+            setPhase('MOTOR', 'СЪЕМКА'); tg.HapticFeedback.impactOccurred('heavy');
+            logEvent('motor');
+            saveState();
+        }
+
+        function stopMotor(autoStopLinked = true) {
+            if (!state.isMotor) return;
+            state.isMotor = false;
+            ui.motorBtn.classList.remove('active'); ui.motorTitle.textContent = 'МОТОР';
+            setPhase('CUT', 'ПАУЗА'); logEvent('cut'); showEvaluation();
+            if (autoStopLinked) {
+                if (state.activeTimers['shoot_reh']) toggleBtn('shoot_reh', 'СЪЕМКА РЕПЕТИЦИИ', 'СЪЕМКА РЕПЕТИЦИИ', false);
+                if (state.activeTimers['series']) toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ', false);
             }
             saveState();
+        }
+
+        ui.motorBtn.onclick = () => {
+            if (state.isMotor) stopMotor(true);
+            else startMotor();
         };
 
         document.getElementById('elShotBtn').onclick = () => {
