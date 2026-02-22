@@ -502,6 +502,16 @@
             <button id="btnMainStart" class="start-ring hidden">НАЧАТЬ СМЕНУ</button>
         </div>
 
+        <!-- FINISH OVERLAY -->
+        <div id="finishOverlay" class="overlay hidden">
+            <span class="project-tag">ОТЧЕТ ОТПРАВЛЕН В ЧАТ ✅</span>
+            <h1 style="margin: 10px 0 0; font-size: 26px; font-weight: 800;">СМЕНА ЗАВЕРШЕНА</h1>
+            <p
+                style="font-size: 15px; color: var(--text-dim); margin: 12px 0 20px; max-width: 260px; line-height: 1.5;">
+                Все таймеры остановлены. Отчет сформирован и отправлен в Telegram канал проекта.</p>
+            <button class="btn c-red" style="width: 200px; padding: 18px 0;" onclick="exitApp()">ВЫХОД</button>
+        </div>
+
         <!-- HEADER -->
         <div class="header">
             <span class="project-tag" id="elProjName">PROJECT_NAME</span>
@@ -1426,18 +1436,37 @@
         }
 
         document.getElementById('btnFinalWrap').onclick = () => {
-            showConfirm("ЗАВЕРШИТЬ СМЕНУ?", "Это остановит таймер и отправит отчет в чат.", () => finishShift());
+            showConfirm("ЗАВЕРШИТЬ СМЕНУ?", "Точно ничего не забыли? Это остановит все таймеры и отправит отчет.", () => finishShift());
         };
 
         async function finishShift() {
+            // 1. Stop Motor
+            if (state.isMotor) stopMotor(true);
+
+            // 2. Stop all active timers
+            for (let id in state.activeTimers) {
+                const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                logEvent(id + '_end', { duration_m: dur });
+                const el = document.getElementById('btn_' + id) || document.getElementById('btn_delay_' + id);
+                if (el) el.classList.remove('active');
+            }
+            state.activeTimers = {};
+
             const end = new Date().toISOString();
             await sb.from('production_shifts').update({ status: 'finished', end_time: end }).eq('id', state.shiftId);
             await logEvent('shift_finish');
+
             fetch('/api/timer/report', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ shift_id: state.shiftId, chat_id: state.project.cid, thread_id: state.project.tid })
             });
-            localStorage.clear(); tg.close();
+
+            document.getElementById('finishOverlay').classList.remove('hidden');
+        }
+
+        function exitApp() {
+            localStorage.clear();
+            tg.close();
         }
 
         function showConfirm(title, desc, onOk) {
