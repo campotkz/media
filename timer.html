@@ -815,6 +815,8 @@
             pool_crew: JSON.parse(pGet('pool_crew') || '[]'),
             pool_client: JSON.parse(pGet('pool_client') || '[]'),
             pool_actor: JSON.parse(pGet('pool_actor') || '[]'),
+            // Locations from schedule
+            shootLocations: JSON.parse(pGet('shoot_locations') || '[]'),
             // Tracking
             arrived_crew: JSON.parse(pGet('arrived_crew') || '[]'),
             arrived_client: JSON.parse(pGet('arrived_client') || '[]'),
@@ -896,7 +898,16 @@
                     const div = document.createElement('div');
                     div.className = 'opt-item';
                     const isSpecific = s.project.trim().toLowerCase() === state.project.name.trim().toLowerCase();
-                    div.innerHTML = `<small style="display:block; opacity:0.6; font-size:9px">${isSpecific ? 'В ПЛАНЕ ПРОЕКТА' : s.project.toUpperCase()}</small>${s.location} <span style="color:var(--accent-yellow)">${s.callTime || ''}</span>`;
+                    const actorCount = (s.actors || '').split(',').filter(a => a.trim()).length;
+                    const crewCount = (s.crew || '').split(',').filter(a => a.trim()).length;
+                    div.innerHTML = `
+                        <small style="display:block; opacity:0.6; font-size:9px">${isSpecific ? '📋 В ПЛАНЕ ПРОЕКТА' : s.project.toUpperCase()}</small>
+                        <div style="font-size:14px; margin:4px 0">📍 ${s.location}</div>
+                        <div style="display:flex; gap:10px; font-size:11px; opacity:0.7">
+                            <span>🕐 ${s.callTime || '?'}</span>
+                            ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
+                            ${crewCount ? `<span>👥 ${crewCount}</span>` : ''}
+                        </div>`;
                     div.onclick = () => selectShoot(s);
                     container.prepend(div);
                 });
@@ -1110,6 +1121,19 @@
             state.pool_crew = (shoot.crew || '').split(',').map(s => s.trim()).filter(s => s);
             state.pool_client = (shoot.post_production || '').split(',').map(s => s.trim()).filter(s => s);
             state.pool_actor = (shoot.actors || '').split(',').map(s => s.trim()).filter(s => s);
+            // Parse unique locations from schedule (timing rows)
+            state.shootLocations = [shoot.location];
+            try {
+                const sched = typeof shoot.schedule === 'string' ? JSON.parse(shoot.schedule) : shoot.schedule;
+                if (Array.isArray(sched)) {
+                    sched.forEach(row => {
+                        const loc = (row.loc || row.LOC || '').trim();
+                        if (loc && !state.shootLocations.includes(loc)) {
+                            state.shootLocations.push(loc);
+                        }
+                    });
+                }
+            } catch (e) { console.warn('Schedule parse:', e); }
             ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
             saveState();
             startSequence();
@@ -1148,6 +1172,7 @@
             pSet('pool_crew', JSON.stringify(state.pool_crew));
             pSet('pool_client', JSON.stringify(state.pool_client));
             pSet('pool_actor', JSON.stringify(state.pool_actor));
+            pSet('shoot_locations', JSON.stringify(state.shootLocations));
             // Tracking
             pSet('arrived_crew', JSON.stringify(state.arrived_crew));
             pSet('arrived_client', JSON.stringify(state.arrived_client));
@@ -1452,14 +1477,25 @@
 
         function showOptionModal(type) {
             if (type === 'location_change') {
-                const loc = prompt("Новая локация (Объект):", state.location);
-                if (loc) {
-                    state.location = loc; ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
-                    saveState(); logEvent('location_change', { new_loc: loc });
-                    if (!state.activeTimers['travel'] && !state.activeTimers['loc_move']) {
+                const locs = (state.shootLocations || []).filter(l => l && l !== state.location);
+                const options = locs.map(l => ({ l: `📍 ${l}`, v: l }));
+                options.push({ l: '✏️ ВВЕСТИ ВРУЧНУЮ', v: '__custom__' });
+                showOptions('СМЕНА ЛОКАЦИИ', `Текущая: ${state.location}`, options, (val) => {
+                    let newLoc = val;
+                    if (val === '__custom__') {
+                        newLoc = prompt('Новая локация:', '');
+                        if (!newLoc) return;
+                        if (!state.shootLocations.includes(newLoc)) state.shootLocations.push(newLoc);
+                    }
+                    state.location = newLoc;
+                    ui.locationLabel.textContent = `ЛОКАЦИЯ: ${newLoc}`;
+                    saveState(); logEvent('location_change', { new_loc: newLoc });
+                    // Auto-start relocation timer
+                    if (!state.activeTimers['loc_move']) {
                         toggleBtn('loc_move', 'ПЕРЕЕЗД', 'ПЕРЕЕЗД');
                     }
-                }
+                    tg.HapticFeedback.notificationOccurred('success');
+                });
             } else if (type === 'note') {
                 const txt = prompt("Заметка / Комментарий:");
                 if (txt) logEvent('note', { text: txt }, true);
