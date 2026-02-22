@@ -540,7 +540,7 @@ def generate_timer_report():
 
             # Sheet 3: Actor Prep (Analytics)
             prep_data = []
-            prep_types = ['makeup', 'wardrobe', 'sound_rigging']
+            prep_types = ['makeup', 'wardrobe', 'sound']
             for pt in prep_types:
                 starts = df_logs[df_logs['event_type'] == f'{pt}_start']
                 ends = df_logs[df_logs['event_type'] == f'{pt}_end']

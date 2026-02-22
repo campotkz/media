@@ -1175,9 +1175,9 @@
                 const id = el.getAttribute('data-prep');
                 if (state.activeTimers[id]) {
                     const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
-                    const promised = parseInt(localStorage.getItem('promised_' + id));
+                    const promised = parseInt(pGet('promised_' + id) || 0);
                     const delay = Math.max(0, dur - promised);
-                    logEvent(id + '_end', { duration_m: dur, delay_m: delay });
+                    logEvent(id + '_end', { duration_m: dur, promised: promised, delay_m: delay });
                     delete state.activeTimers[id];
                     el.classList.remove('active');
                     setPhase('IDLE', 'ОЖИДАНИЕ');
@@ -1189,7 +1189,7 @@
                         let mins = (val === 'custom') ? prompt("Минут:", "20") : val;
                         if (mins) {
                             state.activeTimers[id] = new Date().toISOString();
-                            localStorage.setItem('promised_' + id, mins);
+                            pSet('promised_' + id, mins);
                             el.classList.add('active');
                             logEvent(id + '_start', { promised: mins });
                             setPhase(id.toUpperCase(), id.toUpperCase());
