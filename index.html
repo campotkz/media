@@ -2317,18 +2317,32 @@
 
     function openTimer() {
       const project = document.getElementById('project').value.trim() || 'Проект';
-      const chatId = tg?.initDataUnsafe?.chat?.id || '';
-      const threadId = tg?.initDataUnsafe?.chat?.thread_id || '';
-      // PID = simple hash of chat_id + thread_id for localStorage namespacing
+
+      // Try to get IDs from URL params (fallback if TG data is hidden)
+      const urlParams = new URL(window.location.href).searchParams;
+      const urlCid = urlParams.get('cid');
+      const urlTid = urlParams.get('tid');
+
+      // Get from Telegram initData
+      const tgCid = tg?.initDataUnsafe?.chat?.id;
+      const tgTid = tg?.initDataUnsafe?.chat?.thread_id;
+
+      const chatId = tgCid || urlCid || '';
+      const threadId = tgTid || urlTid || '';
+
+      // Determine the project-based ID (fallback PID)
+      // If we have a selectedId, we might be able to pull more stable info, 
+      // but for now project name + chat info is our best bet.
       const pid = chatId ? `${chatId}_${threadId || '0'}` : project.replace(/\s/g, '_');
+
       const params = new URLSearchParams({
         pid: pid,
         proj: project,
         cid: String(chatId),
         tid: String(threadId)
       });
+
       const timerUrl = `timer.html?${params.toString()}`;
-      // Open in same window (Telegram WebApp stays open)
       window.location.href = timerUrl;
     }
 
