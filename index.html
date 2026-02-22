@@ -2133,7 +2133,9 @@
             <div class="item ${st}" onclick="editShoot('${e.id}')">
                 <div class="item-content">
                     <b>${e.project || "Без названия"}</b><br>
-                    <small>🎥 ${e.callTime || "--:--"} • ${e.location || ""}</small>
+                    <small>🎥 ${e.callTime || "--:--"}—${e.wrapTime || "--:--"} • ${e.location || ""}</small><br>
+                    ${e.crew ? `<small style="opacity:0.7">👥 ${e.crew}</small><br>` : ''}
+                    ${e.post_production ? `<small style="color:var(--accent)">✂️ ${e.post_production}</small>` : ''}
                 </div>
                 <div class="item-actions">${buttons}</div>
             </div>
