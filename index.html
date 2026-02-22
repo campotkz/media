@@ -722,6 +722,7 @@
   </datalist>
   <datalist id="locationOptions"></datalist>
   <datalist id="actorOptions"></datalist>
+  <datalist id="linkOptions"></datalist>
 
 
   <div class="wrap">
@@ -1236,6 +1237,7 @@
     let teamData = [];    // {full_name, username, roles, position}
     let locationsData = [];
     let contactsData = []; // {name, phone, thread_id, chat_id, category}
+    let resourcesData = []; // {chat_id, thread_id, url, username}
     let currentMediaContacts = [];
     let currentCastingContacts = [];
 
@@ -1248,6 +1250,8 @@
       if (lData) locationsData = lData;
       const { data: ctData } = await supabaseClient.from('contacts').select('name, phone, thread_id, chat_id, category');
       if (ctData) contactsData = ctData || [];
+      const { data: rData } = await supabaseClient.from('project_resources').select('chat_id, thread_id, url, username');
+      if (rData) resourcesData = rData || [];
       updateDatalists();
     }
 
@@ -1271,7 +1275,7 @@
         div.onclick = () => {
           projInput.value = c.name;
           projDropdown.style.display = 'none';
-          updateContactPool();
+          updateDatalists();
         };
         projDropdown.appendChild(div);
       });
@@ -1297,7 +1301,7 @@
         div.onclick = () => {
           castInput.value = c.name;
           castDropdown.style.display = 'none';
-          updateContactPool();
+          updateDatalists();
         };
         castDropdown.appendChild(div);
       });
@@ -1415,6 +1419,8 @@
     function updateDatalists() {
       const locList = document.getElementById('locationOptions');
       const actList = document.getElementById('actorOptions');
+      const linkList = document.getElementById('linkOptions');
+
       if (locList) {
         locList.innerHTML = locationsData.map(l => `<option value="${l.name}">${l.name}</option>`).join('');
       }
@@ -1423,6 +1429,15 @@
         const actors = teamData.filter(t => t.roles && t.roles.includes('actor'));
         const pool = [...actors, ...currentCastingContacts.map(c => ({ full_name: c.name }))];
         actList.innerHTML = pool.map(a => `<option value="${a.full_name}">${a.full_name}</option>`).join('');
+      }
+      if (linkList) {
+        const mProj = clientsData.find(c => c.name === f.project.value.trim());
+        if (mProj) {
+          const links = resourcesData.filter(r => String(r.chat_id) === String(mProj.chat_id) && String(r.thread_id) === String(mProj.thread_id));
+          linkList.innerHTML = links.map(l => `<option value="${l.url}">${l.username}: ${l.url}</option>`).join('');
+        } else {
+          linkList.innerHTML = '';
+        }
       }
     }
 
@@ -1687,7 +1702,7 @@
         <div class="timing-cell"><input type="text" class="t-task" value="${data.task || ''}" list="taskOptions" placeholder="..."></div>
         <div class="timing-cell"><input type="text" class="t-act" value="${data.act || ''}" list="actorOptions" placeholder="..."></div>
         <div class="timing-cell"><input type="text" class="t-notes" value="${data.notes || ''}" placeholder="..."></div>
-        <div class="timing-cell"><input type="url" class="t-link" value="${data.link || ''}" placeholder="URL..."></div>
+        <div class="timing-cell"><input type="url" class="t-link" value="${data.link || ''}" list="linkOptions" placeholder="URL..."></div>
         <div class="timing-cell"><span class="timing-remove" onclick="this.closest('.timing-row').remove()">×</span></div>
       `;
       container.appendChild(row);

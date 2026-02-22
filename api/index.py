@@ -899,6 +899,17 @@ def handle_text(message):
                     except Exception as ex:
                         bot.reply_to(message, f"❌ Ошибка: {ex}"); return
 
+        # 1.4 Link Detection
+        urls = re.findall(r'(https?://[^\s]+)', content)
+        if urls and tid:
+            for url in urls:
+                try:
+                    supabase.table("project_resources").upsert({
+                        "chat_id": cid, "thread_id": tid, "url": url, 
+                        "username": user.username or user.first_name
+                    }, on_conflict="chat_id,thread_id,url").execute()
+                except Exception as ex: print(f"Link capture err: {ex}")
+
         # 2. Discovery (Topics Only)
         if tid and content and not is_cmd:
             cat, is_new = ensure_project(cid, tid, message.chat.title, content, message=message)
