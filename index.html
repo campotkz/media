@@ -2243,8 +2243,9 @@
                 const timeStr = row.start ? (row.end ? `${row.start}—${row.end}` : row.start) : '';
                 const task = row.task || '';
                 const obj = row.loc ? ` (${row.loc})` : '';
-                if (timeStr || task || obj) {
-                  lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${task}${obj}`);
+                const acts = row.act ? ` — 👤 ${row.act}` : '';
+                if (timeStr || task || obj || row.act) {
+                  lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${task}${obj}${acts}`);
                 }
               });
             } else {
