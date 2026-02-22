@@ -549,7 +549,7 @@
                             class="btn-label">Начало/Конец</span><span class="btn-val">КОСТЮМ</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div id="btn_sound" class="btn c-blue" data-prep="sound_rigging"><span
+                    <div id="btn_sound" class="btn c-blue" data-prep="sound"><span
                             class="btn-label">Установка</span><span class="btn-val">ОПЕТЛИЧИВАНИЕ</span>
                         <div class="btn-timer">00:00</div>
                     </div>
@@ -562,28 +562,28 @@
             <div class="section">
                 <div class="section-header">ТЕХНИЧЕСКАЯ ПОДГОТОВКА</div>
                 <div class="grid">
-                    <div id="btn_light_set" class="btn c-yellow"
-                        onclick="toggleBtn('light_set', 'ВЫСТ. СВЕТА', 'СВЕТ СТАРТ')"><span
-                            class="btn-label">Первичный</span><span class="btn-val">ВЫСТ. СВЕТА</span>
+                    <div id="btn_light" class="btn c-yellow" data-prep="light"><span
+                            class="btn-label">Начало/Конец</span><span class="btn-val">СВЕТ</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div id="btn_light_adj" class="btn c-yellow"
-                        onclick="toggleBtn('light_adj', 'ПЕРЕСТ. СВЕТА', 'ПРАВКИ СВЕТА')"><span
-                            class="btn-label">Правки</span><span class="btn-val">ПЕРЕСТ. СВЕТА</span>
+                    <div id="btn_camera" class="btn c-yellow" data-prep="camera"><span
+                            class="btn-label">Начало/Конец</span><span class="btn-val">КАМЕРА</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div id="btn_cam_prep" class="btn c-yellow"
-                        onclick="toggleBtn('cam_prep', 'КАМЕРА ПРЕД', 'ТЕХНИКА')"><span class="btn-label">Кран /
-                            Оптика</span><span class="btn-val">КАМЕРА ПРЕД</span>
+                    <div id="btn_art" class="btn c-yellow" data-prep="art"><span
+                            class="btn-label">Начало/Конец</span><span class="btn-val">ХУДОЖКА</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div id="btn_art_dept" class="btn c-yellow" onclick="toggleBtn('art_dept', 'ХУДОЖНИКИ', 'АРТ-ЦЕХ')">
-                        <span class="btn-label">Реквизит</span><span class="btn-val">ХУДОЖНИКИ</span>
+                    <div id="btn_props" class="btn c-yellow" data-prep="props"><span
+                            class="btn-label">Реквизит</span><span class="btn-val">РЕКВИЗИТ</span>
                         <div class="btn-timer">00:00</div>
                     </div>
-                    <div id="btn_sfx" class="btn c-orange" style="grid-column: span 2"
-                        onclick="toggleBtn('sfx', 'СФЕКС / ДЫМ', 'SFX ПРЕД')"><span
-                            class="btn-label">Спецэффекты</span><span class="btn-val">СФЕКС / ДЫМ ПРЕД</span>
+                    <div id="btn_sfx" class="btn c-orange" data-prep="sfx"><span
+                            class="btn-label">Спецэффекты</span><span class="btn-val">ПИРОТЕХНИКА</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_stunts" class="btn c-orange" data-prep="stunts"><span
+                            class="btn-label">Каскадеры</span><span class="btn-val">КАСКАДЕРЫ</span>
                         <div class="btn-timer">00:00</div>
                     </div>
                 </div>
@@ -1100,7 +1100,9 @@
                     const start = new Date(state.activeTimers[id]);
                     const diff = new Date() - start;
 
-                    if (id === 'makeup' || id === 'wardrobe' || id === 'sound') {
+                    const isPrep = el.hasAttribute('data-prep');
+
+                    if (isPrep) {
                         const promised = parseInt(pGet('promised_' + id) || 0) * 60000;
                         const remaining = promised - diff;
                         if (remaining < 0) {
@@ -1112,6 +1114,7 @@
                         }
                     } else {
                         timerEl.textContent = formatTimeShort(diff);
+                        timerEl.style.color = ''; // Reset color
                     }
                 }
             }

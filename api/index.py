@@ -538,12 +538,22 @@ def generate_timer_report():
                 })
             pd.DataFrame(delays).to_excel(writer, sheet_name='Задержки', index=False)
 
-            # Sheet 3: Actor Prep (Analytics)
+            # Sheet 3: Actor & Tech Prep (Analytics)
             prep_data = []
-            prep_types = ['makeup', 'wardrobe', 'sound']
-            for pt in prep_types:
-                starts = df_logs[df_logs['event_type'] == f'{pt}_start']
-                ends = df_logs[df_logs['event_type'] == f'{pt}_end']
+            prep_types = {
+                'makeup': 'ГРИМ',
+                'wardrobe': 'КОСТЮМ',
+                'sound': 'ОПЕТЛИЧИВАНИЕ',
+                'light': 'СВЕТ',
+                'camera': 'КАМЕРА',
+                'art': 'ХУДОЖКА',
+                'props': 'РЕКВИЗИТ',
+                'sfx': 'ПИРОТЕХНИКА',
+                'stunts': 'КАСКАДЕРЫ'
+            }
+            for pt_id, pt_label in prep_types.items():
+                starts = df_logs[df_logs['event_type'] == f'{pt_id}_start']
+                ends = df_logs[df_logs['event_type'] == f'{pt_id}_end']
                 for _, s_row in starts.iterrows():
                     promised = (s_row['data'] or {}).get('promised', '?')
                     e_match = ends[ends['time'] > s_row['time']].head(1)
@@ -552,15 +562,16 @@ def generate_timer_report():
                         actual_min = round((e_row['time'] - s_row['time']).total_seconds() / 60)
                         diff = 0
                         try:
-                            if str(promised).isdigit(): diff = actual_min - int(promised)
+                            if str(promised).isdigit(): 
+                                diff = max(0, actual_min - int(promised)) # Only show positive delay
                         except: pass
                         prep_data.append({
-                            'Сервис': pt.upper(),
+                            'Сервис': pt_label,
                             'Старт': s_row['time'].strftime('%H:%M'),
                             'Финиш': e_row['time'].strftime('%H:%M'),
                             'План (мин)': promised,
                             'Факт (мин)': actual_min,
-                            'Отклонение': diff
+                            'Задержка (мин)': diff
                         })
             pd.DataFrame(prep_data).to_excel(writer, sheet_name='Подготовка', index=False)
 
