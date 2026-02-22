@@ -864,42 +864,14 @@
             const arrivedKey = 'arrived_' + type;
             const departedKey = 'departed_' + type;
 
-            let pool = state[poolKey];
-            let arrived = state[arrivedKey];
-
+            const pool = state[poolKey];
             const titleMap = { crew: 'ГРУППА', client: 'ЗАКАЗЧИК', actor: 'АКТЕРЫ' };
             const title = titleMap[type] || 'СПИСОК';
 
-            const renderOptions = () => {
-                let options = [];
-                if (type === 'actor') {
-                    // Actors: Show those not arrived, and those arrived but not departed
-                    pool.forEach(name => {
-                        const isArrived = state.arrived_actor.includes(name);
-                        const isDeparted = state.departed_actor.includes(name);
-
-                        if (!isArrived) {
-                            options.push({ l: `[ПРИБЫТИЕ] ${name}`, v: name, type: 'in', selected: false });
-                        } else if (!isDeparted) {
-                            options.push({ l: `[УБЫТИЕ] ${name}`, v: name, type: 'out', selected: false });
-                        } else {
-                            options.push({ l: `[ГОТОВО] ${name}`, v: name, type: 'done', selected: true, disabled: true });
-                        }
-                    });
-                } else {
-                    pool.forEach(name => {
-                        const isArrived = arrived.includes(name);
-                        options.push({ l: name, v: name, selected: isArrived, disabled: isArrived });
-                    });
-                }
-                return options;
-            };
-
-            const onConfirm = (selectedValues) => {
-                if (type === 'actor') {
-                    selectedValues.forEach(val => {
-                        // val is index or object? Let's use name + suffix
-                        const [action, name] = val.split('|');
+            const onConfirm = (changes) => {
+                changes.forEach(ch => {
+                    const [action, name] = ch.split('|');
+                    if (type === 'actor') {
                         if (action === 'in') {
                             state.arrived_actor.push(name);
                             logEvent('actor_arrival', { name });
@@ -907,15 +879,13 @@
                             state.departed_actor.push(name);
                             logEvent('actor_departure', { name });
                         }
-                    });
-                } else {
-                    selectedValues.forEach(name => {
+                    } else {
                         if (!state[arrivedKey].includes(name)) {
                             state[arrivedKey].push(name);
                             logEvent(type + '_arrival', { name });
                         }
-                    });
-                }
+                    }
+                });
                 saveState();
                 tg.HapticFeedback.notificationOccurred('success');
                 flashStatusBar();
@@ -927,23 +897,50 @@
                     if (!state[poolKey].includes(name)) {
                         state[poolKey].push(name);
                         saveState();
-                        showChecklist(type); // Refresh
+                        showChecklist(type);
                     }
                 }
             };
 
-            const options = renderOptions();
+            let options = [];
+            if (type === 'actor') {
+                pool.forEach(name => {
+                    const isIn = state.arrived_actor.includes(name);
+                    const isOut = state.departed_actor.includes(name);
+                    options.push({
+                        l: name,
+                        v: name,
+                        colIds: ['ПРИЕЗД', 'УБЫТИЕ'],
+                        checks: [
+                            { id: 'in', label: 'ПРИЕЗД', selected: isIn, disabled: isIn },
+                            { id: 'out', label: 'УБЫТИЕ', selected: isOut, disabled: isOut || !isIn }
+                        ]
+                    });
+                });
+            } else {
+                pool.forEach(name => {
+                    const isArrived = state[arrivedKey].includes(name);
+                    options.push({
+                        l: name,
+                        v: name,
+                        checks: [{ id: 'in', label: 'OK', selected: isArrived, disabled: isArrived }]
+                    });
+                });
+            }
+
             showChecklistModal(
                 `ЧЕК-ЛИСТ: ${title}`,
-                "Отметьте участников:",
+                "Отметьте статусы:",
                 options,
-                (vals) => onConfirm(vals),
-                () => { // Select All logic
-                    const toSelect = options.filter(o => !o.disabled).map(o => {
-                        if (type === 'actor') return (o.type === 'in' ? 'in|' : 'out|') + o.v;
-                        return o.v;
+                onConfirm,
+                () => { // Select All
+                    const ch = [];
+                    options.forEach(o => {
+                        o.checks.forEach(c => {
+                            if (!c.disabled) ch.push(c.id + '|' + o.v);
+                        });
                     });
-                    onConfirm(toSelect);
+                    onConfirm(ch);
                 },
                 onAdd
             );
@@ -971,21 +968,40 @@
             options.forEach(o => {
                 const div = document.createElement('div');
                 div.className = 'opt-item';
-                div.style = "display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:5px";
-                if (o.disabled) div.style.opacity = '0.4';
+                div.style = "padding:10px; margin-bottom:5px";
 
-                const val = o.type ? (o.type + '|' + o.v) : o.v;
-                div.innerHTML = `<span>${o.l}</span><input type="checkbox" style="width:20px;height:20px" ${o.selected ? 'checked' : ''} ${o.disabled ? 'disabled' : ''}>`;
+                let checksHtml = '';
+                o.checks.forEach(c => {
+                    checksHtml += `
+                        <div style="display:flex; align-items:center; gap:5px; opacity:${c.disabled ? 0.4 : 1}">
+                            <small style="font-size:8px; opacity:0.6">${c.label}</small>
+                            <input type="checkbox" data-id="${c.id}" data-val="${o.v}" style="width:18px;height:18px" ${c.selected ? 'checked' : ''} ${c.disabled ? 'disabled' : ''}>
+                        </div>
+                    `;
+                });
 
-                const cb = div.querySelector('input');
-                if (!o.disabled) div.onclick = () => { cb.checked = !cb.checked; };
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center">
+                        <span style="font-size:13px">${o.l}</span>
+                        <div style="display:flex; gap:15px">${checksHtml}</div>
+                    </div>
+                `;
+
                 ui.modalOptions.appendChild(div);
-                checkboxes.push({ v: val, cb: cb, already: o.selected, disabled: o.disabled });
+                div.querySelectorAll('input').forEach(cb => {
+                    if (!cb.disabled) {
+                        cb.onclick = (e) => e.stopPropagation();
+                        div.onclick = () => { cb.checked = !cb.checked; }; // Default behavior (might need refinement for multi-check)
+                    }
+                    checkboxes.push({ el: cb, already: cb.checked, disabled: cb.disabled });
+                });
             });
 
             document.getElementById('btnModalConfirm').onclick = () => {
                 ui.modal.style.display = 'none';
-                const selected = checkboxes.filter(c => c.cb.checked && !c.disabled && !c.already).map(c => c.v);
+                const selected = checkboxes
+                    .filter(c => c.el.checked && !c.already && !c.disabled)
+                    .map(c => c.el.dataset.id + '|' + c.el.dataset.val);
                 onConfirm(selected);
             };
             document.getElementById('btnModalCancel').onclick = () => { ui.modal.style.display = 'none'; };
