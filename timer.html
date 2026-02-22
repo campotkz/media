@@ -859,13 +859,42 @@
             ui.takeLabel.textContent = state.take;
             ui.phaseLabel.textContent = pGet('phase_label') || 'ОЖИДАНИЕ';
 
-            if (state.status === 'active') {
+            // Priority 1: Local Storage state (already running)
+            if (state.status === 'active' && state.startTime) {
+                console.log("Resuming from localStorage...");
                 ui.overlay.classList.add('hidden');
                 refreshUI();
-            } else {
-                await checkCalendar();
-                ui.overlay.classList.remove('hidden'); // Ensure overlay is visible for selection
+                return;
             }
+
+            // Priority 2: Check Supabase for active shift for this project
+            console.log("Checking Supabase for active shifts...");
+            try {
+                const { data, error } = await sb.from('production_shifts')
+                    .select('*')
+                    .eq('project_id', state.project.id)
+                    .eq('status', 'active')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (data && data.length > 0) {
+                    const s = data[0];
+                    console.log("Found active shift in DB, attaching...");
+                    state.shiftId = s.id;
+                    state.shootId = s.shoot_id;
+                    state.startTime = s.start_time;
+                    state.status = 'active';
+                    state.phaseStartTime = s.start_time; // Fallback
+                    saveState();
+                    ui.overlay.classList.add('hidden');
+                    refreshUI();
+                    return;
+                }
+            } catch (e) { console.warn("Sync check failed:", e); }
+
+            // Priority 3: No active shift, show selector
+            await checkCalendar();
+            ui.overlay.classList.remove('hidden'); // Ensure overlay is visible for selection
         }
 
         async function checkCalendar() {
@@ -1396,21 +1425,42 @@
         }
 
         async function doStart() {
-            const now = new Date().toISOString();
-            const { data, error } = await sb.from('production_shifts').insert({
-                project_id: state.project.id,
-                chat_id: state.project.cid,
-                thread_id: state.project.tid,
-                shoot_id: state.shootId,
-                start_time: now,
-                status: 'active'
-            }).select();
+            const btn = document.getElementById('btnModalConfirm');
+            if (btn) btn.textContent = 'ЗАПУСК...';
 
-            if (data && data[0]) {
-                state.shiftId = data[0].id; state.startTime = now; state.status = 'active';
-                state.phaseStartTime = now; ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
-                saveState(); ui.overlay.classList.add('hidden'); logEvent('shift_start');
-                tg.HapticFeedback.notificationOccurred('success');
+            const now = new Date().toISOString();
+            console.log("Starting shift for project:", state.project.id);
+
+            try {
+                const { data, error } = await sb.from('production_shifts').insert({
+                    project_id: state.project.id,
+                    chat_id: state.project.cid,
+                    thread_id: state.project.tid,
+                    shoot_id: state.shootId,
+                    start_time: now,
+                    status: 'active'
+                }).select();
+
+                if (error) throw error;
+
+                if (data && data[0]) {
+                    state.shiftId = data[0].id;
+                    state.startTime = now;
+                    state.status = 'active';
+                    state.phaseStartTime = now;
+                    ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
+                    saveState();
+                    ui.startOverlay.classList.add('hidden');
+                    ui.modal.style.display = 'none';
+                    logEvent('shift_start');
+                    tg.HapticFeedback.notificationOccurred('success');
+                } else {
+                    throw new Error("No data returned from insert");
+                }
+            } catch (err) {
+                console.error("Start shift error:", err);
+                alert("ОШИБКА ПРИ ЗАПУСКЕ: " + (err.message || 'Нет связи с базой'));
+                if (btn) btn.textContent = 'ПОПРОБОВАТЬ СНОВА';
             }
         }
 
