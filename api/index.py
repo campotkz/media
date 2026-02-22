@@ -360,7 +360,9 @@ def handle_del_callback(call):
 
         elif cmd == "del_exe":
             table, item_id = data[1], data[2]
-            supabase.table(table).delete().eq("id", item_id).execute()
+            res = supabase.table(table).delete().eq("id", item_id).execute()
+            if not res.data:
+                raise Exception("Ничего не удалено. Возможно, запись уже удалена или нет прав.")
             bot.answer_callback_query(call.id, "✅ Удалено")
             # Return to categories
             handle_del_callback(types.CallbackQuery(id=call.id, from_user=call.from_user, chat_instance=call.chat_instance, message=call.message, data=f"del_back:{tid}"))

@@ -972,6 +972,7 @@
         <div class="title">📅 <span id="selectedLabel">—</span> <small style="font-size:8px; opacity:0.5;">v1.2</small>
         </div>
         <div style="display:flex; gap:10px;">
+          <button class="mini-btn" id="syncBtn" onclick="loadFromCloud()" title="Обновить из облака">☁️</button>
           <button class="mini-btn" id="newBtn">Смена</button>
           <button class="mini-btn task-btn" onclick="openTaskForm()">+ Задача</button>
         </div>
@@ -2036,6 +2037,9 @@
 
     // 2. ЗАГРУЗКА ИЗ ОБЛАКА
     async function loadFromCloud() {
+      const syncBtn = document.getElementById("syncBtn");
+      if (syncBtn) syncBtn.textContent = "⌛";
+
       await fetchAutocompleteData();
       try {
         // Fetch Shoots
@@ -2047,8 +2051,14 @@
         if (tasks.data) allTasks = tasks.data;
 
         render();
-
-      } catch (err) { console.error("Network/Other Error:", err); }
+        if (syncBtn) {
+          syncBtn.textContent = "✅";
+          setTimeout(() => syncBtn.textContent = "☁️", 1500);
+        }
+      } catch (err) {
+        console.error("Network/Other Error:", err);
+        if (syncBtn) syncBtn.textContent = "❌";
+      }
     }
 
     // --- TIMING GRID LOGIC ---
