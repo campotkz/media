@@ -798,21 +798,36 @@
         }
 
         async function checkCalendar() {
-            const today = new Date().toISOString().split('T')[0];
+            // Use Local Date instead of UTC ISO to match index.html logic
+            const d = new Date();
+            const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
             const { data, error } = await sb.from('shoots')
                 .select('*')
-                .eq('date', today)
-                .eq('project', state.project.name);
+                .eq('date', localDate);
 
             const container = document.getElementById('shootSelector');
-            // Reset but keep manual button
             container.innerHTML = `<div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue);" onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>`;
 
             if (data && data.length > 0) {
-                data.forEach(s => {
+                // Try to filter by project name (case-insensitive and trimmed)
+                let matches = data.filter(s =>
+                    s.project.trim().toLowerCase() === state.project.name.trim().toLowerCase()
+                );
+
+                // If no project-specific matches, but there are shoots, maybe show all (as fallback)
+                // or if we found matches, use those. 
+                // Let's stick to specific matches but be flexible.
+                if (matches.length === 0) {
+                    console.log("No specific project matches. Showing all shoots for today as fallback.");
+                    matches = data;
+                }
+
+                matches.forEach(s => {
                     const div = document.createElement('div');
                     div.className = 'opt-item';
-                    div.innerHTML = `<small style="display:block; opacity:0.6; font-size:9px">СЪЕМКА В КАЛЕНДАРЕ</small>${s.location} <span style="color:var(--accent-yellow)">${s.callTime || ''}</span>`;
+                    const isSpecific = s.project.trim().toLowerCase() === state.project.name.trim().toLowerCase();
+                    div.innerHTML = `<small style="display:block; opacity:0.6; font-size:9px">${isSpecific ? 'В ПЛАНЕ ПРОЕКТА' : s.project.toUpperCase()}</small>${s.location} <span style="color:var(--accent-yellow)">${s.callTime || ''}</span>`;
                     div.onclick = () => selectShoot(s);
                     container.prepend(div);
                 });
