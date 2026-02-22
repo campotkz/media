@@ -98,6 +98,7 @@
             align-items: center;
             margin-bottom: 10px;
             flex-shrink: 0;
+            transition: all 0.3s;
         }
 
         .status-info {
@@ -145,11 +146,9 @@
         .controls {
             flex: 1;
             overflow-y: auto;
-            padding-bottom: 100px;
-            /* Space for footer and floating motor */
+            padding-bottom: 20px;
             -webkit-overflow-scrolling: touch;
             min-height: 0;
-            /* Important for flex shrink */
         }
 
         .controls::-webkit-scrollbar {
@@ -193,6 +192,7 @@
             justify-content: center;
             text-align: center;
             transition: all 0.1s;
+            position: relative;
         }
 
         .btn:active {
@@ -213,9 +213,37 @@
             font-weight: 700;
         }
 
+        .btn-timer {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            color: var(--accent-yellow);
+            margin-top: 4px;
+            display: none;
+        }
+
         .btn.active {
             border-color: var(--color);
             background: var(--fade);
+            animation: borderPulse 2s infinite;
+        }
+
+        .btn.active .btn-timer {
+            display: block;
+        }
+
+        @keyframes borderPulse {
+            0% {
+                border-color: var(--border);
+            }
+
+            50% {
+                border-color: var(--color);
+                box-shadow: 0 0 10px var(--fade);
+            }
+
+            100% {
+                border-color: var(--border);
+            }
         }
 
         .btn.active .btn-label {
@@ -232,7 +260,8 @@
 
         .btn-motor-main.active {
             background: rgba(255, 59, 48, 0.25);
-            box-shadow: 0 0 15px rgba(255, 59, 48, 0.2);
+            border-color: var(--accent-red);
+            animation: none;
         }
 
         .btn-motor-main .btn-val {
@@ -273,7 +302,7 @@
             border-top: 1px solid var(--border);
             padding: 12px 14px;
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
             gap: 10px;
             flex-shrink: 0;
             z-index: 100;
@@ -412,18 +441,17 @@
             display: none !important;
         }
 
-        /* MOBILE OPTIMIZATIONS */
         @media (max-width: 360px) {
             .main-timer {
                 font-size: 28px;
             }
 
-            .btn {
-                padding: 12px 8px;
+            .stat-val {
+                font-size: 14px;
             }
 
-            .btn-val {
-                font-size: 11px;
+            .btn {
+                padding: 12px 8px;
             }
         }
     </style>
@@ -463,14 +491,14 @@
             <div class="section">
                 <div class="section-header">ГЛОБАЛЬНЫЕ / ТАЙМИНГ</div>
                 <div class="grid">
-                    <div class="btn" onclick="logEvent('travel_to_loc')"><span class="btn-label">Переезд</span><span
-                            class="btn-val">TRAVEL TO LOC</span></div>
-                    <div class="btn" onclick="logEvent('on_site')"><span class="btn-label">На месте</span><span
-                            class="btn-val">ON SITE</span></div>
-                    <div class="btn c-red" onclick="logEvent('wrap')"><span class="btn-label">Стоп камера</span><span
-                            class="btn-val">WRAP (STOP CAM)</span></div>
-                    <div class="btn c-red" onclick="logEvent('last_man_out')"><span class="btn-label">Сдача
-                            площадки</span><span class="btn-val">LAST MAN OUT</span></div>
+                    <div id="btn_travel" class="btn" onclick="toggleBtn('travel', 'ДВИЖЕНИЕ', 'ДВИЖЕНИЕ')"><span
+                            class="btn-label">Едем</span><span class="btn-val">TRAVEL TO LOC</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_onsite" class="btn" onclick="toggleBtn('onsite', 'РАЗВЕРТ.', 'НА МЕСТЕ')"><span
+                            class="btn-label">На месте</span><span class="btn-val">ON SITE</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
                 </div>
             </div>
 
@@ -478,10 +506,10 @@
             <div class="section">
                 <div class="section-header">ПРИБЫТИЕ (CHECK-IN)</div>
                 <div class="grid">
-                    <div class="btn" onclick="logEvent('crew_arrival')"><span class="btn-label">Группа</span><span
-                            class="btn-val">CREW ARRIVAL</span></div>
-                    <div class="btn" onclick="logEvent('client_arrival')"><span class="btn-label">Заказчик</span><span
-                            class="btn-val">CLIENT / AGENCY</span></div>
+                    <div class="btn" onclick="logEvent('crew_arrival', {}, true)"><span
+                            class="btn-label">Группа</span><span class="btn-val">CREW ARRIVAL</span></div>
+                    <div class="btn" onclick="logEvent('client_arrival', {}, true)"><span
+                            class="btn-label">Заказчик</span><span class="btn-val">CLIENT / AGENCY</span></div>
                     <div class="btn" style="grid-column: span 2" onclick="showOptionModal('actor_checkin')"><span
                             class="btn-label">Актеры</span><span class="btn-val">ACTOR CHECK-IN</span></div>
                 </div>
@@ -491,14 +519,20 @@
             <div class="section">
                 <div class="section-header">ПОДГОТОВКА АКТЕРОВ</div>
                 <div class="grid">
-                    <div class="btn c-blue" data-toggle="makeup"><span class="btn-label">Начало/Конец</span><span
-                            class="btn-val">ГРИМ</span></div>
-                    <div class="btn c-blue" data-toggle="wardrobe"><span class="btn-label">Начало/Конец</span><span
-                            class="btn-val">КОСТЮМ</span></div>
-                    <div class="btn c-blue" data-toggle="sound_rigging"><span class="btn-label">Установка</span><span
-                            class="btn-val">ОПЕТЛИЧИВАНИЕ</span></div>
-                    <div class="btn c-green" onclick="logEvent('actor_ready')"><span class="btn-label">Финальный
-                            статус</span><span class="btn-val">АКТЕР ГОТОВ</span></div>
+                    <div id="btn_makeup" class="btn c-blue" data-prep="makeup"><span
+                            class="btn-label">Начало/Конец</span><span class="btn-val">ГРИМ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_wardrobe" class="btn c-blue" data-prep="wardrobe"><span
+                            class="btn-label">Начало/Конец</span><span class="btn-val">КОСТЮМ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_sound" class="btn c-blue" data-prep="sound_rigging"><span
+                            class="btn-label">Установка</span><span class="btn-val">ОПЕТЛИЧИВАНИЕ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div class="btn c-green" onclick="logEvent('actor_ready', {}, true)"><span
+                            class="btn-label">Финальный статус</span><span class="btn-val">АКТЕР ГОТОВ</span></div>
                 </div>
             </div>
 
@@ -506,35 +540,59 @@
             <div class="section">
                 <div class="section-header">ТЕХНИЧЕСКАЯ ПОДГОТОВКА</div>
                 <div class="grid">
-                    <div class="btn c-yellow" onclick="setPhase('LIGHT_SET', 'ВЫСТАВЛЕНИЕ СВЕТА')"><span
-                            class="btn-label">Первичный</span><span class="btn-val">ВЫСТ. СВЕТА</span></div>
-                    <div class="btn c-yellow" onclick="setPhase('LIGHT_ADJ', 'ПЕРЕСТАНОВКА СВЕТА')"><span
-                            class="btn-label">Правки</span><span class="btn-val">ПЕРЕСТ. СВЕТА</span></div>
-                    <div class="btn c-yellow" onclick="setPhase('CAM_PREP', 'КАМЕРА ПРЕД')"><span class="btn-label">Кран
-                            / Оптика</span><span class="btn-val">КАМЕРА ПРЕД</span></div>
-                    <div class="btn c-yellow" onclick="setPhase('ART_DEPT', 'ХУДОЖНИКИ')"><span
-                            class="btn-label">Реквизит</span><span class="btn-val">ХУДОЖНИКИ</span></div>
-                    <div class="btn c-orange" style="grid-column: span 2" onclick="setPhase('SFX', 'СФЕКС / ДЫМ')"><span
-                            class="btn-label">Спецэффекты</span><span class="btn-val">СФЕКС / ДЫМ ПРЕД</span></div>
+                    <div id="btn_light_set" class="btn c-yellow"
+                        onclick="toggleBtn('light_set', 'ВЫСТ. СВЕТА', 'СВЕТ СТАРТ')"><span
+                            class="btn-label">Первичный</span><span class="btn-val">ВЫСТ. СВЕТА</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_light_adj" class="btn c-yellow"
+                        onclick="toggleBtn('light_adj', 'ПЕРЕСТ. СВЕТА', 'ПРАВКИ СВЕТА')"><span
+                            class="btn-label">Правки</span><span class="btn-val">ПЕРЕСТ. СВЕТА</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_cam_prep" class="btn c-yellow"
+                        onclick="toggleBtn('cam_prep', 'КАМЕРА ПРЕД', 'ТЕХНИКА')"><span class="btn-label">Кран /
+                            Оптика</span><span class="btn-val">КАМЕРА ПРЕД</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_art_dept" class="btn c-yellow" onclick="toggleBtn('art_dept', 'ХУДОЖНИКИ', 'АРТ-ЦЕХ')">
+                        <span class="btn-label">Реквизит</span><span class="btn-val">ХУДОЖНИКИ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_sfx" class="btn c-orange" style="grid-column: span 2"
+                        onclick="toggleBtn('sfx', 'СФЕКС / ДЫМ', 'SFX ПРЕД')"><span
+                            class="btn-label">Спецэффекты</span><span class="btn-val">СФЕКС / ДЫМ ПРЕД</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
                 </div>
             </div>
 
             <!-- 5. РЕПЕТИЦИИ И СЪЕМКА -->
-            <div class="section" id="sectionAction">
+            <div class="section">
                 <div class="section-header">РЕПЕТИЦИИ И СЪЕМКА</div>
                 <div class="grid">
                     <div id="btnMotor" class="btn btn-motor-main c-red"><span class="btn-label">Запись</span><span
                             id="motorTitle" class="btn-val">МОТОР</span></div>
-                    <div class="btn c-green" onclick="setPhase('BLOCKING', 'БЛОКИРОВКА')"><span
-                            class="btn-label">Мизансцена</span><span class="btn-val">БЛОКИРОВКА</span></div>
-                    <div class="btn c-green" onclick="setPhase('REHEARSAL', 'РЕПЕТИЦИЯ')"><span class="btn-label">Без
-                            камеры</span><span class="btn-val">РЕПЕТИЦИЯ</span></div>
-                    <div class="btn c-green" onclick="setPhase('DRESS_REH', 'ГЕН. РЕПЕТИЦИЯ')"><span class="btn-label">В
-                            костюмах</span><span class="btn-val">ГЕН. РЕПЕТИЦИЯ</span></div>
-                    <div class="btn c-orange" onclick="logEvent('series_start')"><span class="btn-label">Много
-                            дублей</span><span class="btn-val">СЕРИЯ</span></div>
+                    <div id="btn_blocking" class="btn c-green"
+                        onclick="toggleBtn('blocking', 'БЛОКИРОВКА', 'МИЗАНСЦЕНА')"><span
+                            class="btn-label">Мизансцена</span><span class="btn-val">БЛОКИРОВКА</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_rehearsal" class="btn c-green" onclick="toggleBtn('rehearsal', 'РЕПЕТИЦИЯ', 'ПРОГОН')">
+                        <span class="btn-label">Без камеры</span><span class="btn-val">РЕПЕТИЦИЯ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_dress_reh" class="btn c-green"
+                        onclick="toggleBtn('dress_reh', 'ГЕН. РЕПЕТИЦИЯ', 'ГЕНЕРАЛЬНАЯ')"><span class="btn-label">В
+                            костюмах</span><span class="btn-val">ГЕН. РЕПЕТИЦИЯ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_series" class="btn c-orange" onclick="toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ')">
+                        <span class="btn-label">Много дублей</span><span class="btn-val">СЕРИЯ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
                     <div class="btn" onclick="showOptionModal('next_scene')"><span
-                            class="btn-label">Сценария</span><span class="btn-val">СЛЕД. СЦЕНА</span></div>
+                            class="btn-label">Сценария</span><span class="btn-val">СЦЕНА + 1</span></div>
                 </div>
             </div>
 
@@ -542,13 +600,18 @@
             <div class="section">
                 <div class="section-header">ЛОГИСТИКА И ПЕРЕРЫВЫ</div>
                 <div class="grid">
-                    <div id="btnLunch" class="btn c-blue"><span class="btn-label">60 минут</span><span
-                            class="btn-val">ОБЕД</span></div>
-                    <div class="btn c-blue" onclick="logEvent('tech_break')"><span class="btn-label">15 мин</span><span
-                            class="btn-val">ТЕХ. ПЕРЕРЫВ</span></div>
+                    <div id="btn_lunch" class="btn c-blue" onclick="toggleBtn('lunch', 'ОБЕД', 'ПЕРЕРЫВ ПИТАНИЕ')"><span
+                            class="btn-label">Обед</span><span class="btn-val">ОБЕД / LUNCH</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_tech_break" class="btn c-blue"
+                        onclick="toggleBtn('tech_break', 'ТЕХ. ПЕРЕРЫВ', 'ТЕХ. ПЕРЕРЫВ')"><span
+                            class="btn-label">Перерыв</span><span class="btn-val">ТЕХ. ПЕРЕРЫВ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
                     <div class="btn c-blue" onclick="showOptionModal('location_change')"><span class="btn-label">Смена
                             объекта</span><span class="btn-val">ПЕРЕЕЗД</span></div>
-                    <div class="btn c-blue" onclick="logEvent('catering_arrival')"><span
+                    <div class="btn c-blue" onclick="logEvent('catering_arrival', {}, true)"><span
                             class="btn-label">Горячее</span><span class="btn-val">БУФЕТ ПРИЕХАЛ</span></div>
                 </div>
             </div>
@@ -557,18 +620,30 @@
             <div class="section">
                 <div class="section-header">ЗАДЕРЖКИ (DELAYS)</div>
                 <div class="grid">
-                    <div class="btn c-orange" onclick="showDelayModal('tech')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">TECH</span></div>
-                    <div class="btn c-orange" onclick="showDelayModal('crew')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">CREW</span></div>
-                    <div class="btn c-orange" onclick="showDelayModal('actor')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">ACTOR</span></div>
-                    <div class="btn c-orange" onclick="showDelayModal('client')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">CLIENT</span></div>
-                    <div class="btn c-orange" onclick="showDelayModal('weather')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">WEATHER</span></div>
-                    <div class="btn c-orange" onclick="showDelayModal('noise')"><span
-                            class="btn-label">Проблема</span><span class="btn-val">NOISE</span></div>
+                    <div id="btn_delay_tech" class="btn c-orange" onclick="toggleDelay('tech')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">TECH</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_delay_crew" class="btn c-orange" onclick="toggleDelay('crew')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">CREW</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_delay_actor" class="btn c-orange" onclick="toggleDelay('actor')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">ACTOR</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_delay_client" class="btn c-orange" onclick="toggleDelay('client')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">CLIENT</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_delay_weather" class="btn c-orange" onclick="toggleDelay('weather')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">WEATHER</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_delay_noise" class="btn c-orange" onclick="toggleDelay('noise')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">NOISE</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
                 </div>
             </div>
 
@@ -576,14 +651,31 @@
             <div class="section">
                 <div class="section-header">ДОПОЛНИТЕЛЬНО</div>
                 <div class="grid">
-                    <div class="btn" onclick="logEvent('dit_start')"><span class="btn-label">DIT</span><span
-                            class="btn-val">BACKUP</span></div>
-                    <div class="btn" onclick="logEvent('bts_photo')"><span class="btn-label">BTS</span><span
-                            class="btn-val">PHOTO / BTS</span></div>
-                    <div class="btn" onclick="logEvent('police')"><span class="btn-label">Проверка</span><span
-                            class="btn-val">POLICE</span></div>
+                    <div id="btn_dit" class="btn" onclick="toggleBtn('dit', 'BACKUP', 'СЛИВ МАТЕРИАЛА')"><span
+                            class="btn-label">DIT</span><span class="btn-val">BACKUP</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_bts" class="btn" onclick="toggleBtn('bts', 'MARKETING', 'БЕКСТЕЙДЖ / BTS')"><span
+                            class="btn-label">Маркетинг</span><span class="btn-val">BTS / PHOTO</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_police" class="btn" onclick="toggleBtn('police', 'POLICE', 'ПРОВЕРКА ВЛАСТИ')"><span
+                            class="btn-label">Власть</span><span class="btn-val">POLICE</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
                     <div class="btn c-blue" onclick="showOptionModal('note')"><span
                             class="btn-label">Заметка</span><span class="btn-val">MEMO</span></div>
+                </div>
+            </div>
+
+            <!-- 9. ЗАВЕРШЕНИЕ -->
+            <div class="section">
+                <div class="section-header">ЗАВЕРШЕНИЕ СЪЕМКИ</div>
+                <div class="grid">
+                    <div class="btn c-red" onclick="logEvent('wrap', {}, true)"><span class="btn-label">Финал
+                            съемки</span><span class="btn-val">WRAP (STOP CAM)</span></div>
+                    <div class="btn c-red" onclick="logEvent('last_man_out', {}, true)"><span
+                            class="btn-label">Последний человек</span><span class="btn-val">LAST MAN OUT</span></div>
                 </div>
             </div>
         </div>
@@ -594,12 +686,16 @@
                 <div class="stat-label">СЦЕНА</div>
                 <div id="valScene" class="stat-val">1</div>
             </div>
+            <div class="stat" id="elShotBtn">
+                <div class="stat-label">КАДР</div>
+                <div id="valShot" class="stat-val">1</div>
+            </div>
             <div class="stat" id="elTakeBtn">
                 <div class="stat-label">ДУБЛЬ</div>
                 <div id="valTake" class="stat-val">0</div>
             </div>
             <div class="stat" style="color: var(--accent-red)" id="btnFinalWrap">
-                <div class="stat-label">STOP</div>
+                <div class="stat-label">FINISH</div>
                 <div id="btnFinalWrapVal" class="stat-val">СМЕНА</div>
             </div>
         </div>
@@ -635,10 +731,11 @@
             phaseStartTime: localStorage.getItem('phase_start') || null,
             location: localStorage.getItem('location') || 'КВАРТИРА',
             scene: parseInt(localStorage.getItem('scene')) || 1,
+            shot: parseInt(localStorage.getItem('shot')) || 1,
             take: parseInt(localStorage.getItem('take')) || 0,
             isMotor: false,
-            lunch: false,
-            project: { id: null, name: '...' }
+            project: { id: null, name: '...' },
+            activeTimers: JSON.parse(localStorage.getItem('active_timers') || '{}')
         };
 
         const ui = {
@@ -648,6 +745,7 @@
             phaseLabel: document.getElementById('elPhaseLabel'),
             locationLabel: document.getElementById('valLocation'),
             sceneLabel: document.getElementById('valScene'),
+            shotLabel: document.getElementById('valShot'),
             takeLabel: document.getElementById('valTake'),
             motorBtn: document.getElementById('btnMotor'),
             motorTitle: document.getElementById('motorTitle'),
@@ -670,12 +768,13 @@
             document.getElementById('elProjName').textContent = state.project.name;
             ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
             ui.sceneLabel.textContent = state.scene;
+            ui.shotLabel.textContent = state.shot;
             ui.takeLabel.textContent = state.take;
-            ui.phaseLabel.textContent = state.phase === 'IDLE' ? 'ОЖИДАНИЕ' : (localStorage.getItem('phase_label') || state.phase);
+            ui.phaseLabel.textContent = localStorage.getItem('phase_label') || 'ОЖИДАНИЕ';
 
             if (state.status === 'active') {
                 ui.overlay.classList.add('hidden');
-                document.body.style.overflow = 'hidden';
+                refreshUI();
             }
         }
 
@@ -685,29 +784,36 @@
             localStorage.setItem('status', state.status);
             localStorage.setItem('location', state.location);
             localStorage.setItem('scene', state.scene);
+            localStorage.setItem('shot', state.shot);
             localStorage.setItem('take', state.take);
             localStorage.setItem('phase', state.phase);
             localStorage.setItem('phase_start', state.phaseStartTime || '');
             localStorage.setItem('phase_label', ui.phaseLabel.textContent);
+            localStorage.setItem('active_timers', JSON.stringify(state.activeTimers));
         }
 
-        async function logEvent(type, data = {}) {
-            if (!state.shiftId) {
-                console.warn("Attempted log without shiftId:", type);
-                return;
-            }
+        async function logEvent(type, data = {}, blink = false) {
+            if (!state.shiftId) return;
             try {
                 const entry = {
                     shift_id: state.shiftId,
                     event_type: type,
-                    data: { ...data, scene_no: state.scene, take_no: state.take, loc: state.location }
+                    data: { ...data, scene_no: state.scene, shot_no: state.shot, take_no: state.take, loc: state.location }
                 };
-                // Fire and forget but keep a log
-                sb.from('production_logs').insert(entry).then(({ error }) => {
-                    if (error) console.error("Log error return:", error);
-                });
+                sb.from('production_logs').insert(entry).then();
                 tg.HapticFeedback.impactOccurred('light');
-            } catch (e) { console.error("Log exception:", e); }
+                if (blink) flashStatusBar();
+            } catch (e) { console.error(e); }
+        }
+
+        function flashStatusBar() {
+            const bar = document.querySelector('.status-bar');
+            bar.style.borderColor = 'var(--accent-green)';
+            bar.style.background = 'rgba(52, 199, 89, 0.1)';
+            setTimeout(() => {
+                bar.style.borderColor = 'var(--border)';
+                bar.style.background = 'var(--glass)';
+            }, 500);
         }
 
         setInterval(() => {
@@ -718,6 +824,29 @@
             if (state.phaseStartTime) {
                 const diff = new Date() - new Date(state.phaseStartTime);
                 ui.phaseTimer.textContent = formatTimeShort(diff);
+            }
+            // Button Timers
+            for (let id in state.activeTimers) {
+                const el = document.getElementById('btn_' + id);
+                if (el) {
+                    const timerEl = el.querySelector('.btn-timer');
+                    const start = new Date(state.activeTimers[id]);
+                    const diff = new Date() - start;
+
+                    if (id === 'makeup' || id === 'wardrobe' || id === 'sound') {
+                        const promised = parseInt(localStorage.getItem('promised_' + id) || 0) * 60000;
+                        const remaining = promised - diff;
+                        if (remaining < 0) {
+                            timerEl.textContent = '-' + formatTimeShort(Math.abs(remaining));
+                            timerEl.style.color = 'var(--accent-red)';
+                        } else {
+                            timerEl.textContent = formatTimeShort(remaining);
+                            timerEl.style.color = 'var(--accent-yellow)';
+                        }
+                    } else {
+                        timerEl.textContent = formatTimeShort(diff);
+                    }
+                }
             }
         }, 1000);
 
@@ -733,18 +862,95 @@
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
-        // START SHIFT (Triple Check)
+        function toggleBtn(id, label, phaseLabel) {
+            const el = document.getElementById('btn_' + id);
+            if (state.activeTimers[id]) {
+                const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                logEvent(id + '_end', { duration_m: dur });
+                delete state.activeTimers[id];
+                el.classList.remove('active');
+                setPhase('IDLE', 'ОЖИДАНИЕ');
+            } else {
+                state.activeTimers[id] = new Date().toISOString();
+                el.classList.add('active');
+                logEvent(id + '_start');
+                setPhase(id.toUpperCase(), phaseLabel);
+            }
+            saveState();
+        }
+
+        function toggleDelay(category) {
+            const id = 'delay_' + category;
+            const el = document.getElementById('btn_' + id);
+            if (state.activeTimers[id]) {
+                const res = prompt("Как решили проблему?", "Устранено");
+                if (res !== null) {
+                    const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                    logEvent(id + '_end', { resolution: res, duration_m: dur });
+                    delete state.activeTimers[id];
+                    el.classList.remove('active');
+                    saveState();
+                }
+            } else {
+                const reason = prompt("Причина задержки:", "");
+                if (reason !== null) {
+                    state.activeTimers[id] = new Date().toISOString();
+                    el.classList.add('active');
+                    logEvent(id + '_start', { reason: reason });
+                    setPhase('DELAY', 'ЗАДЕРЖКА: ' + category.toUpperCase());
+                    saveState();
+                }
+            }
+        }
+
+        document.querySelectorAll('[data-prep]').forEach(el => {
+            el.onclick = () => {
+                const id = el.getAttribute('data-prep');
+                if (state.activeTimers[id]) {
+                    const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                    const promised = parseInt(localStorage.getItem('promised_' + id));
+                    const delay = Math.max(0, dur - promised);
+                    logEvent(id + '_end', { duration_m: dur, delay_m: delay });
+                    delete state.activeTimers[id];
+                    el.classList.remove('active');
+                    setPhase('IDLE', 'ОЖИДАНИЕ');
+                    saveState();
+                } else {
+                    showOptions("СКОЛЬКО МИНУТ?", `План на ${id.toUpperCase()}:`, [
+                        { l: "5 МИН", v: "5" }, { l: "15 МИН", v: "15" }, { l: "30 МИН", v: "30" }, { l: "СВОЙ ВАРИАНТ", v: "custom" }
+                    ], (val) => {
+                        let mins = (val === 'custom') ? prompt("Минут:", "20") : val;
+                        if (mins) {
+                            state.activeTimers[id] = new Date().toISOString();
+                            localStorage.setItem('promised_' + id, mins);
+                            el.classList.add('active');
+                            logEvent(id + '_start', { promised: mins });
+                            setPhase(id.toUpperCase(), id.toUpperCase());
+                            saveState();
+                        }
+                    });
+                }
+            };
+        });
+
+        function refreshUI() {
+            for (let id in state.activeTimers) {
+                const el = document.getElementById('btn_' + id) || document.getElementById('btn_delay_' + id);
+                if (el) el.classList.add('active');
+            }
+        }
+
+        document.getElementById('btnMainStart').onclick = () => {
+            startStep = 0;
+            showConfirm(startChecks[0].t, startChecks[0].d, () => nextStartStep());
+        };
+
         let startStep = 0;
         const startChecks = [
             { t: "Команда на месте?", d: "Все цеха прибыли и готовы к работе?" },
             { t: "Тайминг верный?", d: "Текущее время соответствует вызывному?" },
             { t: "ПОДТВЕРДИТЬ СТАРТ?", d: "Это официально запустит рабочую смену." }
         ];
-
-        document.getElementById('btnMainStart').onclick = () => {
-            startStep = 0;
-            showConfirm(startChecks[0].t, startChecks[0].d, () => nextStartStep());
-        };
 
         function nextStartStep() {
             startStep++;
@@ -756,27 +962,16 @@
         }
 
         async function doStart() {
-            try {
-                const now = new Date().toISOString();
-                const { data, error } = await sb.from('production_shifts').insert({
-                    project_id: state.project.id, chat_id: state.project.cid, thread_id: state.project.tid, start_time: now, status: 'active'
-                }).select();
-
-                if (error) { alert("Ошибка запуска (DB): " + error.message); return; }
-
-                if (data && data[0]) {
-                    state.shiftId = data[0].id;
-                    state.startTime = now;
-                    state.status = 'active';
-                    state.phase = 'SHIFT_START';
-                    state.phaseStartTime = now;
-                    ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
-                    saveState();
-                    ui.overlay.classList.add('hidden');
-                    logEvent('shift_start');
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-            } catch (err) { alert("Ошибка запуска (JS): " + err.message); }
+            const now = new Date().toISOString();
+            const { data } = await sb.from('production_shifts').insert({
+                project_id: state.project.id, chat_id: state.project.cid, thread_id: state.project.tid, start_time: now, status: 'active'
+            }).select();
+            if (data && data[0]) {
+                state.shiftId = data[0].id; state.startTime = now; state.status = 'active';
+                state.phaseStartTime = now; ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
+                saveState(); ui.overlay.classList.add('hidden'); logEvent('shift_start');
+                tg.HapticFeedback.notificationOccurred('success');
+            }
         }
 
         function setPhase(code, label) {
@@ -784,28 +979,29 @@
             state.phaseStartTime = new Date().toISOString();
             ui.phaseLabel.textContent = label;
             saveState();
-            logEvent(code.toLowerCase());
-            tg.HapticFeedback.impactOccurred('medium');
-
-            // Visual feedback on buttons
-            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-            // Note: button highlighting is tricky with dynamic text, maybe add IDs later
         }
 
         ui.motorBtn.onclick = () => {
             state.isMotor = !state.isMotor;
             if (state.isMotor) {
-                state.take++; ui.takeLabel.textContent = state.take; saveState();
+                state.take++; ui.takeLabel.textContent = state.take;
                 ui.motorBtn.classList.add('active'); ui.motorTitle.textContent = 'СТОП';
                 setPhase('MOTOR', 'СЪЕМКА'); tg.HapticFeedback.impactOccurred('heavy');
+                logEvent('motor');
             } else {
                 ui.motorBtn.classList.remove('active'); ui.motorTitle.textContent = 'МОТОР';
-                setPhase('CUT', 'ПАУЗА'); showEvaluation();
+                setPhase('CUT', 'ПАУЗА'); logEvent('cut'); showEvaluation();
             }
+            saveState();
+        };
+
+        document.getElementById('elShotBtn').onclick = () => {
+            state.shot++; ui.shotLabel.textContent = state.shot; state.take = 0; ui.takeLabel.textContent = 0;
+            saveState(); logEvent('shot_increment', {}, true);
         };
 
         document.getElementById('elTakeBtn').onclick = () => {
-            state.take++; ui.takeLabel.textContent = state.take; saveState(); logEvent('take_increment');
+            state.take++; ui.takeLabel.textContent = state.take; saveState(); logEvent('take_increment', {}, true);
         };
 
         function showEvaluation() {
@@ -816,45 +1012,29 @@
             ], (val) => logEvent('take_evaluation', { result: val }));
         }
 
-        document.getElementById('btnLunch').onclick = () => {
-            state.lunch = !state.lunch;
-            const b = document.getElementById('btnLunch');
-            if (state.lunch) { b.classList.add('active'); logEvent('lunch_start'); }
-            else { b.classList.remove('active'); logEvent('lunch_end'); }
-        };
-
         document.getElementById('elLocation').onclick = () => {
             const loc = prompt("Новая локация (Объект):", state.location);
             if (loc) {
-                state.location = loc;
-                ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
+                state.location = loc; ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
                 saveState(); logEvent('location_change', { new_loc: loc });
+                if (!state.activeTimers['travel']) toggleBtn('travel', 'ДВИЖЕНИЕ', 'ДВИЖЕНИЕ');
             }
         };
-
-        function showDelayModal(category) {
-            const reason = prompt(`Причина задержки (${category.toUpperCase()}):`, "");
-            if (reason) logEvent(`delay_${category}`, { reason });
-        }
 
         function showOptionModal(type) {
             if (type === 'next_scene') {
                 const next = prompt("Номер новой сцены:", state.scene + 1);
                 if (next) {
-                    state.scene = parseInt(next);
-                    state.take = 0;
-                    ui.sceneLabel.textContent = state.scene;
-                    ui.takeLabel.textContent = 0;
-                    saveState(); logEvent('next_scene');
+                    state.scene = parseInt(next); state.shot = 1; state.take = 0;
+                    ui.sceneLabel.textContent = state.scene; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 0;
+                    saveState(); logEvent('next_scene', {}, true);
                 }
             } else if (type === 'actor_checkin') {
                 const name = prompt("Имя актера:");
-                if (name) logEvent('actor_arrival', { name });
+                if (name) logEvent('actor_arrival', { name }, true);
             } else if (type === 'note') {
                 const txt = prompt("Заметка / Комментарий:");
-                if (txt) logEvent('note', { text: txt });
-            } else if (type === 'location_change') {
-                document.getElementById('elLocation').click();
+                if (txt) logEvent('note', { text: txt }, true);
             }
         }
 
@@ -863,29 +1043,14 @@
         };
 
         async function finishShift() {
-            try {
-                document.getElementById('btnFinalWrapVal').textContent = '...';
-                const end = new Date().toISOString();
-
-                // Fire and forget report
-                fetch('/api/timer/report', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ shift_id: state.shiftId, chat_id: state.project.cid, thread_id: state.project.tid })
-                }).catch(e => console.error("Report trigger error", e));
-
-                await sb.from('production_shifts').update({ status: 'finished', end_time: end }).eq('id', state.shiftId);
-                await logEvent('shift_finish');
-
-            } catch (err) { console.error("Finish error:", err); }
-            finally {
-                localStorage.clear();
-                tg.close();
-                // If it's not a TWA (opened as URL), just clear UI
-                ui.overlay.classList.remove('hidden');
-                state.status = 'inactive';
-                state.shiftId = null;
-                state.startTime = null;
-            }
+            const end = new Date().toISOString();
+            await sb.from('production_shifts').update({ status: 'finished', end_time: end }).eq('id', state.shiftId);
+            await logEvent('shift_finish');
+            fetch('/api/timer/report', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shift_id: state.shiftId, chat_id: state.project.cid, thread_id: state.project.tid })
+            });
+            localStorage.clear(); tg.close();
         }
 
         function showConfirm(title, desc, onOk) {
@@ -907,27 +1072,6 @@
             });
             ui.modal.style.display = 'flex';
         }
-
-        // Toggle buttons (Makeup, Wardrobe, etc)
-        document.querySelectorAll('[data-toggle]').forEach(b => {
-            b.onclick = () => {
-                const key = b.getAttribute('data-toggle');
-                if (!b.classList.contains('active')) {
-                    showOptions("СКОЛЬКО МИНУТ?", `План на ${key.toUpperCase()}:`, [
-                        { l: "5 МИН", v: "5" }, { l: "15 МИН", v: "15" }, { l: "30 МИН", v: "30" }, { l: "СВОЙ ВАРИАНТ", v: "custom" }
-                    ], (val) => {
-                        let mins = (val === 'custom') ? prompt("Минут:", "20") : val;
-                        if (mins) {
-                            b.classList.add('active');
-                            logEvent(`${key}_start`, { promised: mins });
-                        }
-                    });
-                } else {
-                    b.classList.remove('active');
-                    logEvent(`${key}_end`);
-                }
-            };
-        });
 
         initApp();
     </script>

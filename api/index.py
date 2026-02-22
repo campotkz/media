@@ -520,6 +520,7 @@ def generate_timer_report():
                     'Событие': row['event_type'].upper(),
                     'Локация': d.get('loc', '-'),
                     'Сцена': d.get('scene_no', '-'),
+                    'Кадр': d.get('shot_no', '-'),
                     'Дубль': d.get('take_no', '-'),
                     'Детали': json.dumps(d, ensure_ascii=False) if d else ''
                 })
@@ -533,11 +534,11 @@ def generate_timer_report():
                     'Время': row['time'].strftime('%H:%M:%S'),
                     'Категория': row['event_type'].replace('delay_', '').upper(),
                     'Сцена': d.get('scene_no', '-'),
-                    'Причина': d.get('reason', '-')
+                    'Причина': d.get('reason', d.get('resolution', '-'))
                 })
             pd.DataFrame(delays).to_excel(writer, sheet_name='Задержки', index=False)
 
-            # Sheet 3: Actor Prep (Promised vs Actual)
+            # Sheet 3: Actor Prep (Analytics)
             prep_data = []
             prep_types = ['makeup', 'wardrobe', 'sound_rigging']
             for pt in prep_types:
@@ -545,7 +546,6 @@ def generate_timer_report():
                 ends = df_logs[df_logs['event_type'] == f'{pt}_end']
                 for _, s_row in starts.iterrows():
                     promised = (s_row['data'] or {}).get('promised', '?')
-                    # Find first end after this start
                     e_match = ends[ends['time'] > s_row['time']].head(1)
                     if not e_match.empty:
                         e_row = e_match.iloc[0]
@@ -569,14 +569,22 @@ def generate_timer_report():
             end_t = pd.to_datetime(shift['end_time']).tz_convert('Asia/Almaty') if shift.get('end_time') else df_logs['time'].max()
             duration = end_t - start_t
             
+            # Aggregate stats
+            all_data = df_logs['data'].apply(lambda x: x if isinstance(x, dict) else {})
+            max_scene = all_data.apply(lambda x: x.get('scene_no', 0)).max()
+            max_shot = all_data.apply(lambda x: x.get('shot_no', 0)).max()
+            total_takes = len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])
+            good_takes = len(df_logs[all_data.apply(lambda x: x.get('result') == 'good')])
+            
             summary = [
                 {'Параметр': 'Дата', 'Значение': start_t.strftime('%d.%m.%Y')},
                 {'Параметр': 'Начало смены', 'Значение': start_t.strftime('%H:%M:%S')},
                 {'Параметр': 'Конец смены', 'Значение': end_t.strftime('%H:%M:%S') if shift.get('end_time') else 'В работе'},
                 {'Параметр': 'Общее время', 'Значение': str(duration).split('.')[0]},
-                {'Параметр': 'Всего сцен', 'Значение': df_logs['data'].apply(lambda x: (x or {}).get('scene_no', 1)).nunique()},
-                {'Параметр': 'Всего дублей', 'Значение': len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])},
-                {'Параметр': 'Хороших дублей', 'Value': len(df_logs[df_logs['data'].apply(lambda x: (x or {}).get('result') == 'good')])},
+                {'Параметр': 'Всего сцен', 'Значение': max_scene},
+                {'Параметр': 'Всего кадров', 'Значение': max_shot},
+                {'Параметр': 'Всего дублей', 'Значение': total_takes},
+                {'Параметр': 'Хороших дублей', 'Значение': good_takes},
             ]
             pd.DataFrame(summary).to_excel(writer, sheet_name='Итоги', index=False)
 
