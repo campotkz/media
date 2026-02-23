@@ -1829,9 +1829,10 @@
         }
 
         // Add header click shortcuts
-        if (ui.sceneLabel) ui.sceneLabel.parentElement.onclick = () => editManual('scene');
-        if (ui.shotLabel) ui.shotLabel.parentElement.onclick = (e) => {
+        if (ui.sceneLabel) ui.sceneLabel.onclick = () => editManual('scene');
+        if (ui.shotLabel) ui.shotLabel.onclick = (e) => {
             e.preventDefault();
+            e.stopPropagation();
             incrementShot();
         };
 

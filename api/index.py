@@ -861,6 +861,69 @@ def generate_timer_report():
         # 2. Create Excel with Formatting
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Sheet 0: ПРОТОКОЛ СЪЕМКИ (The New Main Sheet)
+            protocol = []
+            try:
+                plan = json.loads(shift.get('schedule', '[]'))
+                if not isinstance(plan, list): plan = []
+                
+                # Pre-process logs for easier lookup
+                # motor, relocation_start, lunch_start, etc.
+                for i, p_row in enumerate(plan):
+                    num = p_row.get('num', '')
+                    task_name = p_row.get('task', p_row.get('notes', '—'))
+                    planned_time = f"{p_row.get('start','--:--')}—{p_row.get('end','--:--')}"
+                    planned_loc = p_row.get('loc', '—')
+                    
+                    # Find actual data
+                    # Check if any log refers to this plan row
+                    actual_start = "—"
+                    actual_end = "—"
+                    duration = "—"
+                    result = "—"
+                    
+                    # Find first log with this plan_row
+                    row_logs = df_logs[df_logs['data'].apply(lambda x: (x.get('plan_row') or {}).get('num') == num if num else False)]
+                    if row_logs.empty and not num:
+                        # Fallback for tech tasks by name
+                        tech_name = task_name.lower()
+                        row_logs = df_logs[df_logs['event_type'].str.contains(tech_name, na=False)]
+
+                    if not row_logs.empty:
+                        start_evt = row_logs.iloc[0]
+                        actual_start = start_evt['time'].strftime('%H:%M')
+                        
+                        # Find end (if motor) or just next event
+                        end_candidates = df_logs[df_logs['time'] > start_evt['time']]
+                        if not end_candidates.empty:
+                            actual_end = end_candidates.iloc[0]['time'].strftime('%H:%M')
+                            duration = round((end_candidates.iloc[0]['time'] - start_evt['time']).total_seconds() / 60)
+                        
+                        # If scene, count takes
+                        if num:
+                            takes = df_logs[(df_logs['event_type'] == 'motor') & 
+                                            (df_logs['data'].apply(lambda x: x.get('scene_no') == str(num)))]
+                            good_takes = df_logs[(df_logs['event_type'] == 'take_evaluation') & 
+                                                 (df_logs['data'].apply(lambda x: x.get('result') == 'good'))]
+                            result = f"{len(takes)} дуб. / {len(good_takes)} GOOD"
+
+                    protocol.append({
+                        '№': f"№{num}" if num else i+1,
+                        'СЦЕНА / ЗАДАЧА': task_name,
+                        'ЛОКАЦИЯ': planned_loc,
+                        'ПЛАН (Н-К)': planned_time,
+                        'ФАКТ (СТАРТ)': actual_start,
+                        'ФАКТ (ФИН)': actual_end,
+                        'ХРОН (МИН)': duration,
+                        'РЕЗУЛЬТАТ / ДУБЛИ': result,
+                        'ПЕРСОНАЖИ / ПРИМ.': f"{p_row.get('act', '')} | {p_row.get('notes', '')}".strip(" |")
+                    })
+            except Exception as ex: 
+                print(f"Protocol error: {ex}")
+                protocol = [{'Ошибка': str(ex)}]
+
+            pd.DataFrame(protocol).to_excel(writer, sheet_name='ПРОТОКОЛ СЪЕМКИ', index=False)
+
             # Sheet 1: Chronology
             chrono = []
             for _, row in df_logs.iterrows():
