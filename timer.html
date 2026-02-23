@@ -970,7 +970,7 @@
             location: pGet('location') || 'КВАРТИРА',
             scene: parseInt(pGet('scene')) || 1,
             shot: parseInt(pGet('shot')) || 1,
-            take: parseInt(pGet('take')) || 0,
+            take: parseInt(pGet('take')) || 1,
             isMotor: false,
             project: { id: PID, name: '...' },
             // Data pools from calendar
@@ -1362,7 +1362,7 @@
             state.departed_actor = [];
             state.ready_actor = [];
             state.activeTimers = {};
-            state.scene = 1; state.shot = 1; state.take = 0;
+            state.scene = 1; state.shot = 1; state.take = 1;
             state.isMotor = false;
             // Parse unique locations from schedule (timing rows)
             state.shootLocations = [shoot.location];
@@ -1387,7 +1387,7 @@
                 }
             } catch (e) { console.warn('Schedule parse:', e); }
             ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
-            ui.sceneLabel.textContent = 1; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 0;
+            ui.sceneLabel.textContent = 1; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 1;
             saveState();
 
             // Show the Red Ring
@@ -1413,7 +1413,7 @@
                 state.departed_actor = [];
                 state.ready_actor = [];
                 state.activeTimers = {};
-                state.scene = 1; state.shot = 1; state.take = 0;
+                state.scene = 1; state.shot = 1; state.take = 1;
                 state.isMotor = false;
                 // Client Mapping Fix: Set to empty for manual shift
                 state.pool_client = [];
@@ -1808,7 +1808,7 @@
         };
 
         document.getElementById('elShotBtn').onclick = () => {
-            state.shot++; ui.shotLabel.textContent = state.shot; state.take = 0; ui.takeLabel.textContent = 0;
+            state.shot++; ui.shotLabel.textContent = state.shot; state.take = 1; ui.takeLabel.textContent = 1;
             saveState(); logEvent('shot_increment', {}, true);
         };
 
@@ -1832,8 +1832,8 @@
             } else if (type === 'shot') {
                 const next = prompt("Номер кадра:", state.shot);
                 if (next) {
-                    state.shot = parseInt(next); state.take = 0;
-                    ui.shotLabel.textContent = state.shot; ui.takeLabel.textContent = 0;
+                    state.shot = parseInt(next); state.take = 1;
+                    ui.shotLabel.textContent = state.shot; ui.takeLabel.textContent = 1;
                     saveState(); logEvent('edit_shot', { shot: next }, true);
                 }
             }
@@ -1850,9 +1850,9 @@
         function incrementShot(event) {
             if (event) event.stopPropagation();
             state.shot++;
-            state.take = 0;
+            state.take = 1;
             ui.shotLabel.textContent = state.shot;
-            ui.takeLabel.textContent = 0;
+            ui.takeLabel.textContent = 1;
             saveState();
             logEvent('auto_increment_shot', { shot: state.shot }, true);
             tg.HapticFeedback.impactOccurred('light');
@@ -2138,14 +2138,14 @@
 
             state.scene = item.num;
             state.shot = 1;
-            state.take = 0;
+            state.take = 1;
             if (item.loc) state.location = item.loc;
 
             state.currentTaskRow = { id: item.id || null, task: item.task, num: item.num };
 
             ui.sceneLabel.textContent = state.scene;
             ui.shotLabel.textContent = 1;
-            ui.takeLabel.textContent = 0;
+            ui.takeLabel.textContent = 1;
             if (item.loc) ui.locationLabel.textContent = `ЛОКАЦИЯ: ${item.loc}`;
 
             toggleDrawer(); // Close drawer
