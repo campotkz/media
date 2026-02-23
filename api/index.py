@@ -1030,12 +1030,14 @@ def generate_timer_report():
         # 4. Send to Telegram
         print(f"Sending report to chat {chat_id}, thread {thread_id}...")
         try:
-            target_chat = int(chat_id) if chat_id else None
-            target_thread = int(thread_id) if thread_id else None
+            target_chat = int(chat_id) if chat_id else shift.get('chat_id')
+            target_thread = int(thread_id) if thread_id else shift.get('thread_id')
             
             if not target_chat:
                 raise ValueError("Missing chat_id for report delivery")
 
+            total_takes = len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])
+            
             msg = bot.send_document(
                 target_chat, 
                 (file_name, file_bytes), 
@@ -1044,6 +1046,17 @@ def generate_timer_report():
                 visible_file_name=file_name, 
                 parse_mode="Markdown"
             )
+            
+            # --- AUTOMATED LINKING ---
+            if msg and shift.get('shoot_id'):
+                s_cid = str(target_chat)
+                if s_cid.startswith("-100"): s_cid = s_cid[4:]
+                report_link = f"https://t.me/c/{s_cid}/{msg.message_id}"
+                
+                print(f"Auto-linking report to shoot {shift['shoot_id']}: {report_link}")
+                supabase.table('shoots').update({'report_link': report_link}).eq('id', shift['shoot_id']).execute()
+            # -------------------------
+
         except Exception as tel_err:
             print(f"Telegram send error: {tel_err}")
             # Try sending to a fallback or just log it

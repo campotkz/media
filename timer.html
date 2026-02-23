@@ -1912,12 +1912,20 @@
                 if (res.report_link) {
                     state.lastReportUrl = res.report_link;
                     saveState();
-                    // If the user already opened the finish overlay and is waiting
+                    // Auto-success UI since backend already saved it
                     const btn = document.getElementById('btnFinishAction');
-                    if (btn && btn.textContent.includes('ГЕНЕРАЦИЯ')) {
-                        btn.textContent = 'ПРИВЯЗАТЬ ОТЧЕТ К КАЛЕНДАРЮ';
+                    if (btn) {
+                        btn.textContent = 'ОТЧЕТ ПРИВЯЗАН ✅';
                         btn.disabled = false;
-                        btn.classList.add('c-green');
+                        btn.classList.add('c-blue');
+                        btn.classList.remove('c-green');
+                        document.getElementById('finishDesc').textContent = "Отчет сформирован и автоматически привязан к календарю!";
+
+                        setTimeout(() => {
+                            btn.textContent = "ВЫХОД";
+                            btn.onclick = exitApp;
+                            btn.style.background = "#ff6b6b";
+                        }, 2000);
                     }
                 } else if (res.error) {
                     console.error('Report error:', res.error);
