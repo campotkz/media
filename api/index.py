@@ -840,7 +840,7 @@ def report_ping():
     if request.method == 'OPTIONS': return r
     
     try:
-        data = request.json or request.args or {}
+        data = request.get_json(silent=True) or request.args or {}
         shift_id = data.get('shift_id')
         if not shift_id: return jsonify({'error': 'No shift_id'}), 400
         
