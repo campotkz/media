@@ -827,6 +827,42 @@ def handle_add_video(message):
 
 # --- END ADD VIDEO ---
 
+@app.route('/api/timer/report_ping', methods=['POST', 'OPTIONS', 'GET'])
+def report_ping():
+    """Debug endpoint: test if shift data is readable and Excel can be built, without sending Telegram message."""
+    r = app.make_response('')
+    r.headers.add('Access-Control-Allow-Origin', '*')
+    r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    r.headers.add('Access-Control-Allow-Methods', 'POST, GET')
+    if request.method == 'OPTIONS': return r
+    
+    try:
+        data = request.json or request.args or {}
+        shift_id = data.get('shift_id')
+        if not shift_id: return jsonify({'error': 'No shift_id'}), 400
+        
+        s_res = supabase.table('production_shifts').select("id, project_id, chat_id, thread_id, start_time, end_time, status").eq('id', shift_id).execute()
+        if not s_res.data: return jsonify({'error': 'Shift not found'}), 404
+        shift = s_res.data[0]
+        
+        l_res = supabase.table('production_logs').select("id, event_type, event_time").eq('shift_id', shift_id).execute()
+        logs = l_res.data or []
+        
+        resp = jsonify({
+            'status': 'ok',
+            'shift': shift,
+            'log_count': len(logs),
+            'event_types': list(set(l['event_type'] for l in logs))
+        })
+        resp.headers.add('Access-Control-Allow-Origin', '*')
+        return resp
+    except Exception as e:
+        import traceback
+        r2 = jsonify({'error': str(e), 'trace': traceback.format_exc()})
+        r2.headers.add('Access-Control-Allow-Origin', '*')
+        return r2, 500
+
+
 @app.route('/api/timer/report', methods=['POST', 'OPTIONS'])
 def generate_timer_report():
     if request.method == 'OPTIONS':
@@ -851,9 +887,9 @@ def generate_timer_report():
         
         l_res = supabase.table('production_logs').select("*").eq('shift_id', shift_id).order('event_time').execute()
         logs = l_res.data
+        print(f"Logs found: {len(logs) if logs else 0}")
         if not logs:
-            bot.send_message(chat_id, "⚠️ Отчет пуст: логи не найдены.", message_thread_id=thread_id)
-            return jsonify({'status': 'empty'})
+            return jsonify({'error': 'No logs found for this shift', 'shift_id': shift_id}), 404
 
         df_logs = pd.DataFrame(logs)
 
