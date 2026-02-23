@@ -106,9 +106,12 @@ def send_excel():
 
 @bot.message_handler(commands=['start', 'cal'])
 def handle_start(message):
+    cid = message.chat.id
+    tid = message.message_thread_id or ''
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", url=APP_URL))
-    bot.send_message(message.chat.id, "🦾 **GULYWOOD ERP**", reply_markup=markup, message_thread_id=message.message_thread_id, parse_mode="Markdown")
+    cal_url = f"{APP_URL}index.html?cid={cid}&tid={tid}"
+    markup.add(types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", url=cal_url))
+    bot.send_message(cid, "🦾 **GULYWOOD ERP**", reply_markup=markup, message_thread_id=tid or None, parse_mode="Markdown")
 
 @bot.message_handler(commands=['status'])
 def handle_status(message):
