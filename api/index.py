@@ -1090,7 +1090,6 @@ def generate_timer_report():
                     cell.alignment = center_align
 
         output.seek(0)
-        file_bytes = output.read()
         file_name = f"DPR_{start_t.strftime('%d%m')}_Shift_{shift_id}.xlsx"
         
         # 4. Send to Telegram
@@ -1125,12 +1124,13 @@ def generate_timer_report():
             project_name = shift.get('project_id') or shift.get('project') or 'N/A'
             
             print(f"Sending document '{file_name}' to chat {target_chat}, thread {target_thread}, takes={total_takes}")
+            output.seek(0)  # make sure pointer is at start
             msg = bot.send_document(
-                target_chat, 
-                (file_name, file_bytes), 
-                caption=f"📋 **ОТЧЕТ ЗА СМЕНУ (DPR)**\n📅 Дата: {start_t.strftime('%d.%m.%Y')}\n🎬 Проект: {project_name}\n⏱ Смена: {start_t.strftime('%H:%M')} - {end_t.strftime('%H:%M')}\n🔥 Всего дублей: {total_takes}", 
-                message_thread_id=target_thread, 
-                visible_file_name=file_name, 
+                target_chat,
+                output,
+                caption=f"📋 **ОТЧЕТ ЗА СМЕНУ (DPR)**\n📅 Дата: {start_t.strftime('%d.%m.%Y')}\n🎬 Проект: {project_name}\n⏱ Смена: {start_t.strftime('%H:%M')} - {end_t.strftime('%H:%M')}\n🔥 Всего дублей: {total_takes}",
+                message_thread_id=target_thread,
+                visible_file_name=file_name,
                 parse_mode="Markdown"
             )
             print(f"Document sent successfully, msg_id={msg.message_id if msg else None}")
