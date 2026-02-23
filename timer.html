@@ -1403,9 +1403,9 @@
                 state.activeTimers = {};
                 state.scene = 1; state.shot = 1; state.take = 0;
                 state.isMotor = false;
-                ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
-                ui.sceneLabel.textContent = 1; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 0;
-                saveState();
+                // Client Mapping Fix
+                const rawClient = shoot.post_production || shoot.client || '';
+                state.pool_client = rawClient ? rawClient.split(',').map(s => s.trim()) : [];
 
                 // Show the Red Ring
                 document.getElementById('shootSelector').classList.add('hidden');
@@ -1444,6 +1444,7 @@
             pSet('departed_actor', JSON.stringify(state.departed_actor));
             pSet('ready_actor', JSON.stringify(state.ready_actor));
             pSet('active_timers', JSON.stringify(state.activeTimers));
+            pSet('current_task_row', JSON.stringify(state.currentTaskRow || null));
         }
 
         async function logEvent(type, data = {}, blink = false) {
@@ -1452,7 +1453,15 @@
                 const entry = {
                     shift_id: state.shiftId,
                     event_type: type,
-                    data: { ...data, scene_no: state.scene, shot_no: state.shot, take_no: state.take, loc: state.location, shoot_id: state.shootId }
+                    data: {
+                        ...data,
+                        scene_no: state.scene,
+                        shot_no: state.shot,
+                        take_no: state.take,
+                        loc: state.location,
+                        shoot_id: state.shootId,
+                        plan_row: state.currentTaskRow || null
+                    }
                 };
                 sb.from('production_logs').insert(entry).then();
                 tg.HapticFeedback.impactOccurred('light');
@@ -1556,7 +1565,18 @@
                 if (res !== null) {
                     const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
                     logEvent(id + '_end', { resolution: res, duration_m: dur });
+
+                    // Mark task as done in plan
+                    if (state.currentTaskRow && state.currentTaskRow.type === category) {
+                        const idx = state.currentSchedule.findIndex(r => r.id === state.currentTaskRow.id);
+                        if (idx >= 0) {
+                            state.currentSchedule[idx].done = true;
+                            saveScheduleToDB();
+                        }
+                    }
+
                     delete state.activeTimers[id];
+                    state.currentTaskRow = null;
                     el.classList.remove('active');
                     setPhase('IDLE', 'ОЖИДАНИЕ');
                     saveState();
@@ -1564,6 +1584,12 @@
             } else {
                 const reason = prompt("Причина задержки:", "");
                 if (reason !== null) {
+                    // Try to find matching task in plan (FIFO + Category)
+                    const task = state.currentSchedule?.find(r => !r.done && (r.task || '').toLowerCase().includes(category.toLowerCase()));
+                    if (task) {
+                        state.currentTaskRow = { id: task.id || null, task: task.task, type: category };
+                    }
+
                     state.activeTimers[id] = new Date().toISOString();
                     el.classList.add('active');
                     logEvent(id + '_start', { reason: reason });
@@ -1581,7 +1607,18 @@
                     const promised = parseInt(pGet('promised_' + id) || 0);
                     const delay = Math.max(0, dur - promised);
                     logEvent(id + '_end', { duration_m: dur, promised: promised, delay_m: delay });
+
+                    // Mark tech task as done
+                    if (state.currentTaskRow && state.currentTaskRow.type === id) {
+                        const idx = state.currentSchedule.findIndex(r => r.id === state.currentTaskRow.id);
+                        if (idx >= 0) {
+                            state.currentSchedule[idx].done = true;
+                            saveScheduleToDB();
+                        }
+                    }
+
                     delete state.activeTimers[id];
+                    state.currentTaskRow = null;
                     el.classList.remove('active');
                     setPhase('IDLE', 'ОЖИДАНИЕ');
                     saveState();
@@ -1591,6 +1628,22 @@
                     ], (val) => {
                         let mins = (val === 'custom') ? prompt("Минут:", "20") : val;
                         if (mins) {
+                            // FIFO + Location logic for Prep/Move
+                            let task = null;
+                            const isMove = id === 'loc_move' || id === 'setup';
+                            if (isMove) {
+                                // Prioritize by current location if moving
+                                task = state.currentSchedule?.find(r => !r.done && (r.loc === state.location) && (r.task || '').toLowerCase().match(/переезд|перестановка/i));
+                            }
+                            if (!task) {
+                                // Fallback to FIFO by name
+                                task = state.currentSchedule?.find(r => !r.done && (r.task || '').toLowerCase().includes(id.replace('loc_', '').toLowerCase()));
+                            }
+
+                            if (task) {
+                                state.currentTaskRow = { id: task.id || null, task: task.task, type: id };
+                            }
+
                             state.activeTimers[id] = new Date().toISOString();
                             pSet('promised_' + id, mins);
                             el.classList.add('active');
@@ -1764,12 +1817,7 @@
 
         function editManual(type) {
             if (type === 'scene') {
-                const next = prompt("Номер сцены:", state.scene);
-                if (next) {
-                    state.scene = parseInt(next); state.shot = 1; state.take = 0;
-                    ui.sceneLabel.textContent = state.scene; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 0;
-                    saveState(); logEvent('edit_scene', { scene: next }, true);
-                }
+                toggleDrawer();
             } else if (type === 'shot') {
                 const next = prompt("Номер кадра:", state.shot);
                 if (next) {
@@ -1779,6 +1827,13 @@
                 }
             }
         }
+
+        // Add header click shortcuts
+        if (ui.sceneLabel) ui.sceneLabel.parentElement.onclick = () => editManual('scene');
+        if (ui.shotLabel) ui.shotLabel.parentElement.onclick = (e) => {
+            e.preventDefault();
+            incrementShot();
+        };
 
         function incrementShot(event) {
             if (event) event.stopPropagation();
@@ -1995,8 +2050,16 @@
 
             currentSchedule.forEach((item, idx) => {
                 const div = document.createElement('div');
-                div.className = `sch-item ${item.done ? 'done' : ''}`;
+                div.className = `sch-item ${item.done ? 'done' : ''} ${item.num ? 'selectable' : ''}`;
                 div.dataset.index = idx;
+
+                // Allow selection of numbered tasks (scenes)
+                if (item.num) {
+                    div.onclick = (e) => {
+                        if (e.target.classList.contains('sch-check')) return;
+                        selectTaskFromPlan(idx);
+                    };
+                }
 
                 div.innerHTML = `
                     <div class="sch-check ${item.done ? 'checked' : ''}" onclick="toggleSchItem(${idx})"></div>
@@ -2033,6 +2096,28 @@
                     saveScheduleToDB();
                 }
             });
+        }
+
+        function selectTaskFromPlan(idx) {
+            const item = currentSchedule[idx];
+            if (!item.num) return; // Only numbered scenes
+
+            state.scene = item.num;
+            state.shot = 1;
+            state.take = 0;
+            if (item.loc) state.location = item.loc;
+
+            state.currentTaskRow = { id: item.id || null, task: item.task, num: item.num };
+
+            ui.sceneLabel.textContent = state.scene;
+            ui.shotLabel.textContent = 1;
+            ui.takeLabel.textContent = 0;
+            if (item.loc) ui.locationLabel.textContent = `ЛОКАЦИЯ: ${item.loc}`;
+
+            toggleDrawer(); // Close drawer
+            saveState();
+            logEvent('select_plan_task', { task_num: item.num, task_name: item.task });
+            tg.HapticFeedback.notificationOccurred('success');
         }
 
         function toggleSchItem(idx) {
