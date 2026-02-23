@@ -1035,24 +1035,35 @@
                 return;
             }
 
-            // Priority 2: Check Supabase for active shift for this project
-            console.log("Checking Supabase for active shifts...");
+            // Priority 2: Check Supabase for active shift by chat_id (reliable across contexts)
+            console.log("Checking Supabase for active shifts by chat_id...");
             try {
-                const { data, error } = await sb.from('production_shifts')
+                const numCid = parseInt(state.project.cid);
+                // Search by chat_id from DB — works even when thread_id is unknown
+                // (e.g., when opened from calendar where thread isn't in URL)
+                const query = sb.from('production_shifts')
                     .select('*')
-                    .eq('project_id', state.project.id)
                     .eq('status', 'active')
                     .order('created_at', { ascending: false })
                     .limit(1);
 
+                // Prefer chat_id if available, fallback to project_id
+                const dbResult = numCid && !isNaN(numCid)
+                    ? await query.eq('chat_id', numCid)
+                    : await query.eq('project_id', state.project.id);
+
+                const { data, error } = dbResult;
                 if (data && data.length > 0) {
                     const s = data[0];
-                    console.log("Found active shift in DB, attaching...");
+                    console.log("Found active shift in DB, attaching. shift_id=", s.id, "shoot_id=", s.shoot_id);
                     state.shiftId = s.id;
                     state.shootId = s.shoot_id;
                     state.startTime = s.start_time;
                     state.status = 'active';
-                    state.phaseStartTime = s.start_time; // Fallback
+                    state.phaseStartTime = s.start_time;
+                    // Restore project context so reports go to the right topic
+                    if (s.chat_id) state.project.cid = String(s.chat_id);
+                    if (s.thread_id) state.project.tid = String(s.thread_id);
                     saveState();
                     ui.overlay.classList.add('hidden');
                     refreshUI();
