@@ -926,169 +926,385 @@ def generate_timer_report():
         else:
             end_t = df_logs['time'].max()
 
-        # 2. Create Excel with Formatting
+        # 2. Create Excel with DPR Formatting
         output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            # Sheet 0: ПРОТОКОЛ СЪЕМКИ (The New Main Sheet)
-            protocol = []
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side, GradientFill
+        from openpyxl.utils import get_column_letter
+
+        wb = Workbook()
+
+        # ─── HELPER STYLES ────────────────────────────────────────────────────────
+        def hdr_dark(ws, row, col, value, span=1, height=None):
+            """Black-fill white-bold-centered header cell with optional merge."""
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.fill = PatternFill("solid", fgColor="1A1A1A")
+            cell.font = Font(color="FFFFFF", bold=True, size=9)
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            if span > 1:
+                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+span-1)
+            if height:
+                ws.row_dimensions[row].height = height
+            return cell
+
+        def hdr_red(ws, row, col, value, span=1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.fill = PatternFill("solid", fgColor="CC0000")
+            cell.font = Font(color="FFFFFF", bold=True, size=9)
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            if span > 1:
+                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+span-1)
+            return cell
+
+        def hdr_green(ws, row, col, value, span=1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.fill = PatternFill("solid", fgColor="1E7E34")
+            cell.font = Font(color="FFFFFF", bold=True, size=9)
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            if span > 1:
+                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+span-1)
+            return cell
+
+        def bordered(ws, row, col, value="", bold=False, bg=None, align="left", span=1, size=9):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.border = thin_border
+            cell.font = Font(bold=bold, size=size)
+            cell.alignment = Alignment(horizontal=align, vertical="center", wrap_text=True)
+            if bg:
+                cell.fill = PatternFill("solid", fgColor=bg)
+            if span > 1:
+                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+span-1)
+            return cell
+
+        thin_s = Side(style="thin")
+        thin_border = Border(left=thin_s, right=thin_s, top=thin_s, bottom=thin_s)
+        med_s = Side(style="medium")
+        med_border = Border(left=med_s, right=med_s, top=med_s, bottom=med_s)
+
+        def auto_width(ws, min_w=8, max_w=40):
+            for col in ws.columns:
+                ml = min_w
+                for cell in col:
+                    try:
+                        v = str(cell.value) if cell.value is not None else ""
+                        ml = max(ml, min(len(v) + 2, max_w))
+                    except: pass
+                ws.column_dimensions[get_column_letter(col[0].column)].width = ml
+
+        # ─── SHEET 1: PRODUCTION REPORT ──────────────────────────────────────────
+        ws = wb.active
+        ws.title = "PRODUCTION REPORT"
+        ws.sheet_view.showGridLines = False
+
+        # Parse plan from shift
+        try:
+            schedule = json.loads(shift.get('schedule') or '[]')
+            if not isinstance(schedule, list): schedule = []
+        except: schedule = []
+
+        project_name = shift.get('project_id', 'N/A')
+        shoot_id = shift.get('shoot_id')
+        location_str = shift.get('location', '')
+        # Try fetching location from shoot record
+        if not location_str and shoot_id:
             try:
-                plan = json.loads(shift.get('schedule', '[]'))
-                if not isinstance(plan, list): plan = []
-                
-                # Pre-process logs for easier lookup
-                # motor, relocation_start, lunch_start, etc.
-                for i, p_row in enumerate(plan):
-                    num = p_row.get('num', '')
-                    task_name = p_row.get('task', p_row.get('notes', '—'))
-                    planned_time = f"{p_row.get('start','--:--')}—{p_row.get('end','--:--')}"
-                    planned_loc = p_row.get('loc', '—')
-                    
-                    # Find actual data
-                    # Check if any log refers to this plan row
-                    actual_start = "—"
-                    actual_end = "—"
-                    duration = "—"
-                    result = "—"
-                    
-                    # Find first log with this plan_row
-                    row_logs = df_logs[df_logs['data'].apply(lambda x: (x.get('plan_row') or {}).get('num') == num if num else False)]
-                    if row_logs.empty and not num:
-                        # Fallback for tech tasks by name
-                        tech_name = task_name.lower()
-                        row_logs = df_logs[df_logs['event_type'].str.contains(tech_name, na=False)]
+                shoot_r = supabase.table('shoots').select('location').eq('id', shoot_id).execute()
+                if shoot_r.data: location_str = shoot_r.data[0].get('location', '')
+            except: pass
 
-                    if not row_logs.empty:
-                        start_evt = row_logs.iloc[0]
-                        actual_start = start_evt['time'].strftime('%H:%M')
-                        
-                        # Find end (if motor) or just next event
-                        end_candidates = df_logs[df_logs['time'] > start_evt['time']]
-                        if not end_candidates.empty:
-                            actual_end = end_candidates.iloc[0]['time'].strftime('%H:%M')
-                            duration = round((end_candidates.iloc[0]['time'] - start_evt['time']).total_seconds() / 60)
-                        
-                        # If scene, count takes
-                        if num:
-                            takes = df_logs[(df_logs['event_type'] == 'motor') & 
-                                            (df_logs['data'].apply(lambda x: x.get('scene_no') == str(num)))]
-                            good_takes = df_logs[(df_logs['event_type'] == 'take_evaluation') & 
-                                                 (df_logs['data'].apply(lambda x: x.get('result') == 'good'))]
-                            result = f"{len(takes)} дуб. / {len(good_takes)} GOOD"
+        # All locations mentioned in logs
+        loc_from_logs = df_logs['data'].apply(lambda x: x.get('loc', '') if isinstance(x, dict) else '').dropna().unique().tolist()
+        loc_from_logs = [l for l in loc_from_logs if l]
+        all_locs = location_str or ', '.join(loc_from_logs) or '—'
 
-                    protocol.append({
-                        '№': f"№{num}" if num else i+1,
-                        'СЦЕНА / ЗАДАЧА': task_name,
-                        'ЛОКАЦИЯ': planned_loc,
-                        'ПЛАН (Н-К)': planned_time,
-                        'ФАКТ (СТАРТ)': actual_start,
-                        'ФАКТ (ФИН)': actual_end,
-                        'ХРОН (МИН)': duration,
-                        'РЕЗУЛЬТАТ / ДУБЛИ': result,
-                        'ПЕРСОНАЖИ / ПРИМ.': f"{p_row.get('act', '')} | {p_row.get('notes', '')}".strip(" |")
-                    })
-            except Exception as ex: 
-                print(f"Protocol error: {ex}")
-                protocol = [{'Ошибка': str(ex)}]
+        day_names_ru = ['ПОНЕДЕЛЬНИК','ВТОРНИК','СРЕДА','ЧЕТВЕРГ','ПЯТНИЦА','СУББОТА','ВОСКРЕСЕНЬЕ']
+        date_str = f"{start_t.strftime('%d.%m.%Y')}  {day_names_ru[start_t.weekday()]}"
 
-            pd.DataFrame(protocol).to_excel(writer, sheet_name='ПРОТОКОЛ СЪЕМКИ', index=False)
+        # --- Шапка (Header block) ---
+        # Title row
+        ws.merge_cells("A1:N1")
+        title_cell = ws["A1"]
+        title_cell.value = "PRODUCTION REPORT"
+        title_cell.fill = PatternFill("solid", fgColor="1A1A1A")
+        title_cell.font = Font(color="FFFFFF", bold=True, size=14)
+        title_cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[1].height = 26
 
-            # Sheet 1: Chronology
-            chrono = []
-            for _, row in df_logs.iterrows():
-                d = row['data'] or {}
-                chrono.append({
-                    'Время': row['time'].strftime('%H:%M:%S'),
-                    'Событие': row['event_type'].upper().replace('_', ' '),
-                    'Локация': d.get('loc', '-'),
-                    'Сцена': d.get('scene_no', '-'),
-                    'Кадр': d.get('shot_no', '-'),
-                    'Дубль': d.get('take_no', '-'),
-                    'Детали': json.dumps(d, ensure_ascii=False) if d else ''
-                })
-            pd.DataFrame(chrono).to_excel(writer, sheet_name='Хронология', index=False)
+        # Row 2: Day | Company & Project
+        ws.merge_cells("A2:E2"); ws.merge_cells("F2:J2"); ws.merge_cells("K2:N2")
+        bordered(ws, 2, 1, f"СЪЕМОЧНЫЙ ДЕНЬ: {shift.get('day_number', 1)}", bold=True, bg="2C2C2C", align="center").font = Font(color="FFFFFF", bold=True, size=10)
+        bordered(ws, 2, 6, f"ПРОЕКТ: {project_name}", bold=True, bg="2C2C2C").font = Font(color="FFFFFF", bold=True, size=10)
+        bordered(ws, 2, 11, f"ДАТА: {date_str}", bold=True, bg="2C2C2C", align="center").font = Font(color="FFFFFF", bold=True, size=10)
+        ws.row_dimensions[2].height = 20
 
-            # Sheet 2: Delays
-            delays = []
-            for _, row in df_logs[df_logs['event_type'].str.contains('delay', case=False)].iterrows():
-                d = row['data'] or {}
-                delays.append({
-                    'Время': row['time'].strftime('%H:%M:%S'),
-                    'Категория': row['event_type'].replace('delay_', '').upper(),
-                    'Сцена': d.get('scene_no', '-'),
-                    'Причина': d.get('reason', d.get('resolution', '-'))
-                })
-            pd.DataFrame(delays).to_excel(writer, sheet_name='Задержки', index=False)
+        # Row 3: ON SET / WRAP | 1ST SHOT | LUNCH
+        ws.merge_cells("A3:E3"); ws.merge_cells("F3:J3"); ws.merge_cells("K3:N3")
+        first_motor = df_logs[df_logs['event_type'] == 'motor']['time'].min()
+        lunch_start = df_logs[df_logs['event_type'] == 'lunch_start']['time'].min()
+        lunch_end   = df_logs[df_logs['event_type'] == 'lunch_end']['time'].min()
+        on_set_wrap = f"ON SET / WRAP:  {start_t.strftime('%H:%M')} / {end_t.strftime('%H:%M')}"
+        first_shot_str = f"1ST SHOT:  {first_motor.strftime('%H:%M')}" if pd.notna(first_motor) else "1ST SHOT:  —"
+        lunch_str = f"LUNCH:  {lunch_start.strftime('%H:%M') if pd.notna(lunch_start) else '—'} — {lunch_end.strftime('%H:%M') if pd.notna(lunch_end) else '—'}"
+        bordered(ws, 3, 1, on_set_wrap, bg="F0F0F0", align="center")
+        bordered(ws, 3, 6, first_shot_str, bg="F0F0F0", align="center")
+        bordered(ws, 3, 11, lunch_str, bg="F0F0F0", align="center")
+        ws.row_dimensions[3].height = 18
 
-            # Sheet 3: Prep
-            prep_data = []
-            prep_types = {'makeup':'ГРИМ','wardrobe':'КОСТЮМ','sound':'ОПЕТЛИЧИВАНИЕ','light':'СВЕТ','camera':'КАМЕРА','art':'ХУДОЖКА','props':'РЕКВИЗИТ','sfx':'ПИРОТЕХНИКА','stunts':'КАСКАДЕРЫ'}
-            for pt_id, pt_label in prep_types.items():
-                starts = df_logs[df_logs['event_type'] == f'{pt_id}_start']
-                ends = df_logs[df_logs['event_type'] == f'{pt_id}_end']
-                for _, s_row in starts.iterrows():
-                    promised = (s_row['data'] or {}).get('promised', '?')
-                    e_match = ends[ends['time'] > s_row['time']].head(1)
-                    if not e_match.empty:
-                        e_row = e_match.iloc[0]
-                        actual_min = round((e_row['time'] - s_row['time']).total_seconds() / 60)
-                        prep_data.append({
-                            'Сервис': pt_label, 'Старт': s_row['time'].strftime('%H:%M'), 'Финиш': e_row['time'].strftime('%H:%M'),
-                            'План (мин)': promised, 'Факт (мин)': actual_min, 'Задержка': max(0, actual_min - int(promised)) if str(promised).isdigit() else 0
-                        })
-            pd.DataFrame(prep_data).to_excel(writer, sheet_name='Подготовка', index=False)
+        # Row 4: LOCATION
+        ws.merge_cells("A4:N4")
+        loc_cell = ws.cell(row=4, column=1, value=f"LOCATION(S):  {all_locs.upper()}")
+        loc_cell.fill = PatternFill("solid", fgColor="1A1A1A")
+        loc_cell.font = Font(color="FFFFFF", bold=True, size=10)
+        loc_cell.alignment = Alignment(horizontal="left", vertical="center")
+        ws.row_dimensions[4].height = 20
 
-            # Sheet 4: Arrivals
-            arrivals = []
-            arrival_types = ['crew_arrival', 'actor_arrival', 'client_arrival', 'actor_departure']
-            arrival_logs = df_logs[df_logs['event_type'].isin(arrival_types)]
-            for _, row in arrival_logs.iterrows():
-                d = row['data'] or {}
-                arrivals.append({
-                    'Время': row['time'].strftime('%H:%M:%S'), 'Событие': row['event_type'].upper().replace('_', ' '),
-                    'Имя': d.get('name', 'N/A'), 'Объект': d.get('loc', '-')
-                })
-            pd.DataFrame(arrivals).to_excel(writer, sheet_name='Прибытие', index=False)
+        # ─── COLUMN HEADERS for scene table (row 5) ──────────────────────────────
+        COLS = [
+            ('№',          1,  3), ('СЦЕНА /\nЗАДАЧА', 4, 18),
+            ('ЛОКАЦИЯ',    22, 12), ('СИНОПСИС',        34, 16),
+            ('АКТЕРЫ / ПЕРСОНАЖИ', 50, 16),
+            ('ПЛАН\nН', 66, 7), ('ПЛАН\nК', 73, 7),
+            ('ФАКТ\nН', 80, 7), ('ФАКТ\nК', 87, 7),
+            ('ХРОН\nМИН',  94, 6),
+            ('КАДРОВ', 100, 5), ('ДУБЛЕЙ', 105, 5), ('GOOD', 110, 5),
+            ('ПРИМЕЧАНИЯ', 115, 12),
+        ]
+        # Compact mapping: each column in the worksheet maps to our logical column
+        HEADERS = ['№', 'СЦЕНА /\nЗАДАЧА', 'ЛОКАЦИЯ', 'СИНОПСИС', 'АКТЕРЫ /\nПЕРСОНАЖИ',
+                   'ПЛАН Н', 'ПЛАН К', 'ФАКТ Н', 'ФАКТ К', 'ХРОН\nМИН',
+                   'КАДРОВ', 'ДУБЛЕЙ', 'GOOD', 'ПРИМЕЧАНИЯ']
+        COL_WIDTHS = [4, 18, 14, 20, 18, 7, 7, 7, 7, 7, 6, 6, 6, 16]
 
-            # Sheet 5: Summary
-            all_data = df_logs['data'].apply(lambda x: x if isinstance(x, dict) else {})
-            summary = [
-                {'Параметр': 'Дата', 'Значение': start_t.strftime('%d.%m.%Y')},
-                {'Параметр': 'Начало смены', 'Значение': start_t.strftime('%H:%M:%S')},
-                {'Параметр': 'Конец смены', 'Значение': end_t.strftime('%H:%M:%S') if shift.get('end_time') else 'В работе'},
-                {'Параметр': 'Общее время', 'Значение': str(end_t - start_t).split('.')[0]},
-                {'Параметр': 'Всего сцен', 'Значение': all_data.apply(lambda x: x.get('scene_no', 0)).max()},
-                {'Параметр': 'Всего кадров', 'Значение': all_data.apply(lambda x: x.get('shot_no', 0)).max()},
-                {'Параметр': 'Всего дублей', 'Значение': len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])},
+        # Set column widths
+        for ci, w in enumerate(COL_WIDTHS, 1):
+            ws.column_dimensions[get_column_letter(ci)].width = w
+
+        r = 5
+        for ci, h in enumerate(HEADERS, 1):
+            c = ws.cell(row=r, column=ci, value=h)
+            c.fill = PatternFill("solid", fgColor="333333")
+            c.font = Font(color="FFFFFF", bold=True, size=8)
+            c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            c.border = thin_border
+        ws.row_dimensions[r].height = 28
+
+        # ─── SCENE ROWS ──────────────────────────────────────────────────────────
+        r = 6
+        for p_row in schedule:
+            num = str(p_row.get('num', ''))
+            task = p_row.get('task', p_row.get('notes', ''))
+            loc  = p_row.get('loc', '')
+            syn  = p_row.get('synopsis', p_row.get('desc', ''))
+            act  = p_row.get('act', p_row.get('actors', ''))
+            p_start = p_row.get('start', '')
+            p_end   = p_row.get('end', '')
+            notes_txt = p_row.get('notes', '')
+
+            # Actual times: find first log event tied to this scene number
+            scene_logs = df_logs[df_logs['data'].apply(
+                lambda x: str(x.get('scene_no', '')) == num if isinstance(x, dict) and num else False
+            )] if num else pd.DataFrame()
+
+            if not scene_logs.empty:
+                a_start = scene_logs['time'].min().strftime('%H:%M')
+                a_end   = scene_logs['time'].max().strftime('%H:%M')
+                dur_min = round((scene_logs['time'].max() - scene_logs['time'].min()).total_seconds() / 60)
+            else:
+                a_start = ''; a_end = ''; dur_min = ''
+
+            motors = df_logs[(df_logs['event_type'] == 'motor') &
+                             (df_logs['data'].apply(lambda x: str(x.get('scene_no','')) == num if isinstance(x,dict) and num else False))]
+            good_t = df_logs[(df_logs['event_type'] == 'take_evaluation') &
+                             (df_logs['data'].apply(lambda x: str(x.get('scene_no','')) == num and x.get('result') == 'good' if isinstance(x,dict) and num else False))]
+            shots_count = df_logs[(df_logs['event_type'].isin(['shot_increment','new_shot'])) &
+                                  (df_logs['data'].apply(lambda x: str(x.get('scene_no','')) == num if isinstance(x,dict) and num else False))].shape[0]
+
+            row_vals = [num, task, loc, syn, act,
+                        p_start, p_end, a_start, a_end, dur_min if dur_min != '' else '',
+                        shots_count or '', len(motors) or '', len(good_t) or '',
+                        notes_txt]
+
+            # Highlight if no actual data
+            row_bg = None if a_start else "FFF9C4"  # light yellow if not shot
+
+            for ci, val in enumerate(row_vals, 1):
+                c = ws.cell(row=r, column=ci, value=val if val is not None else '')
+                c.border = thin_border
+                c.font = Font(size=8)
+                c.alignment = Alignment(vertical="center", wrap_text=True,
+                                        horizontal="center" if ci in [1,6,7,8,9,10,11,12,13] else "left")
+                if row_bg:
+                    c.fill = PatternFill("solid", fgColor=row_bg)
+            ws.row_dimensions[r].height = 22
+            r += 1
+
+        # ─── NON-SCENE SCHEDULE ROWS (prep, moves, lunch etc.) ───────────────────
+        # (already included in schedule above if present)
+
+        # ─── BLANK ROW ───────────────────────────────────────────────────────────
+        r += 1
+
+        # ─── SUMMARY TOTALS ──────────────────────────────────────────────────────
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=14)
+        c = ws.cell(row=r, column=1, value="ИТОГИ СЪЁМОЧНОГО ДНЯ")
+        c.fill = PatternFill("solid", fgColor="1A1A1A"); c.font = Font(color="FFFFFF", bold=True, size=10)
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[r].height = 20; r += 1
+
+        total_scenes = len([p for p in schedule if p.get('num')])
+        total_shot = len(df_logs['data'].apply(lambda x: x.get('scene_no','') if isinstance(x,dict) else '').dropna().unique())
+        total_takes = len(df_logs[df_logs['event_type'] == 'motor'])
+        total_good  = len(df_logs[(df_logs['event_type'] == 'take_evaluation') &
+                                   (df_logs['data'].apply(lambda x: isinstance(x,dict) and x.get('result')=='good'))])
+        lunch_dur = ''
+        if pd.notna(lunch_start) and pd.notna(lunch_end):
+            lunch_dur = round((lunch_end - lunch_start).total_seconds() / 60)
+        total_work_min = round((end_t - start_t).total_seconds() / 60) - (lunch_dur if lunch_dur else 0)
+
+        summary_rows = [
+            ('СЦЕН ПО ПЛАНУ', total_scenes, 'ВСЕГО ДУБЛЕЙ', total_takes),
+            ('СЦЕН СНЯТО',    total_shot,   'GOOD TAKES',    total_good),
+            ('НАЧАЛО СМЕНЫ',  start_t.strftime('%H:%M'), 'КОНЕЦ СМЕНЫ', end_t.strftime('%H:%M')),
+            ('ОБЕД',          f"{lunch_start.strftime('%H:%M') if pd.notna(lunch_start) else '—'} — {lunch_end.strftime('%H:%M') if pd.notna(lunch_end) else '—'}" if lunch_dur else '—',
+             'РАБОЧИХ МИН',   total_work_min),
+        ]
+        for lbl1, val1, lbl2, val2 in summary_rows:
+            ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=4)
+            ws.merge_cells(start_row=r, start_column=5, end_row=r, end_column=7)
+            ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=11)
+            ws.merge_cells(start_row=r, start_column=12, end_row=r, end_column=14)
+            bordered(ws, r, 1, lbl1, bold=True, bg="2C2C2C", align="right").font = Font(color="FFFFFF", bold=True, size=9)
+            bordered(ws, r, 5, val1, align="center")
+            bordered(ws, r, 8, lbl2, bold=True, bg="2C2C2C", align="right").font = Font(color="FFFFFF", bold=True, size=9)
+            bordered(ws, r, 12, val2, align="center")
+            ws.row_dimensions[r].height = 18; r += 1
+
+        # ─── ПЕРСОНАЖИ ───────────────────────────────────────────────────────────
+        r += 1
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
+        ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=14)
+        hdr_red(ws, r, 1, "ПЕРСОНАЖИ / АКТЕРЫ")
+        hdr_dark(ws, r, 8, "ГРУППОВКА / ЭПИЗОДНИКИ")
+        ws.row_dimensions[r].height = 18; r += 1
+
+        all_actors = set()
+        for p in schedule:
+            a = p.get('act', p.get('actors', ''))
+            if a:
+                for name in a.split(','):
+                    if name.strip(): all_actors.add(name.strip())
+        # Also from logs
+        for _, row_l in df_logs[df_logs['event_type'] == 'actor_arrival'].iterrows():
+            d = row_l['data'] if isinstance(row_l['data'], dict) else {}
+            if d.get('name'): all_actors.add(d['name'])
+
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
+        ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=14)
+        bordered(ws, r, 1, ', '.join(sorted(all_actors)) or '—')
+        bordered(ws, r, 8, '—')
+        ws.row_dimensions[r].height = 30; r += 2
+
+        # ─── ЧАСЫ РАБОТЫ / ОТЧЕТ ВРЕМЕНИ ─────────────────────────────────────────
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
+        ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=14)
+        hdr_dark(ws, r, 1, "ЧАСЫ РАБОТЫ")
+        hdr_dark(ws, r, 8, "ОТЧЕТ ВРЕМЕНИ")
+        ws.row_dimensions[r].height = 18; r += 1
+
+        time_rows = [
+            ('ON SET / WRAP', f"{start_t.strftime('%H:%M')} / {end_t.strftime('%H:%M')}"),
+            ('1ST SHOT', first_motor.strftime('%H:%M') if pd.notna(first_motor) else '—'),
+            ('LUNCH', f"{lunch_start.strftime('%H:%M') if pd.notna(lunch_start) else '—'} — {lunch_end.strftime('%H:%M') if pd.notna(lunch_end) else '—'}"),
+        ]
+        report_rows = [
+            ('СЕГОДНЯ', f"{total_work_min} мин"),
+            ('НАРАСТАЮЩИЙ ИТОГ', '—'),
+        ]
+        for i, ((lbl, val), (rl, rv)) in enumerate(zip(time_rows, report_rows + [('','')])):
+            ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=4)
+            ws.merge_cells(start_row=r, start_column=5, end_row=r, end_column=7)
+            ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=11)
+            ws.merge_cells(start_row=r, start_column=12, end_row=r, end_column=14)
+            bordered(ws, r, 1, lbl, bold=True, bg="F0F0F0", align="right")
+            bordered(ws, r, 5, val, align="center")
+            bordered(ws, r, 8, rl, bold=True, bg="F0F0F0", align="right")
+            bordered(ws, r, 12, rv, align="center")
+            ws.row_dimensions[r].height = 18; r += 1
+
+        # ─── NOTES ────────────────────────────────────────────────────────────────
+        r += 1
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=14)
+        hdr_dark(ws, r, 1, "NOTES")
+        ws.row_dimensions[r].height = 18; r += 1
+        notes_logs = df_logs[df_logs['event_type'] == 'note']
+        notes_txt_all = '; '.join([
+            (row_l['data'] or {}).get('text', '') for _, row_l in notes_logs.iterrows()
+            if isinstance(row_l['data'], dict) and row_l['data'].get('text')
+        ]) or '—'
+        ws.merge_cells(start_row=r, start_column=1, end_row=r+1, end_column=14)
+        c = ws.cell(row=r, column=1, value=notes_txt_all)
+        c.border = thin_border; c.alignment = Alignment(wrap_text=True, vertical="top")
+        ws.row_dimensions[r].height = 40
+
+        # ─── SHEET 2: ХРОНОЛОГИЯ (Full event log) ────────────────────────────────
+        ws2 = wb.create_sheet("ХРОНОЛОГИЯ")
+        chrono_headers = ['ВРЕМЯ', 'СОБЫТИЕ', 'ЛОКАЦИЯ', 'СЦЕНА', 'КАДР', 'ДУБЛЬ', 'ДЕТАЛИ']
+        for ci, h in enumerate(chrono_headers, 1):
+            c = ws2.cell(row=1, column=ci, value=h)
+            c.fill = PatternFill("solid", fgColor="1A1A1A"); c.font = Font(color="FFFFFF", bold=True, size=9)
+            c.alignment = Alignment(horizontal="center", vertical="center")
+            c.border = thin_border
+
+        for ri, (_, row_l) in enumerate(df_logs.iterrows(), 2):
+            d = row_l['data'] if isinstance(row_l['data'], dict) else {}
+            vals = [
+                row_l['time'].strftime('%H:%M:%S'),
+                row_l['event_type'].upper().replace('_', ' '),
+                d.get('loc', ''), d.get('scene_no', ''), d.get('shot_no', ''), d.get('take_no', ''),
+                '; '.join(f"{k}={v}" for k, v in d.items() if k not in ['loc','scene_no','shot_no','take_no'])
             ]
-            pd.DataFrame(summary).to_excel(writer, sheet_name='Итоги', index=False)
+            for ci, v in enumerate(vals, 1):
+                c = ws2.cell(row=ri, column=ci, value=v)
+                c.border = thin_border; c.font = Font(size=8)
+                c.alignment = Alignment(vertical="center")
 
-            # APPLY FORMATTING
-            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-            header_fill = PatternFill(start_color="333333", end_color="333333", fill_type="solid")
-            header_font = Font(color="FFFFFF", bold=True)
-            center_align = Alignment(horizontal='center')
-            thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        for col in ws2.columns:
+            ws2.column_dimensions[get_column_letter(col[0].column)].width = max(
+                8, min(40, max((len(str(c.value or '')) for c in col), default=8) + 2))
 
-            for sheet_name in writer.sheets:
-                ws = writer.sheets[sheet_name]
-                # Auto-width and Styles
-                for col in ws.columns:
-                    max_length = 0
-                    column = col[0].column_letter # Get the column name
-                    for cell in col:
-                        try:
-                            if len(str(cell.value)) > max_length:
-                                max_length = len(str(cell.value))
-                        except: pass
-                        cell.border = thin_border
-                    ws.column_dimensions[column].width = max_length + 4
-                
-                # Header Style
-                for cell in ws[1]:
-                    cell.fill = header_fill
-                    cell.font = header_font
-                    cell.alignment = center_align
+        # ─── SHEET 3: ЗАДЕРЖКИ ────────────────────────────────────────────────────
+        ws3 = wb.create_sheet("ЗАДЕРЖКИ")
+        delay_headers = ['ВРЕМЯ', 'КАТЕГОРИЯ', 'СЦЕНА', 'ДЛИТЕЛЬНОСТЬ (МИН)', 'ПРИЧИНА']
+        for ci, h in enumerate(delay_headers, 1):
+            c = ws3.cell(row=1, column=ci, value=h)
+            c.fill = PatternFill("solid", fgColor="CC0000"); c.font = Font(color="FFFFFF", bold=True, size=9)
+            c.alignment = Alignment(horizontal="center"); c.border = thin_border
 
+        delay_ri = 2
+        delay_logs_typed = df_logs[df_logs['event_type'].str.contains('delay', case=False, na=False)]
+        for _, row_l in delay_logs_typed.iterrows():
+            d = row_l['data'] if isinstance(row_l['data'], dict) else {}
+            # Find matching end
+            end_row = df_logs[(df_logs['time'] > row_l['time']) &
+                              (df_logs['event_type'].str.contains('delay_end|stop', na=False))].head(1)
+            dur_d = ''
+            if not end_row.empty:
+                dur_d = round((end_row.iloc[0]['time'] - row_l['time']).total_seconds() / 60)
+            for ci, v in enumerate([
+                row_l['time'].strftime('%H:%M:%S'),
+                row_l['event_type'].replace('_', ' ').upper(),
+                d.get('scene_no', ''), dur_d,
+                d.get('reason', d.get('resolution', ''))
+            ], 1):
+                c = ws3.cell(row=delay_ri, column=ci, value=v)
+                c.border = thin_border; c.font = Font(size=8)
+            delay_ri += 1
+
+        for col in ws3.columns:
+            ws3.column_dimensions[get_column_letter(col[0].column)].width = 18
+
+        # Save workbook to BytesIO
+        wb.save(output)
         output.seek(0)
         file_name = f"DPR_{start_t.strftime('%d%m')}_Shift_{shift_id}.xlsx"
         
