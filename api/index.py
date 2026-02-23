@@ -856,8 +856,37 @@ def generate_timer_report():
             return jsonify({'status': 'empty'})
 
         df_logs = pd.DataFrame(logs)
-        df_logs['time'] = pd.to_datetime(df_logs['event_time']).dt.tz_convert('Asia/Almaty')
-        
+
+        # --- CRITICAL: Parse 'data' field — Supabase may return JSON strings ---
+        def parse_data(x):
+            if isinstance(x, dict): return x
+            if isinstance(x, str):
+                try: return json.loads(x)
+                except: return {}
+            return {}
+        df_logs['data'] = df_logs['data'].apply(parse_data)
+
+        # Handle both timezone-aware and naive timestamps robustly
+        raw_times = pd.to_datetime(df_logs['event_time'])
+        if raw_times.dt.tz is None:
+            df_logs['time'] = raw_times.dt.tz_localize('UTC').dt.tz_convert('Asia/Almaty')
+        else:
+            df_logs['time'] = raw_times.dt.tz_convert('Asia/Almaty')
+
+        # Pre-compute start/end times (needed for Summary and filename below)
+        raw_start = pd.to_datetime(shift['start_time'])
+        if raw_start.tzinfo is None:
+            raw_start = raw_start.tz_localize('UTC')
+        start_t = raw_start.tz_convert('Asia/Almaty')
+
+        if shift.get('end_time'):
+            raw_end = pd.to_datetime(shift['end_time'])
+            if raw_end.tzinfo is None:
+                raw_end = raw_end.tz_localize('UTC')
+            end_t = raw_end.tz_convert('Asia/Almaty')
+        else:
+            end_t = df_logs['time'].max()
+
         # 2. Create Excel with Formatting
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -982,8 +1011,6 @@ def generate_timer_report():
             pd.DataFrame(arrivals).to_excel(writer, sheet_name='Прибытие', index=False)
 
             # Sheet 5: Summary
-            start_t = pd.to_datetime(shift['start_time']).tz_convert('Asia/Almaty')
-            end_t = pd.to_datetime(shift['end_time']).tz_convert('Asia/Almaty') if shift.get('end_time') else df_logs['time'].max()
             all_data = df_logs['data'].apply(lambda x: x if isinstance(x, dict) else {})
             summary = [
                 {'Параметр': 'Дата', 'Значение': start_t.strftime('%d.%m.%Y')},
@@ -1030,22 +1057,31 @@ def generate_timer_report():
         # 4. Send to Telegram
         print(f"Sending report to chat {chat_id}, thread {thread_id}...")
         try:
-            target_chat = int(chat_id) if chat_id else shift.get('chat_id')
-            target_thread = int(thread_id) if thread_id else shift.get('thread_id')
+            try:
+                target_chat = int(chat_id) if chat_id else shift.get('chat_id')
+            except (ValueError, TypeError):
+                target_chat = shift.get('chat_id')
+            try:
+                target_thread = int(thread_id) if thread_id else shift.get('thread_id')
+            except (ValueError, TypeError):
+                target_thread = shift.get('thread_id')
             
             if not target_chat:
                 raise ValueError("Missing chat_id for report delivery")
 
             total_takes = len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])
+            project_name = shift.get('project_id') or shift.get('project') or 'N/A'
             
+            print(f"Sending to target_chat={target_chat}, thread={target_thread}, takes={total_takes}")
             msg = bot.send_document(
                 target_chat, 
                 (file_name, file_bytes), 
-                caption=f"📋 **ОТЧЕТ ЗА СМЕНУ (DPR)**\n📅 Дата: {start_t.strftime('%d.%m.%Y')}\n🎬 Проект: {shift.get('project_id', 'N/A')}\n⏱ Смена: {start_t.strftime('%H:%M')} - {end_t.strftime('%H:%M')}\n🔥 Всего дублей: {total_takes}", 
+                caption=f"📋 **ОТЧЕТ ЗА СМЕНУ (DPR)**\n📅 Дата: {start_t.strftime('%d.%m.%Y')}\n🎬 Проект: {project_name}\n⏱ Смена: {start_t.strftime('%H:%M')} - {end_t.strftime('%H:%M')}\n🔥 Всего дублей: {total_takes}", 
                 message_thread_id=target_thread, 
                 visible_file_name=file_name, 
                 parse_mode="Markdown"
             )
+            print(f"Document sent successfully, msg_id={msg.message_id if msg else None}")
             
             # --- AUTOMATED LINKING ---
             if msg and shift.get('shoot_id'):
