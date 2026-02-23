@@ -1916,32 +1916,46 @@
             await logEvent('shift_finish');
             saveState();
 
+            const reportPayload = { shift_id: state.shiftId, chat_id: state.project.cid, thread_id: state.project.tid };
+            console.log('[REPORT] Sending request:', JSON.stringify(reportPayload));
+
+            // Show status in UI
+            const finishDesc = document.getElementById('finishDesc');
+            if (finishDesc) finishDesc.textContent = '⏳ Формируется отчет...';
+
             fetch('https://media-seven-eta.vercel.app/api/timer/report', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ shift_id: state.shiftId, chat_id: state.project.cid, thread_id: state.project.tid })
-            }).then(r => r.json()).then(res => {
+                body: JSON.stringify(reportPayload)
+            }).then(r => {
+                console.log('[REPORT] HTTP status:', r.status);
+                return r.json();
+            }).then(res => {
+                console.log('[REPORT] Response:', JSON.stringify(res));
                 if (res.report_link) {
                     state.lastReportUrl = res.report_link;
                     saveState();
-                    // Auto-success UI since backend already saved it
                     const btn = document.getElementById('btnFinishAction');
                     if (btn) {
                         btn.textContent = 'ОТЧЕТ ПРИВЯЗАН ✅';
                         btn.disabled = false;
                         btn.classList.add('c-blue');
                         btn.classList.remove('c-green');
-                        document.getElementById('finishDesc').textContent = "Отчет сформирован и автоматически привязан к календарю!";
-
+                        if (finishDesc) finishDesc.textContent = 'Отчет сформирован и автоматически привязан к календарю!';
                         setTimeout(() => {
                             btn.textContent = "ВЫХОД";
                             btn.onclick = exitApp;
                             btn.style.background = "#ff6b6b";
                         }, 2000);
                     }
-                } else if (res.error) {
-                    console.error('Report error:', res.error);
+                } else {
+                    const errMsg = res.error || JSON.stringify(res);
+                    console.error('[REPORT] Error from server:', errMsg);
+                    if (finishDesc) finishDesc.textContent = `⚠️ Ошибка отчёта: ${errMsg}`;
                 }
-            }).catch(e => console.warn('Report API not available:', e));
+            }).catch(e => {
+                console.error('[REPORT] Fetch failed:', e);
+                if (finishDesc) finishDesc.textContent = `❌ Сеть ошибка: ${e.message}`;
+            });
 
             document.getElementById('finishOverlay').classList.remove('hidden');
         }
