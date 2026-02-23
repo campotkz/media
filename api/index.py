@@ -1055,24 +1055,37 @@ def generate_timer_report():
         file_name = f"DPR_{start_t.strftime('%d%m')}_Shift_{shift_id}.xlsx"
         
         # 4. Send to Telegram
-        print(f"Sending report to chat {chat_id}, thread {thread_id}...")
+        print(f"Request chat_id={chat_id}, thread_id={thread_id}")
+        print(f"DB shift chat_id={shift.get('chat_id')}, thread_id={shift.get('thread_id')}")
         try:
+            # ALWAYS prefer the DB value — frontend params may be empty strings
+            db_chat = shift.get('chat_id')   # saved at shift start, most reliable
+            db_thread = shift.get('thread_id')
+            
+            # Use request param only as override when DB value missing
+            req_chat = None
+            req_thread = None
             try:
-                target_chat = int(chat_id) if chat_id else shift.get('chat_id')
-            except (ValueError, TypeError):
-                target_chat = shift.get('chat_id')
+                if chat_id and str(chat_id).strip():
+                    req_chat = int(str(chat_id).strip())
+            except (ValueError, TypeError): pass
             try:
-                target_thread = int(thread_id) if thread_id else shift.get('thread_id')
-            except (ValueError, TypeError):
-                target_thread = shift.get('thread_id')
+                if thread_id and str(thread_id).strip():
+                    req_thread = int(str(thread_id).strip())
+            except (ValueError, TypeError): pass
+            
+            target_chat = db_chat or req_chat
+            target_thread = db_thread or req_thread
+            
+            print(f"Using target_chat={target_chat}, target_thread={target_thread}")
             
             if not target_chat:
-                raise ValueError("Missing chat_id for report delivery")
+                raise ValueError(f"Missing chat_id for report delivery. DB={db_chat}, req={req_chat}")
 
             total_takes = len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])
             project_name = shift.get('project_id') or shift.get('project') or 'N/A'
             
-            print(f"Sending to target_chat={target_chat}, thread={target_thread}, takes={total_takes}")
+            print(f"Sending document '{file_name}' to chat {target_chat}, thread {target_thread}, takes={total_takes}")
             msg = bot.send_document(
                 target_chat, 
                 (file_name, file_bytes), 
