@@ -2122,7 +2122,9 @@
       row.className = 'timing-row';
       row.dataset.id = rowId;
       row.innerHTML = `
-        <div class="timing-cell drag-handle">⋮⋮</div>
+        <div class="timing-cell drag-handle">
+          ${data.num ? `<span style="color:#ffcc00; font-weight:800; font-size:10px;">№${data.num}</span>` : '⋮⋮'}
+        </div>
         <div class="timing-cell"><input type="time" class="t-start" value="${data.start || ''}"></div>
         <div class="timing-cell"><input type="time" class="t-end" value="${data.end || ''}"></div>
         <div class="timing-cell">
@@ -2488,6 +2490,9 @@
     function getTimingData() {
       const rows = document.querySelectorAll('#timingRows .timing-row');
       const data = [];
+      let taskCounter = 0;
+      const techTasks = ['подготовка', 'перестановка', 'перерыв', 'обед', 'тех. перерыв', 'переезд'];
+
       rows.forEach(row => {
         const start = row.querySelector('.t-start').value;
         const end = row.querySelector('.t-end').value;
@@ -2496,8 +2501,17 @@
         const act = row.querySelector('.t-act').value;
         const notes = row.querySelector('.t-notes').value;
         const link = row.querySelector('.t-link').value;
+
         if (start || end || loc || task || act || notes || link) {
-          data.push({ start, end, loc, task, act, notes, link });
+          let num = null;
+          const taskLower = (task || '').trim().toLowerCase();
+
+          if (taskLower && !techTasks.includes(taskLower)) {
+            taskCounter++;
+            num = taskCounter;
+          }
+
+          data.push({ start, end, loc, task, act, notes, link, num });
         }
       });
       return data;
@@ -2953,8 +2967,9 @@
               const obj = row.loc ? ` (${row.loc})` : '';
               const acts = row.act ? ` — 👤 ${row.act}` : '';
               const link = row.link ? ` [🔗](${row.link})` : '';
+              const num = row.num ? `№${row.num} ` : '';
               if (timeStr || task || obj || row.act || row.link) {
-                lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${task}${obj}${acts}${link}`);
+                lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${num}${task}${obj}${acts}${link}`);
               }
             });
           }

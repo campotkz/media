@@ -2005,7 +2005,10 @@
                         ${item.end ? `<span>до ${item.end}</span>` : ''}
                     </div>
                     <div class="sch-text">
-                        <div class="sch-task">${item.task || item.notes || 'Без названия'}</div>
+                        <div class="sch-task">
+                            ${item.num ? `<span style="color:var(--accent-yellow); font-weight:800; margin-right:4px;">№${item.num}</span>` : ''}
+                            ${item.task || item.notes || 'Без названия'}
+                        </div>
                         <div class="sch-meta">
                             ${item.loc ? `<span>📍 ${item.loc}</span>` : ''}
                             ${item.act ? `<span>🎭 ${item.act}</span>` : ''}
