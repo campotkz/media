@@ -1403,8 +1403,8 @@
                 state.activeTimers = {};
                 state.scene = 1; state.shot = 1; state.take = 0;
                 state.isMotor = false;
-                // Client Mapping Fix
-                const rawClient = shoot.post_production || shoot.client || '';
+                // Client Mapping Fix: Prioritize 'client' then 'post_production'
+                const rawClient = shoot.client || shoot.post_production || '';
                 state.pool_client = rawClient ? rawClient.split(',').map(s => s.trim()) : [];
 
                 // Show the Red Ring
@@ -1829,11 +1829,11 @@
         }
 
         // Add header click shortcuts
-        if (ui.sceneLabel) ui.sceneLabel.onclick = () => editManual('scene');
+        if (ui.sceneLabel) ui.sceneLabel.onclick = () => toggleDrawer();
         if (ui.shotLabel) ui.shotLabel.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            incrementShot();
+            editManual('shot'); // Open prompt on click
         };
 
         function incrementShot(event) {
