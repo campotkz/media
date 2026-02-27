@@ -15,8 +15,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         :root {
-            --bg-deep: #0a0a0a;
-            --bg-card: rgba(22, 22, 22, 0.7);
+            --bg-deep: #000;
+            --bg-card: rgba(255, 255, 255, 0.05);
             --accent-red: #ff3b30;
             --accent-green: #34c759;
             --accent-blue: #f45925;
@@ -25,9 +25,10 @@
             --accent-orange: #f45925;
             --text-main: #ffffff;
             --text-dim: rgba(255, 255, 255, 0.5);
-            --glass: rgba(255, 255, 255, 0.04);
-            --border: #262626;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.15);
             --safe-top: env(safe-area-inset-top);
+            --radius: 16px;
         }
 
         * {
@@ -40,6 +41,7 @@
             margin: 0;
             padding: 0;
             background-color: var(--bg-deep);
+            background-image: radial-gradient(circle at 50% 0%, #1a1a2e, #000);
             color: var(--text-main);
             font-family: 'Space Grotesk', sans-serif;
             height: 100vh;

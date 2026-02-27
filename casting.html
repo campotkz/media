@@ -14,15 +14,15 @@
         rel="stylesheet">
     <style>
         :root {
-            --bg: #0a0a0a;
-            --card-bg: rgba(22, 22, 22, 0.7);
+            --bg: #000;
+            --card-bg: rgba(255, 255, 255, 0.05);
             --accent: #f45925;
             --text: rgba(255, 255, 255, 0.92);
             --muted: rgba(255, 255, 255, 0.6);
-            --stroke: #262626;
+            --stroke: rgba(255, 255, 255, 0.15);
             --error: #ff3b30;
             --success: #4cd964;
-            --radius: 8px;
+            --radius: 16px;
         }
 
         * {
@@ -34,6 +34,7 @@
             margin: 0;
             padding: 0;
             background: var(--bg);
+            background-image: radial-gradient(circle at 50% 0%, #1a1a2e, #000);
             color: var(--text);
             font-family: 'Space Grotesk', sans-serif;
             line-height: 1.5;

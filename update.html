@@ -11,12 +11,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #0a0b10;
-            --card-bg: rgba(20, 22, 30, 0.6);
+            --bg: #000;
+            --card-bg: rgba(255, 255, 255, 0.05);
             --accent: #7aa2ff;
             --text: rgba(255, 255, 255, 0.92);
             --muted: rgba(255, 255, 255, 0.6);
-            --stroke: rgba(255, 255, 255, 0.1);
+            --stroke: rgba(255, 255, 255, 0.15);
             --error: #ff3b30;
             --success: #4cd964;
             --radius: 16px;
@@ -31,6 +31,7 @@
             margin: 0;
             padding: 0;
             background: var(--bg);
+            background-image: radial-gradient(circle at 50% 0%, #0d1117, #000);
             color: var(--text);
             font-family: 'Inter', sans-serif;
             display: flex;
