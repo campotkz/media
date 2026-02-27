@@ -1588,7 +1588,7 @@ def handle_reload_command(message):
         print(f"🔥 RELOAD COMMAND CAUGHT! Chat: {cid}, Thread: {tid}")
         
         # Send immediate acknowledgment to confirm bot is alive
-        status_msg = bot.reply_to(message, "⏳ Начинаю перезагрузку... (v3)")
+        status_msg = bot.reply_to(message, "⏳ Поиск анкет в базе данных...")
         
         query = supabase.table("casting_applications").select("*").eq("chat_id", cid)
         
@@ -1601,18 +1601,22 @@ def handle_reload_command(message):
         res = query.order("created_at", ascending=True).execute()
         
         if not res.data:
-            bot.edit_message_text(f"⚠️ Анкет не найдено в базе для этого чата/топика.", cid, status_msg.message_id)
+            bot.edit_message_text(f"⚠️ Анкет не найдено для этого топика (ID: {tid}).", cid, status_msg.message_id)
             return
 
-        count = 0
-        for app_data in res.data:
+        apps = res.data
+        count = len(apps)
+        bot.edit_message_text(f"⏳ Найдено {count} анкет. Начинаю перезагрузку...", cid, status_msg.message_id)
+
+        success_count = 0
+        for app_data in apps:
             try:
                 # 1. Delete OLD message
                 old_msg_id = app_data.get('tg_message_id')
                 if old_msg_id:
                     try:
                         bot.delete_message(cid, old_msg_id)
-                        # Delete media
+                        # Delete media (up to 9 previous messages)
                         for i in range(1, 10):
                             try: bot.delete_message(cid, int(old_msg_id) - i)
                             except: pass
@@ -1625,11 +1629,16 @@ def handle_reload_command(message):
                 def v(k): return str(app_data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
                 simple_caption = f"📸 <b>Анкета: {v('full_name')}</b>\n🎯 {v('casting_target')}\n\n⬇️⬇️⬇️"
                 
+                # Robust Photo Handling (Handle string vs list)
                 photos = app_data.get('photo_urls') or []
+                if isinstance(photos, str):
+                    try: photos = json.loads(photos)
+                    except: photos = [photos] if photos.startswith('http') else []
+                
                 video = app_data.get('video_audition_url')
                 media = []
                 
-                for i, url in enumerate(photos[:3]): # Max 3 photos
+                for i, url in enumerate(photos[:9]): # Max 9 photos
                     if i == 0: media.append(types.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
                     else: media.append(types.InputMediaPhoto(url))
                 
@@ -1648,21 +1657,31 @@ def handle_reload_command(message):
                 # 3. Send
                 sent_msg = None
                 if media:
-                    try: bot.send_media_group(cid, media, message_thread_id=tid)
-                    except Exception as e: print(f"Media err: {e}")
+                    try: 
+                        bot.send_media_group(cid, media, message_thread_id=tid)
+                    except Exception as e: 
+                        print(f"Media err for app {app_id}: {e}")
+                        # Fallback: Add warning to text
+                        full_txt += f"\n\n⚠️ <b>Ошибка загрузки медиа:</b> {e}"
                 
-                sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                try:
+                    sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                except Exception as e:
+                    # Fallback to plain text
+                    sent_msg = bot.send_message(cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
                 
                 if sent_msg:
                     supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
                 
-                count += 1
+                success_count += 1
                 import time; time.sleep(0.5)
                 
             except Exception as e:
                 print(f"Reload Item Error: {e}")
 
-        bot.edit_message_text(f"✅ Успешно перезагружено: {count}", cid, status_msg.message_id)
+        bot.delete_message(cid, status_msg.message_id)
+        final_msg = bot.send_message(cid, f"✅ Перезагрузка завершена. Обновлено анкет: {success_count} из {count}", message_thread_id=tid)
+        auto_delete(final_msg, 5)
         
     except Exception as e:
         print(f"RELOAD FATAL: {e}")
