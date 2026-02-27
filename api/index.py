@@ -551,6 +551,34 @@ def handle_app_select_callback(call):
         bot.answer_callback_query(call.id, "❌ Ошибка при выборе.")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_del:'))
+def handle_app_delete_initial(call):
+    try:
+        app_id = call.data.split(':')[1]
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("🗑️ ДА, УДАЛИТЬ", callback_data=f"app_del_ok:{app_id}"),
+            types.InlineKeyboardButton("❌ ОТМЕНА", callback_data=f"app_del_no:{app_id}")
+        )
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.answer_callback_query(call.id, "⚠️ Вы уверены?")
+    except Exception as e:
+        print(f"App Del Initial Err: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_del_no:'))
+def handle_app_delete_cancel(call):
+    try:
+        app_id = call.data.split(':')[1]
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("✅ ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
+            types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
+        )
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.answer_callback_query(call.id, "Ок, отмена.")
+    except Exception as e:
+        print(f"App Del Cancel Err: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_del_ok:'))
 def handle_app_delete_callback(call):
     try:
         app_id = call.data.split(':')[1]
