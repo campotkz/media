@@ -730,138 +730,99 @@ def notify_casting():
         print(f"Casting Notify Error: {e}")
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
 
-# --- ADD VIDEO / MEDIA COMMAND ---
-@bot.message_handler(func=lambda m: (m.text and "/add_video" in m.text) or (m.caption and "/add_video" in m.caption), content_types=['text', 'photo', 'video', 'document'])
-def handle_add_video(message):
+@bot.message_handler(func=lambda m: (m.text and "/add" in m.text) or (m.caption and "/add" in m.caption), content_types=['text', 'photo', 'video', 'document'])
+def handle_manual_add_media(message):
     try:
         reply = message.reply_to_message
         if not reply:
             bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение с анкетой, чтобы добавить медиа.")
             return
 
-        # 1. SMART TARGET DETECTION (Chain Discovery)
-        # We need to find the BOT's notification message (the "Application")
+        # 1. FIND THE APPLICATION DATA
         target_reply = reply
-        source_msg = message # By default, media is in the command message itself
-        
-        # If the reply is NOT the bot's application (no "АНКЕТА:")...
+        # If the reply is NOT the bot's application, try to find it in the chain
         if "АНКЕТА:" not in (reply.text or reply.caption or ""):
-            # Maybe we are replying to a video/photo?
-            if reply.video or reply.photo or reply.document:
-                source_msg = reply # The media is what we replied to
-                # Does THIS media reply to the application?
-                if reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or ""):
-                    target_reply = reply.reply_to_message
-                else:
-                    # Let's try to search naming anyway, but we need a target_reply
-                    pass
-
-        # Now search DB by target_reply.message_id
-        res = supabase.table("casting_applications").select("*").eq("tg_message_id", target_reply.message_id).execute()
-        app_data = None
-        
-        if not res.data:
-            # SMART HEALING: Search by name in text
-            txt = target_reply.text or target_reply.caption or ""
-            m_name = re.search(r'АНКЕТА:\s*([^\n<]+)', txt, re.IGNORECASE)
-            found_name = m_name.group(1).strip().replace("<b>", "").replace("</b>", "") if m_name else None
-            
-            if found_name:
-                h_res = supabase.table("casting_applications").select("*").ilike("full_name", f"%{found_name}%").eq("chat_id", message.chat.id).execute()
-                if h_res.data:
-                    app_data = h_res.data[0]
-                    supabase.table("casting_applications").update({"tg_message_id": target_reply.message_id}).eq("id", app_data['id']).execute()
-                else:
-                    bot.reply_to(message, f"❌ Не удалось найти в базе анкету на имя '{found_name}'.")
-                    return
+            if reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or ""):
+                target_reply = reply.reply_to_message
             else:
                 bot.reply_to(message, "❌ Пожалуйста, отвечайте именно на сообщение с АНКЕТОЙ.")
                 return
-        else:
-            app_data = res.data[0]
-        
-        # 2. Extract Media from source_msg
-        new_url = None
-        file_id = None
-        media_type = "файл"
-        
-        if source_msg.video: 
-            file_id = source_msg.video.file_id
-            media_type = "видео"
-        elif source_msg.photo: 
-            file_id = source_msg.photo[-1].file_id
-            media_type = "фото"
-        elif source_msg.document: 
-            file_id = source_msg.document.file_id
-            media_type = "файл"
-        
-        if file_id:
-            # UPLOAD FILE TO SUPABASE
-            bot.send_chat_action(message.chat.id, 'upload_document', message_thread_id=message.message_thread_id)
-            f_info = bot.get_file(file_id)
-            f_bytes = bot.download_file(f_info.file_path)
-            
-            ext = f_info.file_path.split('.')[-1]
-            fname = f"additional_{app_data['id']}_{int(datetime.now().timestamp())}.{ext}"
-            path = f"extra/{fname}" # Store extra stuff in a separate folder
-            
-            supabase.storage.from_('casting_media').upload(path, f_bytes)
-            # Get public link
-            new_url = supabase.storage.from_('casting_media').get_public_url(path)
-            if not new_url:
-                new_url = f"{SUPABASE_URL}/storage/v1/object/public/casting_media/{path}"
-        else:
-            # Search for link in text (Manual Link)
-            txt = (message.text or message.caption or "").replace("/add_video", "").strip()
-            m = re.search(r'(https?://[^\s]+)', txt)
-            if m: 
-                new_url = m.group(1)
-                media_type = "ссылка"
 
-        if not new_url:
-            bot.reply_to(message, "❌ Файл или ссылка не найдены. Прикрепите фото/видео или напишите ссылку в ответе.")
+        res = supabase.table("casting_applications").select("*").eq("tg_message_id", target_reply.message_id).execute()
+        if not res.data:
+            bot.reply_to(message, "❌ Анкета не найдена в базе (возможно, она слишком старая).")
+            return
+        
+        app_data = res.data[0]
+        cid, tid = message.chat.id, message.message_thread_id
+
+        # 2. Extract Media (Video/Photo)
+        source_msg = message
+        new_video = app_data.get('video_audition_url')
+        new_photos = app_data.get('photo_urls') or []
+        
+        is_updated = False
+        
+        if source_msg.video:
+            bot.send_chat_action(cid, 'upload_video', message_thread_id=tid)
+            f_info = bot.get_file(source_msg.video.file_id)
+            f_bytes = bot.download_file(f_info.file_path)
+            path = f"video/manual_{app_data['id']}_{int(datetime.now().timestamp())}.mp4"
+            supabase.storage.from_('casting_media').upload(path, f_bytes)
+            new_video = supabase.storage.from_('casting_media').get_public_url(path)
+            is_updated = True
+        elif source_msg.photo:
+            bot.send_chat_action(cid, 'upload_photo', message_thread_id=tid)
+            f_info = bot.get_file(source_msg.photo[-1].file_id)
+            f_bytes = bot.download_file(f_info.file_path)
+            path = f"photo/manual_{app_data['id']}_{int(datetime.now().timestamp())}.jpg"
+            supabase.storage.from_('casting_media').upload(path, f_bytes)
+            new_photos.append(supabase.storage.from_('casting_media').get_public_url(path))
+            is_updated = True
+        
+        if not is_updated:
+            bot.reply_to(message, "❌ Прикрепите фото или видео к команде /add")
             return
 
         # 3. Update DB
-        current_extra = app_data.get('additional_media') or []
-        if not isinstance(current_extra, list): current_extra = []
-        current_extra.append({'type': media_type, 'url': new_url, 'added_at': datetime.now().isoformat()})
-        
-        supabase.table("casting_applications").update({"additional_media": current_extra}).eq("id", app_data['id']).execute()
+        supabase.table("casting_applications").update({
+            "photo_urls": new_photos,
+            "video_audition_url": new_video
+        }).eq("id", app_data['id']).execute()
 
-        # 4. EDIT ORIGINAL BOT MESSAGE (The main Magic)
-        new_text = reply.html_text
-        if "МЕДИА-ФАЙЛЫ (ПРЯМЫЕ ССЫЛКИ):" not in new_text:
-            new_text += "\n\n🖼️ <b>МЕДИА-ФАЙЛЫ (ПРЯМЫЕ ССЫЛКИ):</b>\n"
-        
-        # Determine the label based on media type
-        label = f"Доп. {media_type.capitalize()}"
-        if len(current_extra) > 1:
-            label += f" {len(current_extra)}"
-            
-        new_text += f"• <a href='{new_url}'>{label}</a> (через Telegram)\n"
-        
-        try:
-            bot.edit_message_text(new_text, message.chat.id, reply.message_id, parse_mode="HTML", disable_web_page_preview=True)
-            # Notify user quietly
-            bot.send_message(message.chat.id, f"✅ {media_type.capitalize()} добавлено в анкету <b>{app_data['full_name']}</b>", 
-                             message_thread_id=message.message_thread_id, parse_mode="HTML")
-        except Exception as edit_err:
-            print(f"Edit Error: {edit_err}")
-            # If edit failed (e.g. message too old), still let the user know
-            bot.send_message(message.chat.id, f"✅ Данные сохранены в базу, но не удалось отредактировать сообщение (возможно, оно слишком старое).", 
-                             message_thread_id=message.message_thread_id)
+        # 4. Trigger Repost (Delete old and send new)
+        # We use the same notify_casting logic but manually
+        updated_payload = {
+            **app_data,
+            "photo_urls": new_photos,
+            "video_audition_url": new_video,
+            "chat_id": cid,
+            "thread_id": tid
+        }
 
-        # 5. Cleanup: Delete the user's command message
+        # Delete OLD message
         try:
-            bot.delete_message(message.chat.id, message.message_id)
+            bot.delete_message(cid, target_reply.message_id)
+            # Try to delete media group (usually msg_id - 1)
+            try: bot.delete_message(cid, int(target_reply.message_id) - 1)
+            except: pass
         except: pass
-        
-    except Exception as e:
-        print(f"Add Media Error: {e}")
-        bot.send_message(message.chat.id, f"❌ Ошибка при добавлении: {e}", message_thread_id=message.message_thread_id)
 
-# --- END ADD VIDEO ---
+        # Delete command message
+        try: bot.delete_message(cid, message.message_id)
+        except: pass
+
+        # SEND NEW MESSAGE (Triggering the same logic as the API)
+        import requests
+        requests.post('https://media-seven-eta.vercel.app/api/casting', json=updated_payload)
+
+    except Exception as e:
+        print(f"Manual Update Error: {e}")
+        bot.send_message(message.chat.id, f"❌ Ошибка: {e}", message_thread_id=message.message_thread_id)
+
+# --- OLD ADD VIDEO (KEEP FOR BACKWARD COMPATIBILITY OR REMOVE) ---
+# I will replace it with the new unified handle_manual_add_media above.
+
 
 @app.route('/api/timer/report_ping', methods=['POST', 'OPTIONS', 'GET'])
 def report_ping():
