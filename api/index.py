@@ -498,6 +498,55 @@ def handle_reply_input(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка сохранения: {e}")
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_del:'))
+def handle_app_delete_callback(call):
+    try:
+        app_id = call.data.split(':')[1]
+        cid = call.message.chat.id
+        tid = call.message.message_thread_id
+        
+        # 1. Fetch data to get media URLs
+        res = supabase.table("casting_applications").select("*").eq("id", app_id).execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ Анкета уже удалена из базы.")
+            bot.delete_message(cid, call.message.message_id)
+            return
+        
+        app_data = res.data[0]
+        
+        # 2. Delete media from Storage
+        photos = app_data.get('photo_urls', [])
+        video = app_data.get('video_audition_url')
+        
+        all_media_urls = list(photos)
+        if video: all_media_urls.append(video)
+        
+        for url in all_media_urls:
+            try:
+                # Extract path from URL: .../casting_media/photos/123.jpg -> photos/123.jpg
+                if 'casting_media/' in url:
+                    path = url.split('casting_media/')[-1]
+                    supabase.storage.from_('casting_media').remove([path])
+            except: pass
+
+        # 3. Delete from Supabase
+        supabase.table("casting_applications").delete().eq("id", app_id).execute()
+        
+        # 4. Delete from Telegram
+        try:
+            bot.delete_message(cid, call.message.message_id)
+            # Try to delete media group too (msg_id - 1)
+            try: bot.delete_message(cid, int(call.message.message_id) - 1)
+            except: pass
+        except: pass
+        
+        bot.answer_callback_query(call.id, "✅ Анкета и файлы удалены.")
+        print(f"🗑️ FULL DELETE: App {app_id} removed from DB, Storage and TG.")
+
+    except Exception as e:
+        print(f"App Delete Err: {e}")
+        bot.answer_callback_query(call.id, f"❌ Ошибка при удалении: {e}")
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('del_'))
 def handle_del_callback(call):
     try:
@@ -691,16 +740,27 @@ def notify_casting():
             else:
                 media.append(types.InputMediaVideo(video))
 
+        # 3. Inline Buttons (Delete)
+        markup = types.InlineKeyboardMarkup()
+        # We need the ID of the record we just inserted. 
+        # Since it was inserted by frontend, we search for the latest one.
+        try:
+            app_res = supabase.table("casting_applications").select("id").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
+            if app_res.data:
+                app_id = app_res.data[0]['id']
+                markup.add(types.InlineKeyboardButton("🗑️ УДАЛИТЬ АНКЕТУ", callback_data=f"app_del:{app_id}"))
+        except: pass
+
         try:
             sent_msg = None
             if media:
                 print(f"DEBUG: sending media group with {len(media)} items")
                 bot.send_media_group(cid, media, message_thread_id=tid)
                 # 3. Always send full text as a separate message for guaranteed delivery
-                sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, parse_mode="HTML", disable_web_page_preview=True)
+                sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, parse_mode="HTML", disable_web_page_preview=True, reply_markup=markup)
             else:
                 print(f"DEBUG: sending text message only")
-                sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, parse_mode="HTML")
+                sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, parse_mode="HTML", reply_markup=markup)
             
             # 4. CAPTURE MESSAGE ID to DB for future edits
             if sent_msg:
@@ -729,6 +789,42 @@ def notify_casting():
     except Exception as e:
         print(f"Casting Notify Error: {e}")
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
+
+@bot.message_handler(commands=['del'])
+def handle_del_app_command(message):
+    try:
+        reply = message.reply_to_message
+        if not reply:
+            bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение с анкетой для удаления.")
+            return
+
+        # 1. FIND THE APPLICATION DATA
+        target_reply = reply
+        if "АНКЕТА:" not in (reply.text or reply.caption or ""):
+            if reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or ""):
+                target_reply = reply.reply_to_message
+            else:
+                bot.reply_to(message, "❌ Пожалуйста, отвечайте именно на сообщение с АНКЕТОЙ.")
+                return
+
+        res = supabase.table("casting_applications").select("id").eq("tg_message_id", target_reply.message_id).execute()
+        if not res.data:
+            bot.reply_to(message, "❌ Анкета не найдена в базе.")
+            return
+        
+        app_id = res.data[0]['id']
+        
+        # Cleanup command
+        try: bot.delete_message(message.chat.id, message.message_id)
+        except: pass
+        
+        # Reuse callback logic
+        handle_app_delete_callback(types.CallbackQuery(id="0", from_user=message.from_user, chat_instance="0", 
+                                                      message=target_reply, data=f"app_del:{app_id}"))
+
+    except Exception as e:
+        print(f"Manual Del Error: {e}")
+        bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(commands=['foto', 'video'])
 def handle_actor_update_link(message):
