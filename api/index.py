@@ -585,47 +585,63 @@ def handle_reply_input(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_sel:'))
 def handle_app_select_callback(call):
     try:
-        app_id = call.data.split(':')[1]
+        # Extract ID
+        raw_data = call.data.split(':')
+        app_id = raw_data[1]
         cid = call.message.chat.id
+        mid = call.message.message_id
         
         # 1. Get current status from DB
         res = supabase.table("casting_applications").select("*").eq("id", app_id).execute()
         if not res.data:
-            bot.answer_callback_query(call.id, "❌ Анкета не найдена.")
+            bot.answer_callback_query(call.id, "❌ Анкета не найдена в базе (возможно удалена).")
             return
         
-        current_status = res.data[0].get('is_selected', False)
+        app_data = res.data[0]
+        current_status = app_data.get('is_selected', False)
         new_status = not current_status
-        actor_name = res.data[0].get('full_name', 'Актер')
+        actor_name = app_data.get('full_name', 'Актер')
         
         # 2. Update DB
         supabase.table("casting_applications").update({"is_selected": new_status}).eq("id", app_id).execute()
         
-        # 3. Update Message Text (Rebuild HTML to preserve links)
-        # We must refetch or use existing data to reconstruct the message
-        app_data = res.data[0]
+        # 3. Update Message Content
+        # We need to rebuild the message EXACTLY as it was, but with/without the "SELECTED" header
+        # The key is that `format_casting_message` must include ALL links
+        
+        # Refetch to be 100% sure we have latest media (in case photos were just added)
+        # Actually we already fetched it above in `res`.
+        
+        # Re-generate the HTML text
         new_text = format_casting_message(app_data, is_selected=new_status)
             
-        # Update button text too
+        # Update button text
         markup = call.message.reply_markup
-        for row in markup.keyboard:
-            for btn in row:
-                if btn.callback_data == call.data:
-                    btn.text = "✅ ВЫБРАН" if new_status else "ВЫБРАТЬ"
+        if markup and markup.keyboard:
+            for row in markup.keyboard:
+                for btn in row:
+                    if btn.callback_data == call.data:
+                        btn.text = "✅ ВЫБРАН" if new_status else "ВЫБРАТЬ"
         
+        # Apply changes
+        # Note: If it's a media group, we edit the CAPTION. If text message, edit TEXT.
         try:
-            bot.edit_message_text(new_text, cid, call.message.message_id, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-        except:
-            # If it's a caption (media group)
-            try: bot.edit_message_caption(new_text, cid, call.message.message_id, reply_markup=markup, parse_mode="HTML")
-            except: pass
+            bot.edit_message_text(new_text, cid, mid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+        except Exception as e_text:
+            # Maybe it is a caption?
+            try: 
+                bot.edit_message_caption(new_text, cid, mid, reply_markup=markup, parse_mode="HTML")
+            except Exception as e_cap:
+                print(f"Failed to edit message: {e_cap}")
+                # Sometimes "message is not modified" error occurs if we spam click. Ignore it.
             
         status_msg = f"🌟 {actor_name} выбран!" if new_status else f"⚪️ Выбор снят: {actor_name}"
         bot.answer_callback_query(call.id, status_msg)
 
     except Exception as e:
         print(f"App Select Err: {e}")
-        bot.answer_callback_query(call.id, "❌ Ошибка при выборе.")
+        try: bot.answer_callback_query(call.id, "⚠️ Ошибка обновления.")
+        except: pass
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_bl:'))
 def handle_app_blacklist_initial(call):
