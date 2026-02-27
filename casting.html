@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>АНКЕТА УЧАСТНИКА КАСТИНГА</title>
-    <!-- Version: 2.1.5 -->
+    <!-- Version: 2.2.0 (Fixed Structure) -->
     <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com" rel="preconnect" />
@@ -63,9 +63,6 @@
         .container {
             position: relative;
             z-index: 10;
-        }
-
-        .container {
             width: 100%;
             max-width: 500px;
             padding: 20px;
@@ -92,90 +89,65 @@
             margin: 0;
         }
 
-        .project-badge {
-            display: inline-block;
-            background: rgba(122, 162, 255, 0.15);
-            color: var(--accent);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 12px;
-            border: 1px solid rgba(122, 162, 255, 0.3);
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
-        .important-note {
-            background: rgba(255, 204, 0, 0.1);
-            border-left: 3px solid #ffcc00;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 12px;
-            margin-bottom: 24px;
-            color: rgba(255, 255, 255, 0.8);
+        .welcome-card {
+            background: var(--card-bg);
+            border: 1px solid var(--stroke);
+            border-radius: var(--radius);
+            padding: 24px;
+            backdrop-filter: blur(20px);
         }
 
-        .reentry-block {
-            background: rgba(122, 162, 255, 0.1);
-            border: 1px solid var(--accent-stroke);
-            border-radius: 12px;
-            padding: 16px;
+        .welcome-text {
+            font-size: 14px;
+            line-height: 1.6;
             margin-bottom: 20px;
         }
 
-        .reentry-checkbox {
+        .welcome-instruction {
+            background: rgba(122, 162, 255, 0.1);
+            border-left: 3px solid var(--accent);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .option-btn {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--stroke);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: left;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
+            transition: all 0.2s;
+            margin-bottom: 12px;
         }
 
-        .reentry-checkbox input {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--accent);
+        .option-btn:hover {
+            border-color: var(--accent);
+            background: rgba(122, 162, 255, 0.05);
         }
 
-        #reentryInputGroup {
-            margin-top: 12px;
-            display: none;
-            animation: fadeIn 0.3s ease;
+        .option-btn i {
+            font-size: 20px;
+            opacity: 0.8;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-5px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .option-btn .label {
+            font-weight: 600;
+            font-size: 15px;
         }
 
-        .fetch-status {
-            font-size: 11px;
-            margin-top: 8px;
-            display: none;
-        }
-
-        .fetch-status.loading {
-            color: var(--accent);
-            display: block;
-        }
-
-        .fetch-status.error {
-            color: var(--error);
-            display: block;
-        }
-
-        .fetch-status.success {
-            color: var(--success);
-            display: block;
-        }
-
+        /* Form Blocks */
         .block {
             background: var(--card-bg);
             border: 1px solid var(--stroke);
@@ -272,135 +244,6 @@
             border-color: var(--accent);
         }
 
-        /* Checklist Styles */
-        .checklist-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: 250px;
-            overflow-y: auto;
-            background: rgba(255, 255, 255, 0.03);
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid var(--stroke);
-        }
-
-        .check-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 14px;
-            background: rgba(255, 255, 255, 0.08);
-            /* Чуть светлее чтобы было видно на фоне блока */
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid var(--stroke);
-            /* Четкая граница */
-            color: #fff;
-            font-size: 14px;
-        }
-
-        .check-item:hover {
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        .check-item input {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--accent);
-            cursor: pointer;
-            filter: grayscale(0);
-            /* Убираем обесцвечивание если оно есть */
-        }
-
-        .check-item.active {
-            background: rgba(122, 162, 255, 0.2);
-            border-color: var(--accent);
-            color: #fff;
-            /* Белый текст на синем фоне для лучшей читаемости */
-        }
-
-        .multi-warning {
-            display: none;
-            background: rgba(255, 59, 48, 0.1);
-            border: 1px solid var(--error);
-            color: var(--error);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 11px;
-            margin-top: 8px;
-            animation: fadeIn 0.3s ease;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(10px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            padding: 20px;
-        }
-
-        .modal-card {
-            background: #15171f;
-            border: 1px solid var(--accent);
-            border-radius: 20px;
-            padding: 24px;
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-card h3 {
-            color: #ff3b30;
-            margin: 0 0 16px;
-        }
-
-        .modal-card p {
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 24px;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .modal-btns {
-            display: flex;
-            gap: 12px;
-        }
-
-        .modal-btn {
-            flex: 1;
-            padding: 14px;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: opacity 0.2s;
-        }
-
-        .btn-confirm {
-            background: var(--accent);
-            color: #000;
-        }
-
-        .btn-back {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-        }
-
-        .modal-btn:hover {
-            opacity: 0.8;
-        }
-
         .radio-mark {
             width: 18px;
             height: 18px;
@@ -425,6 +268,7 @@
             transform: translate(-50%, -50%);
         }
 
+        /* Upload Area */
         .upload-area {
             border: 2px dashed var(--stroke);
             border-radius: 12px;
@@ -528,78 +372,149 @@
             cursor: not-allowed;
         }
 
-        .success-screen {
+        .fetch-status {
+            font-size: 11px;
+            margin-top: 8px;
             display: none;
-            text-align: center;
-            padding: 60px 20px;
         }
 
-        .welcome-screen {
+        .fetch-status.loading {
+            color: var(--accent);
+            display: block;
+        }
+
+        .fetch-status.error {
+            color: var(--error);
+            display: block;
+        }
+
+        .fetch-status.success {
+            color: var(--success);
+            display: block;
+        }
+
+        .checklist-group {
             display: flex;
             flex-direction: column;
-            gap: 20px;
-        }
-
-        .welcome-card {
-            background: var(--card-bg);
-            border: 1px solid var(--stroke);
-            border-radius: var(--radius);
-            padding: 24px;
-            backdrop-filter: blur(20px);
-        }
-
-        .welcome-text {
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
-
-        .welcome-instruction {
-            background: rgba(122, 162, 255, 0.1);
-            border-left: 3px solid var(--accent);
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 24px;
-        }
-
-        .option-btn {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--stroke);
+            gap: 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 12px;
             border-radius: 12px;
-            padding: 16px;
-            text-align: left;
+            border: 1px solid var(--stroke);
+        }
+
+        .check-item {
             display: flex;
             align-items: center;
             gap: 12px;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s;
-            margin-bottom: 12px;
+            border: 1px solid var(--stroke);
+            color: #fff;
+            font-size: 14px;
         }
 
-        .option-btn:hover {
+        .check-item:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .check-item input {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent);
+            cursor: pointer;
+            filter: grayscale(0);
+        }
+
+        .check-item.active {
+            background: rgba(122, 162, 255, 0.2);
             border-color: var(--accent);
-            background: rgba(122, 162, 255, 0.05);
+            color: #fff;
         }
 
-        .option-btn i {
-            font-size: 20px;
-            opacity: 0.8;
+        .multi-warning {
+            display: none;
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            margin-top: 8px;
+            animation: fadeIn 0.3s ease;
         }
 
-        .option-btn .label {
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: #15171f;
+            border: 1px solid var(--accent);
+            border-radius: 20px;
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-card h3 {
+            color: #ff3b30;
+            margin: 0 0 16px;
+        }
+
+        .modal-card p {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .modal-btns {
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 12px;
             font-weight: 600;
-            font-size: 15px;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.2s;
         }
 
-        .loading-overlay {
-            font-size: 24px;
-            margin-bottom: 12px;
+        .btn-confirm {
+            background: var(--accent);
+            color: #000;
         }
 
-        .success-screen p {
-            color: var(--muted);
-            margin-bottom: 32px;
+        .btn-back {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .modal-btn:hover {
+            opacity: 0.8;
         }
 
         .loading-overlay {
@@ -632,14 +547,28 @@
                 transform: rotate(360deg);
             }
         }
+
+        .success-screen {
+            display: none;
+            text-align: center;
+            padding: 60px 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .success-screen p {
+            color: var(--muted);
+            margin-bottom: 32px;
+        }
     </style>
 </head>
 
 <body>
+    <!-- Welcome Container -->
     <div class="container" id="welcomeContainer">
         <div class="header">
             <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span
-                    style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.1.5</span></h1>
+                    style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.2.0</span></h1>
             <p>Sklad Productions • Casting Management</p>
         </div>
 
@@ -686,294 +615,199 @@
         </div>
     </div>
 
-    <script>
-        const welcomeContainer = document.getElementById('welcomeContainer');
-        const formContainer = document.getElementById('formContainer');
-        const reentryInputGroup = document.getElementById('reentryInputGroup');
-        const reentryFetchBtn = document.getElementById('reentryFetchBtn');
-        const reentryPhone = document.getElementById('reentryPhone');
-        const fetchStatus = document.getElementById('fetchStatus');
-
-        // Mode Switching
-        document.getElementById('startNewBtn').onclick = () => {
-            welcomeContainer.style.display = 'none';
-            formContainer.style.display = 'block';
-            window.scrollTo(0, 0);
-        };
-
-        document.getElementById('reentryStartBtn').onclick = () => {
-            reentryInputGroup.style.display = 'block';
-        };
-
-        // Reentry Logic (Fetch old data)
-        reentryFetchBtn.onclick = async () => {
-            const phone = reentryPhone.value.replace(/\s+/g, '').trim();
-            if (!phone) {
-                fetchStatus.textContent = "Введите номер телефона";
-                fetchStatus.className = "fetch-status error";
-                return;
-            }
-
-            fetchStatus.textContent = "Поиск...";
-            fetchStatus.className = "fetch-status";
-            reentryFetchBtn.disabled = true;
-
-            try {
-                // 1. Search in DB
-                const { data, error } = await sb
-                    .from('casting_applications')
-                    .select('*')
-                    .eq('phone', phone)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-
-                if (error) throw error;
-
-                if (!data || data.length === 0) {
-                    throw new Error("Анкета с таким номером не найдена");
-                }
-
-                const app = data[0];
-
-                // 2. Pre-fill Form
-                const form = document.getElementById('castingForm');
-
-                // Text fields
-                ['full_name', 'city', 'dob', 'nationality', 'phone', 'instagram', 'height_weight', 'sizes', 'experience', 'skills', 'fee_range', 'portfolio_url'].forEach(key => {
-                    if (form[key]) form[key].value = app[key] || '';
-                });
-
-                // Radio buttons
-                ['gender', 'underwear_ok', 'extras_ok'].forEach(key => {
-                    if (app[key]) {
-                        const radio = form.querySelector(`input[name="${key}"][value="${app[key]}"]`);
-                        if (radio) radio.checked = true;
-                    }
-                });
-
-                // Fill media
-                if (app.photo_urls && Array.from(app.photo_urls).length > 0) {
-                    uploadedPhotos = app.photo_urls.map((url, index) => {
-                        const id = Math.random().toString(36).substr(2, 9);
-                        const fileItem = createMediaItem(id, { name: `Old_Photo_${index}` });
-                        document.getElementById('photoList').appendChild(fileItem);
-                        fileItem.style.backgroundImage = `url(${url})`;
-                        fileItem.querySelector('.progress-bar').style.width = '100%';
-                        return { id, url };
-                    });
-                }
-
-                if (app.video_audition_url) {
-                    const id = Math.random().toString(36).substr(2, 9);
-                    const fileItem = createMediaItem(id, { name: 'Old_Video' }, true);
-                    document.getElementById('videoList').innerHTML = '';
-                    document.getElementById('videoList').appendChild(fileItem);
-                    fileItem.querySelector('.progress-bar').style.width = '100%';
-                    uploadedVideo = app.video_audition_url;
-                }
-
-                fetchStatus.textContent = "✅ Данные найдены! Вы можете обновить фото и видео для этого проекта";
-                fetchStatus.className = "fetch-status success";
-
-                // Redirect to form after short delay
-                setTimeout(() => {
-                    welcomeContainer.style.display = 'none';
-                    formContainer.style.display = 'block';
-                    window.scrollTo(0, 0);
-                }, 1500);
-
-            } catch (err) {
-                console.error(err);
-                fetchStatus.textContent = "❌ Ошибка при поиске: " + err.message;
-                fetchStatus.className = "fetch-status error";
-            } finally {
-                reentryFetchBtn.disabled = false;
-            }
-        };
-    </script>
-    <!-- Блок 1 -->
-    <div class="block">
-        <div class="block-title">Проект и Роль</div>
-        <div class="form-group">
-            <label>На какой кастинг вы подаетесь?<span>*</span></label>
-            <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.3;">
-                Выбирайте точно тот проект, на который видели объявление. Анкеты, отправленные без соответствия
-                кастингу, будут удалены.
-            </div>
-            <div class="checklist-group" id="castingChecklist">
-                <!-- Сюда будут грузиться чекбоксы -->
-                <div style="padding: 10px; font-size: 12px; color: var(--muted);">Загрузка проектов...</div>
-            </div>
-            <div class="multi-warning" id="multiWarning">
-                ⚠️ Вы выбрали несколько кастингов. Убедитесь, что вы подходите под критерии всех выбранных
-                проектов!
-            </div>
-            <input type="hidden" name="casting_target" id="casting_target_hidden" required>
+    <!-- Form Container (Hidden by default) -->
+    <div class="container" id="formContainer" style="display: none;">
+        <div class="header">
+            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА</h1>
+            <p>Sklad Productions • Casting Management</p>
         </div>
-        <div class="form-group">
-            <label>На какого персонажа вы подаетесь?<span>*</span></label>
-            <input type="text" name="character_name" required
-                placeholder="например: «Главный герой», «Отец», «Прохожий»">
-        </div>
-        <div class="form-group">
-            <label>Ваше полное имя (Фамилия Имя)<span>*</span></label>
-            <input type="text" name="full_name" required placeholder="Иванов Иван">
-        </div>
-        <div class="form-group">
-            <label>Ваш гендер<span>*</span></label>
-            <div class="radio-group">
-                <label class="radio-item">
-                    <input type="radio" name="gender" value="Мужчина" required>
-                    <div class="radio-mark"></div>
-                    <span>Мужчина</span>
-                </label>
-                <label class="radio-item">
-                    <input type="radio" name="gender" value="Женщина">
-                    <div class="radio-mark"></div>
-                    <span>Женщина</span>
-                </label>
-                <label class="radio-item">
-                    <input type="radio" name="gender" value="Другое">
-                    <div class="radio-mark"></div>
-                    <span>Другое</span>
-                </label>
+
+        <form id="castingForm">
+            <!-- Блок 1 -->
+            <div class="block">
+                <div class="block-title">Проект и Роль</div>
+                <div class="form-group">
+                    <label>На какой кастинг вы подаетесь?<span>*</span></label>
+                    <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.3;">
+                        Выбирайте точно тот проект, на который видели объявление. Анкеты, отправленные без соответствия
+                        кастингу, будут удалены.
+                    </div>
+                    <div class="checklist-group" id="castingChecklist">
+                        <!-- Сюда будут грузиться чекбоксы -->
+                        <div style="padding: 10px; font-size: 12px; color: var(--muted);">Загрузка проектов...</div>
+                    </div>
+                    <div class="multi-warning" id="multiWarning">
+                        ⚠️ Вы выбрали несколько кастингов. Убедитесь, что вы подходите под критерии всех выбранных
+                        проектов!
+                    </div>
+                    <input type="hidden" name="casting_target" id="casting_target_hidden" required>
+                </div>
+                <div class="form-group">
+                    <label>На какого персонажа вы подаетесь?<span>*</span></label>
+                    <input type="text" name="character_name" required
+                        placeholder="например: «Главный герой», «Отец», «Прохожий»">
+                </div>
+                <div class="form-group">
+                    <label>Ваше полное имя (Фамилия Имя)<span>*</span></label>
+                    <input type="text" name="full_name" required placeholder="Иванов Иван">
+                </div>
+                <div class="form-group">
+                    <label>Ваш гендер<span>*</span></label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" name="gender" value="Мужчина" required>
+                            <div class="radio-mark"></div>
+                            <span>Мужчина</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="gender" value="Женщина">
+                            <div class="radio-mark"></div>
+                            <span>Женщина</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="gender" value="Другое">
+                            <div class="radio-mark"></div>
+                            <span>Другое</span>
+                        </label>
+                    </div>
+                </div>
             </div>
-        </div>
+
+            <!-- Блок 2 -->
+            <div class="block">
+                <div class="block-title">Контакты</div>
+                <div class="form-group">
+                    <label>Город проживания<span>*</span></label>
+                    <input type="text" name="city" required placeholder="Алматы">
+                </div>
+                <div class="form-group">
+                    <label>Возраст (лет)<span>*</span></label>
+                    <input type="number" name="dob" required placeholder="например: 25" min="0" max="120">
+                </div>
+                <div class="form-group">
+                    <label>Внешность (Типаж)<span>*</span></label>
+                    <input type="text" name="nationality" required
+                        placeholder="азиат, европеец, глаза карие, стройный...">
+                </div>
+                <div class="form-group">
+                    <label>Номер телефона (WhatsApp)<span>*</span></label>
+                    <input type="tel" name="phone" required placeholder="+7 777 000 00 00" inputmode="numeric">
+                </div>
+                <div class="form-group">
+                    <label>Ссылка на Instagram<span>*</span></label>
+                    <input type="text" name="instagram" required placeholder="@username">
+                </div>
+            </div>
+
+            <!-- Блок 3 -->
+            <div class="block">
+                <div class="block-title">Параметры и Опыт</div>
+                <div class="form-group">
+                    <label>Рост / Вес<span>*</span></label>
+                    <input type="text" name="height_weight" required placeholder="180 см / 75 кг">
+                </div>
+                <div class="form-group">
+                    <label>Размер одежды / Обуви<span>*</span></label>
+                    <input type="text" name="sizes" required placeholder="L / 43">
+                </div>
+                <div class="form-group">
+                    <label>Опыт в кино / Образование<span>*</span></label>
+                    <textarea name="experience" rows="3" required
+                        placeholder="Кратко опишите работы или укажите «нет»"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Навыки и таланты<span>*</span></label>
+                    <textarea name="skills" rows="3" required
+                        placeholder="вокал, танцы, владение инструментами и т.д."></textarea>
+                </div>
+            </div>
+
+            <!-- Блок 4 -->
+            <div class="block">
+                <div class="block-title">Бюджет</div>
+                <div class="form-group">
+                    <label>Ваш гонорар (Вилка «ОТ» и «ДО» за смену)<span>*</span></label>
+                    <input type="text" name="fee_range" required placeholder="например: 50.000 - 150.000">
+                </div>
+                <div class="form-group">
+                    <label>Готовы к съемкам в белье / купальниках?<span>*</span></label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" name="underwear_ok" value="Да" required>
+                            <div class="radio-mark"></div>
+                            <span>Да</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="underwear_ok" value="Нет">
+                            <div class="radio-mark"></div>
+                            <span>Нет</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="underwear_ok" value="Зависит от гонорара">
+                            <div class="radio-mark"></div>
+                            <span>Зависит от суммы</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Готовы участвовать в массовке / эпизодах?<span>*</span></label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" name="extras_ok" value="Да" required>
+                            <div class="radio-mark"></div>
+                            <span>Да</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="extras_ok" value="Нет">
+                            <div class="radio-mark"></div>
+                            <span>Нет</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 5 -->
+            <div class="block">
+                <div class="block-title">Медиа-материалы</div>
+
+                <div class="form-group">
+                    <label>Фотографии (минимум 3 шт)<span>*</span></label>
+                    <p style="font-size:11px; color:var(--muted); margin-bottom:10px">Анфас, профиль, в полный рост. Без
+                        фильтров. <b>Max 50MB/файл.</b></p>
+                    <div class="upload-area" id="photoUpload">
+                        <i>📸</i>
+                        <span>Нажмите для выбора фото (JPG, PNG)</span>
+                        <input type="file" id="photoInput" multiple accept="image/*" style="display:none">
+                    </div>
+                    <div class="file-list" id="photoList"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Видео-визитка (Актерский этюд)<span>*</span></label>
+                    <p style="font-size:11px; color:var(--muted); margin-bottom:10px">
+                        До 1 минуты. Эмоции и подача в кадре. <b>Лимит 50MB.</b><br>
+                        <i>Если прикрепить новое видео до минуты с визиткой именно по персонажу, на которого подаетесь,
+                            шансов больше или можете добавить ссылку на портфолио ниже.</i>
+                    </p>
+                    <div class="upload-area" id="videoUpload">
+                        <i>🎬</i>
+                        <span>Нажмите для выбора видео (MP4, MOV)</span>
+                        <input type="file" id="videoInput" accept="video/*" style="display:none">
+                    </div>
+                    <div class="file-list" id="videoList"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Ссылка на видео-визитку / портфолио</label>
+                    <input type="text" name="portfolio_url" placeholder="YouTube, Vimeo или Google Диск">
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
+        </form>
     </div>
 
-    <!-- Блок 2 -->
-    <div class="block">
-        <div class="block-title">Контакты</div>
-        <div class="form-group">
-            <label>Город проживания<span>*</span></label>
-            <input type="text" name="city" required placeholder="Алматы">
-        </div>
-        <div class="form-group">
-            <label>Возраст (лет)<span>*</span></label>
-            <input type="number" name="dob" required placeholder="например: 25" min="0" max="120">
-        </div>
-        <div class="form-group">
-            <label>Внешность (Типаж)<span>*</span></label>
-            <input type="text" name="nationality" required placeholder="азиат, европеец, глаза карие, стройный...">
-        </div>
-        <div class="form-group">
-            <label>Номер телефона (WhatsApp)<span>*</span></label>
-            <input type="tel" name="phone" required placeholder="+7 777 000 00 00" inputmode="numeric">
-        </div>
-        <div class="form-group">
-            <label>Ссылка на Instagram<span>*</span></label>
-            <input type="text" name="instagram" required placeholder="@username">
-        </div>
-    </div>
-
-    <!-- Блок 3 -->
-    <div class="block">
-        <div class="block-title">Параметры и Опыт</div>
-        <div class="form-group">
-            <label>Рост / Вес<span>*</span></label>
-            <input type="text" name="height_weight" required placeholder="180 см / 75 кг">
-        </div>
-        <div class="form-group">
-            <label>Размер одежды / Обуви<span>*</span></label>
-            <input type="text" name="sizes" required placeholder="L / 43">
-        </div>
-        <div class="form-group">
-            <label>Опыт в кино / Образование<span>*</span></label>
-            <textarea name="experience" rows="3" required
-                placeholder="Кратко опишите работы или укажите «нет»"></textarea>
-        </div>
-        <div class="form-group">
-            <label>Навыки и таланты<span>*</span></label>
-            <textarea name="skills" rows="3" required
-                placeholder="вокал, танцы, владение инструментами и т.д."></textarea>
-        </div>
-    </div>
-
-    <!-- Блок 4 -->
-    <div class="block">
-        <div class="block-title">Бюджет</div>
-        <div class="form-group">
-            <label>Ваш гонорар (Вилка «ОТ» и «ДО» за смену)<span>*</span></label>
-            <input type="text" name="fee_range" required placeholder="например: 50.000 - 150.000">
-        </div>
-        <div class="form-group">
-            <label>Готовы к съемкам в белье / купальниках?<span>*</span></label>
-            <div class="radio-group">
-                <label class="radio-item">
-                    <input type="radio" name="underwear_ok" value="Да" required>
-                    <div class="radio-mark"></div>
-                    <span>Да</span>
-                </label>
-                <label class="radio-item">
-                    <input type="radio" name="underwear_ok" value="Нет">
-                    <div class="radio-mark"></div>
-                    <span>Нет</span>
-                </label>
-                <label class="radio-item">
-                    <input type="radio" name="underwear_ok" value="Зависит от гонорара">
-                    <div class="radio-mark"></div>
-                    <span>Зависит от суммы</span>
-                </label>
-            </div>
-        </div>
-        <div class="form-group">
-            <label>Готовы участвовать в массовке / эпизодах?<span>*</span></label>
-            <div class="radio-group">
-                <label class="radio-item">
-                    <input type="radio" name="extras_ok" value="Да" required>
-                    <div class="radio-mark"></div>
-                    <span>Да</span>
-                </label>
-                <label class="radio-item">
-                    <input type="radio" name="extras_ok" value="Нет">
-                    <div class="radio-mark"></div>
-                    <span>Нет</span>
-                </label>
-            </div>
-        </div>
-    </div>
-
-    <!-- Блок 5 -->
-    <div class="block">
-        <div class="block-title">Медиа-материалы</div>
-
-        <div class="form-group">
-            <label>Фотографии (минимум 3 шт)<span>*</span></label>
-            <p style="font-size:11px; color:var(--muted); margin-bottom:10px">Анфас, профиль, в полный рост. Без
-                фильтров. <b>Max 50MB/файл.</b></p>
-            <div class="upload-area" id="photoUpload">
-                <i>📸</i>
-                <span>Нажмите для выбора фото (JPG, PNG)</span>
-                <input type="file" id="photoInput" multiple accept="image/*" style="display:none">
-            </div>
-            <div class="file-list" id="photoList"></div>
-        </div>
-
-        <div class="form-group">
-            <label>Видео-визитка (Актерский этюд)<span>*</span></label>
-            <p style="font-size:11px; color:var(--muted); margin-bottom:10px">
-                До 1 минуты. Эмоции и подача в кадре. <b>Лимит 50MB.</b><br>
-                <i>Если прикрепить новое видео до минуты с визиткой именно по персонажу, на которого подаетесь,
-                    шансов больше или можете добавить ссылку на портфолио ниже.</i>
-            </p>
-            <div class="upload-area" id="videoUpload">
-                <i>🎬</i>
-                <span>Нажмите для выбора видео (MP4, MOV)</span>
-                <input type="file" id="videoInput" accept="video/*" style="display:none">
-            </div>
-            <div class="file-list" id="videoList"></div>
-        </div>
-
-        <div class="form-group">
-            <label>Ссылка на видео-визитку / портфолио</label>
-            <input type="text" name="portfolio_url" placeholder="YouTube, Vimeo или Google Диск">
-        </div>
-    </div>
-
-    <button type="submit" class="submit-btn" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
-    </form>
-    </div>
-
+    <!-- Success Screen -->
     <div class="container success-screen" id="successScreen">
         <div style="font-size:60px; margin-bottom:20px">✅</div>
         <h2>ВАША АНКЕТА ПРИНЯТА!</h2>
@@ -982,6 +816,7 @@
             style="color:var(--accent); font-weight:700; text-decoration:none; font-size:18px">@Sklad.productions</a>
     </div>
 
+    <!-- Modals -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
         <div id="loadingText" style="font-size:14px; color:white">Загрузка данных...</div>
@@ -1000,7 +835,9 @@
         </div>
     </div>
 
+    <!-- Main Logic Script -->
     <script>
+        // --- Initialization ---
         const SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
         const SUPABASE_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -1010,14 +847,34 @@
         const tid = params.get('tid');
         const proj = params.get('proj');
 
-        if (proj) {
-            document.getElementById('projectBadge').style.display = 'inline-block';
-            document.getElementById('projectName').textContent = proj;
-            if (tid) document.getElementById('topicId').textContent = tid;
-            else document.getElementById('topicIdInfo').style.display = 'none';
-        }
+        let uploadedPhotos = [];
+        let uploadedVideo = null;
+        let pendingUploads = 0;
 
-        // Fetch active casting projects for the dropdown
+        // --- DOM Elements ---
+        const welcomeContainer = document.getElementById('welcomeContainer');
+        const formContainer = document.getElementById('formContainer');
+        const successScreen = document.getElementById('successScreen');
+        const startNewBtn = document.getElementById('startNewBtn');
+        const reentryStartBtn = document.getElementById('reentryStartBtn');
+        const reentryInputGroup = document.getElementById('reentryInputGroup');
+        const reentryPhone = document.getElementById('reentryPhone');
+        const reentryFetchBtn = document.getElementById('reentryFetchBtn');
+        const fetchStatus = document.getElementById('fetchStatus');
+
+        // --- Navigation / Mode Switching ---
+        startNewBtn.onclick = () => {
+            welcomeContainer.style.display = 'none';
+            formContainer.style.display = 'block';
+            window.scrollTo(0, 0);
+        };
+
+        reentryStartBtn.onclick = () => {
+            reentryInputGroup.style.display = 'block';
+            reentryPhone.focus();
+        };
+
+        // --- Fetch Projects ---
         async function loadCastingProjects() {
             const container = document.getElementById('castingChecklist');
             const hiddenInput = document.getElementById('casting_target_hidden');
@@ -1032,10 +889,7 @@
                 if (error) throw error;
 
                 container.innerHTML = '';
-
                 const projects = data || [];
-
-                // If we have proj in URL, make it first
                 const sortedProjects = proj ? [{ name: proj }, ...projects.filter(p => p.name !== proj)] : projects;
 
                 sortedProjects.forEach(p => {
@@ -1051,22 +905,17 @@
 
                     label.querySelector('input').onchange = (e) => {
                         const checkedCount = container.querySelectorAll('input:checked').length;
-
-                        // Если это вторая (или более) галочка, показываем модалку СРАЗУ
                         if (e.target.checked && checkedCount > 1) {
                             const modal = document.getElementById('confirmModal');
                             modal.style.display = 'flex';
-
                             document.getElementById('modalBack').onclick = () => {
                                 modal.style.display = 'none';
-                                e.target.checked = false; // Снимаем галочку назад
+                                e.target.checked = false;
                                 label.classList.remove('active');
                                 updateHiddenInput();
                             };
-
                             document.getElementById('modalConfirm').onclick = () => {
                                 modal.style.display = 'none';
-                                // Оставляем галочку
                                 label.classList.add('active');
                                 updateHiddenInput();
                             };
@@ -1076,18 +925,15 @@
                             updateHiddenInput();
                         }
                     };
-
-                    function updateHiddenInput() {
-                        const checked = Array.from(container.querySelectorAll('input:checked')).map(i => i.value);
-                        hiddenInput.value = checked.join(', ');
-
-                        const warning = document.getElementById('multiWarning');
-                        if (checked.length > 1) warning.style.display = 'block';
-                        else warning.style.display = 'none';
-                    }
-
                     container.appendChild(label);
                 });
+
+                function updateHiddenInput() {
+                    const checked = Array.from(container.querySelectorAll('input:checked')).map(i => i.value);
+                    hiddenInput.value = checked.join(', ');
+                    const warning = document.getElementById('multiWarning');
+                    warning.style.display = checked.length > 1 ? 'block' : 'none';
+                }
 
                 if (proj) hiddenInput.value = proj;
 
@@ -1098,43 +944,14 @@
         }
         loadCastingProjects();
 
-        let uploadedPhotos = [];
-        let uploadedVideo = null;
-        let pendingUploads = 0;
-
-        // Onboarding / Re-entry logic
-        const welcomeContainer = document.getElementById('welcomeContainer');
-        const formContainer = document.getElementById('formContainer');
-        const startNewBtn = document.getElementById('startNewBtn');
-        const reentryStartBtn = document.getElementById('reentryStartBtn');
-        const reentryInputGroup = document.getElementById('reentryInputGroup');
-        const reentryPhone = document.getElementById('reentryPhone');
-        const reentryFetchBtn = document.getElementById('reentryFetchBtn');
-        const fetchStatus = document.getElementById('fetchStatus');
-
-        startNewBtn.onclick = () => {
-            welcomeContainer.style.display = 'none';
-            formContainer.style.display = 'block';
-            window.scrollTo(0, 0);
-        };
-
-        reentryStartBtn.onclick = () => {
-            reentryInputGroup.style.display = 'block';
-            reentryPhone.focus();
-        };
-
+        // --- Re-entry Logic (Find User) ---
         reentryFetchBtn.onclick = async () => {
             const rawPhone = reentryPhone.value.trim();
             const digits = rawPhone.replace(/\D/g, '');
 
             if (digits.length < 10) return alert("Введите минимум 10 цифр номера телефона");
 
-            // Берем последние 10 цифр (основная часть номера без кода страны)
             const last10 = digits.slice(-10);
-
-            // Создаем "пушистый" поиск: %7%0%1%1%2%3%4%5%6%7%
-            // Это позволит найти номер независимо от того, как он записан в базе:
-            // +7 (701) 123-45-67 или 87011234567 или 701-123-4567
             const fuzzyPattern = '%' + last10.split('').join('%') + '%';
 
             fetchStatus.textContent = "🔍 Ищем анкету...";
@@ -1142,20 +959,13 @@
             reentryFetchBtn.disabled = true;
 
             try {
-                console.log("Searching with fuzzy pattern:", fuzzyPattern);
-                // Поиск в базе (и по точному совпадению цифр, и по "пушистому" паттерну)
                 const { data, error } = await sb.from('casting_applications')
                     .select('*')
                     .or(`phone.ilike.${fuzzyPattern}`)
                     .order('created_at', { ascending: false })
                     .limit(1);
 
-                if (error) {
-                    console.error("Supabase Error:", error);
-                    throw error;
-                }
-
-                console.log("Search result:", data);
+                if (error) throw error;
 
                 if (!data || data.length === 0) {
                     fetchStatus.textContent = "❌ Номер не найден. Пожалуйста, проверьте ввод или нажмите 'Я заполняю первый раз'";
@@ -1209,7 +1019,6 @@
                 fetchStatus.textContent = "✅ Данные найдены! Вы можете обновить фото и видео для этого проекта";
                 fetchStatus.className = "fetch-status success";
 
-                // Redirect to form after short delay
                 setTimeout(() => {
                     welcomeContainer.style.display = 'none';
                     formContainer.style.display = 'block';
@@ -1225,6 +1034,7 @@
             }
         };
 
+        // --- Helper: Submit Button State ---
         function updateSubmitButton() {
             const btn = document.getElementById('submitBtn');
             if (pendingUploads > 0) {
@@ -1238,134 +1048,8 @@
             }
         }
 
-        <script>
-        // --- 1. Client-Side Compression & Optimization ---
-            async function compressImage(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-            reader.readAsDataURL(file);
-                reader.onload = (event) => {
-                    const img = new Image();
-            img.src = event.target.result;
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 1024;
-            const MAX_HEIGHT = 1024;
-            let width = img.width;
-            let height = img.height;
-
-                        if (width > height) {
-                            if (width > MAX_WIDTH) {height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                        } else {
-                            if (height > MAX_HEIGHT) {width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
-                        }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-                        // Compress to JPEG with 0.6 quality (High compression)
-                        canvas.toBlob((blob) => {
-                resolve(new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' }));
-                        }, 'image/jpeg', 0.6);
-                    };
-                };
-            });
-        }
-
-        // --- 2. Upload Logic ---
-        document.getElementById('photoInput').onchange = async (e) => {
-            const files = Array.from(e.target.files);
-            for (const file of files) {
-                pendingUploads++;
-            updateSubmitButton();
-
-            const id = Math.random().toString(36).substr(2, 9);
-            const fileItem = createMediaItem(id, file);
-            document.getElementById('photoList').appendChild(fileItem);
-
-            try {
-                // Compress if image
-                let uploadFile = file;
-            if (file.type.match(/image.*/)) {
-                uploadFile = await compressImage(file);
-                    }
-
-            const ext = uploadFile.name.split('.').pop();
-            const path = `photos/${Date.now()}_${id}.${ext}`;
-
-            const {error} = await sb.storage.from('casting_media').upload(path, uploadFile, {
-                onUploadProgress: (progress) => {
-                            const percent = (progress.loaded / progress.total) * 100;
-            fileItem.querySelector('.progress-bar').style.width = percent + '%';
-                        }
-                    });
-
-            if (error) throw error;
-
-            const {data: {publicUrl} } = sb.storage.from('casting_media').getPublicUrl(path);
-
-                    // Wait for URL to be available (simple fetch check)
-                    // await fetch(publicUrl, {method: 'HEAD' });
-
-            uploadedPhotos.push({id, url: publicUrl });
-            fileItem.style.backgroundImage = `url(${publicUrl})`;
-                } catch (err) {
-                console.error(err);
-            fileItem.remove();
-            alert(`Ошибка загрузки ${file.name}: ${err.message}`);
-                } finally {
-                pendingUploads--;
-            updateSubmitButton();
-                }
-            }
-        };
-
-        // Video Upload Handling
-        document.getElementById('videoUpload').onclick = () => document.getElementById('videoInput').click();
-        document.getElementById('videoInput').onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const MAX_SIZE = 50 * 1024 * 1024; // 50MB
-            if (file.size > MAX_SIZE) {
-                alert(`Видео слишком тяжелое (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимум — 50MB. Пожалуйста, сожмите его или укажите ссылку на Google Диск / YouTube ниже.`);
-            e.target.value = '';
-            return;
-            }
-
-            pendingUploads++;
-            updateSubmitButton();
-
-            const id = Math.random().toString(36).substr(2, 9);
-            const fileItem = createMediaItem(id, file, true);
-            document.getElementById('videoList').innerHTML = ''; // Only one video
-            document.getElementById('videoList').appendChild(fileItem);
-
-            try {
-                const ext = file.name.split('.').pop();
-            const path = `videos/${id}.${ext}`;
-            const {data, error} = await sb.storage.from('casting_media').upload(path, file, {
-                onUploadProgress: (p) => {
-                        const pct = (p.loaded / p.total) * 100;
-            fileItem.querySelector('.progress-bar').style.width = pct + '%';
-                    }
-                });
-            if (error) throw error;
-            const {data: {publicUrl} } = sb.storage.from('casting_media').getPublicUrl(path);
-            uploadedVideo = publicUrl;
-            } catch (err) {
-                console.error(err);
-            fileItem.remove();
-            alert("Ошибка загрузки видео: " + err.message);
-            } finally {
-                pendingUploads--;
-            updateSubmitButton();
-            }
-        };
-
-            function createMediaItem(id, file, isVideo = false) {
+        // --- Media Upload Logic ---
+        function createMediaItem(id, file, isVideo = false) {
             const div = document.createElement('div');
             div.className = 'file-item' + (isVideo ? ' video' : '');
             div.id = 'media-' + id;
@@ -1379,7 +1063,132 @@
             return div;
         }
 
-        // Form Submit
+        // Client-Side Compression
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 1024;
+                        const MAX_HEIGHT = 1024;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                        } else {
+                            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Compress to JPEG 0.6
+                        canvas.toBlob((blob) => {
+                            resolve(new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' }));
+                        }, 'image/jpeg', 0.6);
+                    };
+                };
+            });
+        }
+
+        // Photo Upload Handler
+        document.getElementById('photoInput').onchange = async (e) => {
+            const files = Array.from(e.target.files);
+            document.getElementById('photoUpload').value = ''; // Reset input
+            
+            for (const file of files) {
+                pendingUploads++;
+                updateSubmitButton();
+
+                const id = Math.random().toString(36).substr(2, 9);
+                const fileItem = createMediaItem(id, file);
+                document.getElementById('photoList').appendChild(fileItem);
+
+                try {
+                    let uploadFile = file;
+                    if (file.type.match(/image.*/)) {
+                        uploadFile = await compressImage(file);
+                    }
+
+                    const ext = uploadFile.name.split('.').pop();
+                    const path = `photos/${Date.now()}_${id}.${ext}`;
+
+                    const { error } = await sb.storage.from('casting_media').upload(path, uploadFile, {
+                        onUploadProgress: (progress) => {
+                            const percent = (progress.loaded / progress.total) * 100;
+                            fileItem.querySelector('.progress-bar').style.width = percent + '%';
+                        }
+                    });
+
+                    if (error) throw error;
+
+                    const { data: { publicUrl } } = sb.storage.from('casting_media').getPublicUrl(path);
+                    uploadedPhotos.push({ id, url: publicUrl });
+                    fileItem.style.backgroundImage = `url(${publicUrl})`;
+                } catch (err) {
+                    console.error(err);
+                    fileItem.remove();
+                    alert(`Ошибка загрузки ${file.name}: ${err.message}`);
+                } finally {
+                    pendingUploads--;
+                    updateSubmitButton();
+                }
+            }
+        };
+
+        // Video Upload Handler
+        document.getElementById('videoUpload').onclick = () => document.getElementById('videoInput').click();
+        document.getElementById('videoInput').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+            if (file.size > MAX_SIZE) {
+                alert(`Видео слишком тяжелое (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимум — 50MB.`);
+                e.target.value = '';
+                return;
+            }
+
+            pendingUploads++;
+            updateSubmitButton();
+
+            const id = Math.random().toString(36).substr(2, 9);
+            const fileItem = createMediaItem(id, file, true);
+            document.getElementById('videoList').innerHTML = '';
+            document.getElementById('videoList').appendChild(fileItem);
+
+            try {
+                const ext = file.name.split('.').pop();
+                const path = `videos/${id}.${ext}`;
+                const { error } = await sb.storage.from('casting_media').upload(path, file, {
+                    onUploadProgress: (p) => {
+                        const pct = (p.loaded / p.total) * 100;
+                        fileItem.querySelector('.progress-bar').style.width = pct + '%';
+                    }
+                });
+                if (error) throw error;
+                const { data: { publicUrl } } = sb.storage.from('casting_media').getPublicUrl(path);
+                uploadedVideo = publicUrl;
+            } catch (err) {
+                console.error(err);
+                fileItem.remove();
+                alert("Ошибка загрузки видео: " + err.message);
+            } finally {
+                pendingUploads--;
+                updateSubmitButton();
+            }
+        };
+
+        document.getElementById('photoUpload').onclick = () => document.getElementById('photoInput').click();
+
+        // --- Form Submission ---
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
 
@@ -1392,7 +1201,6 @@
                 return alert("Пожалуйста, дождитесь завершения загрузки всех медиа-файлов.");
             }
 
-            // Модалка теперь срабатывает при клике на чекбокс, поэтому здесь просто отправляем
             processSubmit(e.target, checkedProjects);
         };
 
@@ -1411,11 +1219,9 @@
             submitBtn.disabled = true;
 
             try {
-                // 1. Save to DB (Separate record for EACH selected project for filtering)
                 document.getElementById('loadingText').textContent = "Сохранение данных...";
 
                 for (const pName of selectedProjects) {
-                    // Find chat/thread for this project from our clients list
                     const { data: clientData } = await sb.from('clients')
                         .select('chat_id, thread_id')
                         .eq('name', pName)
@@ -1434,11 +1240,11 @@
                         video_audition_url: uploadedVideo
                     };
 
-                    // Save record for this specific project
+                    // Save to DB
                     const { error } = await sb.from('casting_applications').insert([finalData]);
                     if (error) throw error;
 
-                    // 2. Notify Bot for this project
+                    // Notify Bot
                     await fetch('https://media-seven-eta.vercel.app/api/casting', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1446,8 +1252,8 @@
                     });
                 }
 
-                document.getElementById('formContainer').style.display = 'none';
-                document.getElementById('successScreen').style.display = 'block';
+                formContainer.style.display = 'none';
+                successScreen.style.display = 'block';
                 window.scrollTo(0, 0);
             } catch (err) {
                 console.error(err);
