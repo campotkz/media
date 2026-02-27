@@ -1578,526 +1578,125 @@ def process_manual_media_update(source_msg, application_msg):
     except Exception as e:
         print(f"process_manual_media_update err: {e}")
 
-# Handle replies to "ОЖИДАНИЕ МЕДИА" prompt
-@bot.message_handler(func=lambda m: m.reply_to_message and "ОЖИДАНИЕ МЕДИА" in (m.reply_to_message.text or ""), content_types=['photo', 'video'])
-def handle_media_reply_to_prompt(message):
-    # Tracing: Media -> replies to Prompt -> Prompt replies to /add -> /add replies to Application
-    # OR simpler: The Prompt itself replied to the application if we used reply_to_message correctly
-    # Let's find the application message from the prompt's reply_to_message
-    
-    # Prompt was sent using bot.reply_to(message, ...), so prompt.reply_to_message is the /add command
-    # /add command.reply_to_message is the Application
-    
-    prompt_msg = message.reply_to_message
-    add_command_msg = prompt_msg.reply_to_message
-    if not add_command_msg: return
-    
-    application_msg = add_command_msg.reply_to_message
-    if not application_msg:
-        # Fallback: maybe the prompt was a direct reply to application? 
-        # (Though current logic uses reply to /add)
-        if "АНКЕТА:" in (add_command_msg.text or add_command_msg.caption or ""):
-            application_msg = add_command_msg
-        else: return
-
-    process_manual_media_update(message, application_msg)
-
-# --- OLD ADD VIDEO ---
-# I will replace it with the new unified handle_manual_add_media above.
-
-
-@app.route('/api/timer/report_ping', methods=['POST', 'OPTIONS', 'GET'])
-def report_ping():
-    """Debug endpoint: test if shift data is readable and Excel can be built, without sending Telegram message."""
-    r = app.make_response('')
-    r.headers.add('Access-Control-Allow-Origin', '*')
-    r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    r.headers.add('Access-Control-Allow-Methods', 'POST, GET')
-    if request.method == 'OPTIONS': return r
-    
-    try:
-        data = request.get_json(silent=True) or request.args or {}
-        shift_id = data.get('shift_id')
-        if not shift_id: return jsonify({'error': 'No shift_id'}), 400
-        
-        s_res = supabase.table('production_shifts').select("id, project_id, chat_id, thread_id, start_time, end_time, status").eq('id', shift_id).execute()
-        if not s_res.data: return jsonify({'error': 'Shift not found'}), 404
-        shift = s_res.data[0]
-        
-        l_res = supabase.table('production_logs').select("id, event_type, event_time").eq('shift_id', shift_id).execute()
-        logs = l_res.data or []
-        
-        resp = jsonify({
-            'status': 'ok',
-            'shift': shift,
-            'log_count': len(logs),
-            'event_types': list(set(l['event_type'] for l in logs))
-        })
-        resp.headers.add('Access-Control-Allow-Origin', '*')
-        return resp
-    except Exception as e:
-        import traceback
-        r2 = jsonify({'error': str(e), 'trace': traceback.format_exc()})
-        r2.headers.add('Access-Control-Allow-Origin', '*')
-        return r2, 500
-
-
-@app.route('/api/timer/report', methods=['POST', 'OPTIONS'])
-def generate_timer_report():
+@app.route('/api/reload', methods=['POST', 'OPTIONS'])
+def reload_casting():
+    """
+    Force reload of ALL applications for a specific chat/thread.
+    Useful if bot failed to send messages or if chat history was cleared manually.
+    """
     if request.method == 'OPTIONS':
         r = app.make_response('')
         r.headers.add('Access-Control-Allow-Origin', '*')
         r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         r.headers.add('Access-Control-Allow-Methods', 'POST')
         return r
-        
     try:
         data = request.json or {}
-        shift_id = data.get('shift_id')
-        chat_id = data.get('chat_id')
-        thread_id = data.get('thread_id')
+        cid = data.get('chat_id')
+        tid = data.get('thread_id')
         
-        if not shift_id: return jsonify({'error': 'No shift_id'}), 400
-
-        # 1. Fetch Data
-        s_res = supabase.table('production_shifts').select("*").eq('id', shift_id).execute()
-        if not s_res.data: return jsonify({'error': 'Shift not found'}), 404
-        shift = s_res.data[0]
-        
-        l_res = supabase.table('production_logs').select("*").eq('shift_id', shift_id).order('event_time').execute()
-        logs = l_res.data
-        print(f"Logs found: {len(logs) if logs else 0}")
-        if not logs:
-            return jsonify({'error': 'No logs found for this shift', 'shift_id': shift_id}), 404
-
-        df_logs = pd.DataFrame(logs)
-
-        # --- CRITICAL: Parse 'data' field — Supabase may return JSON strings ---
-        def parse_data(x):
-            if isinstance(x, dict): return x
-            if isinstance(x, str):
-                try: return json.loads(x)
-                except: return {}
-            return {}
-        df_logs['data'] = df_logs['data'].apply(parse_data)
-
-        # Handle both timezone-aware and naive timestamps robustly
-        raw_times = pd.to_datetime(df_logs['event_time'])
-        if raw_times.dt.tz is None:
-            df_logs['time'] = raw_times.dt.tz_localize('UTC').dt.tz_convert('Asia/Almaty')
-        else:
-            df_logs['time'] = raw_times.dt.tz_convert('Asia/Almaty')
-
-        # Pre-compute start/end times (needed for Summary and filename below)
-        raw_start = pd.to_datetime(shift['start_time'])
-        if raw_start.tzinfo is None:
-            raw_start = raw_start.tz_localize('UTC')
-        start_t = raw_start.tz_convert('Asia/Almaty')
-
-        if shift.get('end_time'):
-            raw_end = pd.to_datetime(shift['end_time'])
-            if raw_end.tzinfo is None:
-                raw_end = raw_end.tz_localize('UTC')
-            end_t = raw_end.tz_convert('Asia/Almaty')
-        else:
-            end_t = df_logs['time'].max()
-
-        # 2. Create Excel with DPR Formatting
-        output = io.BytesIO()
-        from openpyxl import Workbook
-        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side, GradientFill
-        from openpyxl.utils import get_column_letter
-
-        wb = Workbook()
-
-        # ─── HELPER STYLES ────────────────────────────────────────────────────────
-        def hdr_dark(ws, row, col, value, span=1, height=None):
-            """Black-fill white-bold-centered header cell with optional merge."""
-            cell = ws.cell(row=row, column=col, value=value)
-            cell.fill = PatternFill("solid", fgColor="1A1A1A")
-            cell.font = Font(color="FFFFFF", bold=True, size=9)
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            if span > 1:
-                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+span-1)
-            if height:
-                ws.row_dimensions[row].height = height
-            return cell
-
-        def hdr_red(ws, row, col, value, span=1):
-            cell = ws.cell(row=row, column=col, value=value)
-            cell.fill = PatternFill("solid", fgColor="CC0000")
-            cell.font = Font(color="FFFFFF", bold=True, size=9)
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            if span > 1:
-                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+span-1)
-            return cell
-
-        def hdr_green(ws, row, col, value, span=1):
-            cell = ws.cell(row=row, column=col, value=value)
-            cell.fill = PatternFill("solid", fgColor="1E7E34")
-            cell.font = Font(color="FFFFFF", bold=True, size=9)
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            if span > 1:
-                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+span-1)
-            return cell
-
-        def bordered(ws, row, col, value="", bold=False, bg=None, align="left", span=1, size=9):
-            cell = ws.cell(row=row, column=col, value=value)
-            cell.border = thin_border
-            cell.font = Font(bold=bold, size=size)
-            cell.alignment = Alignment(horizontal=align, vertical="center", wrap_text=True)
-            if bg:
-                cell.fill = PatternFill("solid", fgColor=bg)
-            if span > 1:
-                ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+span-1)
-            return cell
-
-        thin_s = Side(style="thin")
-        thin_border = Border(left=thin_s, right=thin_s, top=thin_s, bottom=thin_s)
-        med_s = Side(style="medium")
-        med_border = Border(left=med_s, right=med_s, top=med_s, bottom=med_s)
-
-        def auto_width(ws, min_w=8, max_w=40):
-            for col in ws.columns:
-                ml = min_w
-                for cell in col:
-                    try:
-                        v = str(cell.value) if cell.value is not None else ""
-                        ml = max(ml, min(len(v) + 2, max_w))
-                    except: pass
-                ws.column_dimensions[get_column_letter(col[0].column)].width = ml
-
-        # ─── SHEET 1: PRODUCTION REPORT ──────────────────────────────────────────
-        ws = wb.active
-        ws.title = "PRODUCTION REPORT"
-        ws.sheet_view.showGridLines = False
-
-        # Parse plan from shift
+        # Validate CID/TID
         try:
-            schedule = json.loads(shift.get('schedule') or '[]')
-            if not isinstance(schedule, list): schedule = []
-        except: schedule = []
-
-        project_name = shift.get('project_id', 'N/A')
-        shoot_id = shift.get('shoot_id')
-        location_str = shift.get('location', '')
-        # Try fetching location from shoot record
-        if not location_str and shoot_id:
-            try:
-                shoot_r = supabase.table('shoots').select('location').eq('id', shoot_id).execute()
-                if shoot_r.data: location_str = shoot_r.data[0].get('location', '')
-            except: pass
-
-        # All locations mentioned in logs
-        loc_from_logs = df_logs['data'].apply(lambda x: x.get('loc', '') if isinstance(x, dict) else '').dropna().unique().tolist()
-        loc_from_logs = [l for l in loc_from_logs if l]
-        all_locs = location_str or ', '.join(loc_from_logs) or '—'
-
-        day_names_ru = ['ПОНЕДЕЛЬНИК','ВТОРНИК','СРЕДА','ЧЕТВЕРГ','ПЯТНИЦА','СУББОТА','ВОСКРЕСЕНЬЕ']
-        date_str = f"{start_t.strftime('%d.%m.%Y')}  {day_names_ru[start_t.weekday()]}"
-
-        # --- Шапка (Header block) ---
-        # Title row
-        ws.merge_cells("A1:N1")
-        title_cell = ws["A1"]
-        title_cell.value = "PRODUCTION REPORT"
-        title_cell.fill = PatternFill("solid", fgColor="1A1A1A")
-        title_cell.font = Font(color="FFFFFF", bold=True, size=14)
-        title_cell.alignment = Alignment(horizontal="center", vertical="center")
-        ws.row_dimensions[1].height = 26
-
-        # Row 2: Day | Company & Project
-        ws.merge_cells("A2:E2"); ws.merge_cells("F2:J2"); ws.merge_cells("K2:N2")
-        bordered(ws, 2, 1, f"СЪЕМОЧНЫЙ ДЕНЬ: {shift.get('day_number', 1)}", bold=True, bg="2C2C2C", align="center").font = Font(color="FFFFFF", bold=True, size=10)
-        bordered(ws, 2, 6, f"ПРОЕКТ: {project_name}", bold=True, bg="2C2C2C").font = Font(color="FFFFFF", bold=True, size=10)
-        bordered(ws, 2, 11, f"ДАТА: {date_str}", bold=True, bg="2C2C2C", align="center").font = Font(color="FFFFFF", bold=True, size=10)
-        ws.row_dimensions[2].height = 20
-
-        # Row 3: ON SET / WRAP | 1ST SHOT | LUNCH
-        ws.merge_cells("A3:E3"); ws.merge_cells("F3:J3"); ws.merge_cells("K3:N3")
-        first_motor = df_logs[df_logs['event_type'] == 'motor']['time'].min()
-        lunch_start = df_logs[df_logs['event_type'] == 'lunch_start']['time'].min()
-        lunch_end   = df_logs[df_logs['event_type'] == 'lunch_end']['time'].min()
-        on_set_wrap = f"ON SET / WRAP:  {start_t.strftime('%H:%M')} / {end_t.strftime('%H:%M')}"
-        first_shot_str = f"1ST SHOT:  {first_motor.strftime('%H:%M')}" if pd.notna(first_motor) else "1ST SHOT:  —"
-        lunch_str = f"LUNCH:  {lunch_start.strftime('%H:%M') if pd.notna(lunch_start) else '—'} — {lunch_end.strftime('%H:%M') if pd.notna(lunch_end) else '—'}"
-        bordered(ws, 3, 1, on_set_wrap, bg="F0F0F0", align="center")
-        bordered(ws, 3, 6, first_shot_str, bg="F0F0F0", align="center")
-        bordered(ws, 3, 11, lunch_str, bg="F0F0F0", align="center")
-        ws.row_dimensions[3].height = 18
-
-        # Row 4: LOCATION
-        ws.merge_cells("A4:N4")
-        loc_cell = ws.cell(row=4, column=1, value=f"LOCATION(S):  {all_locs.upper()}")
-        loc_cell.fill = PatternFill("solid", fgColor="1A1A1A")
-        loc_cell.font = Font(color="FFFFFF", bold=True, size=10)
-        loc_cell.alignment = Alignment(horizontal="left", vertical="center")
-        ws.row_dimensions[4].height = 20
-
-        # ─── COLUMN HEADERS for scene table (row 5) ──────────────────────────────
-        COLS = [
-            ('№',          1,  3), ('СЦЕНА /\nЗАДАЧА', 4, 18),
-            ('ЛОКАЦИЯ',    22, 12), ('СИНОПСИС',        34, 16),
-            ('АКТЕРЫ / ПЕРСОНАЖИ', 50, 16),
-            ('ПЛАН\nН', 66, 7), ('ПЛАН\nК', 73, 7),
-            ('ФАКТ\nН', 80, 7), ('ФАКТ\nК', 87, 7),
-            ('ХРОН\nМИН',  94, 6),
-            ('КАДРОВ', 100, 5), ('ДУБЛЕЙ', 105, 5), ('GOOD', 110, 5),
-            ('ПРИМЕЧАНИЯ', 115, 12),
-        ]
-        # Compact mapping: each column in the worksheet maps to our logical column
-        HEADERS = ['№', 'СЦЕНА /\nЗАДАЧА', 'ЛОКАЦИЯ', 'СИНОПСИС', 'АКТЕРЫ /\nПЕРСОНАЖИ',
-                   'ПЛАН Н', 'ПЛАН К', 'ФАКТ Н', 'ФАКТ К', 'ХРОН\nМИН',
-                   'КАДРОВ', 'ДУБЛЕЙ', 'GOOD', 'ПРИМЕЧАНИЯ']
-        COL_WIDTHS = [4, 18, 14, 20, 18, 7, 7, 7, 7, 7, 6, 6, 6, 16]
-
-        # Set column widths
-        for ci, w in enumerate(COL_WIDTHS, 1):
-            ws.column_dimensions[get_column_letter(ci)].width = w
-
-        r = 5
-        for ci, h in enumerate(HEADERS, 1):
-            c = ws.cell(row=r, column=ci, value=h)
-            c.fill = PatternFill("solid", fgColor="333333")
-            c.font = Font(color="FFFFFF", bold=True, size=8)
-            c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            c.border = thin_border
-        ws.row_dimensions[r].height = 28
-
-        # ─── SCENE ROWS ──────────────────────────────────────────────────────────
-        r = 6
-        for p_row in schedule:
-            num = str(p_row.get('num', ''))
-            task = p_row.get('task', p_row.get('notes', ''))
-            loc  = p_row.get('loc', '')
-            syn  = p_row.get('synopsis', p_row.get('desc', ''))
-            act  = p_row.get('act', p_row.get('actors', ''))
-            p_start = p_row.get('start', '')
-            p_end   = p_row.get('end', '')
-            notes_txt = p_row.get('notes', '')
-
-            # Actual times: find first log event tied to this scene number
-            scene_logs = df_logs[df_logs['data'].apply(
-                lambda x: str(x.get('scene_no', '')) == num if isinstance(x, dict) and num else False
-            )] if num else pd.DataFrame()
-
-            if not scene_logs.empty:
-                a_start = scene_logs['time'].min().strftime('%H:%M')
-                a_end   = scene_logs['time'].max().strftime('%H:%M')
-                dur_min = round((scene_logs['time'].max() - scene_logs['time'].min()).total_seconds() / 60)
-            else:
-                a_start = ''; a_end = ''; dur_min = ''
-
-            motors = df_logs[(df_logs['event_type'] == 'motor') &
-                             (df_logs['data'].apply(lambda x: str(x.get('scene_no','')) == num if isinstance(x,dict) and num else False))]
-            good_t = df_logs[(df_logs['event_type'] == 'take_evaluation') &
-                             (df_logs['data'].apply(lambda x: str(x.get('scene_no','')) == num and x.get('result') == 'good' if isinstance(x,dict) and num else False))]
-            shots_count = df_logs[(df_logs['event_type'].isin(['shot_increment','new_shot'])) &
-                                  (df_logs['data'].apply(lambda x: str(x.get('scene_no','')) == num if isinstance(x,dict) and num else False))].shape[0]
-
-            row_vals = [num, task, loc, syn, act,
-                        p_start, p_end, a_start, a_end, dur_min if dur_min != '' else '',
-                        shots_count or '', len(motors) or '', len(good_t) or '',
-                        notes_txt]
-
-            # Highlight if no actual data
-            row_bg = None if a_start else "FFF9C4"  # light yellow if not shot
-
-            for ci, val in enumerate(row_vals, 1):
-                c = ws.cell(row=r, column=ci, value=val if val is not None else '')
-                c.border = thin_border
-                c.font = Font(size=8)
-                c.alignment = Alignment(vertical="center", wrap_text=True,
-                                        horizontal="center" if ci in [1,6,7,8,9,10,11,12,13] else "left")
-                if row_bg:
-                    c.fill = PatternFill("solid", fgColor=row_bg)
-            ws.row_dimensions[r].height = 22
-            r += 1
-
-        # ─── NON-SCENE SCHEDULE ROWS (prep, moves, lunch etc.) ───────────────────
-        # (already included in schedule above if present)
-
-        # ─── BLANK ROW ───────────────────────────────────────────────────────────
-        r += 1
-
-        # ─── SUMMARY TOTALS ──────────────────────────────────────────────────────
-        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=14)
-        c = ws.cell(row=r, column=1, value="ИТОГИ СЪЁМОЧНОГО ДНЯ")
-        c.fill = PatternFill("solid", fgColor="1A1A1A"); c.font = Font(color="FFFFFF", bold=True, size=10)
-        c.alignment = Alignment(horizontal="center", vertical="center")
-        ws.row_dimensions[r].height = 20; r += 1
-
-        total_scenes = len([p for p in schedule if p.get('num')])
-        total_shot = len(df_logs['data'].apply(lambda x: x.get('scene_no','') if isinstance(x,dict) else '').dropna().unique())
-        total_takes = len(df_logs[df_logs['event_type'] == 'motor'])
-        total_good  = len(df_logs[(df_logs['event_type'] == 'take_evaluation') &
-                                   (df_logs['data'].apply(lambda x: isinstance(x,dict) and x.get('result')=='good'))])
-        lunch_dur = ''
-        if pd.notna(lunch_start) and pd.notna(lunch_end):
-            lunch_dur = round((lunch_end - lunch_start).total_seconds() / 60)
-        total_work_min = round((end_t - start_t).total_seconds() / 60) - (lunch_dur if lunch_dur else 0)
-
-        summary_rows = [
-            ('СЦЕН ПО ПЛАНУ', total_scenes, 'ВСЕГО ДУБЛЕЙ', total_takes),
-            ('СЦЕН СНЯТО',    total_shot,   'GOOD TAKES',    total_good),
-            ('НАЧАЛО СМЕНЫ',  start_t.strftime('%H:%M'), 'КОНЕЦ СМЕНЫ', end_t.strftime('%H:%M')),
-            ('ОБЕД',          f"{lunch_start.strftime('%H:%M') if pd.notna(lunch_start) else '—'} — {lunch_end.strftime('%H:%M') if pd.notna(lunch_end) else '—'}" if lunch_dur else '—',
-             'РАБОЧИХ МИН',   total_work_min),
-        ]
-        for lbl1, val1, lbl2, val2 in summary_rows:
-            ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=4)
-            ws.merge_cells(start_row=r, start_column=5, end_row=r, end_column=7)
-            ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=11)
-            ws.merge_cells(start_row=r, start_column=12, end_row=r, end_column=14)
-            bordered(ws, r, 1, lbl1, bold=True, bg="2C2C2C", align="right").font = Font(color="FFFFFF", bold=True, size=9)
-            bordered(ws, r, 5, val1, align="center")
-            bordered(ws, r, 8, lbl2, bold=True, bg="2C2C2C", align="right").font = Font(color="FFFFFF", bold=True, size=9)
-            bordered(ws, r, 12, val2, align="center")
-            ws.row_dimensions[r].height = 18; r += 1
-
-        # ─── ПЕРСОНАЖИ ───────────────────────────────────────────────────────────
-        r += 1
-        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
-        ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=14)
-        hdr_red(ws, r, 1, "ПЕРСОНАЖИ / АКТЕРЫ")
-        hdr_dark(ws, r, 8, "ГРУППОВКА / ЭПИЗОДНИКИ")
-        ws.row_dimensions[r].height = 18; r += 1
-
-        all_actors = set()
-        for p in schedule:
-            a = p.get('act', p.get('actors', ''))
-            if a:
-                for name in a.split(','):
-                    if name.strip(): all_actors.add(name.strip())
-        # Also from logs
-        for _, row_l in df_logs[df_logs['event_type'] == 'actor_arrival'].iterrows():
-            d = row_l['data'] if isinstance(row_l['data'], dict) else {}
-            if d.get('name'): all_actors.add(d['name'])
-
-        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
-        ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=14)
-        bordered(ws, r, 1, ', '.join(sorted(all_actors)) or '—')
-        bordered(ws, r, 8, '—')
-        ws.row_dimensions[r].height = 30; r += 2
-
-        # ─── ЧАСЫ РАБОТЫ / ОТЧЕТ ВРЕМЕНИ ─────────────────────────────────────────
-        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
-        ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=14)
-        hdr_dark(ws, r, 1, "ЧАСЫ РАБОТЫ")
-        hdr_dark(ws, r, 8, "ОТЧЕТ ВРЕМЕНИ")
-        ws.row_dimensions[r].height = 18; r += 1
-
-        time_rows = [
-            ('ON SET / WRAP', f"{start_t.strftime('%H:%M')} / {end_t.strftime('%H:%M')}"),
-            ('1ST SHOT', first_motor.strftime('%H:%M') if pd.notna(first_motor) else '—'),
-            ('LUNCH', f"{lunch_start.strftime('%H:%M') if pd.notna(lunch_start) else '—'} — {lunch_end.strftime('%H:%M') if pd.notna(lunch_end) else '—'}"),
-        ]
-        report_rows = [
-            ('СЕГОДНЯ', f"{total_work_min} мин"),
-            ('НАРАСТАЮЩИЙ ИТОГ', '—'),
-        ]
-        for i, ((lbl, val), (rl, rv)) in enumerate(zip(time_rows, report_rows + [('','')])):
-            ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=4)
-            ws.merge_cells(start_row=r, start_column=5, end_row=r, end_column=7)
-            ws.merge_cells(start_row=r, start_column=8, end_row=r, end_column=11)
-            ws.merge_cells(start_row=r, start_column=12, end_row=r, end_column=14)
-            bordered(ws, r, 1, lbl, bold=True, bg="F0F0F0", align="right")
-            bordered(ws, r, 5, val, align="center")
-            bordered(ws, r, 8, rl, bold=True, bg="F0F0F0", align="right")
-            bordered(ws, r, 12, rv, align="center")
-            ws.row_dimensions[r].height = 18; r += 1
-
-        # ─── NOTES ────────────────────────────────────────────────────────────────
-        r += 1
-        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=14)
-        hdr_dark(ws, r, 1, "NOTES")
-        ws.row_dimensions[r].height = 18; r += 1
-        notes_logs = df_logs[df_logs['event_type'] == 'note']
-        notes_txt_all = '; '.join([
-            (row_l['data'] or {}).get('text', '') for _, row_l in notes_logs.iterrows()
-            if isinstance(row_l['data'], dict) and row_l['data'].get('text')
-        ]) or '—'
-        ws.merge_cells(start_row=r, start_column=1, end_row=r+1, end_column=14)
-        c = ws.cell(row=r, column=1, value=notes_txt_all)
-        c.border = thin_border; c.alignment = Alignment(wrap_text=True, vertical="top")
-        ws.row_dimensions[r].height = 40
-
-        # ─── SHEET 2: ХРОНОЛОГИЯ (Full event log) ────────────────────────────────
-        ws2 = wb.create_sheet("ХРОНОЛОГИЯ")
-        chrono_headers = ['ВРЕМЯ', 'СОБЫТИЕ', 'ЛОКАЦИЯ', 'СЦЕНА', 'КАДР', 'ДУБЛЬ', 'ДЕТАЛИ']
-        for ci, h in enumerate(chrono_headers, 1):
-            c = ws2.cell(row=1, column=ci, value=h)
-            c.fill = PatternFill("solid", fgColor="1A1A1A"); c.font = Font(color="FFFFFF", bold=True, size=9)
-            c.alignment = Alignment(horizontal="center", vertical="center")
-            c.border = thin_border
-
-        for ri, (_, row_l) in enumerate(df_logs.iterrows(), 2):
-            d = row_l['data'] if isinstance(row_l['data'], dict) else {}
-            vals = [
-                row_l['time'].strftime('%H:%M:%S'),
-                row_l['event_type'].upper().replace('_', ' '),
-                d.get('loc', ''), d.get('scene_no', ''), d.get('shot_no', ''), d.get('take_no', ''),
-                '; '.join(f"{k}={v}" for k, v in d.items() if k not in ['loc','scene_no','shot_no','take_no'])
-            ]
-            for ci, v in enumerate(vals, 1):
-                c = ws2.cell(row=ri, column=ci, value=v)
-                c.border = thin_border; c.font = Font(size=8)
-                c.alignment = Alignment(vertical="center")
-
-        for col in ws2.columns:
-            ws2.column_dimensions[get_column_letter(col[0].column)].width = max(
-                8, min(40, max((len(str(c.value or '')) for c in col), default=8) + 2))
-
-        # ─── SHEET 3: ЗАДЕРЖКИ ────────────────────────────────────────────────────
-        ws3 = wb.create_sheet("ЗАДЕРЖКИ")
-        delay_headers = ['ВРЕМЯ', 'КАТЕГОРИЯ', 'СЦЕНА', 'ДЛИТЕЛЬНОСТЬ (МИН)', 'ПРИЧИНА']
-        for ci, h in enumerate(delay_headers, 1):
-            c = ws3.cell(row=1, column=ci, value=h)
-            c.fill = PatternFill("solid", fgColor="CC0000"); c.font = Font(color="FFFFFF", bold=True, size=9)
-            c.alignment = Alignment(horizontal="center"); c.border = thin_border
-
-        delay_ri = 2
-        delay_logs_typed = df_logs[df_logs['event_type'].str.contains('delay', case=False, na=False)]
-        for _, row_l in delay_logs_typed.iterrows():
-            d = row_l['data'] if isinstance(row_l['data'], dict) else {}
-            # Find matching end
-            end_row = df_logs[(df_logs['time'] > row_l['time']) &
-                              (df_logs['event_type'].str.contains('delay_end|stop', na=False))].head(1)
-            dur_d = ''
-            if not end_row.empty:
-                dur_d = round((end_row.iloc[0]['time'] - row_l['time']).total_seconds() / 60)
-            for ci, v in enumerate([
-                row_l['time'].strftime('%H:%M:%S'),
-                row_l['event_type'].replace('_', ' ').upper(),
-                d.get('scene_no', ''), dur_d,
-                d.get('reason', d.get('resolution', ''))
-            ], 1):
-                c = ws3.cell(row=delay_ri, column=ci, value=v)
-                c.border = thin_border; c.font = Font(size=8)
-            delay_ri += 1
-
-        for col in ws3.columns:
-            ws3.column_dimensions[get_column_letter(col[0].column)].width = 18
-
-        # Save workbook to BytesIO
-        wb.save(output)
-        output.seek(0)
-        file_name = f"DPR_{start_t.strftime('%d%m')}_Shift_{shift_id}.xlsx"
-        
-        # 4. Send to Telegram
-        print(f"Request chat_id={chat_id}, thread_id={thread_id}")
-        print(f"DB shift chat_id={shift.get('chat_id')}, thread_id={shift.get('thread_id')}")
-        try:
-            # ALWAYS prefer the DB value — frontend params may be empty strings
-            db_chat = shift.get('chat_id')   # saved at shift start, most reliable
-            db_thread = shift.get('thread_id')
+            cid = int(cid)
+            tid = int(tid) if tid and str(tid).isdigit() and int(tid) > 0 else None
+        except:
+            return jsonify({'error': 'Invalid chat_id or thread_id'}), 400
             
-            # Use request param only as override when DB value missing
-            req_chat = None
-            req_thread = None
+        print(f"🔄 RELOAD REQUEST for CID={cid}, TID={tid}")
+        
+        # 1. Fetch ALL applications for this thread
+        query = supabase.table("casting_applications").select("*").eq("chat_id", cid)
+        if tid:
+            query = query.eq("thread_id", tid)
+        
+        # Order by created_at ascending (repost in order)
+        res = query.order("created_at", ascending=True).execute()
+        
+        if not res.data:
+            return jsonify({'status': 'empty', 'message': 'No applications found'}), 200
+            
+        apps = res.data
+        count = 0
+        
+        for app_data in apps:
             try:
-                if chat_id and str(chat_id).strip():
-                    req_chat = int(str(chat_id).strip())
+                # 2. Re-send each application
+                # Reuse the exact logic from notify_casting, but we need to handle it carefully
+                # We can just call the internal logic, but we need to mock 'data'
+                
+                # Format message
+                full_txt = format_casting_message(app_data, is_selected=app_data.get('is_selected', False))
+                
+                def v(k): return str(app_data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
+                simple_caption = (
+                    f"📸 <b>Анкета: {v('full_name')}</b>\n"
+                    f"🎯 {v('casting_target')}\n\n"
+                    f"Описание придет следующим сообщением... ⬇️"
+                )
+                
+                # Prepare Media
+                photos = app_data.get('photo_urls', [])
+                video = app_data.get('video_audition_url')
+                media = []
+                
+                # Limit to 3 photos + 1 video as requested, or just all valid media
+                # Telegram limit is 10 items in a group.
+                
+                for i, url in enumerate(photos):
+                    if i >= 9: break # Safety limit
+                    if i == 0:
+                        media.append(types.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
+                    else:
+                        media.append(types.InputMediaPhoto(url))
+                
+                if video:
+                    if len(media) < 10:
+                        if not media:
+                            media.append(types.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
+                        else:
+                            media.append(types.InputMediaVideo(video))
+                
+                # Buttons
+                markup = types.InlineKeyboardMarkup()
+                app_id = app_data.get('id')
+                is_sel = app_data.get('is_selected', False)
+                select_btn_text = "✅ ВЫБРАН" if is_sel else "ВЫБРАТЬ"
+                btns = [
+                    types.InlineKeyboardButton(select_btn_text, callback_data=f"app_sel:{app_id}"),
+                    types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
+                ]
+                markup.add(*btns)
+                
+                sent_msg = None
+                
+                # Send Media Group
+                if media:
+                    try:
+                        bot.send_media_group(cid, media, message_thread_id=tid)
+                    except Exception as e:
+                        print(f"Reload Media Fail: {e}")
+                        # Fallback: send text only?
+                
+                # Send Text Info
+                sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                
+                # Update DB with new message ID (so buttons work for updates later)
+                if sent_msg:
+                    supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
+                
+                count += 1
+                # Sleep briefly to avoid flood limits
+                import time
+                time.sleep(0.5)
+                
+            except Exception as e:
+                print(f"Failed to reload app {app_data.get('id')}: {e}")
+                
+        return jsonify({'status': 'ok', 'reloaded_count': count}), 200
+
+    except Exception as e:
+        print(f"Reload Error: {e}")
+        return jsonify({'error': str(e)}), 500                    req_chat = int(str(chat_id).strip())
             except (ValueError, TypeError): pass
             try:
                 if thread_id and str(thread_id).strip():
