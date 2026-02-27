@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>АНКЕТА УЧАСТНИКА КАСТИНГА</title>
-    <!-- Version: 2.0.4 -->
+    <!-- Version: 2.0.5 -->
     <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -464,7 +464,7 @@
 <body>
     <div class="container" id="welcomeContainer">
         <div class="header">
-            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.0.4</span></h1>
+            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.0.5</span></h1>
             <p>Sklad Productions • Casting Management</p>
         </div>
 
@@ -524,10 +524,19 @@
         <form id="castingForm">
             <!-- Блок 1 -->
             <div class="block">
-                <div class="block-title">Идентификация</div>
+                <div class="block-title">Проект и Роль</div>
                 <div class="form-group">
                     <label>На какой кастинг вы подаетесь?<span>*</span></label>
-                    <input type="text" name="casting_target" required placeholder="например: «Ролик для бренда Х»">
+                    <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.3;">
+                        Выбирайте точно тот проект, на который видели объявление. Анкеты, отправленные без соответствия кастингу, будут удалены.
+                    </div>
+                    <select name="casting_target" id="castingSelect" required>
+                        <option value="">Загрузка проектов...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>На какого персонажа вы подаетесь?<span>*</span></label>
+                    <input type="text" name="character_name" required placeholder="например: «Главный герой», «Отец», «Прохожий»">
                 </div>
                 <div class="form-group">
                     <label>Ваше полное имя (Фамилия Имя)<span>*</span></label>
@@ -717,6 +726,46 @@
             if (tid) document.getElementById('topicId').textContent = tid;
             else document.getElementById('topicIdInfo').style.display = 'none';
         }
+
+        // Fetch active casting projects for the dropdown
+        async function loadCastingProjects() {
+            const select = document.getElementById('castingSelect');
+            try {
+                const { data, error } = await sb.from('clients')
+                    .select('name')
+                    .eq('category', 'casting')
+                    .eq('is_hidden', false)
+                    .order('name');
+
+                if (error) throw error;
+
+                select.innerHTML = '<option value="">-- Выберите кастинг --</option>';
+                
+                // If we have a project in URL, make it the first/default option if it's not in the list
+                if (proj) {
+                    const option = document.createElement('option');
+                    option.value = proj;
+                    option.textContent = proj;
+                    option.selected = true;
+                    select.appendChild(option);
+                }
+
+                if (data) {
+                    data.forEach(p => {
+                        if (p.name === proj) return; // Skip if already added from URL
+                        const option = document.createElement('option');
+                        option.value = p.name;
+                        option.textContent = p.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (err) {
+                console.error("Error loading projects:", err);
+                select.innerHTML = '<option value="">Ошибка загрузки. Введите вручную...</option>';
+                // Fallback to input if select fails? For now just keep it simple.
+            }
+        }
+        loadCastingProjects();
 
         let uploadedPhotos = [];
         let uploadedVideo = null;
@@ -1026,9 +1075,10 @@
 
                 const finalData = {
                     ...results,
+                    casting_target: results.casting_target || proj || "General",
                     chat_id: cid,
                     thread_id: tid,
-                    project_name: proj,
+                    project_name: results.casting_target || proj || "General",
                     photo_urls: uploadedPhotos.map(p => p.url),
                     video_audition_url: uploadedVideo
                 };
