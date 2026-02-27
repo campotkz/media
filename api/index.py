@@ -874,6 +874,81 @@ def handle_del_app_command(message):
         print(f"Manual Del Error: {e}")
         bot.reply_to(message, f"❌ Ошибка: {e}")
 
+@bot.message_handler(func=lambda m: m.forward_from_chat or m.forward_from)
+def handle_forwarded_message(message):
+    try:
+        # Check if this is an application message being forwarded
+        txt = message.text or message.caption or ""
+        if "АНКЕТА:" not in txt:
+            return
+
+        cid, tid = message.chat.id, message.message_thread_id
+        if not tid: return # Only handle topics
+
+        # Extract name and phone/insta from text to find original record
+        m_name = re.search(r'АНКЕТА:\s*([^\n<]+)', txt, re.IGNORECASE)
+        m_phone = re.search(r'📞\s*([^\n<]+)', txt)
+        m_insta = re.search(r'📱\s*Instagram:\s*([^\n<]+)', txt)
+
+        found_name = m_name.group(1).strip().replace("<b>", "").replace("</b>", "") if m_name else None
+        phone = m_phone.group(1).strip() if m_phone else None
+        insta = m_insta.group(1).strip() if m_insta else None
+
+        if not (phone or insta): return
+
+        # 1. Ensure project (topic) exists in DB
+        ensure_project(cid, tid, message.chat.title)
+        p_res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
+        new_project_name = p_res.data[0]['name'] if p_res.data else "Unknown"
+
+        # 2. Update/Insert contact for THIS topic
+        if phone:
+            supabase.table("contacts").upsert({
+                "name": found_name or "Unknown",
+                "phone": phone,
+                "chat_id": cid,
+                "thread_id": tid,
+                "category": "casting"
+            }, on_conflict="phone,chat_id,thread_id").execute()
+
+        # 3. Create a NEW entry in casting_applications for this project
+        # Search for the most recent application by this actor to copy photos/video
+        query = supabase.table("casting_applications").select("*")
+        if phone: query = query.eq("phone", phone)
+        elif insta: query = query.eq("instagram", insta)
+        
+        orig_res = query.order("created_at", descending=True).limit(1).execute()
+        
+        if orig_res.data:
+            orig = orig_res.data[0]
+            # Create NEW record for the NEW project
+            new_app = {
+                **orig,
+                "casting_target": new_project_name,
+                "project_name": new_project_name,
+                "chat_id": cid,
+                "thread_id": tid,
+                "tg_message_id": message.message_id # Link to the forwarded message
+            }
+            # Remove keys that shouldn't be duplicated exactly or will be auto-generated
+            new_app.pop('id', None)
+            new_app.pop('created_at', None)
+            
+            supabase.table("casting_applications").insert([new_app]).execute()
+            
+            # 4. Add the Delete button to the forwarded message by sending a small "control" message
+            markup = types.InlineKeyboardMarkup()
+            # Find the ID of the newly created record
+            fresh_res = supabase.table("casting_applications").select("id").eq("phone", phone).eq("casting_target", new_project_name).order("created_at", descending=True).limit(1).execute()
+            if fresh_res.data:
+                markup.add(types.InlineKeyboardButton("🗑️ УДАЛИТЬ ИЗ ЭТОГО ТОПИКА", callback_data=f"app_del:{fresh_res.data[0]['id']}"))
+                bot.reply_to(message, f"✅ Актер **{found_name}** добавлен в проект **{new_project_name}**.", reply_markup=markup)
+            
+            print(f"🔄 FORWARD SYNC: Actor {found_name} synced to new project {new_project_name}")
+
+    except Exception as e:
+        print(f"Forward Sync Err: {e}")
+
 @bot.message_handler(commands=['foto', 'video'])
 def handle_actor_update_link(message):
     try:
