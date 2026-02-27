@@ -750,6 +750,7 @@
             reentryFetchBtn.disabled = true;
 
             try {
+                console.log("Searching for phone:", phone);
                 // Search in casting_applications (latest one)
                 const { data, error } = await sb.from('casting_applications')
                     .select('*')
@@ -757,7 +758,12 @@
                     .order('created_at', { ascending: false })
                     .limit(1);
 
-                if (error) throw error;
+                if (error) {
+                    console.error("Supabase Error:", error);
+                    throw error;
+                }
+                
+                console.log("Search result:", data);
 
                 if (!data || data.length === 0) {
                     fetchStatus.textContent = "❌ Номер не найден. Пожалуйста, проверьте ввод или нажмите 'Я заполняю первый раз'";
