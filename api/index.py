@@ -748,21 +748,38 @@ def handle_manual_add_media(message):
                 bot.reply_to(message, "❌ Пожалуйста, отвечайте именно на сообщение с АНКЕТОЙ.")
                 return
 
-        res = supabase.table("casting_applications").select("*").eq("tg_message_id", target_reply.message_id).execute()
+        # 2. Check if media is already in the command message
+        source_msg = message
+        is_direct_upload = source_msg.video or source_msg.photo
+        
+        if not is_direct_upload:
+            # Interactive mode: Ask user to send media
+            prompt = bot.reply_to(message, "📥 **ОЖИДАНИЕ МЕДИА**\nПришлите фото или видео **ОТВЕТОМ** на это сообщение для анкеты актера.", parse_mode="Markdown")
+            return
+
+        # Direct mode logic (media already in /add message)
+        process_manual_media_update(message, target_reply)
+
+    except Exception as e:
+        print(f"Manual Update Error: {e}")
+        bot.send_message(message.chat.id, f"❌ Ошибка: {e}", message_thread_id=message.message_thread_id)
+
+def process_manual_media_update(source_msg, application_msg):
+    try:
+        cid, tid = source_msg.chat.id, source_msg.message_thread_id
+        
+        # Search DB by application_msg.message_id
+        res = supabase.table("casting_applications").select("*").eq("tg_message_id", application_msg.message_id).execute()
         if not res.data:
-            bot.reply_to(message, "❌ Анкета не найдена в базе (возможно, она слишком старая).")
+            bot.send_message(cid, "❌ Анкета не найдена в базе (возможно, она слишком старая).", message_thread_id=tid)
             return
         
         app_data = res.data[0]
-        cid, tid = message.chat.id, message.message_thread_id
-
-        # 2. Extract Media (Video/Photo)
-        source_msg = message
         new_video = app_data.get('video_audition_url')
         new_photos = app_data.get('photo_urls') or []
         
+        # 2. Extract Media (Video/Photo)
         is_updated = False
-        
         if source_msg.video:
             bot.send_chat_action(cid, 'upload_video', message_thread_id=tid)
             f_info = bot.get_file(source_msg.video.file_id)
@@ -779,10 +796,8 @@ def handle_manual_add_media(message):
             supabase.storage.from_('casting_media').upload(path, f_bytes)
             new_photos.append(supabase.storage.from_('casting_media').get_public_url(path))
             is_updated = True
-        
-        if not is_updated:
-            bot.reply_to(message, "❌ Прикрепите фото или видео к команде /add")
-            return
+            
+        if not is_updated: return
 
         # 3. Update DB
         supabase.table("casting_applications").update({
@@ -790,8 +805,7 @@ def handle_manual_add_media(message):
             "video_audition_url": new_video
         }).eq("id", app_data['id']).execute()
 
-        # 4. Trigger Repost (Delete old and send new)
-        # We use the same notify_casting logic but manually
+        # 4. Trigger Repost
         updated_payload = {
             **app_data,
             "photo_urls": new_photos,
@@ -802,25 +816,54 @@ def handle_manual_add_media(message):
 
         # Delete OLD message
         try:
-            bot.delete_message(cid, target_reply.message_id)
-            # Try to delete media group (usually msg_id - 1)
-            try: bot.delete_message(cid, int(target_reply.message_id) - 1)
+            bot.delete_message(cid, application_msg.message_id)
+            try: bot.delete_message(cid, int(application_msg.message_id) - 1)
             except: pass
         except: pass
 
-        # Delete command message
-        try: bot.delete_message(cid, message.message_id)
+        # Delete command message and its parents if interactive
+        try: bot.delete_message(cid, source_msg.message_id)
         except: pass
+        if source_msg.reply_to_message and "ОЖИДАНИЕ МЕДИА" in (source_msg.reply_to_message.text or ""):
+            try: 
+                # Delete the "/add" command that triggered the prompt
+                bot.delete_message(cid, source_msg.reply_to_message.reply_to_message.message_id)
+                # Delete the bot prompt itself
+                bot.delete_message(cid, source_msg.reply_to_message.message_id)
+            except: pass
 
-        # SEND NEW MESSAGE (Triggering the same logic as the API)
+        # SEND NEW MESSAGE
         import requests
         requests.post('https://media-seven-eta.vercel.app/api/casting', json=updated_payload)
 
     except Exception as e:
-        print(f"Manual Update Error: {e}")
-        bot.send_message(message.chat.id, f"❌ Ошибка: {e}", message_thread_id=message.message_thread_id)
+        print(f"process_manual_media_update err: {e}")
 
-# --- OLD ADD VIDEO (KEEP FOR BACKWARD COMPATIBILITY OR REMOVE) ---
+# Handle replies to "ОЖИДАНИЕ МЕДИА" prompt
+@bot.message_handler(func=lambda m: m.reply_to_message and "ОЖИДАНИЕ МЕДИА" in (m.reply_to_message.text or ""), content_types=['photo', 'video'])
+def handle_media_reply_to_prompt(message):
+    # Tracing: Media -> replies to Prompt -> Prompt replies to /add -> /add replies to Application
+    # OR simpler: The Prompt itself replied to the application if we used reply_to_message correctly
+    # Let's find the application message from the prompt's reply_to_message
+    
+    # Prompt was sent using bot.reply_to(message, ...), so prompt.reply_to_message is the /add command
+    # /add command.reply_to_message is the Application
+    
+    prompt_msg = message.reply_to_message
+    add_command_msg = prompt_msg.reply_to_message
+    if not add_command_msg: return
+    
+    application_msg = add_command_msg.reply_to_message
+    if not application_msg:
+        # Fallback: maybe the prompt was a direct reply to application? 
+        # (Though current logic uses reply to /add)
+        if "АНКЕТА:" in (add_command_msg.text or add_command_msg.caption or ""):
+            application_msg = add_command_msg
+        else: return
+
+    process_manual_media_update(message, application_msg)
+
+# --- OLD ADD VIDEO ---
 # I will replace it with the new unified handle_manual_add_media above.
 
 
