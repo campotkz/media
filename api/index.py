@@ -952,6 +952,38 @@ def notify_casting():
 
         print(f"DEBUG: notify_casting for project: {target} (phone: {phone}, insta: {insta})")
 
+        # 0. SELF-CLEANUP: If this is an UPDATE to an existing application, 
+        # delete its previous message FIRST.
+        app_id = data.get('application_id')
+        if app_id:
+            try:
+                # Fetch the CURRENT record to see if it has an old message ID
+                self_res = supabase.table("casting_applications").select("tg_message_id, photo_urls, video_audition_url").eq("id", app_id).single().execute()
+                if self_res.data:
+                    old_msg_id = self_res.data.get('tg_message_id')
+                    
+                    if old_msg_id:
+                        print(f"🔄 Self-Cleanup: Deleting old message {old_msg_id} for app {app_id}")
+                        try:
+                            # Delete main text message
+                            bot.delete_message(cid, old_msg_id)
+                            
+                            # Delete associated media
+                            media_count = 0
+                            old_photos = self_res.data.get('photo_urls') or []
+                            old_video = self_res.data.get('video_audition_url')
+                            media_count = len(old_photos)
+                            if old_video: media_count += 1
+                            media_count = min(media_count, 10) # Safety
+                            
+                            for i in range(1, media_count + 1):
+                                try: bot.delete_message(cid, int(old_msg_id) - i)
+                                except: pass
+                        except Exception as e:
+                            print(f"⚠️ Self-Cleanup Failed (msg too old?): {e}")
+            except Exception as e:
+                print(f"⚠️ Self-Cleanup Error: {e}")
+
         # 1. FIND AND DELETE OLD APPLICATION (Deduplication)
         try:
             # Search by phone OR instagram for the same project
