@@ -514,18 +514,14 @@ def handle_app_delete_callback(call):
         
         app_data = res.data[0]
         phone = app_data.get('phone')
+        current_target = app_data.get('casting_target')
         
-        # 2. Delete from contacts table FOR THIS TOPIC
-        # This removes the actor from the selection list (autocomplete) in this project
-        if phone and tid:
-            supabase.table("contacts").delete().eq("phone", phone).eq("thread_id", tid).eq("chat_id", cid).execute()
+        # 2. Identify if we are in "Casting: ОБЩИЙ"
+        is_general_topic = "ОБЩИЙ" in (current_target or "").upper()
 
-        # 3. Check if we should delete files from Storage
-        # Only delete if this actor has NO OTHER applications in ANY project
-        other_apps = supabase.table("casting_applications").select("id").eq("phone", phone).neq("id", app_id).execute()
-        
-        if not other_apps.data:
-            # No other projects using these files -> SAFE TO DELETE FROM STORAGE
+        if is_general_topic:
+            # 3. PERMANENT DELETE (Only from General)
+            # 3.1 Cleanup Storage
             photos = app_data.get('photo_urls', [])
             video = app_data.get('video_audition_url')
             all_media_urls = list(photos)
@@ -537,22 +533,63 @@ def handle_app_delete_callback(call):
                         path = url.split('casting_media/')[-1]
                         supabase.storage.from_('casting_media').remove([path])
                 except: pass
-            print(f"📦 STORAGE CLEANED: Files for actor {phone} deleted.")
+            
+            # 3.2 Delete from DB and Contacts
+            supabase.table("contacts").delete().eq("phone", phone).eq("thread_id", tid).eq("chat_id", cid).execute()
+            supabase.table("casting_applications").delete().eq("id", app_id).execute()
+            
+            bot.answer_callback_query(call.id, "🗑️ Анкета удалена НАВСЕГДА.")
         else:
-            print(f"📦 STORAGE KEPT: Actor {phone} has {len(other_apps.data)} other applications.")
+            # 4. TRANSFER TO GENERAL (Archive)
+            # 4.1 Check if already in General
+            gen_res = supabase.table("clients").select("chat_id, thread_id").ilike("name", "%ОБЩИЙ%").limit(1).execute()
+            
+            if gen_res.data:
+                g_cid = gen_res.data[0]['chat_id']
+                g_tid = gen_res.data[0]['thread_id']
+                
+                # Check if actor already has an application in General
+                exists_in_gen = supabase.table("casting_applications").select("id")\
+                    .eq("phone", phone).ilike("casting_target", "%ОБЩИЙ%").execute()
+                
+                if not exists_in_gen.data:
+                    # Move to General: update DB record
+                    supabase.table("casting_applications").update({
+                        "casting_target": "Casting: ОБЩИЙ",
+                        "project_name": "Casting: ОБЩИЙ",
+                        "chat_id": g_cid,
+                        "thread_id": g_tid,
+                        "tg_message_id": None # Reset so it gets a new one in General
+                    }).eq("id", app_id).execute()
+                    
+                    # Notify General Topic (Repost)
+                    import requests
+                    requests.post('https://media-seven-eta.vercel.app/api/casting', json={
+                        **app_data,
+                        "casting_target": "Casting: ОБЩИЙ",
+                        "chat_id": g_cid,
+                        "thread_id": g_tid
+                    })
+                    bot.answer_callback_query(call.id, "📦 Перенесено в ОБЩИЙ.")
+                else:
+                    # Already in General, just delete from current project
+                    supabase.table("casting_applications").delete().eq("id", app_id).execute()
+                    bot.answer_callback_query(call.id, "✅ Удалено (уже есть в ОБЩЕМ).")
+            else:
+                # No General topic found, just delete
+                supabase.table("casting_applications").delete().eq("id", app_id).execute()
+                bot.answer_callback_query(call.id, "✅ Удалено.")
 
-        # 4. Delete from casting_applications (THIS SPECIFIC PROJECT ENTRY)
-        supabase.table("casting_applications").delete().eq("id", app_id).execute()
-        
-        # 5. Delete from Telegram
+            # Cleanup contacts for current project only
+            if phone and tid:
+                supabase.table("contacts").delete().eq("phone", phone).eq("thread_id", tid).eq("chat_id", cid).execute()
+
+        # 5. Delete from Telegram (current chat)
         try:
             bot.delete_message(cid, call.message.message_id)
             try: bot.delete_message(cid, int(call.message.message_id) - 1)
             except: pass
         except: pass
-        
-        bot.answer_callback_query(call.id, "✅ Удалено из этого топика.")
-        print(f"🗑️ TOPIC DELETE: App {app_id} removed from DB Topic and TG.")
 
     except Exception as e:
         print(f"App Delete Err: {e}")
