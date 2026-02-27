@@ -901,7 +901,7 @@ def notify_casting():
         try:
             # Search by phone OR instagram for the same project
             # AND exclude the current application (app_id) we just created
-            query = supabase.table("casting_applications").select("id, tg_message_id").eq("casting_target", target)
+            query = supabase.table("casting_applications").select("id, tg_message_id, photo_urls, video_audition_url").eq("casting_target", target)
             
             # Complex OR filter for phone or instagram
             if phone and insta:
@@ -934,15 +934,41 @@ def notify_casting():
                             bot.delete_message(cid, old_msg_id)
                             print(f"   Deleted text msg {old_msg_id}")
                             
-                            # Try to delete associated media group messages
-                            # Heuristic: media messages are usually immediately preceding the text message
-                            # We try to delete up to 9 previous messages if they look like part of a group
-                            # But safely, let's just try 3 previous IDs.
-                            for i in range(1, 4):
+                            # SMART MEDIA DELETION:
+                            # We know how many photos/videos were attached to this old application.
+                            # We should only delete exactly that many previous messages to avoid deleting unrelated chat history.
+                            
+                            media_count = 0
+                            try:
+                                old_photos = old_app.get('photo_urls') or []
+                                old_video = old_app.get('video_audition_url')
+                                # In send_media_group, each photo/video is a separate message.
+                                # BUT: The first media item holds the caption, and subsequent ones are just media.
+                                # If we sent text separately (which we do in step 3), then the media group is BEFORE the text message.
+                                # Usually media group messages have sequential IDs.
+                                
+                                media_count = len(old_photos)
+                                if old_video: media_count += 1
+                                
+                                # Safety limit: don't delete more than 10 messages blindly
+                                media_count = min(media_count, 10)
+                            except: 
+                                media_count = 3 # Fallback default
+                                
+                            print(f"   Attempting to delete {media_count} media messages for app {old_db_id}")
+
+                            # The text message (old_msg_id) was sent LAST.
+                            # So the media messages are at IDs: old_msg_id-1, old_msg_id-2, ...
+                            for i in range(1, media_count + 1):
                                 try: 
-                                    bot.delete_message(cid, int(old_msg_id) - i)
-                                    print(f"   Deleted potential media msg {int(old_msg_id) - i}")
-                                except: pass
+                                    target_id = int(old_msg_id) - i
+                                    bot.delete_message(cid, target_id)
+                                    print(f"   Deleted media msg {target_id}")
+                                except Exception as e:
+                                    print(f"   Failed to delete media {target_id}: {e}")
+                                    # If we fail to delete one (e.g. it doesn't exist), maybe stop?
+                                    # But sometimes IDs skip, so we could try to continue.
+                                    pass
                         except Exception as tg_del_e: 
                             print(f"   TG Delete Err: {tg_del_e}")
                     
