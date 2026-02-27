@@ -10,8 +10,6 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600;700&display=swap"
         rel="stylesheet">
-    <link rel="manifest" href="./manifest.json">
-    <script src="./js/offline-queue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         :root {
@@ -1476,19 +1474,7 @@
                         plan_row: state.currentTaskRow || null
                     }
                 };
-                if (window.OfflineQueue) {
-                    window.OfflineQueue.enqueueRequest(
-                        `${SUPABASE_URL}/rest/v1/production_logs`,
-                        {
-                            'Content-Type': 'application/json',
-                            'apikey': SUPABASE_KEY,
-                            'Authorization': `Bearer ${SUPABASE_KEY}`
-                        },
-                        entry
-                    );
-                } else {
-                    sb.from('production_logs').insert(entry).then();
-                }
+                sb.from('production_logs').insert(entry).then();
                 tg.HapticFeedback.impactOccurred('light');
                 if (blink) flashStatusBar();
             } catch (e) { console.error(e); }

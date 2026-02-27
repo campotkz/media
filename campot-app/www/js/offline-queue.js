@@ -21,10 +21,11 @@ function initDB() {
 }
 
 // enqueue fetch request params
-async function enqueueRequest(url, headers, body) {
+async function enqueueRequest(url, headers, body, method = 'POST') {
     const db = await initDB();
     const item = {
         url: url,
+        method: method,
         headers: headers,
         body: body,
         timestamp: new Date().getTime()
@@ -34,7 +35,7 @@ async function enqueueRequest(url, headers, body) {
         const store = tx.objectStore(STORE_NAME);
         store.add(item);
         tx.oncomplete = () => {
-            console.log('[Offline Queue] Saved locally:', item);
+            console.log(`[Offline Queue] Saved locally [${method}]:`, item);
             trySync();
             resolve();
         };
@@ -63,18 +64,21 @@ async function trySync() {
 
             for (const item of items) {
                 try {
-                    const res = await fetch(item.url, {
-                        method: 'POST',
-                        headers: item.headers || { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(item.body),
-                    });
+                    const fetchOptions = {
+                        method: item.method || 'POST',
+                        headers: item.headers || { 'Content-Type': 'application/json' }
+                    };
+                    if (item.body) {
+                        fetchOptions.body = JSON.stringify(item.body);
+                    }
+                    const res = await fetch(item.url, fetchOptions);
 
-                    if (res.ok || res.status === 400 || res.status === 409) {
+                    if (res.ok || res.status === 400 || res.status === 409 || res.status === 404) {
                         // Delete item from local queue on success or unrecoverable error
                         const delTx = db.transaction(STORE_NAME, 'readwrite');
                         delTx.objectStore(STORE_NAME).delete(item.id);
                         await new Promise(r => delTx.oncomplete = r);
-                        console.log(`[Offline Queue] Synced item ${item.id}`);
+                        console.log(`[Offline Queue] Synced item ${item.id} [${item.method || 'POST'}]`);
                     } else {
                         throw new Error(`Server returned ${res.status}`);
                     }
