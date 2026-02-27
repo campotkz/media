@@ -570,6 +570,9 @@ def notify_casting():
         data = request.json or {}
         cid = data.get('chat_id')
         tid = data.get('thread_id')
+        phone = data.get('phone')
+        insta = data.get('instagram')
+        target = data.get('casting_target')
         
         if not cid: return jsonify({'error': 'No chat_id'}), 400
 
@@ -577,9 +580,48 @@ def notify_casting():
         cid = int(cid)
         tid = int(tid) if tid else None
 
-        print(f"DEBUG: notify_casting for project: {data.get('project_name')} in chat: {cid}, thread: {tid}")
+        print(f"DEBUG: notify_casting for project: {target} (phone: {phone}, insta: {insta})")
 
-        # 1. Auto-Register Contact
+        # 1. FIND AND DELETE OLD APPLICATION (Deduplication)
+        try:
+            # Search by phone OR instagram for the same project
+            query = supabase.table("casting_applications").select("id, tg_message_id").eq("casting_target", target)
+            
+            # Complex OR filter for phone or instagram
+            if phone and insta:
+                query = query.or_(f"phone.eq.{phone},instagram.eq.{insta}")
+            elif phone:
+                query = query.eq("phone", phone)
+            elif insta:
+                query = query.eq("instagram", insta)
+            
+            # Get only records that ARE NOT the one just inserted (latest one has no tg_message_id yet)
+            old_res = query.not_.is_("tg_message_id", "null").order("created_at", descending=True).execute()
+            
+            if old_res.data:
+                for old_app in old_res.data:
+                    old_msg_id = old_app.get('tg_message_id')
+                    old_db_id = old_app.get('id')
+                    
+                    # 1.1 Delete from Telegram
+                    if old_msg_id:
+                        try:
+                            # Also try to delete the media group message (it's usually msg_id - 1 if media was sent)
+                            # Telegram doesn't give media group IDs easily, but we can try to delete previous 2 messages
+                            # for safety if they belong to the same topic.
+                            bot.delete_message(cid, old_msg_id)
+                            # Optional: try to delete the media message too (sent just before text)
+                            try: bot.delete_message(cid, int(old_msg_id) - 1)
+                            except: pass
+                        except Exception as tg_del_e: print(f"TG Delete Err: {tg_del_e}")
+                    
+                    # 1.2 Delete from Supabase
+                    supabase.table("casting_applications").delete().eq("id", old_db_id).execute()
+                    print(f"✅ Deduplicated: Deleted old application {old_db_id} for {phone}/{insta}")
+        except Exception as dedup_e:
+            print(f"Deduplication Error: {dedup_e}")
+
+        # 2. Auto-Register Contact
         try:
             name, phone = data.get('full_name'), data.get('phone')
             if name and phone:
@@ -663,12 +705,12 @@ def notify_casting():
             # 4. CAPTURE MESSAGE ID to DB for future edits
             if sent_msg:
                 try:
-                    # Find the record that was just inserted by the frontend
-                    # Searching by phone and chat/thread within the last hour
+                    # Find the latest record that was just inserted by the frontend
                     supabase.table("casting_applications")\
                         .update({"tg_message_id": sent_msg.message_id})\
-                        .eq("phone", data.get('phone'))\
-                        .eq("chat_id", cid)\
+                        .eq("phone", phone)\
+                        .eq("casting_target", target)\
+                        .is_("tg_message_id", "null")\
                         .execute()
                 except Exception as db_e: print(f"DB Update Error: {db_e}")
 
