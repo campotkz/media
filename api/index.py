@@ -1069,14 +1069,32 @@ def notify_casting():
         # Fallback if ID not provided by frontend (legacy cache)
         if not app_id:
             try:
-                app_res = supabase.table("casting_applications").select("id").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
+                app_res = supabase.table("casting_applications").select("id, is_selected").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
                 if app_res.data:
                     app_id = app_res.data[0]['id']
-            except: pass
+                    # Restore selection state if re-sending
+                    is_selected = app_res.data[0].get('is_selected', False)
+            except: 
+                is_selected = False
+        else:
+            # Check DB for selection state
+            try:
+                sel_res = supabase.table("casting_applications").select("is_selected").eq("id", app_id).single().execute()
+                is_selected = sel_res.data.get('is_selected', False) if sel_res.data else False
+            except:
+                is_selected = False
 
         if app_id:
+            # Use format_casting_message again to ensure text matches status
+            # But wait, full_txt is already generated above. 
+            # If is_selected is True, we should regenerate full_txt with checkmark
+            if is_selected:
+                full_txt = format_casting_message(data, is_selected=True)
+
+            select_btn_text = "✅ ВЫБРАН" if is_selected else "ВЫБРАТЬ"
+            
             btns = [
-                types.InlineKeyboardButton("ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
+                types.InlineKeyboardButton(select_btn_text, callback_data=f"app_sel:{app_id}"),
                 types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
             ]
             markup.add(*btns)
