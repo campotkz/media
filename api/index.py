@@ -1578,8 +1578,98 @@ def process_manual_media_update(source_msg, application_msg):
     except Exception as e:
         print(f"process_manual_media_update err: {e}")
 
+@bot.message_handler(commands=['reload'])
+def handle_reload_command(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id
+        if not tid:
+            bot.reply_to(message, "❌ Эту команду нужно использовать внутри топика.")
+            return
+            
+        m = bot.reply_to(message, "🔄 Перезагрузка анкет этого топика...")
+        
+        query = supabase.table("casting_applications").select("*").eq("chat_id", cid).eq("thread_id", tid)
+        res = query.order("created_at", ascending=True).execute()
+        
+        count = 0
+        if res.data:
+            for app_data in res.data:
+                try:
+                    # 1. Delete OLD message if exists
+                    old_msg_id = app_data.get('tg_message_id')
+                    if old_msg_id:
+                        try:
+                            bot.delete_message(cid, old_msg_id)
+                            # Try delete media (previous 9 messages)
+                            for i in range(1, 10):
+                                try: bot.delete_message(cid, int(old_msg_id) - i)
+                                except: pass
+                        except: pass
+
+                    # 2. Re-send
+                    full_txt = format_casting_message(app_data, is_selected=app_data.get('is_selected', False))
+                    
+                    def v(k): return str(app_data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
+                    simple_caption = (
+                        f"📸 <b>Анкета: {v('full_name')}</b>\n"
+                        f"🎯 {v('casting_target')}\n\n"
+                        f"Описание придет следующим сообщением... ⬇️"
+                    )
+                    
+                    photos = app_data.get('photo_urls', []) or []
+                    video = app_data.get('video_audition_url')
+                    media = []
+                    
+                    # 3 photos + 1 video max as requested
+                    p_limit = 3
+                    for i, url in enumerate(photos):
+                        if i >= p_limit: break
+                        if i == 0:
+                            media.append(types.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
+                        else:
+                            media.append(types.InputMediaPhoto(url))
+                    
+                    if video:
+                        if not media:
+                            media.append(types.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
+                        else:
+                            media.append(types.InputMediaVideo(video))
+                    
+                    markup = types.InlineKeyboardMarkup()
+                    app_id = app_data.get('id')
+                    is_sel = app_data.get('is_selected', False)
+                    select_btn_text = "✅ ВЫБРАН" if is_sel else "ВЫБРАТЬ"
+                    btns = [
+                        types.InlineKeyboardButton(select_btn_text, callback_data=f"app_sel:{app_id}"),
+                        types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
+                    ]
+                    markup.add(*btns)
+                    
+                    sent_msg = None
+                    if media:
+                        try:
+                            bot.send_media_group(cid, media, message_thread_id=tid)
+                        except Exception as e: print(f"Reload Media Fail: {e}")
+                    
+                    sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                    
+                    if sent_msg:
+                        supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
+                    
+                    count += 1
+                    import time
+                    time.sleep(0.5)
+                except Exception as e:
+                    print(f"Reload item error: {e}")
+
+        bot.edit_message_text(f"✅ Перезагружено анкет: {count}", cid, m.message_id)
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
 @app.route('/api/reload', methods=['POST', 'OPTIONS'])
-def reload_casting():
+def reload_casting_endpoint():
     """
     Force reload of ALL applications for a specific chat/thread.
     Useful if bot failed to send messages or if chat history was cleared manually.
