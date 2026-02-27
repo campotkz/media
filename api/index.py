@@ -26,7 +26,53 @@ app = Flask(__name__)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Version indicator for debugging
-VERSION = "1.5.3 (Auto-Migrate)" 
+VERSION = "1.5.4 (Fix Links)" 
+
+def format_casting_message(data, is_selected=False):
+    """
+    Generates the HTML message body for a casting application.
+    Reuse this in notify_casting and handle_app_select_callback to preserve formatting.
+    """
+    def v(k): return str(data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
+    
+    header_prefix = "🟢 SELECTED: " if is_selected else ""
+    
+    full_txt = (
+        f"{header_prefix}🌟 <b>НОВАЯ АНКЕТА: {v('full_name')}</b>\n"
+        f"🎯 Кастинг: <b>{v('casting_target')}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"👤 <b>Личные данные:</b>\n"
+        f"📍 {v('city')} | {v('gender')}\n"
+        f"🎂 Возраст: <b>{v('dob')}</b>\n"
+        f"🎭 Внешность: {v('nationality')}\n\n"
+        f"📏 <b>Параметры:</b>\n"
+        f"📈 Рост/Вес: <b>{v('height_weight')}</b>\n"
+        f"👟 Размеры: <b>{v('sizes')}</b>\n\n"
+        f"📱 <b>Контакты:</b>\n"
+        f"🔗 Inst: {v('instagram')}\n"
+        f"📞 WhatsApp: {v('phone')}\n\n"
+        f"💡 <b>Опыт:</b>\n{v('experience')}\n\n"
+        f"🎭 <b>Навыки:</b>\n{v('skills')}\n\n"
+        f"💎 <b>Финансы и Прочее:</b>\n"
+        f"💰 Бюджет: {v('fee_range')}\n"
+        f"👙 Белье: {v('underwear_ok')} | Массовка: {v('extras_ok')}\n"
+    )
+    
+    if data.get('portfolio_url'):
+        full_txt += f"\n🔗 <a href='{data.get('portfolio_url')}'>Портфолио / Ссылка</a>\n"
+
+    photos = data.get('photo_urls', [])
+    video = data.get('video_audition_url')
+
+    # Add direct links to the message text
+    if photos or video:
+        full_txt += f"\n🖼️ <b>МЕДИА-ФАЙЛЫ (ПРЯМЫЕ ССЫЛКИ):</b>\n"
+        for i, p_url in enumerate(photos):
+            full_txt += f"• <a href='{p_url}'>Фото {i+1}</a>\n"
+        if video:
+            full_txt += f"• <a href='{video}'>Видео-визитка</a>\n"
+            
+    return full_txt
 
 def ensure_blacklist_table():
     """Tries to create the blacklist table using the Management API if it doesn't exist."""
@@ -556,16 +602,10 @@ def handle_app_select_callback(call):
         # 2. Update DB
         supabase.table("casting_applications").update({"is_selected": new_status}).eq("id", app_id).execute()
         
-        # 3. Update Message (Add/Remove Checkmark in header)
-        original_text = call.message.text or call.message.caption or ""
-        new_text = original_text
-        
-        checkmark = "🟢 SELECTED: "
-        if new_status:
-            if checkmark not in original_text:
-                new_text = checkmark + original_text
-        else:
-            new_text = original_text.replace(checkmark, "")
+        # 3. Update Message Text (Rebuild HTML to preserve links)
+        # We must refetch or use existing data to reconstruct the message
+        app_data = res.data[0]
+        new_text = format_casting_message(app_data, is_selected=new_status)
             
         # Update button text too
         markup = call.message.reply_markup
@@ -575,7 +615,7 @@ def handle_app_select_callback(call):
                     btn.text = "✅ ВЫБРАН" if new_status else "ВЫБРАТЬ"
         
         try:
-            bot.edit_message_text(new_text, cid, call.message.message_id, reply_markup=markup, parse_mode="HTML")
+            bot.edit_message_text(new_text, cid, call.message.message_id, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
         except:
             # If it's a caption (media group)
             try: bot.edit_message_caption(new_text, cid, call.message.message_id, reply_markup=markup, parse_mode="HTML")
@@ -997,40 +1037,8 @@ def notify_casting():
         # 2. Format Message (HTML for better reliability)
         def v(k): return str(data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
         
-        # IMPROVED LAYOUT
-        full_txt = (
-            f"🌟 <b>НОВАЯ АНКЕТА: {v('full_name')}</b>\n"
-            f"🎯 Кастинг: <b>{v('casting_target')}</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"👤 <b>Личные данные:</b>\n"
-            f"📍 {v('city')} | {v('gender')}\n"
-            f"🎂 Возраст: <b>{v('dob')}</b>\n"
-            f"🎭 Внешность: {v('nationality')}\n\n"
-            f"📏 <b>Параметры:</b>\n"
-            f"📈 Рост/Вес: <b>{v('height_weight')}</b>\n"
-            f"👟 Размеры: <b>{v('sizes')}</b>\n\n"
-            f"📱 <b>Контакты:</b>\n"
-            f"🔗 Inst: {v('instagram')}\n"
-            f"📞 WhatsApp: {v('phone')}\n\n"
-            f"💡 <b>Опыт:</b>\n{v('experience')}\n\n"
-            f"🎭 <b>Навыки:</b>\n{v('skills')}\n\n"
-            f"💎 <b>Финансы и Прочее:</b>\n"
-            f"💰 Бюджет: {v('fee_range')}\n"
-            f"👙 Белье: {v('underwear_ok')} | Массовка: {v('extras_ok')}\n"
-        )
-        if data.get('portfolio_url'):
-            full_txt += f"\n🔗 <a href='{data.get('portfolio_url')}'>Портфолио / Ссылка</a>\n"
-
-        photos = data.get('photo_urls', [])
-        video = data.get('video_audition_url')
-
-        # DOUBLE-SAFETY: Add direct links to the message text
-        if photos or video:
-            full_txt += f"\n🖼️ <b>МЕДИА-ФАЙЛЫ (ПРЯМЫЕ ССЫЛКИ):</b>\n"
-            for i, p_url in enumerate(photos):
-                full_txt += f"• <a href='{p_url}'>Фото {i+1}</a>\n"
-            if video:
-                full_txt += f"• <a href='{video}'>Видео-визитка</a>\n"
+        # IMPROVED LAYOUT (Using Helper)
+        full_txt = format_casting_message(data)
 
         # USE A SIMPLE SAFE CAPTION FOR MEDIA GROUP to avoid 1024 limit and HTML breakage
         simple_caption = (
