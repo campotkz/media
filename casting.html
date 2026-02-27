@@ -881,7 +881,7 @@
 
             try {
                 const { data, error } = await sb.from('clients')
-                    .select('name')
+                    .select('name, chat_id, thread_id')
                     .eq('category', 'casting')
                     .eq('is_hidden', false)
                     .order('name');
@@ -898,8 +898,13 @@
                     if (p.name === proj) label.classList.add('active');
 
                     const isChecked = p.name === proj ? 'checked' : '';
+
+                    // Store IDs directly in data attributes
+                    const cidAttr = p.chat_id ? `data-cid="${p.chat_id}"` : '';
+                    const tidAttr = p.thread_id ? `data-tid="${p.thread_id}"` : '';
+
                     label.innerHTML = `
-                        <input type="checkbox" value="${p.name}" ${isChecked}>
+                        <input type="checkbox" value="${p.name}" ${isChecked} ${cidAttr} ${tidAttr}>
                         <span>${p.name}</span>
                     `;
 
@@ -1102,7 +1107,7 @@
         document.getElementById('photoInput').onchange = async (e) => {
             const files = Array.from(e.target.files);
             document.getElementById('photoUpload').value = ''; // Reset input
-            
+
             for (const file of files) {
                 pendingUploads++;
                 updateSubmitButton();
@@ -1192,8 +1197,14 @@
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
 
-            const checkedProjects = Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => i.value);
-            if (checkedProjects.length === 0) {
+            // Collect selected projects with their IDs
+            const selectedItems = Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => ({
+                name: i.value,
+                chat_id: i.getAttribute('data-cid'),
+                thread_id: i.getAttribute('data-tid')
+            }));
+
+            if (selectedItems.length === 0) {
                 return alert("Пожалуйста, выберите хотя бы один кастинг.");
             }
 
@@ -1201,7 +1212,7 @@
                 return alert("Пожалуйста, дождитесь завершения загрузки всех медиа-файлов.");
             }
 
-            processSubmit(e.target, checkedProjects);
+            processSubmit(e.target, selectedItems);
         };
 
         async function processSubmit(formElement, selectedProjects) {
@@ -1221,14 +1232,15 @@
             try {
                 document.getElementById('loadingText').textContent = "Сохранение данных...";
 
-                for (const pName of selectedProjects) {
-                    const { data: clientData } = await sb.from('clients')
-                        .select('chat_id, thread_id')
-                        .eq('name', pName)
-                        .limit(1);
+                for (const p of selectedProjects) {
+                    const pName = p.name;
 
-                    const targetCid = (clientData && clientData[0]) ? clientData[0].chat_id : cid;
-                    const targetTid = (clientData && clientData[0]) ? clientData[0].thread_id : tid;
+                    // Use IDs from the checkbox if available, otherwise fallback to URL params
+                    // This fixes issues where project name lookup might fail or return wrong record
+                    const targetCid = p.chat_id ? parseInt(p.chat_id) : (cid ? parseInt(cid) : null);
+                    const targetTid = p.thread_id ? parseInt(p.thread_id) : (tid ? parseInt(tid) : null);
+
+                    console.log(`Submitting to: ${pName}, CID: ${targetCid}, TID: ${targetTid}`);
 
                     const finalData = {
                         ...results,
