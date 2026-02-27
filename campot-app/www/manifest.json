@@ -1,0 +1,17 @@
+{
+    "name": "Campot",
+    "short_name": "Campot",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#121212",
+    "theme_color": "#121212",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "./favicon.png",
+            "sizes": "192x192 512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

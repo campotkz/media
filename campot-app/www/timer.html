@@ -1,0 +1,2187 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Film Timer PRO - Professional Clapperboard</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="manifest" href="./manifest.json">
+    <script src="./js/offline-queue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        :root {
+            --bg-deep: #0e0e11;
+            --bg-card: rgba(26, 26, 30, 0.85);
+            --accent-red: #ff3b30;
+            --accent-green: #34c759;
+            --accent-blue: #007aff;
+            --accent-yellow: #ffcc00;
+            --accent-orange: #ff9500;
+            --text-main: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.5);
+            --glass: rgba(255, 255, 255, 0.04);
+            --border: rgba(255, 255, 255, 0.08);
+            --safe-top: env(safe-area-inset-top);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        .viewport {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+            padding: calc(var(--safe-top) + 8px) 12px 0;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+
+        .main-timer {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent-red);
+            margin: 2px 0;
+            text-shadow: 0 0 10px rgba(255, 59, 48, 0.3);
+        }
+
+        .project-tag {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+        }
+
+        .location-tag {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+
+        /* STATUS BAR */
+        .status-bar {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+
+        .dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 6px var(--accent-green);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .phase-timer {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            color: var(--accent-yellow);
+        }
+
+        /* SCROLLABLE CONTROL AREA */
+        .controls {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 20px;
+            -webkit-overflow-scrolling: touch;
+            min-height: 0;
+        }
+
+        .controls::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .controls::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: all 0.1s;
+            position: relative;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .btn-val {
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .btn-timer {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            color: var(--accent-yellow);
+            margin-top: 4px;
+            display: none;
+        }
+
+        .btn.active {
+            border-color: var(--color);
+            background: var(--fade);
+            animation: borderPulse 2s infinite;
+        }
+
+        .btn.active .btn-timer {
+            display: block;
+        }
+
+        @keyframes borderPulse {
+            0% {
+                border-color: var(--border);
+            }
+
+            50% {
+                border-color: var(--color);
+                box-shadow: 0 0 10px var(--fade);
+            }
+
+            100% {
+                border-color: var(--border);
+            }
+        }
+
+        .btn.active .btn-label {
+            color: var(--color);
+        }
+
+        .btn-motor-main {
+            grid-column: span 2;
+            padding: 24px;
+            border-width: 2px;
+            border-color: var(--accent-red);
+            background: rgba(255, 59, 48, 0.1);
+        }
+
+        .btn-motor-main.active {
+            background: rgba(255, 59, 48, 0.25);
+            border-color: var(--accent-red);
+            animation: none;
+        }
+
+        .btn-motor-main .btn-val {
+            font-size: 26px;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        /* COLORS */
+        .c-red {
+            --color: var(--accent-red);
+            --fade: rgba(255, 59, 48, 0.15);
+        }
+
+        .c-green {
+            --color: var(--accent-green);
+            --fade: rgba(52, 199, 89, 0.15);
+        }
+
+        .c-blue {
+            --color: var(--accent-blue);
+            --fade: rgba(0, 122, 255, 0.15);
+        }
+
+        .c-yellow {
+            --color: var(--accent-yellow);
+            --fade: rgba(255, 204, 0, 0.15);
+        }
+
+        .c-orange {
+            --color: var(--accent-orange);
+            --fade: rgba(255, 149, 0, 0.15);
+        }
+
+        /* FOOTER STATS */
+        .footer {
+            background: #16161a;
+            border-top: 1px solid var(--border);
+            padding: 10px 14px 30px;
+            /* Extra room for mobile gestures */
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-shrink: 0;
+            height: 90px;
+            z-index: 1000;
+        }
+
+        .stat {
+            text-align: center;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 700;
+        }
+
+        .stat-val {
+            font-size: 18px;
+            /* Slightly larger */
+            font-weight: 800;
+            margin-top: 2px;
+        }
+
+        .stat-plus {
+            font-size: 14px;
+            font-weight: 900;
+            color: var(--accent-blue);
+            margin-left: 2px;
+            padding: 4px;
+        }
+
+        /* OVERLAY / MODALS */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-deep);
+            z-index: 5000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .start-ring {
+            width: 170px;
+            height: 170px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff3b30, #ff2d55);
+            box-shadow: 0 0 40px rgba(255, 59, 48, 0.4);
+            border: none;
+            color: white;
+            font-weight: 900;
+            font-size: 18px;
+            margin-top: 30px;
+            cursor: pointer;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 6000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-box {
+            background: #1c1c1e;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 340px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .m-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .m-desc {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        .opt-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .header {
+            background: var(--bg-card);
+            padding: calc(var(--safe-top) + 12px) 15px 15px;
+            border-bottom: 2px solid var(--accent-blue);
+            text-align: center;
+            z-index: 100;
+            position: relative;
+        }
+
+        .opt-item {
+            background: var(--glass);
+            padding: 15px;
+            border-radius: 14px;
+            text-align: center;
+            border: 1px solid var(--border);
+            font-weight: 600;
+            transition: 0.1s;
+        }
+
+        .opt-item:active {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent-blue);
+            transform: scale(0.98);
+        }
+
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 8px;
+            border: none;
+            color: white;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .btn-sm:active {
+            transform: scale(0.95);
+        }
+
+        .m-btn {
+            padding: 16px;
+            border-radius: 14px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .m-confirm {
+            background: var(--accent-red);
+            color: white;
+            margin-top: 10px;
+        }
+
+        .m-cancel {
+            background: transparent;
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 360px) {
+            .main-timer {
+                font-size: 28px;
+            }
+
+            .stat-val {
+                font-size: 14px;
+            }
+
+            .btn {
+                padding: 12px 8px;
+            }
+        }
+
+        /* PLAN DRAWER */
+        .drawer {
+            position: fixed;
+            top: -40vh;
+            left: 0;
+            width: 100%;
+            height: 40vh;
+            background: #1c1c1e;
+            border-bottom: 2px solid var(--accent-blue);
+            z-index: 4000;
+            transition: transform 0.4s var(--ease);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            padding: calc(var(--safe-top) + 10px) 15px 15px;
+        }
+
+        .drawer.open {
+            transform: translateY(40vh);
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+        }
+
+        .drawer-title {
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: var(--accent-blue);
+        }
+
+        .drawer-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .sch-item {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: grab;
+        }
+
+        .sch-item.done {
+            opacity: 0.5;
+            text-decoration: line-through;
+            border-color: transparent;
+        }
+
+        .sch-time {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            color: var(--accent-yellow);
+            min-width: 85px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .sch-time span {
+            color: var(--text-dim);
+            font-size: 9px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .sch-text {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sch-task {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .sch-meta {
+            font-size: 11px;
+            color: var(--text-dim);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .sch-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .sch-handle {
+            color: var(--text-dim);
+            font-size: 16px;
+            padding: 5px;
+        }
+
+        .sch-check {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .sch-check.checked {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+        }
+
+        .sch-check.checked::after {
+            content: '✓';
+            color: white;
+            font-weight: 900;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viewport">
+        <!-- START OVERLAY -->
+        <div id="startOverlay" class="overlay">
+            <span class="project-tag">FILM TIMER PRO</span>
+            <h1 style="margin: 10px 0 0; font-size: 26px; font-weight: 800;">СМЕНА НЕ НАЧАТА</h1>
+            <p id="startOverlayDesc"
+                style="font-size: 15px; color: var(--text-dim); margin: 12px 0 20px; max-width: 260px; line-height: 1.5;">
+                Выберите запланированную съемку или начните новую самостоятельно.</p>
+
+            <div id="shootSelector" class="opt-list" style="width: 100%; max-width: 300px; margin-bottom: 20px;">
+                <!-- Shoots will be rendered here -->
+                <div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue);"
+                    onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>
+            </div>
+
+            <button id="btnMainStart" class="start-ring hidden">НАЧАТЬ СМЕНУ</button>
+        </div>
+
+        <!-- FINISH OVERLAY -->
+        <div id="finishOverlay" class="overlay hidden">
+            <span class="project-tag">ОТЧЕТ ОТПРАВЛЕН В ЧАТ ✅</span>
+            <h1 style="margin: 10px 0 0; font-size: 26px; font-weight: 800;">СМЕНА ЗАВЕРШЕНА</h1>
+            <p id="finishDesc"
+                style="font-size: 15px; color: var(--text-dim); margin: 12px 0 20px; max-width: 260px; line-height: 1.5;">
+                Все таймеры остановлены. Отчет сформирован и отправлен в Telegram канал проекта.</p>
+            <button id="btnFinishAction" class="btn c-green" style="width: 200px; padding: 18px 0;"
+                onclick="saveReportLink()">СОХРАНИТЬ ССЫЛКУ</button>
+        </div>
+        <!-- /START & FINISH OVERLAYS -->
+
+        <!-- HEADER -->
+        <div class="header">
+            <div
+                style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+                <button class="btn-sm c-blue" onclick="toggleDrawer()">📋 ПЛАН</button>
+                <span class="project-tag" id="elProjName">PROJECT_NAME</span>
+                <button class="btn-sm" style="opacity:0; pointer-events:none">X</button>
+            </div>
+            <div id="elShiftTimer" class="main-timer">00:00:00</div>
+            <div id="elLocation" class="location-tag">📍 <span id="valLocation">ЛОКАЦИЯ: КВАРТИРА</span> ⚙️</div>
+        </div>
+
+        <!-- PLAN DRAWER -->
+        <div id="planDrawer" class="drawer">
+            <div class="drawer-header">
+                <div class="drawer-title">ПЛАН-ТАЙМИНГ СМЕНЫ</div>
+                <button class="btn-sm c-red" onclick="toggleDrawer()">ЗАКРЫТЬ ✕</button>
+            </div>
+            <div id="drawerContent" class="drawer-content">
+                <!-- Items here -->
+            </div>
+        </div>
+
+        <!-- STATUS -->
+        <div class="status-bar">
+            <div class="status-info">
+                <div id="elStatusDot" class="dot active"></div>
+                <span id="elPhaseLabel">ОЖИДАНИЕ</span>
+            </div>
+            <div id="elPhaseTimer" class="phase-timer">00:00</div>
+        </div>
+
+        <!-- CONTROLS -->
+        <div id="controls" class="controls">
+            <!-- 1. ГЛОБАЛЬНЫЕ -->
+            <div class="section">
+                <div class="section-header">ГЛОБАЛЬНЫЕ / ТАЙМИНГ</div>
+                <div class="grid">
+                    <div id="btn_travel" class="btn" onclick="toggleBtn('travel', 'ДВИЖЕНИЕ', 'ДВИЖЕНИЕ')"><span
+                            class="btn-label">Едем</span><span class="btn-val">TRAVEL TO LOC</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_onsite" class="btn" onclick="toggleBtn('onsite', 'РАЗВЕРТ.', 'НА МЕСТЕ')"><span
+                            class="btn-label">Развертывание</span><span class="btn-val">DEPLOYMENT</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <!-- NEW RELOCATION BLOCK -->
+                    <div id="btn_loc_move" class="btn c-blue" onclick="toggleBtn('loc_move', 'ПЕРЕЕЗД', 'ПЕРЕЕЗД')">
+                        <span class="btn-label">Время переезда</span><span class="btn-val">ПЕРЕЕЗД</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_loc_select" class="btn c-blue" onclick="showOptionModal('location_change')">
+                        <span class="btn-label">Куда</span><span class="btn-val">ВЫБОР ОБЪЕКТА</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. ПРИБЫТИЕ -->
+            <div class="section">
+                <div class="section-header">ПРИБЫТИЕ (CHECK-IN)</div>
+                <div class="grid">
+                    <div class="btn" onclick="showChecklist('crew')"><span class="btn-label">Группа</span><span
+                            class="btn-val">CREW ARRIVAL</span></div>
+                    <div class="btn" onclick="showChecklist('client')"><span class="btn-label">Заказчик</span><span
+                            class="btn-val">CLIENT / AGENCY</span></div>
+                    <div class="btn" style="grid-column: span 2" onclick="showChecklist('actor')"><span
+                            class="btn-label">Актеры</span><span class="btn-val">ACTOR CHECK-IN / OUT</span></div>
+                </div>
+            </div>
+
+            <!-- 3. ПОДГОТОВКА АКТЕРОВ -->
+            <div class="section">
+                <div class="section-header">ПОДГОТОВКА АКТЕРОВ</div>
+                <div class="grid">
+                    <div id="btn_makeup" class="btn c-blue" data-prep="makeup"><span
+                            class="btn-label">Начало/Конец</span><span class="btn-val">ГРИМ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_wardrobe" class="btn c-blue" data-prep="wardrobe"><span
+                            class="btn-label">Начало/Конец</span><span class="btn-val">КОСТЮМ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_sound" class="btn c-blue" data-prep="sound"><span
+                            class="btn-label">Установка</span><span class="btn-val">ОПЕТЛИЧИВАНИЕ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div class="btn c-green" onclick="showReadyChecklist()"><span class="btn-label">Финальный
+                            статус</span><span class="btn-val">АКТЕР ГОТОВ</span></div>
+                </div>
+            </div>
+
+            <!-- 4. ТЕХНИЧЕСКАЯ ПОДГОТОВКА -->
+            <div class="section">
+                <div class="section-header">ТЕХНИЧЕСКАЯ ПОДГОТОВКА</div>
+                <div class="grid">
+                    <div id="btn_light" class="btn c-yellow" data-prep="light"><span
+                            class="btn-label">Начало/Конец</span><span class="btn-val">СВЕТ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_camera" class="btn c-yellow" data-prep="camera"><span
+                            class="btn-label">Начало/Конец</span><span class="btn-val">КАМЕРА</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_art" class="btn c-yellow" data-prep="art"><span
+                            class="btn-label">Начало/Конец</span><span class="btn-val">ХУДОЖКА</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_props" class="btn c-yellow" data-prep="props"><span
+                            class="btn-label">Реквизит</span><span class="btn-val">РЕКВИЗИТ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_sfx" class="btn c-orange" data-prep="sfx"><span
+                            class="btn-label">Спецэффекты</span><span class="btn-val">ПИРОТЕХНИКА</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_stunts" class="btn c-orange" data-prep="stunts"><span
+                            class="btn-label">Каскадеры</span><span class="btn-val">КАСКАДЕРЫ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. РЕПЕТИЦИИ И СЪЕМКА -->
+            <div class="section">
+                <div class="section-header">РЕПЕТИЦИИ И СЪЕМКА</div>
+                <div class="grid">
+                    <div id="btn_blocking" class="btn c-green"
+                        onclick="toggleBtn('blocking', 'БЛОКИРОВКА', 'МИЗАНСЦЕНА')">
+                        <span class="btn-label">Мизансцена</span><span class="btn-val">БЛОКИРОВКА</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_rehearsal" class="btn c-green" onclick="toggleBtn('rehearsal', 'РЕПЕТИЦИЯ', 'ПРОГОН')">
+                        <span class="btn-label">Без камеры</span><span class="btn-val">РЕПЕТИЦИЯ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_dress_reh" class="btn c-green"
+                        onclick="toggleBtn('dress_reh', 'ГЕН. РЕПЕТИЦИЯ', 'ГЕНЕРАЛЬНАЯ')"><span class="btn-label">В
+                            костюмах</span><span class="btn-val">ГЕН. РЕПЕТИЦИЯ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_shoot_reh" class="btn c-red"
+                        onclick="toggleBtn('shoot_reh', 'СЪЕМКА РЕПЕТИЦИИ', 'СЪЕМКА РЕПЕТИЦИИ')"><span
+                            class="btn-label">С
+                            камерой</span><span class="btn-val">СЪЕМКА РЕПЕТИЦИИ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_series" class="btn c-red" style="grid-column: span 2"
+                        onclick="toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ')">
+                        <span class="btn-label">Много дублей</span><span class="btn-val">СЕРИЯ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. ЛОГИСТИКА -->
+            <div class="section">
+                <div class="section-header">ЛОГИСТИКА И ПЕРЕРЫВЫ</div>
+                <div class="grid">
+                    <div id="btn_lunch" class="btn c-blue" onclick="toggleBtn('lunch', 'ОБЕД', 'ПЕРЕРЫВ ПИТАНИЕ')"><span
+                            class="btn-label">Обед</span><span class="btn-val">ОБЕД / LUNCH</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_tech_break" class="btn c-blue"
+                        onclick="toggleBtn('tech_break', 'ТЕХ. ПЕРЕРЫВ', 'ТЕХ. ПЕРЕРЫВ')"><span
+                            class="btn-label">Перерыв</span><span class="btn-val">ТЕХ. ПЕРЕРЫВ</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_current_lunch" class="btn c-blue"
+                        onclick="toggleBtn('current_lunch', 'ОБЕД', 'ОБЕД ИДЕТ')">
+                        <span class="btn-label">Статус</span><span class="btn-val">ТЕКУЩИЙ ОБЕД</span>
+                    </div>
+                    <div class="btn c-blue" onclick="logEvent('catering_arrival', {}, true)"><span
+                            class="btn-label">Горячее</span><span class="btn-val">БУФЕТ ПРИЕХАЛ</span></div>
+                </div>
+            </div>
+
+            <!-- 7. ЗАДЕРЖКИ -->
+            <div class="section">
+                <div class="section-header">ЗАДЕРЖКИ (DELAYS)</div>
+                <div class="grid">
+                    <div id="btn_delay_tech" class="btn c-orange" onclick="toggleDelay('tech')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">TECH</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_delay_crew" class="btn c-orange" onclick="toggleDelay('crew')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">CREW</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_delay_actor" class="btn c-orange" onclick="toggleDelay('actor')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">ACTOR</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_delay_client" class="btn c-orange" onclick="toggleDelay('client')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">CLIENT</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_delay_weather" class="btn c-orange" onclick="toggleDelay('weather')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">WEATHER</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_delay_noise" class="btn c-orange" onclick="toggleDelay('noise')"><span
+                            class="btn-label">Проблема</span><span class="btn-val">NOISE</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 8. ДОПОЛНИТЕЛЬНО -->
+            <div class="section">
+                <div class="section-header">ДОПОЛНИТЕЛЬНО</div>
+                <div class="grid">
+                    <div id="btn_dit" class="btn" onclick="toggleBtn('dit', 'BACKUP', 'СЛИВ МАТЕРИАЛА')"><span
+                            class="btn-label">DIT</span><span class="btn-val">BACKUP</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_bts" class="btn" onclick="toggleBtn('bts', 'MARKETING', 'БЕКСТЕЙДЖ / BTS')"><span
+                            class="btn-label">Маркетинг</span><span class="btn-val">BTS / PHOTO</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div id="btn_police" class="btn" onclick="toggleBtn('police', 'POLICE', 'ПРОВЕРКА ВЛАСТИ')"><span
+                            class="btn-label">Власть</span><span class="btn-val">POLICE</span>
+                        <div class="btn-timer">00:00</div>
+                    </div>
+                    <div class="btn c-blue" onclick="showOptionModal('note')"><span
+                            class="btn-label">Заметка</span><span class="btn-val">MEMO</span></div>
+                </div>
+            </div>
+
+            <!-- 9. ЗАВЕРШЕНИЕ -->
+            <div class="section">
+                <div class="section-header">ЗАВЕРШЕНИЕ СЪЕМКИ</div>
+                <div class="grid">
+                    <div class="btn c-red" onclick="logEvent('wrap', {}, true)"><span class="btn-label">Финал
+                            съемки</span><span class="btn-val">WRAP (STOP CAM)</span></div>
+                    <div class="btn c-red" onclick="logEvent('last_man_out', {}, true)"><span
+                            class="btn-label">Последний
+                            человек</span><span class="btn-val">LAST MAN OUT</span></div>
+                </div>
+                <button id="btnFinalWrap" class="btn c-red"
+                    style="width: 100%; padding: 20px; margin-top: 15px; grid-column: span 2; border-width: 2px;">
+                    <span class="btn-label">ЗАВЕРШИТЬ СМЕНУ</span><span class="btn-val" style="font-size: 18px;">FINISH
+                        SHIFT</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <div class="stat" onclick="editManual('scene')">
+                <div class="stat-label">СЦЕНА</div>
+                <div id="valScene" class="stat-val">1</div>
+            </div>
+            <div class="stat" style="display: flex; flex-direction: column; align-items: center; flex: 1.2;">
+                <div class="stat-label">КАДР</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="valShot" class="stat-val" onclick="editManual('shot')">1</span>
+                    <span class="stat-plus" id="elShotBtn" onclick="incrementShot(event)">+</span>
+                </div>
+            </div>
+            <div id="btnMotor" class="btn c-red btn-motor-main"
+                style="flex: 2.5; height: 64px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0;">
+                <span class="btn-label" style="font-size: 9px; letter-spacing: 1px;">RECORD</span>
+                <span id="motorTitle" class="btn-val" style="font-size: 20px; margin: 0; line-height: 1;">МОТОР</span>
+            </div>
+            <div class="stat" id="elTakeBtn">
+                <div class="stat-label">ДУБЛЬ</div>
+                <div id="valTake" class="stat-val">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="modal" class="modal">
+        <div id="modalBox" class="modal-box">
+            <h3 id="modalTitle" class="m-title">Title</h3>
+            <p id="modalDesc" class="m-desc">Description</p>
+            <div id="modalOptions" class="opt-list hidden"></div>
+            <div id="modalButtons" class="m-grid">
+                <button id="btnModalConfirm" class="m-btn m-confirm">ПОДТВЕРДИТЬ</button>
+                <button id="btnModalCancel" class="m-btn m-cancel">ОТМЕНА</button>
+            </div>
+        </div>
+    </div>
+    <!-- /VIEWPORT -->
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.enableClosingConfirmation();
+
+        const SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const params = new URLSearchParams(window.location.search);
+        const PID = params.get('pid') || '0';
+
+        // Namespaced helpers
+        const pKey = (k) => `p${PID}_${k}`;
+        const pGet = (k) => localStorage.getItem(pKey(k));
+        const pSet = (k, v) => localStorage.setItem(pKey(k), v);
+        const pRem = (k) => localStorage.removeItem(pKey(k));
+
+        let state = {
+            shiftId: pGet('shift_id'),
+            shootId: pGet('shoot_id'),
+            startTime: pGet('start_time'),
+            status: pGet('status') || 'inactive',
+            phase: pGet('phase') || 'IDLE',
+            phaseStartTime: pGet('phase_start') || null,
+            location: pGet('location') || 'КВАРТИРА',
+            scene: parseInt(pGet('scene')) || 1,
+            shot: parseInt(pGet('shot')) || 1,
+            take: parseInt(pGet('take')) || 1,
+            isMotor: false,
+            project: { id: PID, name: '...' },
+            // Data pools from calendar
+            pool_crew: JSON.parse(pGet('pool_crew') || '[]'),
+            pool_client: JSON.parse(pGet('pool_client') || '[]'),
+            pool_actor: JSON.parse(pGet('pool_actor') || '[]'),
+            // Locations from schedule
+            shootLocations: JSON.parse(pGet('shoot_locations') || '[]'),
+            // Tracking
+            arrived_crew: JSON.parse(pGet('arrived_crew') || '[]'),
+            arrived_client: JSON.parse(pGet('arrived_client') || '[]'),
+            arrived_actor: JSON.parse(pGet('arrived_actor') || '[]'),
+            departed_actor: JSON.parse(pGet('departed_actor') || '[]'),
+            ready_actor: JSON.parse(pGet('ready_actor') || '[]'),
+            activeTimers: JSON.parse(pGet('active_timers') || '{}')
+        };
+
+        const ui = {
+            overlay: document.getElementById('startOverlay'),
+            shiftTimer: document.getElementById('elShiftTimer'),
+            phaseTimer: document.getElementById('elPhaseTimer'),
+            phaseLabel: document.getElementById('elPhaseLabel'),
+            locationLabel: document.getElementById('valLocation'),
+            sceneLabel: document.getElementById('valScene'),
+            shotLabel: document.getElementById('valShot'),
+            takeLabel: document.getElementById('valTake'),
+            motorBtn: document.getElementById('btnMotor'),
+            motorTitle: document.getElementById('motorTitle'),
+            modal: document.getElementById('modal'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalDesc: document.getElementById('modalDesc'),
+            modalOptions: document.getElementById('modalOptions'),
+            modalButtons: document.getElementById('modalButtons'),
+            controls: document.getElementById('controls')
+        };
+
+        async function initApp() {
+            // Priority 0: Ensure UI is actually loaded before classList calls
+            if (!ui.overlay) {
+                console.warn("UI elements not found, re-binding...");
+                ui.overlay = document.getElementById('startOverlay');
+            }
+
+            state.project = {
+                id: PID,
+                name: params.get('proj') || 'Проект',
+                cid: params.get('cid'),
+                tid: params.get('tid')
+            };
+            document.getElementById('elProjName').textContent = state.project.name;
+            ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
+            ui.sceneLabel.textContent = state.scene;
+            ui.shotLabel.textContent = state.shot;
+            ui.takeLabel.textContent = state.take;
+            ui.phaseLabel.textContent = pGet('phase_label') || 'ОЖИДАНИЕ';
+
+            // Priority 1: Local Storage state (already running)
+            if (state.status === 'active' && state.startTime) {
+                console.log("Resuming from localStorage...");
+                ui.overlay?.classList.add('hidden');
+                refreshUI();
+                return;
+            }
+
+            // Priority 2: Check Supabase for active shift by chat_id (reliable across contexts)
+            console.log("Checking Supabase for active shifts by chat_id...");
+            try {
+                const numCid = parseInt(state.project.cid);
+                // Search by chat_id from DB — works even when thread_id is unknown
+                // (e.g., when opened from calendar where thread isn't in URL)
+                const query = sb.from('production_shifts')
+                    .select('*')
+                    .eq('status', 'active')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                // Prefer chat_id if available, fallback to project_id
+                const dbResult = numCid && !isNaN(numCid)
+                    ? await query.eq('chat_id', numCid)
+                    : await query.eq('project_id', state.project.id);
+
+                const { data, error } = dbResult;
+                if (data && data.length > 0) {
+                    const s = data[0];
+                    console.log("Found active shift in DB, attaching. shift_id=", s.id, "shoot_id=", s.shoot_id);
+                    state.shiftId = s.id;
+                    state.shootId = s.shoot_id;
+                    state.startTime = s.start_time;
+                    state.status = 'active';
+                    state.phaseStartTime = s.start_time;
+                    // Restore project context so reports go to the right topic
+                    if (s.chat_id) state.project.cid = String(s.chat_id);
+                    if (s.thread_id) state.project.tid = String(s.thread_id);
+                    saveState();
+                    ui.overlay.classList.add('hidden');
+                    refreshUI();
+                    return;
+                }
+            } catch (e) { console.warn("Sync check failed:", e); }
+
+            // Priority 3: No active shift, show selector
+            await checkCalendar();
+            ui.overlay.classList.remove('hidden'); // Ensure overlay is visible for selection
+        }
+
+        async function checkCalendar() {
+            const d = new Date();
+            const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+            // Backup/Safety range (Yesterday and Tomorrow)
+            const yest = new Date(d); yest.setDate(d.getDate() - 1);
+            const yestDate = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+            const tom = new Date(d); tom.setDate(d.getDate() + 1);
+            const tomDate = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
+
+            console.log("Checking calendar for localDate:", localDate);
+
+            const { data, error } = await sb.from('shoots')
+                .select('*')
+                .gte('date', yestDate)
+                .lte('date', tomDate);
+
+            const container = document.getElementById('shootSelector');
+            container.innerHTML = `<div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue); margin-bottom:15px;" onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>`;
+
+            if (error) {
+                console.error("Calendar fetch error:", error);
+                container.innerHTML += `<div style="color:#ff6b6b; font-size:12px; padding:10px; text-align:center">Ошибка базы: ${error.message}</div>`;
+                return;
+            }
+
+            if (data && data.length > 0) {
+                const curName = (state.project.name || '').trim().toLowerCase();
+
+                // Sort: Today first, then by date
+                data.sort((a, b) => {
+                    if (a.date === localDate && b.date !== localDate) return -1;
+                    if (a.date !== localDate && b.date === localDate) return 1;
+                    return b.date.localeCompare(a.date);
+                });
+
+                data.forEach(s => {
+                    const div = document.createElement('div');
+                    div.className = 'opt-item';
+
+                    const isToday = s.date === localDate;
+                    const isMatch = s.project && s.project.trim().toLowerCase() === curName;
+
+                    const actorCount = (s.actors || '').split(',').filter(a => a.trim()).length;
+                    const pName = (s.project || 'БЕЗ НАЗВАНИЯ').toUpperCase();
+
+                    div.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+                            <span style="font-size:13px; font-weight:700; color:${isToday ? 'var(--accent-yellow)' : 'var(--text-dim)'}">${pName}</span>
+                            ${isToday ? '<span style="font-size:8px; padding:2px 6px; background:var(--accent-green); border-radius:6px; color:#000; font-weight:700">СЕГОДНЯ</span>' : ''}
+                        </div>
+                        <div style="font-size:14px; margin:2px 0">📍 ${s.location || 'Локация...'}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; opacity:0.7">
+                            <div style="display:flex; gap:10px">
+                                <span>🕐 ${s.callTime || '?'}</span>
+                                ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
+                            </div>
+                            ${!isToday ? `<span style="font-size:9px">${s.date}</span>` : ''}
+                        </div>`;
+
+                    div.onclick = () => selectShoot(s);
+                    if (isToday && isMatch) div.style.borderColor = 'var(--accent-green)';
+                    container.prepend(div); // Match backup: Prepend to push Manual Shift to bottom
+                });
+            } else {
+                container.innerHTML += `<div style="color:var(--text-dim); font-size:12px; padding:10px; text-align:center">Нет запланированных смен</div>`;
+            }
+        }
+
+        async function showReadyChecklist() {
+            if (!state.shiftId) return;
+            // Filter actors: Arrived but not Departed
+            const present = state.arrived_actor.filter(name => !state.departed_actor.includes(name));
+            if (present.length === 0) {
+                tg.MainButton.setText('НЕТ АКТЕРОВ НА ПЛОЩАДКЕ');
+                tg.MainButton.show();
+                setTimeout(() => tg.MainButton.hide(), 2000);
+                return;
+            }
+
+            const options = present.map(name => ({
+                l: name,
+                v: name,
+                checks: [{ id: 'ready', label: 'ГОТОВ', selected: state.ready_actor.includes(name), disabled: state.ready_actor.includes(name) }]
+            }));
+
+            showChecklistModal(
+                "АКТЕР ГОТОВ",
+                "Отметьте готовность:",
+                options,
+                (vals) => {
+                    vals.forEach(ch => {
+                        const [id, name] = ch.split('|');
+                        if (!state.ready_actor.includes(name)) {
+                            state.ready_actor.push(name);
+                            logEvent('actor_ready', { name });
+                        }
+                    });
+                    saveState();
+                    tg.HapticFeedback.notificationOccurred('success');
+                    flashStatusBar();
+                },
+                () => { // Select All
+                    const ch = options.filter(o => !o.checks[0].disabled).map(o => 'ready|' + o.v);
+                    if (ch.length > 0) {
+                        ch.forEach(val => {
+                            const [id, name] = val.split('|');
+                            if (!state.ready_actor.includes(name)) {
+                                state.ready_actor.push(name);
+                                logEvent('actor_ready', { name });
+                            }
+                        });
+                        saveState();
+                        tg.HapticFeedback.notificationOccurred('success');
+                        flashStatusBar();
+                    }
+                },
+                null // No "Add manual" for ready status, only those on set
+            );
+        }
+
+        async function showChecklist(type) {
+            if (!state.shiftId) return;
+            const poolKey = 'pool_' + type;
+            const arrivedKey = 'arrived_' + type;
+            const departedKey = 'departed_' + type;
+
+            const pool = state[poolKey];
+            const titleMap = { crew: 'ГРУППА', client: 'ЗАКАЗЧИК', actor: 'АКТЕРЫ' };
+            const title = titleMap[type] || 'СПИСОК';
+
+            const onConfirm = (changes) => {
+                changes.forEach(ch => {
+                    const [action, name] = ch.split('|');
+                    if (type === 'actor') {
+                        if (action === 'in') {
+                            state.arrived_actor.push(name);
+                            logEvent('actor_arrival', { name });
+                        } else if (action === 'out') {
+                            state.departed_actor.push(name);
+                            logEvent('actor_departure', { name });
+                        }
+                    } else {
+                        if (!state[arrivedKey].includes(name)) {
+                            state[arrivedKey].push(name);
+                            logEvent(type + '_arrival', { name });
+                        }
+                    }
+                });
+                saveState();
+                tg.HapticFeedback.notificationOccurred('success');
+                flashStatusBar();
+            };
+
+            const onAdd = () => {
+                const name = prompt("Введите имя:");
+                if (name) {
+                    if (!state[poolKey].includes(name)) {
+                        state[poolKey].push(name);
+                        saveState();
+                        showChecklist(type);
+                    }
+                }
+            };
+
+            let options = [];
+            if (type === 'actor') {
+                pool.forEach(name => {
+                    const isIn = state.arrived_actor.includes(name);
+                    const isOut = state.departed_actor.includes(name);
+                    options.push({
+                        l: name,
+                        v: name,
+                        colIds: ['ПРИЕЗД', 'УБЫТИЕ'],
+                        checks: [
+                            { id: 'in', label: 'ПРИЕЗД', selected: isIn, disabled: isIn },
+                            { id: 'out', label: 'УБЫТИЕ', selected: isOut, disabled: isOut || !isIn }
+                        ]
+                    });
+                });
+            } else {
+                pool.forEach(name => {
+                    const isArrived = state[arrivedKey].includes(name);
+                    options.push({
+                        l: name,
+                        v: name,
+                        checks: [{ id: 'in', label: 'OK', selected: isArrived, disabled: isArrived }]
+                    });
+                });
+            }
+
+            showChecklistModal(
+                `ЧЕК-ЛИСТ: ${title}`,
+                "Отметьте статусы:",
+                options,
+                onConfirm,
+                () => { // Select All
+                    const ch = [];
+                    options.forEach(o => {
+                        o.checks.forEach(c => {
+                            if (!c.disabled) ch.push(c.id + '|' + o.v);
+                        });
+                    });
+                    onConfirm(ch);
+                },
+                onAdd
+            );
+        }
+
+        function showChecklistModal(title, desc, options, onConfirm, onSelectAll, onAdd) {
+            ui.modalTitle.textContent = title; ui.modalDesc.textContent = desc;
+            ui.modalOptions.innerHTML = ''; ui.modalOptions.classList.remove('hidden');
+            ui.modalButtons.classList.remove('hidden');
+            ui.modal.style.display = 'flex';
+            // Close on backdrop click
+            ui.modal.onclick = (e) => { if (e.target === ui.modal) ui.modal.style.display = 'none'; };
+
+            // Add Header Buttons (Select All, Add)
+            const headerActions = document.createElement('div');
+            headerActions.style = "display:flex; gap:10px; margin-bottom:15px";
+            headerActions.innerHTML = `
+                <button class="btn-sm" style="flex:1; background:var(--accent-blue)">ВЫБРАТЬ ВСЕХ</button>
+                <button class="btn-sm" style="width:50px; background:var(--accent-green)">+</button>
+            `;
+            const [btnAll, btnAdd] = headerActions.querySelectorAll('button');
+            btnAll.onclick = () => { ui.modal.style.display = 'none'; onSelectAll(); };
+            btnAdd.onclick = () => { ui.modal.style.display = 'none'; onAdd(); };
+            ui.modalOptions.appendChild(headerActions);
+
+            const checkboxes = [];
+            options.forEach(o => {
+                const div = document.createElement('div');
+                div.className = 'opt-item';
+                div.style = "padding:10px; margin-bottom:5px";
+
+                let checksHtml = '';
+                o.checks.forEach(c => {
+                    checksHtml += `
+                        <div style="display:flex; align-items:center; gap:5px; opacity:${c.disabled ? 0.4 : 1}">
+                            <small style="font-size:8px; opacity:0.6">${c.label}</small>
+                            <input type="checkbox" data-id="${c.id}" data-val="${o.v}" style="width:18px;height:18px" ${c.selected ? 'checked' : ''} ${c.disabled ? 'disabled' : ''}>
+                        </div>
+                    `;
+                });
+
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center">
+                        <span style="font-size:13px">${o.l}</span>
+                        <div style="display:flex; gap:15px">${checksHtml}</div>
+                    </div>
+                `;
+
+                ui.modalOptions.appendChild(div);
+                div.querySelectorAll('input').forEach(cb => {
+                    if (!cb.disabled) {
+                        cb.onclick = (e) => e.stopPropagation();
+                        div.onclick = () => { cb.checked = !cb.checked; }; // Default behavior (might need refinement for multi-check)
+                    }
+                    checkboxes.push({ el: cb, already: cb.checked, disabled: cb.disabled });
+                });
+            });
+
+            document.getElementById('btnModalConfirm').onclick = () => {
+                ui.modal.style.display = 'none';
+                const selected = checkboxes
+                    .filter(c => c.el.checked && !c.already && !c.disabled)
+                    .map(c => c.el.dataset.id + '|' + c.el.dataset.val);
+                onConfirm(selected);
+            };
+            document.getElementById('btnModalCancel').onclick = () => { ui.modal.style.display = 'none'; };
+        }
+
+        async function selectShoot(shoot) {
+            state.shootId = shoot.id;
+            state.location = shoot.location;
+            state.pool_crew = (shoot.crew || '').split(',').map(s => s.trim()).filter(s => s);
+            const rawClient = shoot.contact || shoot.client || shoot.post_production || '';
+            state.pool_client = rawClient.split(',').map(s => s.trim()).filter(s => s);
+            state.pool_actor = (shoot.actors || '').split(',').map(s => s.trim()).filter(s => s);
+            // Reset tracking from previous shift
+            state.arrived_crew = [];
+            state.arrived_client = [];
+            state.arrived_actor = [];
+            state.departed_actor = [];
+            state.ready_actor = [];
+            state.activeTimers = {};
+            state.scene = 1; state.shot = 1; state.take = 1;
+            state.isMotor = false;
+            // Parse unique locations from schedule (timing rows)
+            state.shootLocations = [shoot.location];
+            try {
+                let sched = typeof shoot.schedule === 'string' ? JSON.parse(shoot.schedule) : shoot.schedule;
+                if (Array.isArray(sched)) {
+                    // Reset "done" status for new shift
+                    sched = sched.map(item => ({ ...item, done: false }));
+                    state.currentSchedule = sched; // Store in state for rendering
+
+                    // Persist reset to DB immediately
+                    sb.from('shoots').update({ schedule: JSON.stringify(sched) }).eq('id', shoot.id).then(({ error }) => {
+                        if (error) console.error("Initial schedule reset failed:", error);
+                    });
+
+                    sched.forEach(row => {
+                        const loc = (row.loc || row.LOC || '').trim();
+                        if (loc && !state.shootLocations.includes(loc)) {
+                            state.shootLocations.push(loc);
+                        }
+                    });
+                }
+            } catch (e) { console.warn('Schedule parse:', e); }
+            ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
+            ui.sceneLabel.textContent = 1; ui.shotLabel.textContent = 1; ui.takeLabel.textContent = 1;
+            saveState();
+
+            // Show the Red Ring
+            document.getElementById('shootSelector').classList.add('hidden');
+            document.getElementById('startOverlayDesc').textContent = "Смена выбрана. Нажмите на кольцо, чтобы начать!";
+            const btnRing = document.getElementById('btnMainStart');
+            if (btnRing) btnRing.classList.remove('hidden');
+        }
+
+        function startManualShift() {
+            const loc = prompt("Введите локацию (Объект):", state.location);
+            if (loc) {
+                state.location = loc;
+                state.shootId = 'manual';
+                state.pool_crew = [];
+                state.pool_client = [];
+                state.pool_actor = [];
+                state.shootLocations = [loc];
+                // Reset tracking
+                state.arrived_crew = [];
+                state.arrived_client = [];
+                state.arrived_actor = [];
+                state.departed_actor = [];
+                state.ready_actor = [];
+                state.activeTimers = {};
+                state.scene = 1; state.shot = 1; state.take = 1;
+                state.isMotor = false;
+                // Client Mapping Fix: Set to empty for manual shift
+                state.pool_client = [];
+
+                // Show the Red Ring
+                document.getElementById('shootSelector').classList.add('hidden');
+                document.getElementById('startOverlayDesc').textContent = "Ручной запуск. Нажмите на кольцо!";
+                const btnRing = document.getElementById('btnMainStart');
+                if (btnRing) btnRing.classList.remove('hidden');
+            }
+        }
+
+        function startSequence() {
+            startStep = 0;
+            showConfirm(startChecks[0].t, startChecks[0].d, () => nextStartStep());
+        }
+
+        function saveState() {
+            pSet('shift_id', state.shiftId || '');
+            pSet('shoot_id', state.shootId || '');
+            pSet('start_time', state.startTime || '');
+            pSet('status', state.status);
+            pSet('location', state.location);
+            pSet('scene', state.scene);
+            pSet('shot', state.shot);
+            pSet('take', state.take);
+            pSet('phase', state.phase);
+            pSet('phase_start', state.phaseStartTime || '');
+            pSet('phase_label', ui.phaseLabel.textContent);
+            // Pools
+            pSet('pool_crew', JSON.stringify(state.pool_crew));
+            pSet('pool_client', JSON.stringify(state.pool_client));
+            pSet('pool_actor', JSON.stringify(state.pool_actor));
+            pSet('shoot_locations', JSON.stringify(state.shootLocations));
+            // Tracking
+            pSet('arrived_crew', JSON.stringify(state.arrived_crew));
+            pSet('arrived_client', JSON.stringify(state.arrived_client));
+            pSet('arrived_actor', JSON.stringify(state.arrived_actor));
+            pSet('departed_actor', JSON.stringify(state.departed_actor));
+            pSet('ready_actor', JSON.stringify(state.ready_actor));
+            pSet('active_timers', JSON.stringify(state.activeTimers));
+            pSet('current_task_row', JSON.stringify(state.currentTaskRow || null));
+        }
+
+        async function logEvent(type, data = {}, blink = false) {
+            if (!state.shiftId) return;
+            try {
+                const entry = {
+                    shift_id: state.shiftId,
+                    event_type: type,
+                    data: {
+                        ...data,
+                        scene_no: state.scene,
+                        shot_no: state.shot,
+                        take_no: state.take,
+                        loc: state.location,
+                        shoot_id: state.shootId,
+                        plan_row: state.currentTaskRow || null
+                    }
+                };
+                if (window.OfflineQueue) {
+                    window.OfflineQueue.enqueueRequest(
+                        `${SUPABASE_URL}/rest/v1/production_logs`,
+                        {
+                            'Content-Type': 'application/json',
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`
+                        },
+                        entry
+                    );
+                } else {
+                    sb.from('production_logs').insert(entry).then();
+                }
+                tg.HapticFeedback.impactOccurred('light');
+                if (blink) flashStatusBar();
+            } catch (e) { console.error(e); }
+        }
+
+        function flashStatusBar() {
+            const bar = document.querySelector('.status-bar');
+            bar.style.borderColor = 'var(--accent-green)';
+            bar.style.background = 'rgba(52, 199, 89, 0.1)';
+            setTimeout(() => {
+                bar.style.borderColor = 'var(--border)';
+                bar.style.background = 'var(--glass)';
+            }, 500);
+        }
+
+        setInterval(() => {
+            if (state.startTime) {
+                const diff = new Date() - new Date(state.startTime);
+                ui.shiftTimer.textContent = formatTime(diff);
+            }
+            if (state.phaseStartTime) {
+                const diff = new Date() - new Date(state.phaseStartTime);
+                ui.phaseTimer.textContent = formatTimeShort(diff);
+            }
+            // Button Timers
+            for (let id in state.activeTimers) {
+                const el = document.getElementById('btn_' + id);
+                if (el) {
+                    const timerEl = el.querySelector('.btn-timer');
+                    const start = new Date(state.activeTimers[id]);
+                    const diff = new Date() - start;
+
+                    const isPrep = el.hasAttribute('data-prep');
+
+                    if (isPrep) {
+                        const promised = parseInt(pGet('promised_' + id) || 0) * 60000;
+                        const remaining = promised - diff;
+                        if (remaining < 0) {
+                            timerEl.textContent = '-' + formatTimeShort(Math.abs(remaining));
+                            timerEl.style.color = 'var(--accent-red)';
+                        } else {
+                            timerEl.textContent = formatTimeShort(remaining);
+                            timerEl.style.color = 'var(--accent-yellow)';
+                        }
+                    } else {
+                        timerEl.textContent = formatTimeShort(diff);
+                        timerEl.style.color = ''; // Reset color
+                    }
+                }
+            }
+        }, 1000);
+
+        function formatTime(ms) {
+            const h = Math.floor(ms / 3600000);
+            const m = Math.floor((ms % 3600000) / 60000);
+            const s = Math.floor((ms % 60000) / 1000);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+        function formatTimeShort(ms) {
+            const m = Math.floor(ms / 60000);
+            const s = Math.floor((ms % 60000) / 1000);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function toggleBtn(id, label, phaseLabel) {
+            if (state.activeTimers[id]) {
+                const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                delete state.activeTimers[id];
+                logEvent(id + '_stop', { label, duration: dur });
+                document.getElementById('btn_' + id).classList.remove('active');
+                tg.HapticFeedback.impactOccurred('medium');
+
+                // Linked Motor logic
+                if ((id === 'shoot_reh' || id === 'series') && state.isMotor) {
+                    stopMotor(false); // don't recursively stop
+                }
+                setPhase('IDLE', 'ОЖИДАНИЕ');
+            } else {
+                state.activeTimers[id] = new Date().toISOString();
+                logEvent(id + '_start', { label });
+                document.getElementById('btn_' + id).classList.add('active');
+                tg.HapticFeedback.impactOccurred('heavy');
+
+                // Linked Motor logic
+                if ((id === 'shoot_reh' || id === 'series') && !state.isMotor) {
+                    startMotor();
+                }
+                setPhase(id.toUpperCase(), phaseLabel);
+            }
+            saveState();
+            refreshUI();
+        }
+
+        function toggleDelay(category) {
+            const id = 'delay_' + category;
+            const el = document.getElementById('btn_' + id);
+            if (state.activeTimers[id]) {
+                const res = prompt("Как решили проблему?", "Устранено");
+                if (res !== null) {
+                    const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                    logEvent(id + '_end', { resolution: res, duration_m: dur });
+
+                    // Mark task as done in plan
+                    if (state.currentTaskRow && state.currentTaskRow.type === category) {
+                        const idx = state.currentSchedule.findIndex(r => r.id === state.currentTaskRow.id);
+                        if (idx >= 0) {
+                            state.currentSchedule[idx].done = true;
+                            saveScheduleToDB();
+                        }
+                    }
+
+                    delete state.activeTimers[id];
+                    state.currentTaskRow = null;
+                    el.classList.remove('active');
+                    setPhase('IDLE', 'ОЖИДАНИЕ');
+                    saveState();
+                }
+            } else {
+                const reason = prompt("Причина задержки:", "");
+                if (reason !== null) {
+                    // Try to find matching task in plan (FIFO + Category)
+                    const task = state.currentSchedule?.find(r => !r.done && (r.task || '').toLowerCase().includes(category.toLowerCase()));
+                    if (task) {
+                        state.currentTaskRow = { id: task.id || null, task: task.task, type: category };
+                    }
+
+                    state.activeTimers[id] = new Date().toISOString();
+                    el.classList.add('active');
+                    logEvent(id + '_start', { reason: reason });
+                    setPhase('DELAY', 'ЗАДЕРЖКА: ' + category.toUpperCase());
+                    saveState();
+                }
+            }
+        }
+
+        document.querySelectorAll('[data-prep]').forEach(el => {
+            el.onclick = () => {
+                const id = el.getAttribute('data-prep');
+                if (state.activeTimers[id]) {
+                    const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                    const promised = parseInt(pGet('promised_' + id) || 0);
+                    const delay = Math.max(0, dur - promised);
+                    logEvent(id + '_end', { duration_m: dur, promised: promised, delay_m: delay });
+
+                    // Mark tech task as done
+                    if (state.currentTaskRow && state.currentTaskRow.type === id) {
+                        const idx = state.currentSchedule.findIndex(r => r.id === state.currentTaskRow.id);
+                        if (idx >= 0) {
+                            state.currentSchedule[idx].done = true;
+                            saveScheduleToDB();
+                        }
+                    }
+
+                    delete state.activeTimers[id];
+                    state.currentTaskRow = null;
+                    el.classList.remove('active');
+                    setPhase('IDLE', 'ОЖИДАНИЕ');
+                    saveState();
+                } else {
+                    showOptions("СКОЛЬКО МИНУТ?", `План на ${id.toUpperCase()}:`, [
+                        { l: "5 МИН", v: "5" }, { l: "15 МИН", v: "15" }, { l: "30 МИН", v: "30" }, { l: "СВОЙ ВАРИАНТ", v: "custom" }
+                    ], (val) => {
+                        let mins = (val === 'custom') ? prompt("Минут:", "20") : val;
+                        if (mins) {
+                            // FIFO + Location logic for Prep/Move
+                            let task = null;
+                            const isMove = id === 'loc_move' || id === 'setup';
+                            if (isMove) {
+                                // Prioritize by current location if moving
+                                task = state.currentSchedule?.find(r => !r.done && (r.loc === state.location) && (r.task || '').toLowerCase().match(/переезд|перестановка/i));
+                            }
+                            if (!task) {
+                                // Fallback to FIFO by name
+                                task = state.currentSchedule?.find(r => !r.done && (r.task || '').toLowerCase().includes(id.replace('loc_', '').toLowerCase()));
+                            }
+
+                            if (task) {
+                                state.currentTaskRow = { id: task.id || null, task: task.task, type: id };
+                            }
+
+                            state.activeTimers[id] = new Date().toISOString();
+                            pSet('promised_' + id, mins);
+                            el.classList.add('active');
+                            logEvent(id + '_start', { promised: mins });
+                            setPhase(id.toUpperCase(), id.toUpperCase());
+                            saveState();
+                        }
+                    });
+                }
+            };
+        });
+
+        function refreshUI() {
+            for (let id in state.activeTimers) {
+                const el = document.getElementById('btn_' + id) || document.getElementById('btn_delay_' + id);
+                if (el) el.classList.add('active');
+            }
+        }
+
+        const btnMainStart = document.getElementById('btnMainStart');
+        if (btnMainStart) {
+            btnMainStart.onclick = () => {
+                startStep = 0;
+                showConfirm(startChecks[0].t, startChecks[0].d, () => nextStartStep());
+            };
+        }
+
+        let startStep = 0;
+        const startChecks = [
+            { t: "НАЧИНАЕМ СМЕНУ?", d: "Вы готовы запустить таймер?" },
+            { t: "ВСЕ ЦЕХА ГОТОВЫ?", d: "Прибыл ли весь персонал и техника?" },
+            { t: "АКТЕРЫ НА ПЛОЩАДКЕ?", d: "Актеры готовы к началу работы?" },
+            { t: "ЗАПУСТИТЬ ОФИЦИАЛЬНО?", d: "Это действие зафиксирует время начала в отчете." }
+        ];
+
+        function nextStartStep() {
+            startStep++;
+            if (startStep < startChecks.length) {
+                showConfirm(startChecks[startStep].t, startChecks[startStep].d, () => nextStartStep());
+            } else {
+                doStart();
+            }
+        }
+
+        async function doStart() {
+            const btn = document.getElementById('btnMainStart');
+            if (btn) {
+                btn.textContent = 'ЗАПУСК...';
+                btn.disabled = true;
+            }
+
+            const now = new Date().toISOString();
+            console.log("Starting shift for project:", state.project.id);
+
+            // Safety check: Avoid duplicate shifts on the same day
+            const todayStr = new Date().toISOString().split('T')[0];
+            try {
+                if (state.project.id) {
+                    const { data: existing } = await sb.from('production_shifts')
+                        .select('id, start_time')
+                        .eq('project_id', state.project.id)
+                        .gte('start_time', todayStr + 'T00:00:00Z')
+                        .limit(1);
+
+                    if (existing && existing.length > 0) {
+                        if (!confirm("⚠️ ВНИМАНИЕ: На сегодня уже есть запись смены для этого проекта. Вы уверены, что хотите начать НОВУЮ смену?")) {
+                            if (btn) { btn.textContent = 'НАЧАТЬ СМЕНУ'; btn.disabled = false; }
+                            return;
+                        }
+                    }
+                }
+            } catch (e) { console.warn("Collision check failed:", e); }
+
+            try {
+                const cId = parseInt(state.project.cid);
+                const tId = parseInt(state.project.tid);
+
+                const { data, error } = await sb.from('production_shifts').insert({
+                    project_id: state.project.id,
+                    chat_id: isNaN(cId) ? null : cId,
+                    thread_id: isNaN(tId) ? null : tId,
+                    shoot_id: state.shootId,
+                    start_time: now,
+                    status: 'active'
+                }).select();
+
+                if (error) throw error;
+
+                if (data && data[0]) {
+                    state.shiftId = data[0].id;
+                    state.startTime = now;
+                    state.status = 'active';
+                    state.phaseStartTime = now;
+                    if (ui.phaseLabel) ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
+                    saveState();
+                    ui.overlay?.classList.add('hidden');
+                    if (ui.modal) ui.modal.style.display = 'none';
+                    logEvent('shift_start');
+                    tg.HapticFeedback.notificationOccurred('success');
+                } else {
+                    throw new Error("No data returned from insert");
+                }
+            } catch (err) {
+                console.error("Shift start error:", err);
+                alert("Ошибка при запуске смены: " + (err.message || err));
+                if (btn) { btn.textContent = 'ОШИБКА (ПОВТОР)'; btn.disabled = false; }
+            }
+        }
+
+        function setPhase(code, label) {
+            state.phase = code;
+            state.phaseStartTime = new Date().toISOString();
+            ui.phaseLabel.textContent = label;
+            saveState();
+        }
+
+        function startMotor() {
+            if (state.isMotor) return;
+            state.isMotor = true;
+            state.take++;
+            ui.takeLabel.textContent = state.take;
+            ui.motorBtn.classList.add('active');
+            ui.motorTitle.textContent = "STOP";
+            logEvent('motor_start', { scene: state.scene, shot: state.shot, take: state.take });
+            setPhase('MOTOR', 'МОТОР');
+            tg.HapticFeedback.notificationOccurred('success');
+            saveState();
+        }
+
+        function stopMotor(autoStopLinked = false) {
+            if (!state.isMotor) return;
+            state.isMotor = false;
+            ui.motorBtn.classList.remove('active');
+            ui.motorTitle.textContent = "МОТОР";
+            logEvent('motor_stop', { scene: state.scene, shot: state.shot, take: state.take });
+            setPhase('IDLE', 'ОЖИДАНИЕ');
+            tg.HapticFeedback.notificationOccurred('warning');
+            saveState();
+
+            if (autoStopLinked) {
+                if (state.activeTimers['shoot_reh']) toggleBtn('shoot_reh', 'СЪЕМКА РЕПЕТИЦИИ', 'СЪЕМКА РЕПЕТИЦИИ');
+                if (state.activeTimers['series']) toggleBtn('series', 'СЕРИЯ', 'СЕРИЯ ДУБЛЕЙ');
+            }
+
+            showEvaluation();
+        }
+
+        ui.motorBtn.onclick = () => {
+            if (state.isMotor) stopMotor(true);
+            else startMotor();
+        };
+
+        document.getElementById('elShotBtn').onclick = () => {
+            state.shot++; ui.shotLabel.textContent = state.shot; state.take = 1; ui.takeLabel.textContent = 1;
+            saveState(); logEvent('shot_increment', {}, true);
+        };
+
+        document.getElementById('elTakeBtn').onclick = () => {
+            state.take++; ui.takeLabel.textContent = state.take; saveState(); logEvent('take_increment', {}, true);
+        };
+
+        function showEvaluation() {
+            showOptions("Оценка дубля", "Как прошел дубль?", [
+                { l: "⭐ GOOD (Хорошо)", v: "good" },
+                { l: "❌ BRAK (Брак)", v: "bad" },
+                { l: "⚙️ TECH (Тех. ошибка)", v: "tech" }
+            ], (val) => logEvent('take_evaluation', { result: val }));
+        }
+
+        document.getElementById('elLocation').onclick = () => showOptionModal('location_change');
+
+        function editManual(type) {
+            if (type === 'scene') {
+                toggleDrawer(); // Open upper Plan Drawer
+            } else if (type === 'shot') {
+                const next = prompt("Номер кадра:", state.shot);
+                if (next) {
+                    state.shot = parseInt(next); state.take = 1;
+                    ui.shotLabel.textContent = state.shot; ui.takeLabel.textContent = 1;
+                    saveState(); logEvent('edit_shot', { shot: next }, true);
+                }
+            }
+        }
+
+        // Add header click shortcuts
+        if (ui.sceneLabel) ui.sceneLabel.onclick = () => toggleDrawer();
+        if (ui.shotLabel) ui.shotLabel.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            editManual('shot'); // Open prompt on click
+        };
+
+        function incrementShot(event) {
+            if (event) event.stopPropagation();
+            state.shot++;
+            state.take = 1;
+            ui.shotLabel.textContent = state.shot;
+            ui.takeLabel.textContent = 1;
+            saveState();
+            logEvent('auto_increment_shot', { shot: state.shot }, true);
+            tg.HapticFeedback.impactOccurred('light');
+        }
+
+        function showOptionModal(type) {
+            if (type === 'location_change') {
+                const locs = (state.shootLocations || []).filter(l => l && l !== state.location);
+                const options = locs.map(l => ({ l: `📍 ${l}`, v: l }));
+                options.push({ l: '✏️ ВВЕСТИ ВРУЧНУЮ', v: '__custom__' });
+                showOptions('СМЕНА ЛОКАЦИИ', `Текущая: ${state.location}`, options, (val) => {
+                    let newLoc = val;
+                    if (val === '__custom__') {
+                        newLoc = prompt('Новая локация:', '');
+                        if (!newLoc) return;
+                        if (!state.shootLocations.includes(newLoc)) state.shootLocations.push(newLoc);
+                    }
+                    state.location = newLoc;
+                    ui.locationLabel.textContent = `ЛОКАЦИЯ: ${newLoc}`;
+                    saveState(); logEvent('location_change', { new_loc: newLoc });
+                    // Auto-start relocation timer
+                    if (!state.activeTimers['loc_move']) {
+                        toggleBtn('loc_move', 'ПЕРЕЕЗД', 'ПЕРЕЕЗД');
+                    }
+                    tg.HapticFeedback.notificationOccurred('success');
+                });
+            } else if (type === 'note') {
+                const txt = prompt("Заметка / Комментарий:");
+                if (txt) logEvent('note', { text: txt }, true);
+            }
+        }
+
+        document.getElementById('btnFinalWrap').onclick = () => {
+            showConfirm("ЗАВЕРШИТЬ СМЕНУ?", "Точно ничего не забыли? Все таймеры остановятся.", () => finishShift());
+        };
+
+        async function finishShift() {
+            // 1. Stop Motor
+            if (state.isMotor) stopMotor(true);
+
+            // 2. Stop all active timers
+            for (let id in state.activeTimers) {
+                const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                logEvent(id + '_end', { duration_m: dur });
+                const el = document.getElementById('btn_' + id) || document.getElementById('btn_delay_' + id);
+                if (el) el.classList.remove('active');
+            }
+            state.activeTimers = {};
+
+            // 3. Stop the main shift timer
+            state.status = 'finished';
+            state.startTime = null;
+            state.phaseStartTime = null;
+            ui.shiftTimer.textContent = 'ЗАВЕРШЕНА';
+            ui.phaseTimer.textContent = '--:--';
+            ui.phaseLabel.textContent = 'СМЕНА ЗАВЕРШЕНА';
+            document.getElementById('elStatusDot').classList.remove('active');
+
+            const end = new Date().toISOString();
+            await sb.from('production_shifts').update({ status: 'finished', end_time: end }).eq('id', state.shiftId);
+            await logEvent('shift_finish');
+            saveState();
+
+            const reportPayload = { shift_id: state.shiftId, chat_id: state.project.cid, thread_id: state.project.tid };
+            console.log('[REPORT] Sending request:', JSON.stringify(reportPayload));
+
+            // Show status in UI
+            const finishDesc = document.getElementById('finishDesc');
+            if (finishDesc) finishDesc.textContent = '⏳ Формируется отчет...';
+
+            fetch('https://media-seven-eta.vercel.app/api/timer/report', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reportPayload)
+            }).then(r => {
+                console.log('[REPORT] HTTP status:', r.status);
+                return r.json();
+            }).then(res => {
+                console.log('[REPORT] Response:', JSON.stringify(res));
+                if (res.report_link) {
+                    state.lastReportUrl = res.report_link;
+                    saveState();
+                    const btn = document.getElementById('btnFinishAction');
+                    if (btn) {
+                        btn.textContent = 'ОТЧЕТ ПРИВЯЗАН ✅';
+                        btn.disabled = false;
+                        btn.classList.add('c-blue');
+                        btn.classList.remove('c-green');
+                        if (finishDesc) finishDesc.textContent = 'Отчет сформирован и автоматически привязан к календарю!';
+                        setTimeout(() => {
+                            btn.textContent = "ВЫХОД";
+                            btn.onclick = exitApp;
+                            btn.style.background = "#ff6b6b";
+                        }, 2000);
+                    }
+                } else {
+                    const errMsg = res.error || JSON.stringify(res);
+                    console.error('[REPORT] Error from server:', errMsg);
+                    if (finishDesc) finishDesc.textContent = `⚠️ Ошибка отчёта: ${errMsg}`;
+                }
+            }).catch(e => {
+                console.error('[REPORT] Fetch failed:', e);
+                if (finishDesc) finishDesc.textContent = `❌ Сеть ошибка: ${e.message}`;
+            });
+
+            document.getElementById('finishOverlay').classList.remove('hidden');
+        }
+
+        let isSavingLink = false;
+        async function saveReportLink() {
+            if (isSavingLink) return;
+            const btn = document.getElementById('btnFinishAction');
+
+            if (!state.lastReportUrl) {
+                btn.textContent = "⏳ ГЕНЕРАЦИЯ ОТЧЕТА...";
+                btn.disabled = true;
+                btn.classList.remove('c-green');
+                // Auto-retry check in 3 seconds
+                setTimeout(() => {
+                    if (!state.lastReportUrl) {
+                        btn.textContent = "ЕЩЕ СЕКУНДУ... (НАЖМИТЕ)";
+                        btn.disabled = false;
+                    } else {
+                        btn.textContent = 'ПРИВЯЗАТЬ ОТЧЕТ К КАЛЕНДАРЮ';
+                        btn.disabled = false;
+                        btn.classList.add('c-green');
+                    }
+                }, 3000);
+                return;
+            }
+
+            isSavingLink = true;
+            btn.textContent = "СОХРАНЕНИЕ...";
+            btn.disabled = true;
+
+            try {
+                const { error } = await sb.from('shoots').update({ report_link: state.lastReportUrl }).eq('id', state.shootId);
+                if (error) throw error;
+
+                btn.textContent = "ГОТОВО ✅";
+                btn.classList.remove('c-green');
+                btn.classList.add('c-blue');
+                document.getElementById('finishDesc').textContent = "Ссылка на отчет успешно привязана к календарю!";
+
+                setTimeout(() => {
+                    btn.textContent = "ВЫХОД";
+                    btn.onclick = exitApp;
+                    btn.disabled = false;
+                    btn.style.background = "#ff6b6b";
+                }, 1500);
+
+            } catch (err) {
+                console.error("Save link error:", err);
+                btn.textContent = "ОШИБКА ❌";
+                btn.disabled = false;
+                isSavingLink = false;
+            }
+        }
+
+        function exitApp() {
+            // Clear only this project's keys (not other projects)
+            const prefix = `p${PID}_`;
+            Object.keys(localStorage).forEach(k => {
+                if (k.startsWith(prefix)) localStorage.removeItem(k);
+            });
+            tg.disableClosingConfirmation();
+            tg.close();
+        }
+
+        function showConfirm(title, desc, onOk) {
+            ui.modalTitle.textContent = title; ui.modalDesc.textContent = desc;
+            ui.modalOptions.classList.add('hidden'); ui.modalButtons.classList.remove('hidden');
+            ui.modal.style.display = 'flex';
+            document.getElementById('btnModalConfirm').onclick = () => { ui.modal.style.display = 'none'; onOk(); };
+            document.getElementById('btnModalCancel').onclick = () => { ui.modal.style.display = 'none'; };
+            // Close on backdrop click
+            ui.modal.onclick = (e) => { if (e.target === ui.modal) ui.modal.style.display = 'none'; };
+        }
+
+        function showOptions(title, desc, options, onSelect) {
+            ui.modalTitle.textContent = title; ui.modalDesc.textContent = desc;
+            ui.modalOptions.innerHTML = ''; ui.modalOptions.classList.remove('hidden');
+            ui.modalButtons.classList.add('hidden');
+            options.forEach(o => {
+                const div = document.createElement('div'); div.className = 'opt-item'; div.textContent = o.l;
+                div.onclick = () => { ui.modal.style.display = 'none'; onSelect(o.v); };
+                ui.modalOptions.appendChild(div);
+            });
+            // Close button
+            const closeDiv = document.createElement('div');
+            closeDiv.className = 'opt-item';
+            closeDiv.style = 'border-color: var(--text-dim); color: var(--text-dim); margin-top: 8px; font-size: 12px';
+            closeDiv.textContent = '✕ ЗАКРЫТЬ';
+            closeDiv.onclick = () => { ui.modal.style.display = 'none'; };
+            ui.modalOptions.appendChild(closeDiv);
+            ui.modal.style.display = 'flex';
+            // Close on backdrop click
+            ui.modal.onclick = (e) => { if (e.target === ui.modal) ui.modal.style.display = 'none'; };
+        }
+
+        // PLAN DRAWER LOGIC
+        let currentSchedule = [];
+        async function toggleDrawer() {
+            const dr = document.getElementById('planDrawer');
+            dr.classList.toggle('open');
+            if (dr.classList.contains('open')) {
+                loadScheduleFromDB();
+            }
+        }
+
+        async function loadScheduleFromDB() {
+            if (!state.shootId) return;
+            const { data, error } = await sb.from('shoots').select('schedule').eq('id', state.shootId).single();
+            if (data && data.schedule) {
+                try {
+                    currentSchedule = JSON.parse(data.schedule);
+                    renderSchedule();
+                } catch (e) { console.error("Schedule parse error", e); }
+            }
+        }
+
+        function renderSchedule() {
+            const container = document.getElementById('drawerContent');
+            container.innerHTML = '';
+
+            if (!currentSchedule || currentSchedule.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim)">План не заполнен</div>';
+                return;
+            }
+
+            currentSchedule.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = `sch-item ${item.done ? 'done' : ''} ${item.num ? 'selectable' : ''}`;
+                div.dataset.index = idx;
+
+                // Allow selection of numbered tasks (scenes)
+                if (item.num) {
+                    div.onclick = (e) => {
+                        if (e.target.classList.contains('sch-check')) return;
+                        selectTaskFromPlan(idx);
+                    };
+                }
+
+                div.innerHTML = `
+                    <div class="sch-check ${item.done ? 'checked' : ''}" onclick="toggleSchItem(${idx})"></div>
+                    <div class="sch-time">
+                        ${item.start || ''}
+                        ${item.end ? `<span>до ${item.end}</span>` : ''}
+                    </div>
+                    <div class="sch-text">
+                        <div class="sch-task">
+                            ${item.num ? `<span style="color:var(--accent-yellow); font-weight:800; margin-right:4px;">№${item.num}</span>` : ''}
+                            ${item.task || item.notes || 'Без названия'}
+                        </div>
+                        <div class="sch-meta">
+                            ${item.loc ? `<span>📍 ${item.loc}</span>` : ''}
+                            ${item.act ? `<span>🎭 ${item.act}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="sch-handle">☰</div>
+                `;
+                container.appendChild(div);
+            });
+
+            // Re-init Sortable correctly
+            if (window.sortableInstance) {
+                window.sortableInstance.destroy();
+            }
+
+            window.sortableInstance = new Sortable(container, {
+                animation: 150,
+                handle: '.sch-handle',
+                onEnd: (evt) => {
+                    const movedItem = currentSchedule.splice(evt.oldIndex, 1)[0];
+                    currentSchedule.splice(evt.newIndex, 0, movedItem);
+                    saveScheduleToDB();
+                }
+            });
+        }
+
+        function selectTaskFromPlan(idx) {
+            const item = currentSchedule[idx];
+            if (!item.num) return; // Only numbered scenes
+
+            state.scene = item.num;
+            state.shot = 1;
+            state.take = 1;
+            if (item.loc) state.location = item.loc;
+
+            state.currentTaskRow = { id: item.id || null, task: item.task, num: item.num };
+
+            ui.sceneLabel.textContent = state.scene;
+            ui.shotLabel.textContent = 1;
+            ui.takeLabel.textContent = 1;
+            if (item.loc) ui.locationLabel.textContent = `ЛОКАЦИЯ: ${item.loc}`;
+
+            toggleDrawer(); // Close drawer
+            saveState();
+            logEvent('select_plan_task', { task_num: item.num, task_name: item.task });
+            tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        function toggleSchItem(idx) {
+            currentSchedule[idx].done = !currentSchedule[idx].done;
+            renderSchedule();
+            saveScheduleToDB();
+        }
+
+        async function saveScheduleToDB() {
+            if (!state.shootId) return;
+            const { error } = await sb.from('shoots').update({ schedule: JSON.stringify(currentSchedule) }).eq('id', state.shootId);
+            if (error) console.error("Schedule save error", error);
+        }
+
+        initApp();
+    </script>
+</body>
+
+</html>

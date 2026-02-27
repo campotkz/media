@@ -1,0 +1,3082 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>GULYWOOD ERP</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <link rel="manifest" href="./manifest.json">
+  <script src="./js/offline-queue.js"></script>
+
+  <style>
+    /* ПОЛНОСТЬЮ ТВОИ ОРИГИНАЛЬНЫЕ СТИЛИ */
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+      --fs-title: 17px;
+      --fs-subtitle: 15px;
+      --fs-body: 13px;
+      --fs-callout: 12px;
+      --fs-caption: 11px;
+      --lh-tight: 1.25;
+      --lh-normal: 1.38;
+      --lh-relaxed: 1.45;
+      --w-regular: 400;
+      --w-medium: 500;
+      --w-semibold: 600;
+      --w-bold: 700;
+      --s-1: 4px;
+      --s-2: 8px;
+      --s-3: 12px;
+      --s-4: 16px;
+      --s-5: 24px;
+      --s-6: 32px;
+      --hit: 44px;
+      --r-1: 12px;
+      --r-2: 16px;
+      --r-3: 20px;
+      --r-pill: 999px;
+      --text: rgba(255, 255, 255, .92);
+      --muted: rgba(255, 255, 255, .68);
+      --muted2: rgba(255, 255, 255, .52);
+      --accent: rgba(122, 162, 255, 1);
+      --accent-fill: rgba(122, 162, 255, .20);
+      --accent-stroke: rgba(122, 162, 255, .62);
+      --warn-stroke: rgba(255, 204, 102, .55);
+      --bg-0: #070812;
+      --bg-1: #0a0b10;
+      --glass: rgba(20, 22, 30, .38);
+      --glass2: rgba(20, 22, 30, .26);
+      --stroke: rgba(255, 255, 255, .12);
+      --stroke2: rgba(255, 255, 255, .09);
+      --sep: rgba(255, 255, 255, .08);
+      --shadow: 0 18px 60px rgba(0, 0, 0, .45);
+      --inset: inset 0 1px 0 rgba(255, 255, 255, .07);
+      --ease: cubic-bezier(.2, .8, .2, 1);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+
+    html {
+      font-size: 16px;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: #101116;
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: var(--s-4);
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: var(--s-4);
+    }
+
+    @media (max-width: 980px) {
+      .wrap {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      position: relative;
+      border-radius: var(--r-3);
+      overflow: hidden;
+      border: 1px solid var(--stroke);
+      background: var(--glass);
+      box-shadow: var(--shadow), var(--inset);
+      transform: translateZ(0);
+      backdrop-filter: blur(18px) saturate(1.1);
+    }
+
+    .head {
+      padding: var(--s-3) var(--s-4);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s-3);
+      background: var(--glass2);
+      border-bottom: 1px solid var(--sep);
+    }
+
+    .title {
+      font-size: var(--fs-title);
+      font-weight: var(--w-semibold);
+    }
+
+    .seg {
+      display: inline-flex;
+      gap: 2px;
+      padding: 2px;
+      border-radius: var(--r-pill);
+      border: 1px solid var(--stroke);
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .seg button {
+      min-height: var(--hit);
+      padding: 0 var(--s-3);
+      border: 0;
+      border-radius: var(--r-pill);
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .seg button.isActive {
+      background: rgba(122, 162, 255, .20);
+    }
+
+    button {
+      min-height: var(--hit);
+      padding: 0 var(--s-3);
+      border-radius: var(--r-pill);
+      border: 1px solid var(--stroke);
+      background: rgba(255, 255, 255, .06);
+      color: var(--text);
+      font: inherit;
+      font-weight: var(--w-semibold);
+      cursor: pointer;
+    }
+
+    button.primary {
+      border-color: var(--accent-stroke);
+      background: var(--accent-fill);
+    }
+
+    .calendar {
+      padding: var(--s-4);
+    }
+
+    .monthBar {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: var(--s-3);
+    }
+
+    .month {
+      font-size: var(--fs-title);
+      font-weight: var(--w-semibold);
+      text-transform: capitalize;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: var(--fs-callout);
+    }
+
+    .dow,
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: var(--s-2);
+    }
+
+    .dow {
+      margin-bottom: var(--s-2);
+      color: var(--muted2);
+      font-size: var(--fs-caption);
+      font-weight: var(--w-semibold);
+      text-transform: uppercase;
+      text-align: center;
+      /* Center align headers */
+    }
+
+    .day {
+      min-height: 76px;
+      padding: var(--s-3);
+      border-radius: var(--r-2);
+      border: 1px solid rgba(255, 255, 255, .10);
+      background: rgba(255, 255, 255, .05);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .day.sel {
+      border-color: rgba(122, 162, 255, .82);
+      background: radial-gradient(160px 120px at 30% 20%, rgba(122, 162, 255, .18), transparent 58%), rgba(255, 255, 255, .05);
+    }
+
+    .day.out {
+      opacity: .45;
+    }
+
+    .day.today {
+      outline: 2px dashed var(--warn-stroke);
+      outline-offset: 2px;
+    }
+
+    .num {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: var(--w-semibold);
+      margin-bottom: 4px;
+      /* Space for dots */
+    }
+
+    .dots {
+      display: flex;
+      gap: 3px;
+      flex-wrap: wrap;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .dot.done {
+      background: #4cd964;
+      box-shadow: 0 0 4px rgba(76, 217, 100, 0.6);
+    }
+
+    .dot.pending {
+      background: #ffcc00;
+      box-shadow: 0 0 4px rgba(255, 204, 0, 0.6);
+    }
+
+    .task-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-top: 4px;
+    }
+
+    .task-line {
+      height: 3px;
+      border-radius: 2px;
+      width: 100%;
+      opacity: 0.8;
+    }
+
+    .task-line.done {
+      background: #4cd964;
+    }
+
+    .task-line.pending {
+      background: #ffcc00;
+    }
+
+    .task-line.overdue {
+      background: #ff3b30;
+    }
+
+    /* Unified Header Buttons */
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .mini-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .mini-btn.task-btn {
+      color: #ffcc00;
+      background: rgba(255, 204, 0, 0.1);
+    }
+
+
+    .dot.overdue {
+      background: #ff3b30;
+      box-shadow: 0 0 4px rgba(255, 59, 48, 0.6);
+    }
+
+    .side {
+      padding: var(--s-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-4);
+    }
+
+    .list {
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: var(--r-3);
+      overflow: hidden;
+      background: rgba(255, 255, 255, .04);
+    }
+
+    .item {
+      padding: var(--s-3) var(--s-4);
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+      cursor: pointer;
+      background: rgba(255, 255, 255, .03);
+      border-left: 3px solid transparent;
+      /* Status indicator */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .item.done {
+      border-left-color: #4cd964;
+    }
+
+    .item.pending {
+      border-left-color: #ffcc00;
+    }
+
+    .item.overdue {
+      border-left-color: #ff3b30;
+    }
+
+    .item-content {
+      flex: 1;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 0;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: rgba(122, 162, 255, .50);
+    }
+
+    .icon-btn.done-btn {
+      color: #4cd964;
+    }
+
+    .icon-btn.resched-btn {
+      color: #ff3b30;
+    }
+
+    form {
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: var(--r-3);
+      padding: var(--s-4);
+      background: rgba(255, 255, 255, .04);
+      display: grid;
+      gap: 20px;
+      /* Increased gap for better alignment */
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: var(--fs-caption);
+      font-weight: var(--w-semibold);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input,
+    textarea,
+    .multi-select-wrap {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: var(--r-2);
+      border: 1px solid rgba(255, 255, 255, .12);
+      background: rgba(0, 0, 0, .18);
+      color: var(--text);
+      padding: 10px var(--s-3);
+      font: inherit;
+      outline: none;
+      min-height: var(--hit);
+      /* Unified height for perfect alignment */
+      position: relative;
+    }
+
+    /* specific for multi-select display */
+    .multi-select-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    #deliverables,
+    #notes {
+      min-height: 160px;
+    }
+
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s-3);
+    }
+
+    /* Timing Grid DnD Styles */
+    .drag-handle {
+      cursor: grab;
+      color: var(--muted2);
+      padding: 0 4px;
+      user-select: none;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .sortable-ghost {
+      opacity: 0.4;
+      background: var(--accent-fill) !important;
+    }
+
+    .sortable-drag {
+      background: var(--bg-1) !important;
+      box-shadow: var(--shadow);
+      opacity: 0.9;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      padding-top: var(--s-4);
+      border-top: 1px solid var(--sep);
+      margin-top: var(--s-3);
+    }
+
+    .actions button {
+      font-size: 11px;
+      padding: 6px 10px;
+      white-space: nowrap;
+    }
+
+    .footer {
+      padding: var(--s-3) var(--s-4);
+      border-top: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(255, 255, 255, .03);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    pre {
+      margin: 0;
+      padding: var(--s-4);
+      border-radius: var(--r-3);
+      border: 1px solid rgba(255, 255, 255, .10);
+      background: rgba(0, 0, 0, .18);
+      color: rgba(255, 255, 255, .78);
+      font-family: var(--font-sans);
+      /* Changed from mono for better stylized look */
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+
+    .hl-label {
+      color: #ff6b6b;
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    .hl-time {
+      color: #ff6b6b;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    @media (max-width: 600px) {
+
+      /* Mobile Calendar Fixes */
+      .calendar {
+        padding: 4px;
+      }
+
+      .grid,
+      .dow {
+        gap: 2px;
+      }
+
+      .day {
+        min-height: 60px;
+        padding: 2px;
+        font-size: 10px;
+      }
+
+      .num {
+        margin-bottom: 2px;
+      }
+
+      .item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+
+      .item-actions {
+        justify-content: flex-end;
+      }
+
+      /* Maximize horizontal width on mobile */
+      .wrap {
+        padding: 8px 6px;
+        /* Even tighter for narrow devices */
+      }
+
+      form {
+        padding: 10px;
+        gap: 12px;
+        /* Tighter vertical gap */
+        padding-bottom: 80px;
+      }
+
+      /* Keep 2-column layout but make it very compact */
+      .row2 {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        /* Small gap to prevent overflow */
+      }
+
+      label {
+        font-size: 10px;
+        /* Smaller labels */
+        gap: 4px;
+      }
+
+      input,
+      textarea,
+      .multi-select-wrap {
+        padding: 6px 8px;
+        /* Tighter input padding */
+        font-size: 12px;
+        /* Smaller input text */
+        min-height: 38px;
+        /* Lower height for compactness */
+      }
+
+      .tag {
+        padding: 2px 6px;
+        font-size: 10px;
+      }
+
+      button {
+        min-height: 38px;
+        font-size: 12px;
+      }
+    }
+
+    /* Autocomplete Styles */
+    .input-wrap,
+    .multi-select-wrap {
+      position: relative;
+    }
+
+    .day.today {
+      background: #333;
+      border: 1px solid #666;
+    }
+
+    .day.sel {
+      border: 2px solid #fff;
+    }
+
+    .day.has-pending {
+      background: rgba(255, 204, 0, 0.08);
+    }
+
+    .tags {
+      display: contents;
+    }
+
+    .tag {
+      background: rgba(122, 162, 255, .20);
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: var(--r-pill);
+      font-size: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      border: 1px solid rgba(122, 162, 255, .3);
+    }
+
+    .tag-remove {
+      cursor: pointer;
+      opacity: 0.6;
+      font-weight: bold;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .tag-remove:hover {
+      opacity: 1;
+      color: #ff6b6b;
+    }
+
+    #crewInput {
+      border: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      flex: 1;
+      min-width: 80px;
+      height: 30px;
+      outline: none;
+    }
+
+    .dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #15161c;
+      border: 1px solid rgba(255, 255, 255, .15);
+      border-radius: var(--r-2);
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      margin-top: 4px;
+    }
+
+    .dropdown-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255, 255, 255, .05);
+      font-size: 13px;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(122, 162, 255, .15);
+    }
+
+    .dropdown-item small {
+      opacity: 0.5;
+      font-size: 10px;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(5px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+
+    .modal-content {
+      background: #1c1d24;
+      border: 1px solid var(--stroke);
+      border-radius: var(--r-3);
+      padding: 24px;
+      width: 90%;
+      max-width: 360px;
+      box-shadow: var(--shadow);
+    }
+
+    .checklist-container {
+      max-height: 280px;
+      overflow-y: auto;
+      margin: 12px 0;
+      padding-right: 5px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-radius: var(--r-1);
+      cursor: pointer;
+      transition: background 0.2s;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .check-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .check-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .check-item label {
+      margin: 0;
+      cursor: pointer;
+      flex: 1;
+      font-size: 14px;
+    }
+
+    /* Tabs */
+    .nav-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 10px 0;
+      padding: 0 10px;
+    }
+
+    .nav-btn {
+      flex: 1;
+      max-width: 200px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--muted);
+      border-radius: 8px;
+    }
+
+    .nav-btn.active {
+      background: var(--accent-fill);
+      border-color: var(--accent-stroke);
+      color: white;
+      box-shadow: 0 0 10px rgba(122, 162, 255, 0.3);
+    }
+
+    /* Timing Table */
+    .timing-wrap {
+      margin-top: var(--s-3);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r-2);
+      overflow-x: auto;
+      background: rgba(255, 255, 255, .03);
+      position: relative;
+    }
+
+    /* Scroll indicator fade */
+    .timing-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 30px;
+      background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.3));
+      pointer-events: none;
+    }
+
+    .timing-table {
+      min-width: 800px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .timing-row {
+      display: grid;
+      grid-template-columns: 30px 85px 85px 120px 120px 120px 120px 1fr 40px;
+      gap: 1px;
+      background: var(--stroke);
+      border-bottom: 1px solid var(--stroke);
+      min-width: 890px;
+      /* Adjusted for wider time cells */
+    }
+
+    .timing-row:last-child {
+      border-bottom: none;
+    }
+
+    .timing-header {
+      background: rgba(255, 255, 255, .07);
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    .timing-cell {
+      background: #15161c;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .timing-cell.drag-handle {
+      justify-content: center;
+      color: var(--muted);
+      cursor: grab;
+      font-size: 14px;
+      user-select: none;
+    }
+
+    .timing-cell input,
+    .timing-cell select {
+      width: 100%;
+      min-width: 0;
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 11px;
+      padding: 6px 4px;
+      outline: none;
+      overflow-x: auto;
+    }
+
+    /* Equipment Table Columns */
+    .gear-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 40px 80px 28px;
+      gap: 1px;
+      background: var(--stroke);
+      border-bottom: 2px solid var(--stroke);
+    }
+
+    #gearTable {
+      min-width: 0;
+    }
+
+    .gear-header {
+      background: rgba(122, 162, 255, 0.1);
+      font-weight: bold;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    /* Hide native time picker indicator to give more room for text */
+    .timing-cell input[type="time"]::-webkit-calendar-picker-indicator {
+      display: none;
+      -webkit-appearance: none;
+    }
+
+    .timing-cell select option {
+      background: #15161c;
+      color: white;
+    }
+
+    .timing-add-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      background: rgba(122, 162, 255, 0.1);
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      border-top: 1px solid var(--stroke);
+    }
+
+    .timing-add-btn:hover {
+      background: rgba(122, 162, 255, 0.2);
+    }
+
+    .timing-remove,
+    .timing-del-btn {
+      color: rgba(255, 107, 107, 0.5);
+      cursor: pointer;
+      font-weight: bold;
+      text-align: center;
+      width: 100%;
+      background: transparent;
+      border: none;
+      font-size: 16px;
+      transition: color 0.2s;
+    }
+
+    .timing-del-btn:hover {
+      color: #ff6b6b;
+    }
+
+    /* Shared Timing Dropdown */
+    #timingDropdown {
+      position: fixed;
+      /* Fixed to avoid containment issues */
+      background: #1c1d24;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 10001;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <datalist id="taskOptions">
+    <option value="Подготовка"></option>
+    <option value="Перестановка"></option>
+    <option value="Перерыв"></option>
+    <option value="Обед"></option>
+    <option value="Тех. перерыв"></option>
+    <option value="Переезд"></option>
+  </datalist>
+  <datalist id="locationOptions"></datalist>
+  <datalist id="actorOptions"></datalist>
+  <datalist id="linkOptions"></datalist>
+
+  <div id="timingDropdown" class="dropdown"></div>
+
+
+  <div class="wrap">
+    <!-- CALENDAR VIEW -->
+    <div class="card" id="calendarView">
+      <div class="head">
+        <div class="title">🎬 GULYWOOD ERP</div>
+        <div class="seg">
+          <button id="prevBtn">◀</button>
+          <button id="todayBtn">Сегодня</button>
+          <button id="nextBtn">▶</button>
+        </div>
+      </div>
+      <div class="calendar">
+        <div class="monthBar">
+          <div class="month" id="monthLabel">—</div>
+          <div class="hint" id="monthStat">0 съёмок</div>
+        </div>
+        <div class="dow">
+          <div>Пн</div>
+          <div>Вт</div>
+          <div>Ср</div>
+          <div>Чт</div>
+          <div>Пт</div>
+          <div>Сб</div>
+          <div>Вс</div>
+        </div>
+        <div class="grid" id="grid"></div>
+      </div>
+      <div class="footer">
+        <button class="primary" id="copyDayBtn">Скопировать выгрузку дня</button>
+        <button id="cloudSyncBtn" onclick="loadFromCloud()" title="Обновить из облака">☁️ Обновить</button>
+      </div>
+    </div>
+
+    <!-- DAY DETAILS (Linked to Calendar) -->
+    <div class="card" id="dayCard">
+      <div class="head">
+        <div class="dayHeadGlow"></div>
+        <div class="title">📅 <span id="selectedLabel">—</span> <small style="font-size:8px; opacity:0.5;">v1.2</small>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="mini-btn" id="newBtn">Смена</button>
+          <button class="mini-btn task-btn" onclick="openTaskForm()">+ Задача</button>
+        </div>
+      </div>
+      <div class="side">
+        <div class="list" id="eventList"></div>
+        <form id="form">
+          <div class="row2">
+            <label>Проект/клиент
+              <div class="input-wrap">
+                <input id="project" autocomplete="off" placeholder="Напр: Fujifilm" />
+                <div id="projectDropdown" class="dropdown"></div>
+              </div>
+            </label>
+            <label>Локация
+              <div class="input-wrap">
+                <input id="location" placeholder="Зал или адрес..." required />
+                <div id="locationDropdown" class="dropdown"></div>
+              </div>
+            </label>
+          </div>
+          <div class="row2">
+            <label>Call<input id="callTime" type="time" /></label>
+            <label>Wrap<input id="wrapTime" type="time" /></label>
+          </div>
+          <label>Адрес/линк
+            <div class="input-wrap">
+              <input id="address" placeholder="Найти адрес (2GIS / Maps)..." autocomplete="off" />
+              <div id="addressDropdown" class="dropdown"></div>
+            </div>
+          </label>
+          <label>Контакт
+            <div class="input-wrap">
+              <input id="contact" placeholder="Имя + телефон" autocomplete="off" />
+              <div id="contactDropdown" class="dropdown"></div>
+            </div>
+          </label>
+          <label>ТЗ<textarea id="deliverables" placeholder="Опиши задачу..."></textarea></label>
+
+          <label>Команда продакшн
+            <div class="multi-select-wrap" id="crewWrapper">
+              <div id="crewTags" class="tags"></div>
+              <input id="crewInput" placeholder="Добавить..." autocomplete="off" />
+              <div id="crewDropdown" class="dropdown"></div>
+            </div>
+            <textarea id="crew" style="display:none"></textarea>
+          </label>
+
+          <label>Пост/монтаж
+            <div class="multi-select-wrap" id="postWrapper">
+              <div id="postTags" class="tags"></div>
+              <input id="postInput" placeholder="Выбрать реж. монтажа..." autocomplete="off" />
+              <div id="postDropdown" class="dropdown"></div>
+            </div>
+            <textarea id="post_production" style="display:none"></textarea>
+          </label>
+
+          <div class="row2">
+            <label>Кастинг проект
+              <div class="input-wrap">
+                <input id="casting_project" placeholder="Найти проект..." autocomplete="off" />
+                <div id="castingDropdown" class="dropdown"></div>
+              </div>
+            </label>
+            <label>Актеры
+              <div class="multi-select-wrap" id="actorsWrapper" onclick="openActorChecklist('main')">
+                <div id="actorsTags" class="tags"></div>
+                <input id="actorsInput" placeholder="Выбрать..." readonly style="cursor:pointer;" />
+                <div id="actorsDropdown" class="dropdown"></div>
+              </div>
+              <textarea id="actors" style="display:none"></textarea>
+            </label>
+          </div>
+
+          <label>План/тайминг
+            <div class="timing-wrap">
+              <div class="timing-table" id="timingTable">
+                <div class="timing-header timing-row">
+                  <div class="timing-cell"></div> <!-- Handle -->
+                  <div class="timing-cell">Start</div>
+                  <div class="timing-cell">End</div>
+                  <div class="timing-cell">Loc</div>
+                  <div class="timing-cell">Task</div>
+                  <div class="timing-cell">Actors</div>
+                  <div class="timing-cell">Notes</div>
+                  <div class="timing-cell">Link</div>
+                  <div class="timing-cell"></div> <!-- Delete -->
+                </div>
+                <div id="timingRows"></div>
+                <div class="timing-add-btn" onclick="addTimingRow({}, event)">+ ДОБАВИТЬ СТРОКУ</div>
+              </div>
+            </div>
+            <textarea id="schedule" style="display:none"></textarea>
+          </label>
+          <label>Техника
+            <div class="timing-wrap">
+              <div class="timing-table" id="gearTable">
+                <div class="gear-header gear-row">
+                  <div class="timing-cell">Категория</div>
+                  <div class="timing-cell">Модель/Название</div>
+                  <div class="timing-cell">Кол-во</div>
+                  <div class="timing-cell">Заметки</div>
+                  <div class="timing-cell"></div>
+                </div>
+                <div id="gearRows"></div>
+                <div class="timing-add-btn" onclick="addGearRow({}, event)">+ ДОБАВИТЬ ТЕХНИКУ</div>
+              </div>
+            </div>
+            <textarea id="gear" style="display:none"></textarea>
+          </label>
+          <label>Примечания<textarea id="notes" placeholder="Парковка, пропуск..."></textarea></label>
+          <label>Отчет (Тайминг)<input id="report_link" placeholder="Ссылка на PDF/Excel..." /></label>
+          <div class="actions">
+            <button type="button" id="copyBtn" style="color:#7aa2ff; border-color:#7aa2ff;">Копировать</button>
+            <button type="button" id="excelExportBtn" style="color:#4caf50; border-color:#4caf50;"
+              onclick="exportShootToExcel(event)">📊 Excel</button>
+            <button type="button" id="excelImportBtn" style="color:#ffcc00; border-color:#ffcc00;"
+              onclick="triggerExcelImport()">📥 Импорт</button>
+            <input type="file" id="excelFileInput" style="display:none" accept=".xlsx, .xls"
+              onchange="handleExcelImport(event)">
+            <button type="button" id="timerBtn" style="color:#ff6b6b; border-color:#ff6b6b; font-weight:700;"
+              onclick="openTimer()">🎬 Таймер</button>
+            <button type="button" id="deleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
+            <button class="primary" type="submit">Сохранить</button>
+          </div>
+        </form>
+        <pre id="preview">—</pre>
+
+        <!-- TASK FORM (Moved here) -->
+        <form id="taskForm"
+          style="display:none; padding: var(--s-3); margin-top:10px; border-radius:8px; border: 1px solid rgba(255, 204, 0, 0.3); background: rgba(255, 204, 0, 0.05);">
+          <h3 style="margin:0 0 10px 0; font-size:14px; text-transform:uppercase; color:#ffcc00;">Новая задача</h3>
+
+          <label>Проект
+            <div class="input-wrap">
+              <input id="t_project" placeholder="Найти..." autocomplete="off">
+              <div id="t_projectDropdown" class="dropdown"></div>
+            </div>
+          </label>
+          <!-- <input type="hidden" id="task_id_hidden"> -->
+          <!-- <small id="debug_id_disp" style="color:gray; font-size:10px; display:block;">ID: -</small> -->
+          <label>Название<input id="t_title" placeholder="Сделать монтаж..." required /></label>
+          <label>Описание<textarea id="t_desc" placeholder="Детали..." style="min-height:60px;"></textarea></label>
+
+          <div class="row2">
+            <label>Дедлайн<input id="t_deadline" type="date" required /></label>
+            <label>Тип
+              <select id="t_type" class="input-style"
+                style="width:100%; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.12); color:white; padding:10px; border-radius:8px; outline:none;">
+                <option value="general">Общее</option>
+                <option value="casting">Кастинг</option>
+                <option value="actors">Актеры</option>
+                <option value="design">Дизайн</option>
+                <option value="location">Локация</option>
+                <option value="shoot_prep">Подготовка</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="row2">
+            <label>Кастинг проект
+              <div class="input-wrap">
+                <input id="t_casting_project" placeholder="Найти проект..." autocomplete="off" />
+                <div id="t_castingDropdown" class="dropdown"></div>
+              </div>
+            </label>
+            <label>Актеры
+              <div class="multi-select-wrap" id="t_actorsWrapper" onclick="openActorChecklist('task')">
+                <div id="t_actorsTags" class="tags"></div>
+                <input id="t_actorsInput" placeholder="Выбрать..." readonly style="cursor:pointer;" />
+                <div id="t_actorsDropdown" class="dropdown"></div>
+              </div>
+              <textarea id="t_actors" style="display:none"></textarea>
+            </label>
+          </div>
+
+          <label>Исполнитель
+            <div class="multi-select-wrap" id="assigneeWrapper">
+              <div id="assigneeTags" class="tags"></div>
+              <input id="assigneeInput" placeholder="Выбрать..." autocomplete="off" />
+              <div id="assigneeDropdown" class="dropdown"></div>
+            </div>
+            <textarea id="t_assignees" style="display:none"></textarea>
+          </label>
+
+          <div class="actions">
+            <button type="button" id="taskCopyBtn"
+              style="color:#7aa2ff; border-color:#7aa2ff; display:none;">Копировать</button>
+            <button type="button" id="taskDeleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
+            <button type="button" onclick="document.getElementById('taskForm').style.display='none'">Свернуть</button>
+            <button id="taskSubmitBtn" class="primary" type="submit"
+              style="background:#ffcc00; color:#000; border:none;">Сохранить</button>
+          </div>
+          <!-- Safe area for keyboard -->
+          <div style="height: 250px; pointer-events: none;"></div>
+        </form>
+      </div>
+    </div>
+
+
+
+  </div>
+
+  <!-- Actor Checklist Modal -->
+  <div id="actorChecklistModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <h3 style="margin: 0 0 10px 0; font-size: 18px;">Выбрать актеров/клиентов</h3>
+      <input type="text" id="checklistSearch" placeholder="Поиск..." style="margin-bottom: 10px; font-size: 14px;" />
+      <div id="checklistItems" class="checklist-container">
+        <!-- Items populated by JS -->
+      </div>
+      <div class="actions" style="margin-top: 20px;">
+        <button type="button" onclick="closeActorChecklist()">Отмена</button>
+        <button type="button" class="primary" onclick="confirmActorChecklist()">Готово</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 1. КОНФИГУРАЦИЯ SUPABASE
+    const S_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
+    const S_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
+    const supabaseClient = window.supabase.createClient(S_URL, S_KEY);
+
+    // Telegram Init
+    const tg = window?.Telegram?.WebApp;
+    if (tg) tg.expand();
+
+    // ПЕРЕМЕННЫЕ
+    let allEvents = [];
+    let allTasks = []; // New
+    let currentTab = 'calendar'; // 'calendar' or 'tasks'
+    let selectedDate = new Date();
+    let currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    let selectedId = null; // For Shoots
+    let selectedTaskId = null; // For Tasks (Re-introduced for stability)
+
+    const pad2 = n => String(n).padStart(2, "0");
+    const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    const startMonth = d => new Date(d.getFullYear(), d.getMonth(), 1);
+    const niceDate = d => d.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
+    const weekday = d => d.toLocaleDateString("ru-RU", { weekday: "long" });
+    const monthName = d => d.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+    const niceDateShort = d => d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }); // New helper
+
+    // Helpers for Status
+    const todayISO = toISO(new Date());
+    const getStatus = (e) => {
+      if (e.status === 'done') return 'done';
+      if (e.date < todayISO) return 'overdue';
+      return 'pending';
+    };
+
+    const f = {
+      project: document.getElementById("project"),
+      location: document.getElementById("location"),
+      callTime: document.getElementById("callTime"),
+      wrapTime: document.getElementById("wrapTime"),
+      address: document.getElementById("address"),
+      contact: document.getElementById("contact"),
+      deliverables: document.getElementById("deliverables"),
+      crew: document.getElementById("crew"),
+      post_production: document.getElementById("post_production"),
+      casting_project: document.getElementById("casting_project"),
+      actors: document.getElementById("actors"),
+      schedule: document.getElementById("schedule"),
+      gear: document.getElementById("gear"),
+      notes: document.getElementById("notes"),
+      report_link: document.getElementById("report_link"),
+    };
+
+    // --- TABS LOGIC REMOVED (Unified View) ---
+    // function switchTab(tab) { ... }
+
+    // --- TASK LOGIC ---
+
+
+    async function toggleTaskStatus(id, status) {
+      // Optimistic
+      const t = allTasks.find(x => x.id === id);
+      if (t) t.status = status;
+      render(); // Refresh calendar view
+
+      await supabaseClient.from('tasks').update({ status }).eq('id', id);
+    }
+
+    async function deleteTask(id) {
+      if (!confirm('Удалить задачу?')) return;
+      // Optimistic
+      allTasks = allTasks.filter(x => x.id !== id);
+      render();
+      await supabaseClient.from('tasks').delete().eq('id', id);
+    }
+
+    function openTaskForm(task) {
+      // Close shoot form if open
+      toggleForm(false);
+
+      const form = document.getElementById('taskForm');
+      form.style.display = 'block';
+      form.scrollIntoView({ behavior: 'smooth' });
+
+      const btn = document.getElementById('taskSubmitBtn');
+      const deleteBtn = document.getElementById('taskDeleteBtn');
+      const copyBtn = document.getElementById('taskCopyBtn');
+
+      // console.log('Open Task Form. Task:', task); // Debug
+
+      if (task) {
+        selectedTaskId = task.id; // Global Variable Mode
+
+        form.style.borderColor = '#ffcc00'; // Yellow/Red border for EDIT
+        document.querySelector('#taskForm h3').textContent = 'РЕДАКТИРОВАНИЕ ЗАДАЧИ';
+        // document.getElementById('debug_id_disp').textContent = 'ID: ' + task.id; // Visible Debug
+        if (btn) btn.textContent = 'Сохранить';
+        if (deleteBtn) {
+          deleteBtn.style.display = 'block';
+          deleteBtn.onclick = () => deleteTask(task.id);
+        }
+        if (copyBtn) {
+          copyBtn.style.display = 'block';
+          copyBtn.onclick = () => copyTask(task);
+        }
+
+        document.getElementById('t_title').value = task.title;
+        document.getElementById('t_desc').value = task.description || '';
+        document.getElementById('t_deadline').value = task.deadline || toISO(new Date());
+        document.getElementById('t_type').value = task.type || 'general';
+        document.getElementById('t_project').value = task.project_id || '';
+        document.getElementById('t_casting_project').value = task.casting_project || '';
+        document.getElementById('t_actors').value = task.actors || '';
+        document.getElementById('t_assignees').value = (task.assignee_ids || []).join(', ');
+      } else {
+        selectedTaskId = null; // Clear Global ID
+
+        form.style.borderColor = 'rgba(255, 204, 0, 0.3)'; // Default border
+        document.querySelector('#taskForm h3').textContent = 'НОВАЯ ЗАДАЧА';
+        if (btn) btn.textContent = 'Создать';
+        if (deleteBtn) deleteBtn.style.display = 'none';
+        if (copyBtn) copyBtn.style.display = 'none';
+
+        // Reset form
+        document.getElementById('t_project').value = '';
+        document.getElementById('t_title').value = '';
+        document.getElementById('t_desc').value = '';
+        document.getElementById('t_deadline').value = toISO(selectedDate);
+        document.getElementById('t_type').value = 'general';
+        document.getElementById('t_assignees').value = '';
+        document.getElementById('t_casting_project').value = '';
+        document.getElementById('t_actors').value = '';
+      }
+      renderAssigneeTags();
+      renderActorsTags();
+      renderTaskActorsTags();
+      renderTaskProjects();
+      renderTaskCastingProjects();
+    }
+
+    function copyTask(task) {
+      const txt = `📌 **${task.title}**\n` +
+        `📅 Дедлайн: ${task.deadline}\n` +
+        `📂 Проект: ${task.project_id || '-'}\n` +
+        `📝 Описание: ${task.description || '-'}\n` +
+        `👥 Исполнители: ${(task.assignee_ids || []).join(', ')}`;
+
+      navigator.clipboard.writeText(txt);
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+      const copyBtn = document.getElementById('taskCopyBtn');
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = "Скопировано!";
+      setTimeout(() => copyBtn.textContent = originalText, 1500);
+    }
+
+    // Helper to open task from list
+    function editTask(id) {
+      // Use loose equality or string conversion to match
+      const t = allTasks.find(x => String(x.id) === String(id));
+      if (t) openTaskForm(t);
+    }
+
+    // TASK FORM SUBMIT
+    document.getElementById('taskForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('t_title').value;
+      const desc = document.getElementById('t_desc').value;
+      const deadline = document.getElementById('t_deadline').value;
+      const type = document.getElementById('t_type').value;
+      const assignees = document.getElementById('t_assignees').value.split(',').map(s => s.trim()).filter(s => s);
+      const casting_project = document.getElementById('t_casting_project').value.trim() || null;
+      const actors = document.getElementById('t_actors').value.trim() || null;
+
+      const payload = {
+        title, description: desc, deadline, type,
+        assignee_ids: assignees,
+        project_id: project,
+        casting_project,
+        actors,
+        status: 'pending'
+      };
+
+      // Match Shoot Logic: Use Upsert
+      if (selectedTaskId) {
+        payload.id = selectedTaskId;
+        // Ideally we should preserve status if we are just editing details, 
+        // but upsert might overwrite status to 'pending' if we don't fetch first.
+        // Let's fetch the existing status from local array to be safe.
+        const existing = allTasks.find(t => t.id === selectedTaskId);
+        if (existing) payload.status = existing.status;
+
+        // Preserve start date (created_at) if editing? 
+        // User says: "выбран день на календаре это начало задачи".
+        // If I edit a task, should I move the start date to the NEW selected date?
+        // Probably yes, if I'm "rescheduling" the start.
+        // But usually editing title/desc shouldn't move start date.
+        // However, if I didn't change Selected Date, it updates to the same date.
+        // If I clicked a new date and then clicked Edit Task, `selectedDate` is the new date.
+        // Let's assume user wants to set start date to current `selectedDate`.
+        payload.created_at = new Date(selectedDate).toISOString();
+      } else {
+        // New Task: Start Date is the selected date on calendar
+        payload.created_at = new Date(selectedDate).toISOString();
+      }
+
+      const { data, error } = await supabaseClient.from('tasks').upsert(payload).select();
+
+      if (!error && data && data.length > 0) {
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        document.getElementById('taskForm').style.display = 'none';
+
+        // Update Local State
+        const newTask = data[0];
+        if (selectedTaskId) {
+          const idx = allTasks.findIndex(t => t.id === selectedTaskId);
+          if (idx !== -1) allTasks[idx] = newTask;
+        } else {
+          allTasks.push(newTask);
+        }
+
+        selectedTaskId = null; // Clean up
+        render(); // Refresh Unified View
+      } else {
+        alert('Error: ' + (error ? error.message : 'Unknown error'));
+      }
+    };
+
+    // --- PROJECT LOGIC ---
+    const tProjInput = document.getElementById('t_project');
+    const tProjDropdown = document.getElementById('t_projectDropdown');
+
+    function renderTaskProjects() {
+      const val = tProjInput.value.toLowerCase();
+      tProjDropdown.innerHTML = '';
+      const matches = clientsData.filter(c =>
+        (c.category || 'media') === 'media' &&
+        !c.is_hidden &&
+        (val ? c.name.toLowerCase().includes(val) : true)
+      );
+
+      if (!matches.length) { tProjDropdown.style.display = 'none'; return; }
+
+      matches.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.textContent = c.name;
+        div.onclick = () => { tProjInput.value = c.name; tProjDropdown.style.display = 'none'; };
+        tProjDropdown.appendChild(div);
+      });
+      tProjDropdown.style.display = 'block';
+    }
+
+    const tCastProjInput = document.getElementById('t_casting_project');
+    const tCastProjDropdown = document.getElementById('t_castingDropdown');
+
+    function renderTaskCastingProjects() {
+      const val = tCastProjInput.value.toLowerCase();
+      tCastProjDropdown.innerHTML = '';
+      const matches = clientsData.filter(c =>
+        c.category === 'casting' && !c.is_hidden &&
+        (val ? c.name.toLowerCase().includes(val) : true)
+      );
+
+      if (!matches.length) { tCastProjDropdown.style.display = 'none'; return; }
+
+      matches.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.textContent = c.name;
+        div.onclick = () => { tCastProjInput.value = c.name; tCastProjDropdown.style.display = 'none'; };
+        tCastProjDropdown.appendChild(div);
+      });
+      tCastProjDropdown.style.display = 'block';
+    }
+
+    tCastProjInput.addEventListener('input', renderTaskCastingProjects);
+    tCastProjInput.addEventListener('focus', renderTaskCastingProjects);
+    tCastProjInput.addEventListener('click', (e) => { e.stopPropagation(); renderTaskCastingProjects(); });
+
+    tProjInput.addEventListener('input', renderTaskProjects);
+    tProjInput.addEventListener('focus', renderTaskProjects);
+    tProjInput.addEventListener('click', (e) => { e.stopPropagation(); renderTaskProjects(); });
+
+    function renderAssigneeTags() { renderTags('t_assignees', 'assigneeTags'); }
+
+    // Wrapper click
+    document.getElementById('assigneeWrapper').onclick = (e) => {
+      if (e.target === document.getElementById('assigneeWrapper')) document.getElementById('assigneeInput').focus();
+    };
+
+
+    // --- AUTOCOMPLETE LOGIC ---
+    let clientsData = []; // {name, thread_id, chat_id, category, is_active, is_hidden}
+    let teamData = [];    // {full_name, username, roles, position}
+    let locationsData = [];
+    let contactsData = []; // {name, phone, thread_id, chat_id, category}
+    let resourcesData = []; // {chat_id, thread_id, url, username}
+    let currentMediaContacts = [];
+    let currentCastingContacts = [];
+    let projectLocationsData = []; // {project_id, name}
+
+    async function fetchAutocompleteData() {
+      const { data: cData } = await supabaseClient.from('clients').select('id, name, thread_id, chat_id, category, is_active, is_hidden');
+      if (cData) clientsData = cData;
+      const { data: tData } = await supabaseClient.from('team').select('full_name, username, roles, position');
+      if (tData) teamData = tData;
+      const { data: lData } = await supabaseClient.from('locations').select('name');
+      if (lData) locationsData = lData;
+      const { data: ctData } = await supabaseClient.from('contacts').select('name, phone, thread_id, chat_id, category');
+      if (ctData) contactsData = ctData || [];
+      const { data: rData } = await supabaseClient.from('project_resources').select('chat_id, thread_id, url, username');
+      if (rData) resourcesData = rData || [];
+      const { data: plData } = await supabaseClient.from('project_locations').select('project_id, name');
+      if (plData) projectLocationsData = plData || [];
+      updateDatalists();
+    }
+
+    // Project Dropdown
+    const projInput = document.getElementById('project');
+    const projDropdown = document.getElementById('projectDropdown');
+
+    const renderProjects = () => {
+      const val = projInput.value.toLowerCase();
+      projDropdown.innerHTML = '';
+      const matches = clientsData.filter(c =>
+        (c.category || 'media') === 'media' &&
+        !c.is_hidden &&
+        (val ? c.name.toLowerCase().includes(val) : true)
+      );
+      if (!matches.length) { projDropdown.style.display = 'none'; return; }
+      matches.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.innerHTML = `<span>${c.name}</span> <small style="background:#4cd96433; color:#4cd964; padding:2px 6px; border-radius:4px; font-size:9px">MEDIA</small>`;
+        div.onclick = () => {
+          projInput.value = c.name;
+          projDropdown.style.display = 'none';
+          updateDatalists();
+        };
+        projDropdown.appendChild(div);
+      });
+      projDropdown.style.display = 'block';
+    };
+
+    const castInput = document.getElementById('casting_project');
+    const castDropdown = document.getElementById('castingDropdown');
+
+    const renderCastingProjects = () => {
+      const val = castInput.value.toLowerCase();
+      castDropdown.innerHTML = '';
+      const matches = clientsData.filter(c =>
+        c.category === 'casting' &&
+        !c.is_hidden &&
+        (val ? c.name.toLowerCase().includes(val) : true)
+      );
+      if (!matches.length) { castDropdown.style.display = 'none'; return; }
+      matches.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.innerHTML = `<span>${c.name}</span> <small style="background:#7aa2ff33; color:#7aa2ff; padding:2px 6px; border-radius:4px; font-size:9px">CASTING</small>`;
+        div.onclick = () => {
+          castInput.value = c.name;
+          castDropdown.style.display = 'none';
+          updateDatalists();
+        };
+        castDropdown.appendChild(div);
+      });
+      castDropdown.style.display = 'block';
+    };
+
+    projInput.addEventListener('input', renderProjects);
+    projInput.addEventListener('focus', renderProjects);
+    castInput.addEventListener('input', renderCastingProjects);
+    castInput.addEventListener('focus', renderCastingProjects);
+    castInput.addEventListener('click', (e) => { e.stopPropagation(); renderCastingProjects(); });
+
+    // Location Dropdown
+    const locInput = document.getElementById('location');
+    const locDropdown = document.getElementById('locationDropdown');
+
+    const renderLocations = () => {
+      const val = locInput.value.toLowerCase();
+      locDropdown.innerHTML = '';
+
+      // 1. Get Project Specific Locations
+      const mProj = clientsData.find(c => c.name === f.project.value.trim());
+      let pLocs = [];
+      if (mProj) {
+        pLocs = projectLocationsData.filter(pl => String(pl.project_id) === String(mProj.id)).map(pl => ({ name: pl.name, isProjectSpecific: true }));
+      }
+
+      // 2. Combine with General
+      let allLocs = [...pLocs, ...locationsData.filter(l => !pLocs.some(p => p.name === l.name))];
+
+      const matches = val
+        ? allLocs.filter(l => l.name.toLowerCase().includes(val))
+        : allLocs;
+
+      if (!matches.length) { locDropdown.style.display = 'none'; return; }
+      matches.forEach(l => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.innerHTML = l.isProjectSpecific ? `📌 ${l.name} <small>(Проект)</small>` : l.name;
+        div.onclick = () => {
+          locInput.value = l.name;
+          locDropdown.style.display = 'none';
+
+          // Auto-fill address for studio locations
+          const studioAddress = "Comfort Residencies, Улица Иванилова, 63з";
+          // Check if it's one of ours (excluding 'Студия Campot' itself which might be broader, but inclusion is fine)
+          const isStudio = ["Бали", "Экспертный кабинет", "Классический", "Ванная комната", "Кухня", "Кофейня", "Minimalistic", "Циклорама", "Лестница", "Студия Campot"].includes(l.name);
+          if (isStudio) {
+            const addrInt = document.getElementById('address');
+            const sAddr = "Comfort Residencies, Улица Иванилова, 63з";
+            const sLink = "https://go.2gis.com/bd4n9";
+            addrInt.value = sAddr;
+            addrInt.dataset.full = `${sAddr} | ${sLink}`; // Update hidden data too!
+
+            // Auto-add Roman (Administrator) to crew
+            const roman = teamData.find(t => t.username === 'magnate71k' || t.full_name === 'Roman');
+            if (roman) {
+              addTag('crew', 'crewTags', 'crewInput', 'crewDropdown', roman.full_name);
+            }
+          }
+          updateDatalists(); // Refresh suggestions!
+        };
+        locDropdown.appendChild(div);
+      });
+      locDropdown.style.display = 'block';
+    };
+
+    locInput.addEventListener('input', () => {
+      renderLocations();
+      updateDatalists(); // Update timing grid suggestions when location changes
+    });
+    locInput.addEventListener('change', updateDatalists);
+    locInput.addEventListener('focus', renderLocations);
+    locInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+      renderLocations();
+    });
+
+    // Address Search Dropdown
+    const addrInput = document.getElementById('address');
+    const addrDropdown = document.getElementById('addressDropdown');
+    let addrTimeout = null;
+
+    const renderAddresses = (results) => {
+      addrDropdown.innerHTML = '';
+      if (!results || !results.length) { addrDropdown.style.display = 'none'; return; }
+
+      results.forEach(res => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.style.fontSize = '11px';
+        div.style.padding = '8px 12px';
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+
+        const isBuilding = res.address && (res.address.house_number || res.type === 'house' || res.class === 'building');
+        const icon = isBuilding ? '🏠' : '📍';
+
+        div.innerHTML = `<span>${icon} ${res.display_name}</span>`;
+
+        div.onclick = () => {
+          // Store as: Plain Address | 2GIS Link
+          const link = `https://2gis.kz/geo/${res.lon},${res.lat}`;
+          addrInput.value = res.display_name;
+          addrInput.dataset.full = `${res.display_name} | ${link}`;
+          addrDropdown.style.display = 'none';
+        };
+        addrDropdown.appendChild(div);
+      });
+      addrDropdown.style.display = 'block';
+    };
+
+    addrInput.addEventListener('input', () => {
+      clearTimeout(addrTimeout);
+      const val = addrInput.value.trim();
+
+      // Clear hidden data as soon as user starts typing manually
+      addrInput.dataset.full = '';
+
+      if (val.length < 3) { addrDropdown.style.display = 'none'; return; }
+
+      addrTimeout = setTimeout(async () => {
+        try {
+          // Viewbox for Almaty biasing + addressdetails for house numbers
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=6&viewbox=76.6,43.4,77.1,43.1&dedupe=1`);
+          const data = await res.json();
+          renderAddresses(data);
+        } catch (e) { console.error(e); }
+      }, 500);
+    });
+
+    function updateDatalists() {
+      const locList = document.getElementById('locationOptions');
+      const actList = document.getElementById('actorOptions');
+      const linkList = document.getElementById('linkOptions');
+
+      if (locList) {
+        const mainLocInput = document.getElementById('location');
+        const mainProjInput = document.getElementById('project');
+        if (!mainLocInput || !mainProjInput) return;
+
+        const mainLoc = (mainLocInput.value || '').trim();
+        const mainLocLC = mainLoc.toLowerCase();
+        const mainProjName = (mainProjInput.value || '').trim();
+
+        const studioRooms = ["Бали", "Экспертный кабинет", "Классический", "Ванная комната", "Кухня", "Кофейня", "Minimalistic", "Циклорама", "Лестница", "Студия Campot"];
+        const studioRoomsLC = studioRooms.map(r => r.toLowerCase());
+
+        let filtered = [];
+        const mainProj = clientsData.find(c => c.name === mainProjName);
+        const pLocs = mainProj ? projectLocationsData.filter(pl => pl.project_id === mainProj.id).map(pl => pl.name) : [];
+
+        if (mainLocLC === "студия campot") {
+          // If Studio Campot - show all studio rooms + project-specific ones
+          const studio = locationsData.filter(l => studioRoomsLC.includes(l.name.toLowerCase())).map(l => l.name);
+          filtered = [...new Set([...studio, ...pLocs])];
+        } else if (mainLoc) {
+          // If specific location - show only that + project-specific ones as secondary
+          filtered = [...new Set([mainLoc, ...pLocs])];
+        } else {
+          // Default: all locations + project-specific ones
+          filtered = [...new Set([...locationsData.map(l => l.name), ...pLocs])];
+        }
+
+        // Final fallback to ensure current mainLoc is always there if set
+        if (mainLoc && !filtered.some(f => f.toLowerCase() === mainLocLC)) filtered.unshift(mainLoc);
+
+        locList.innerHTML = filtered.map(name => `<option value="${name}">${name}</option>`).join('');
+      }
+      if (actList) {
+        updateContactPool();
+        const actors = teamData.filter(t => t.roles && t.roles.includes('actor')).map(t => t.full_name);
+        const casting = currentCastingContacts.map(c => c.name);
+        const media = currentMediaContacts.map(c => c.name);
+        const pool = [...new Set([...actors, ...casting, ...media])].filter(n => n).sort();
+        actList.innerHTML = pool.map(a => `<option value="${a}">${a}</option>`).join('');
+      }
+      if (linkList) {
+        const mProj = clientsData.find(c => c.name === f.project.value.trim());
+        if (mProj) {
+          const links = resourcesData.filter(r => String(r.chat_id) === String(mProj.chat_id) && String(r.thread_id) === String(mProj.thread_id));
+          linkList.innerHTML = links.map(l => `<option value="${l.url}">${l.username}: ${l.url}</option>`).join('');
+        } else {
+          linkList.innerHTML = '';
+        }
+      }
+    }
+
+    projInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+      renderProjects();
+    });
+
+    // Generic Tags Logic
+    function renderTags(fieldId, tagsId) {
+      const hidden = document.getElementById(fieldId);
+      const tagsContainer = document.getElementById(tagsId);
+      if (!hidden || !tagsContainer) return;
+      const val = hidden.value;
+      const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
+      tagsContainer.innerHTML = '';
+      names.forEach(name => {
+        const tag = document.createElement('div');
+        tag.className = 'tag';
+        tag.innerHTML = `<span>${name}</span> <span class="tag-remove">×</span>`;
+        tag.querySelector('.tag-remove').onclick = () => {
+          const newNames = names.filter(n => n !== name);
+          hidden.value = newNames.join(', ');
+          renderTags(fieldId, tagsId);
+        };
+        tagsContainer.appendChild(tag);
+      });
+    }
+
+    function addTag(fieldId, tagsId, inputId, dropdownId, name) {
+      const hidden = document.getElementById(fieldId);
+      const val = hidden.value;
+      const names = val ? val.split(',').map(s => s.trim()).filter(s => s) : [];
+      if (!names.includes(name)) {
+        names.push(name);
+        hidden.value = names.join(', ');
+        renderTags(fieldId, tagsId);
+      }
+      document.getElementById(inputId).value = '';
+      document.getElementById(dropdownId).style.display = 'none';
+    }
+
+    function renderCrewTags() { renderTags('crew', 'crewTags'); }
+    function renderPostTags() { renderTags('post_production', 'postTags'); }
+    function renderActorsTags() { renderTags('actors', 'actorsTags'); }
+    function renderTaskActorsTags() { renderTags('t_actors', 't_actorsTags'); }
+
+    function setupTagInput(inputId, dropdownId, fieldId, tagsId, requiredRole = null) {
+      const inp = document.getElementById(inputId);
+      const drop = document.getElementById(dropdownId);
+      const renderDrop = () => {
+        updateContactPool(); // Ensure pools are fresh
+        const val = inp.value.toLowerCase();
+        drop.innerHTML = '';
+
+        let pool = [...teamData];
+        if (requiredRole) {
+          pool = teamData.filter(t => t.roles && t.roles.includes(requiredRole));
+        }
+
+        // SPECIAL CASE: Actors should ALSO include project-specific contacts 
+        // AND all contacts from 'casting' category
+        if (fieldId === 'actors') {
+          const mediaContacts = currentMediaContacts.map(c => ({
+            full_name: c.name, position: 'Контакт (Media)', roles: ['actor']
+          }));
+          const castingContacts = currentCastingContacts.map(c => ({
+            full_name: c.name, position: 'Актер (Casting)', roles: ['actor']
+          }));
+          // Also include ALL contacts with category 'casting' regardless of selected project?
+          // The user said: "фильтровать по топику кастинг ... ПЛЮС клиенты из проекта"
+          // So let's stick to the selected projects' contacts.
+          pool = [...pool, ...mediaContacts, ...castingContacts];
+          pool = pool.filter((v, i, a) => a.findIndex(t => t.full_name === v.full_name) === i);
+        }
+
+        let matches = val
+          ? pool.filter(t => (t.full_name && t.full_name.toLowerCase().includes(val)) || (t.username && t.username.toLowerCase().includes(val)))
+          : pool;
+
+        matches = matches.slice(0, 20);
+        if (!matches.length) { drop.style.display = 'none'; return; }
+        matches.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'dropdown-item';
+          div.innerHTML = `${m.full_name} <small style="opacity:0.6">${m.position || ''}</small>`;
+          div.onclick = () => addTag(fieldId, tagsId, inputId, dropdownId, m.full_name);
+          drop.appendChild(div);
+        });
+        drop.style.display = 'block';
+      };
+      inp.addEventListener('input', renderDrop);
+      inp.addEventListener('focus', renderDrop);
+      inp.addEventListener('click', (e) => { e.stopPropagation(); renderDrop(); });
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !inp.value) {
+          const hidden = document.getElementById(fieldId);
+          const names = hidden.value.split(',').map(s => s.trim()).filter(s => s);
+          if (names.length) {
+            names.pop();
+            hidden.value = names.join(', ');
+            renderTags(fieldId, tagsId);
+          }
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const val = inp.value.trim();
+          if (val) addTag(fieldId, tagsId, inputId, dropdownId, val);
+        }
+      });
+    }
+
+    setupTagInput('crewInput', 'crewDropdown', 'crew', 'crewTags', 'production');
+    setupTagInput('postInput', 'postDropdown', 'post_production', 'postTags', 'post');
+    setupTagInput('assigneeInput', 'assigneeDropdown', 't_assignees', 'assigneeTags', null);
+    function closeActorChecklist() {
+      document.getElementById('actorChecklistModal').style.display = 'none';
+    }
+
+    document.getElementById("gear").addEventListener('input', function () {
+      this.style.height = 'auto';
+      this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    let currentChecklistTarget = null; // 'grid', 'main', or 'task'
+
+    function openActorChecklist(target = 'grid', rowId = null) {
+      currentChecklistTarget = { target, rowId };
+      document.getElementById('actorChecklistModal').style.display = 'flex';
+      document.getElementById('checklistSearch').value = '';
+      renderChecklist();
+    }
+
+    function renderChecklist() {
+      const container = document.getElementById('checklistItems');
+      const search = document.getElementById('checklistSearch').value.toLowerCase();
+      container.innerHTML = '';
+
+      updateContactPool();
+      let pool = [];
+      if (currentChecklistTarget.target === 'grid') {
+        const mainActors = document.getElementById("actors").value;
+        pool = mainActors ? mainActors.split(",").map(s => s.trim()).filter(s => s) : [];
+        if (!pool.length) {
+          container.innerHTML = "<div style='padding:10px; opacity:0.6; text-align:center;'>Сначала добавьте актеров в общую ячейку 'Актеры'</div>";
+          return;
+        }
+      } else {
+        pool = [...new Set([
+          ...teamData.filter(t => t.roles && t.roles.includes('actor')).map(t => t.full_name),
+          ...currentCastingContacts.map(c => c.name),
+          ...currentMediaContacts.map(c => c.name)
+        ])].filter(n => n).sort();
+      }
+
+      let selectedStr = "";
+      if (currentChecklistTarget.target === 'grid') {
+        const row = document.querySelector(`.timing-row[data-id="${currentChecklistTarget.rowId}"]`);
+        selectedStr = row ? row.querySelector(".t-act").value : "";
+      } else if (currentChecklistTarget.target === 'main') {
+        selectedStr = document.getElementById("actors").value;
+      } else if (currentChecklistTarget.target === 'task') {
+        selectedStr = document.getElementById("t_actors").value;
+      }
+      const currentVals = selectedStr.split(",").map(s => s.trim()).filter(s => s);
+
+      pool.forEach(name => {
+        if (search && !name.toLowerCase().includes(search)) return;
+        const isChecked = currentVals.includes(name);
+        const div = document.createElement('div');
+        div.className = 'check-item';
+        div.innerHTML = `
+          <input type="checkbox" id="chk_${name}" ${isChecked ? 'checked' : ''} value="${name}">
+          <label for="chk_${name}">${name}</label>
+        `;
+        div.onclick = (e) => {
+          if (e.target.tagName !== 'INPUT') {
+            const chk = div.querySelector('input');
+            chk.checked = !chk.checked;
+          }
+        };
+        container.appendChild(div);
+      });
+    }
+
+    document.getElementById('checklistSearch').oninput = renderChecklist;
+
+    function confirmActorChecklist() {
+      const selected = Array.from(document.querySelectorAll("#checklistItems input:checked")).map(i => i.value).join(", ");
+      const { target, rowId } = currentChecklistTarget;
+
+      if (target === 'grid') {
+        const row = document.querySelector(`.timing-row[data-id="${rowId}"]`);
+        if (row) row.querySelector(".t-act").value = selected;
+      } else if (target === 'main') {
+        document.getElementById("actors").value = selected;
+        renderActorsTags();
+      } else if (target === 'task') {
+        document.getElementById("t_actors").value = selected;
+        renderTaskActorsTags();
+      }
+      closeActorChecklist();
+    }
+
+    function updateContactPool() {
+      // 1. Media Pool
+      const mProj = clientsData.find(c => c.name === f.project.value.trim());
+      currentMediaContacts = mProj ? contactsData.filter(ct => String(ct.thread_id) === String(mProj.thread_id)) : [];
+
+      // 2. Casting Pool
+      const cProj = clientsData.find(c => c.name === f.casting_project.value.trim());
+      currentCastingContacts = cProj ? contactsData.filter(ct => String(ct.thread_id) === String(cProj.thread_id)) : [];
+    }
+
+    // Contact Logic
+    const contactInput = document.getElementById('contact');
+    const contactDropdown = document.getElementById('contactDropdown');
+
+    function renderContactDropdown() {
+      const val = contactInput.value.toLowerCase();
+      contactDropdown.innerHTML = '';
+
+      let pool = currentMediaContacts;
+      let matches = val
+        ? pool.filter(c => c.name.toLowerCase().includes(val) || c.phone.includes(val))
+        : pool;
+
+      if (!matches.length) { contactDropdown.style.display = 'none'; return; }
+
+      matches.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'dropdown-item';
+        div.innerHTML = `${m.name} <small style="opacity:0.6">${m.phone}</small>`;
+        div.onclick = () => {
+          contactInput.value = `${m.name} (${m.phone})`;
+          contactDropdown.style.display = 'none';
+        }
+        contactDropdown.appendChild(div);
+      });
+      contactDropdown.style.display = 'block';
+    }
+
+    contactInput.addEventListener('input', renderContactDropdown);
+    contactInput.addEventListener('focus', () => {
+      updateContactPool();
+      renderContactDropdown();
+    });
+
+    contactInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+      updateContactPool();
+      renderContactDropdown();
+    });
+
+    // Copy Single Shoot
+    document.getElementById('copyBtn').onclick = () => {
+      const scheduleData = getTimingData();
+      const currentShoot = {
+        project: f.project.value.trim(),
+        location: f.location.value.trim(),
+        callTime: f.callTime.value,
+        wrapTime: f.wrapTime.value,
+        address: f.address.dataset.full || f.address.value.trim(),
+        contact: f.contact.value.trim(),
+        deliverables: f.deliverables.value.trim(),
+        crew: f.crew.value.trim(),
+        post_production: f.post_production.value.trim(),
+        casting_project: f.casting_project.value.trim(),
+        actors: f.actors.value.trim(),
+        schedule: JSON.stringify(scheduleData),
+        gear: f.gear.value.trim(),
+        notes: f.notes.value.trim(),
+        report_link: f.report_link.value.trim(),
+        date: toISO(selectedDate)
+      };
+
+      const txt = buildSingleShootExport(currentShoot);
+      navigator.clipboard.writeText(txt);
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      const originalBtnText = document.getElementById('copyBtn').textContent;
+      document.getElementById('copyBtn').textContent = "Скопировано!";
+      setTimeout(() => document.getElementById('copyBtn').textContent = originalBtnText, 1500);
+    };
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.input-wrap')) {
+        projDropdown.style.display = 'none';
+        tProjDropdown.style.display = 'none';
+        tCastProjDropdown.style.display = 'none';
+        locDropdown.style.display = 'none';
+        addrDropdown.style.display = 'none';
+        castDropdown.style.display = 'none';
+        contactDropdown.style.display = 'none';
+      }
+      if (!e.target.closest('.multi-select-wrap')) {
+        crewDropdown.style.display = 'none';
+        document.getElementById('postDropdown').style.display = 'none';
+        document.getElementById('actorsDropdown').style.display = 'none';
+        document.getElementById('t_actorsDropdown').style.display = 'none';
+        document.getElementById('assigneeDropdown').style.display = 'none';
+      }
+    });
+
+    // Mouseleave logic REMOVED due to UX issues (closing too fast).
+    // relying on click-outside (implemented above) for closing.
+
+    // Focus wrapper clicks
+    document.getElementById('crewWrapper').onclick = (e) => {
+      if (e.target === document.getElementById('crewWrapper')) crewInput.focus();
+    };
+
+
+
+
+
+
+
+    // 2. ЗАГРУЗКА ИЗ ОБЛАКА
+    async function loadFromCloud() {
+      const syncBtn = document.getElementById("syncBtn");
+      if (syncBtn) syncBtn.textContent = "⌛";
+
+      await fetchAutocompleteData();
+      try {
+        // Fetch Shoots
+        const shoots = await supabaseClient.from('shoots').select('*');
+        if (shoots.data) allEvents = shoots.data;
+
+        // Fetch Tasks (New)
+        const tasks = await supabaseClient.from('tasks').select('*');
+        if (tasks.data) allTasks = tasks.data;
+
+        render();
+        if (syncBtn) {
+          syncBtn.textContent = "✅";
+          setTimeout(() => syncBtn.textContent = "☁️", 1500);
+        }
+      } catch (err) {
+        console.error("Network/Other Error:", err);
+        if (syncBtn) syncBtn.textContent = "❌";
+      }
+    }
+
+    // --- TIMING GRID LOGIC ---
+    function addTimingRow(data = {}, event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const container = document.getElementById('timingRows');
+      const rowId = data.id || Date.now() + Math.random().toString(36).substr(2, 5);
+      const row = document.createElement('div');
+      row.className = 'timing-row';
+      row.dataset.id = rowId;
+      row.innerHTML = `
+        <div class="timing-cell drag-handle">
+          ${data.num ? `<span style="color:#ffcc00; font-weight:800; font-size:10px;">№${data.num}</span>` : '⋮⋮'}
+        </div>
+        <div class="timing-cell"><input type="time" class="t-start" value="${data.start || ''}"></div>
+        <div class="timing-cell"><input type="time" class="t-end" value="${data.end || ''}"></div>
+        <div class="timing-cell">
+          <input type="text" class="t-loc" value="${data.loc || ''}" placeholder="..." autocomplete="off">
+        </div>
+        <div class="timing-cell">
+          <input type="text" class="t-task" value="${data.task || ''}" placeholder="..." autocomplete="off">
+        </div>
+        <div class="timing-cell">
+          <input type="text" class="t-act" value="${data.act || ''}" placeholder="..." onclick="openActorChecklist('grid', '${rowId}')" readonly style="cursor:pointer;">
+        </div>
+        <div class="timing-cell">
+          <input type="text" class="t-notes" value="${data.notes || ''}" placeholder="...">
+        </div>
+        <div class="timing-cell">
+          <input type="text" class="t-link" value="${data.link || ''}" placeholder="..." autocomplete="off">
+        </div>
+        <div class="timing-cell" style="justify-content:center">
+          <button type="button" class="timing-del-btn" onclick="removeTimingRow(this, event)">×</button>
+        </div>
+      `;
+      container.appendChild(row);
+
+      // Attach custom dropdown logic to new row's inputs
+      setupTimingInput(row.querySelector('.t-loc'), 'loc');
+      setupTimingInput(row.querySelector('.t-task'), 'task');
+      setupTimingInput(row.querySelector('.t-link'), 'link');
+
+      setTimeout(initTimingSortable, 10);
+    }
+
+    // --- GEAR GRID LOGIC ---
+    function addGearRow(data = {}, event) {
+      if (event) event.preventDefault();
+      const row = document.createElement('div');
+      row.className = 'gear-row';
+      row.innerHTML = `
+        <div class="timing-cell">
+          <select class="g-cat">
+            <option value="Камера" ${data.cat === 'Камера' ? 'selected' : ''}>Камера</option>
+            <option value="Оптика" ${data.cat === 'Оптика' ? 'selected' : ''}>Оптика</option>
+            <option value="Свет" ${data.cat === 'Свет' ? 'selected' : ''}>Свет</option>
+            <option value="Звук" ${data.cat === 'Звук' ? 'selected' : ''}>Звук</option>
+            <option value="Другое" ${data.cat === 'Другое' ? 'selected' : ''}>Другое</option>
+          </select>
+        </div>
+        <div class="timing-cell"><input type="text" class="g-model" value="${data.model || ''}" placeholder="Модель..."></div>
+        <div class="timing-cell"><input type="number" class="g-qty" value="${data.qty || 1}" style="text-align:center;"></div>
+        <div class="timing-cell"><input type="text" class="g-note" value="${data.note || ''}" placeholder="..."></div>
+        <div class="timing-cell" style="text-align:center;">
+          <button type="button" class="timing-del-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+      `;
+      document.getElementById('gearRows').appendChild(row);
+    }
+
+    // --- EXCEL LOGIC ---
+    function exportShootToExcel(event) {
+      const e = {
+        project: document.getElementById("project").value,
+        location: document.getElementById("location").value,
+        date: document.getElementById("selectedLabel").textContent,
+        callTime: document.getElementById("callTime").value,
+        wrapTime: document.getElementById("wrapTime").value,
+        address: document.getElementById("address").value,
+        contact: document.getElementById("contact").value,
+        deliverables: document.getElementById("deliverables").value,
+        notes: document.getElementById("notes").value,
+        crew: document.getElementById("crew").value,
+        actors: document.getElementById("actors").value,
+      };
+
+      const timing = [];
+      document.querySelectorAll("#timingRows .timing-row").forEach(row => {
+        timing.push({
+          START: row.querySelector(".t-start").value,
+          END: row.querySelector(".t-end").value,
+          LOC: row.querySelector(".t-loc").value,
+          TASK: row.querySelector(".t-task").value,
+          ACTORS: row.querySelector(".t-act").value,
+          NOTES: row.querySelector(".t-notes").value,
+          LINK: row.querySelector(".t-link") ? row.querySelector(".t-link").value : ''
+        });
+      });
+
+      const gear = [];
+      document.querySelectorAll("#gearRows .gear-row").forEach(row => {
+        gear.push({
+          CAT: row.querySelector(".g-cat").value,
+          MODEL: row.querySelector(".g-model").value,
+          QTY: row.querySelector(".g-qty").value,
+          NOTES: row.querySelector(".g-note").value
+        });
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      // --- Helper: add borders + col widths to a sheet ---
+      function formatSheet(ws, colWidths) {
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+        const border = {
+          top: { style: 'thin', color: { rgb: '999999' } },
+          bottom: { style: 'thin', color: { rgb: '999999' } },
+          left: { style: 'thin', color: { rgb: '999999' } },
+          right: { style: 'thin', color: { rgb: '999999' } }
+        };
+        for (let R = range.s.r; R <= range.e.r; R++) {
+          for (let C = range.s.c; C <= range.e.c; C++) {
+            const addr = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+            if (!ws[addr].s) ws[addr].s = {};
+            ws[addr].s.border = border;
+            // Bold header row
+            if (R === 0) {
+              ws[addr].s.font = { bold: true, sz: 12 };
+              ws[addr].s.fill = { fgColor: { rgb: 'E8E8E8' } };
+            }
+            ws[addr].s.alignment = { vertical: 'center', wrapText: true };
+          }
+        }
+        if (colWidths) ws['!cols'] = colWidths.map(w => ({ wch: w }));
+      }
+
+      // ИНФО sheet
+      const infoData = [
+        ["ПОЛЕ", "ЗНАЧЕНИЕ"],
+        ["ПРОЕКТ", e.project], ["ДАТА", e.date], ["ЛОКАЦИЯ", e.location],
+        ["АДРЕС", e.address], ["КОНТАКТ", e.contact], ["CALL", e.callTime], ["WRAP", e.wrapTime],
+        [""], ["ТЗ", e.deliverables], ["ПРИМЕЧАНИЯ", e.notes], ["КОМАНДА", e.crew], ["АКТЕРЫ", e.actors]
+      ];
+      const wsInfo = XLSX.utils.aoa_to_sheet(infoData);
+      formatSheet(wsInfo, [16, 50]);
+      XLSX.utils.book_append_sheet(wb, wsInfo, "ИНФО");
+
+      // ТАЙМИНГ sheet
+      if (timing.length) {
+        const wsTiming = XLSX.utils.json_to_sheet(timing);
+        formatSheet(wsTiming, [10, 10, 18, 22, 18, 22, 30]);
+        XLSX.utils.book_append_sheet(wb, wsTiming, "ТАЙМИНГ");
+      }
+
+      // ТЕХНИКА sheet
+      if (gear.length) {
+        const wsGear = XLSX.utils.json_to_sheet(gear);
+        formatSheet(wsGear, [14, 30, 8, 25]);
+        XLSX.utils.book_append_sheet(wb, wsGear, "ТЕХНИКА");
+      }
+
+      const fileName = `Shoot_${e.project.replace(/\s+/g, '_')}_${e.date.replace(/[^\d.]/g, '')}.xlsx`;
+
+      // 1. Try local download (might be blocked in TG browser)
+      try { XLSX.writeFile(wb, fileName); } catch (ex) { console.warn("Local DL failed", ex); }
+
+      // 2. Telegram Send (Reliable)
+      const base64Data = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+      const exportBtn = (event && event.target) ? (event.target.tagName === 'BUTTON' ? event.target : event.target.closest('button')) : null;
+
+      if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = "⌛...";
+      }
+
+      fetch('https://media-seven-eta.vercel.app/api/send_excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_name: e.project,
+          filename: fileName,
+          base64_data: base64Data
+        })
+      })
+        .then(res => res.json())
+        .then(res => {
+          if (res.status === 'ok') {
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            if (exportBtn) {
+              exportBtn.innerHTML = "✅ В ТГ";
+              setTimeout(() => { exportBtn.innerHTML = "📊 Excel"; exportBtn.disabled = false; }, 2000);
+            }
+          } else {
+            alert("Ошибка TG: " + res.error);
+            if (exportBtn) { exportBtn.innerHTML = "❌"; exportBtn.disabled = false; }
+          }
+        })
+        .catch(err => {
+          console.error("Fetch Error:", err);
+          if (exportBtn) { exportBtn.innerHTML = "⚠️"; exportBtn.disabled = false; }
+        });
+    }
+
+    function triggerExcelImport() { document.getElementById('excelFileInput').click(); }
+
+    function openTimer() {
+      const project = document.getElementById('project').value.trim() || 'Проект';
+
+      // Try to get IDs from URL params (fallback if TG data is hidden)
+      const urlParams = new URL(window.location.href).searchParams;
+      const urlCid = urlParams.get('cid');
+      const urlTid = urlParams.get('tid');
+
+      // Get from Telegram initData
+      const tgCid = tg?.initDataUnsafe?.chat?.id;
+      const tgTid = tg?.initDataUnsafe?.chat?.thread_id;
+
+      const chatId = tgCid || urlCid || '';
+      const threadId = tgTid || urlTid || '';
+
+      // Determine the project-based ID (fallback PID)
+      // If we have a selectedId, we might be able to pull more stable info, 
+      // but for now project name + chat info is our best bet.
+      const pid = chatId ? `${chatId}_${threadId || '0'}` : project.replace(/\s/g, '_');
+
+      const params = new URLSearchParams({
+        pid: pid,
+        proj: project,
+        cid: String(chatId),
+        tid: String(threadId)
+      });
+
+      const timerUrl = `timer.html?${params.toString()}`;
+      window.location.href = timerUrl;
+    }
+
+    function handleExcelImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        const data = new Uint8Array(re.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+
+        const wsInfo = wb.Sheets["ИНФО"];
+        if (wsInfo) {
+          const info = XLSX.utils.sheet_to_json(wsInfo, { header: 1 });
+          info.forEach(r => {
+            if (!r[0]) return;
+            const k = r[0].toString().toUpperCase(); const v = r[1] || "";
+            if (k === "ПРОЕКТ") document.getElementById("project").value = v;
+            if (k === "ЛОКАЦИЯ") document.getElementById("location").value = v;
+            if (k === "АДРЕС") document.getElementById("address").value = v;
+            if (k === "КОНТАКТ") document.getElementById("contact").value = v;
+            if (k === "CALL") document.getElementById("callTime").value = v;
+            if (k === "WRAP") document.getElementById("wrapTime").value = v;
+            if (k === "ТЗ") document.getElementById("deliverables").value = v;
+            if (k === "ПРИМЕЧАНИЯ") document.getElementById("notes").value = v;
+            if (k === "КОМАНДА") { document.getElementById("crew").value = v; renderCrewTags(); }
+            if (k === "АКТЕРЫ") { document.getElementById("actors").value = v; renderActorsTags(); }
+          });
+        }
+        const wsTiming = wb.Sheets["ТАЙМИНГ"];
+        if (wsTiming) {
+          const rows = XLSX.utils.sheet_to_json(wsTiming);
+          document.getElementById('timingRows').innerHTML = '';
+          rows.forEach(r => addTimingRow({ start: r.START || '', end: r.END || '', loc: r.LOC || '', task: r.TASK || '', act: r.ACTORS || '', notes: r.NOTES || '', link: r.LINK || '' }));
+        }
+        const wsGear = wb.Sheets["ТЕХНИКА"];
+        if (wsGear) {
+          const rows = XLSX.utils.sheet_to_json(wsGear);
+          document.getElementById('gearRows').innerHTML = '';
+          rows.forEach(r => addGearRow({ cat: r.CAT, model: r.MODEL, qty: r.QTY, note: r.NOTES }));
+        }
+        alert("Excel импортирован!");
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function setupTimingInput(input, type) {
+      const dropdown = document.getElementById('timingDropdown');
+
+      const render = () => {
+        const val = input.value.toLowerCase();
+        let options = [];
+
+        if (type === 'loc') {
+          // Parse data from locationOptions datalist
+          options = Array.from(document.querySelectorAll('#locationOptions option')).map(o => o.value);
+        } else if (type === 'task') {
+          options = Array.from(document.querySelectorAll('#taskOptions option')).map(o => o.value);
+        } else if (type === 'link') {
+          options = Array.from(document.querySelectorAll('#linkOptions option')).map(o => o.value);
+        }
+
+        const matches = val ? options.filter(o => o.toLowerCase().includes(val)) : options;
+
+        if (!matches.length) { dropdown.style.display = 'none'; return; }
+
+        dropdown.innerHTML = '';
+        matches.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'dropdown-item';
+          div.style.fontSize = '11px';
+          div.style.padding = '8px 10px';
+          div.textContent = m;
+          div.onclick = (e) => {
+            e.stopPropagation();
+            input.value = m;
+            dropdown.style.display = 'none';
+            // Trigger preview update
+            const preview = document.getElementById('preview');
+            if (preview) preview.innerHTML = buildExportText(true);
+          };
+          dropdown.appendChild(div);
+        });
+
+        // Position dropdown (it's fixed, so use viewport coords)
+        const rect = input.getBoundingClientRect();
+        dropdown.style.left = rect.left + 'px';
+        dropdown.style.top = rect.bottom + 'px';
+        dropdown.style.width = rect.width + 'px';
+        dropdown.style.display = 'block';
+      };
+
+      input.onfocus = render;
+      input.oninput = render;
+      input.onclick = (e) => { e.stopPropagation(); render(); };
+    }
+
+    // Close timing dropdown on body click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.t-loc, .t-task, .t-link, #timingDropdown')) {
+        document.getElementById('timingDropdown').style.display = 'none';
+      }
+    });
+
+    let timingSortable = null;
+    let originalTimeSlots = [];
+
+    function initTimingSortable() {
+      const container = document.getElementById('timingRows');
+      if (!container) return;
+      if (timingSortable) timingSortable.destroy();
+
+      timingSortable = Sortable.create(container, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        dragClass: 'sortable-drag',
+        onStart: () => {
+          // Capture current times at their fixed indices
+          const rows = Array.from(container.querySelectorAll('.timing-row'));
+          originalTimeSlots = rows.map(r => ({
+            start: r.querySelector('.t-start').value,
+            end: r.querySelector('.t-end').value
+          }));
+        },
+        onEnd: () => {
+          const rows = Array.from(container.querySelectorAll('.timing-row'));
+          // Re-apply original times to the rows based on their NEW index
+          // so that the 1st row always has the 1st time slot, etc.
+          rows.forEach((row, i) => {
+            if (originalTimeSlots[i]) {
+              row.querySelector('.t-start').value = originalTimeSlots[i].start;
+              row.querySelector('.t-end').value = originalTimeSlots[i].end;
+            }
+          });
+          // Update preview immediately
+          const preview = document.getElementById('preview');
+          if (preview) preview.innerHTML = buildExportText(true);
+        }
+      });
+    }
+
+    function getTimingData() {
+      const rows = document.querySelectorAll('#timingRows .timing-row');
+      const data = [];
+      let taskCounter = 0;
+      const techTasks = ['подготовка', 'перестановка', 'перерыв', 'обед', 'тех. перерыв', 'переезд'];
+
+      rows.forEach(row => {
+        const start = row.querySelector('.t-start').value;
+        const end = row.querySelector('.t-end').value;
+        const loc = row.querySelector('.t-loc').value;
+        const task = row.querySelector('.t-task').value;
+        const act = row.querySelector('.t-act').value;
+        const notes = row.querySelector('.t-notes').value;
+        const link = row.querySelector('.t-link').value;
+
+        if (start || end || loc || task || act || notes || link) {
+          let num = null;
+          const taskLower = (task || '').trim().toLowerCase();
+
+          if (taskLower && !techTasks.includes(taskLower)) {
+            taskCounter++;
+            num = taskCounter;
+          }
+
+          data.push({ start, end, loc, task, act, notes, link, num });
+        }
+      });
+      return data;
+    }
+
+    function getGearData() {
+      const rows = document.querySelectorAll('#gearRows .gear-row');
+      const data = [];
+      rows.forEach(row => {
+        const cat = row.querySelector('.g-cat').value;
+        const model = row.querySelector('.g-model').value.trim();
+        const qty = row.querySelector('.g-qty').value;
+        const note = row.querySelector('.g-note').value.trim();
+        if (model) {
+          data.push({ cat, model, qty, note });
+        }
+      });
+      return data;
+    }
+
+    function removeTimingRow(btn, event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      btn.closest('.timing-row').remove();
+      const preview = document.getElementById('preview');
+      if (preview) preview.innerHTML = buildExportText(true);
+    }
+
+    function setTimingData(raw) {
+      const container = document.getElementById('timingRows');
+      container.innerHTML = '';
+      try {
+        const data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          data.forEach(d => addTimingRow(d));
+        }
+      } catch (e) {
+        // Fallback for old text-based schedule
+        if (raw) addTimingRow({ task: raw });
+      }
+      // Ensure at least 4 rows for new or empty
+      while (container.children.length < 4) {
+        addTimingRow();
+      }
+    }
+
+    function setGearData(raw) {
+      const container = document.getElementById('gearRows');
+      container.innerHTML = '';
+      if (!raw) {
+        addGearRow(); return;
+      }
+      try {
+        const data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          data.forEach(d => addGearRow(d));
+        } else if (raw.trim()) {
+          // Migration for old plain text
+          addGearRow({ cat: 'Другое', model: raw.trim(), qty: 1 });
+        }
+      } catch (e) {
+        // Fallback or migration
+        if (raw.trim()) addGearRow({ cat: 'Другое', model: raw.trim(), qty: 1 });
+      }
+      if (container.children.length === 0) addGearRow();
+    }
+
+    // 3. СОХРАНЕНИЕ В ОБЛАКО
+    document.getElementById("form").onsubmit = async (ev) => {
+      ev.preventDefault();
+      await saveShootData();
+    };
+
+    async function saveShootData(isAutoSave = false) {
+      const scheduleData = getTimingData();
+      const gearData = getGearData();
+      const payload = {
+        id: selectedId || Math.random().toString(36).substring(2, 15),
+        date: toISO(selectedDate),
+        project: f.project.value.trim(),
+        location: f.location.value.trim(),
+        callTime: f.callTime.value,
+        wrapTime: f.wrapTime.value,
+        address: f.address.dataset.full || f.address.value.trim(),
+        contact: f.contact.value.trim(),
+        deliverables: f.deliverables.value.trim(),
+        crew: f.crew.value.trim(),
+        post_production: f.post_production.value.trim(),
+        casting_project: f.casting_project.value.trim(),
+        actors: f.actors.value.trim(),
+        schedule: JSON.stringify(scheduleData),
+        gear: JSON.stringify(gearData),
+        notes: f.notes.value.trim(),
+        report_link: f.report_link.value.trim(),
+        status: 'pending'
+      };
+
+      if (selectedId) {
+        const existing = allEvents.find(e => e.id === selectedId);
+        if (existing) payload.status = existing.status;
+      }
+
+      const saveBtn = document.querySelector('#form button[type="submit"]');
+      if (saveBtn) saveBtn.innerHTML = '⏳...';
+
+      const { error } = await supabaseClient.from('shoots').upsert(payload);
+      if (!error) {
+        if (!selectedId) selectedId = payload.id;
+        if (tg && tg.HapticFeedback && !isAutoSave) tg.HapticFeedback.notificationOccurred('success');
+        if (saveBtn) {
+          saveBtn.innerHTML = '✅';
+          setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
+        }
+        if (!isAutoSave) {
+          toggleForm(false);
+          await loadFromCloud();
+        } else {
+          // Silently update local cache
+          const idx = allEvents.findIndex(e => e.id === payload.id);
+          if (idx >= 0) Object.assign(allEvents[idx], payload);
+          else allEvents.push(payload);
+          render();
+        }
+      } else {
+        if (saveBtn) { saveBtn.innerHTML = '❌'; setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 2000); }
+      }
+    }
+
+    // --- AUTOSAVE ---
+    let autoSaveTimer = null;
+    function triggerAutoSave() {
+      if (!selectedId) return; // Only autosave existing shoots
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => saveShootData(true), 1500);
+    }
+
+    // Attach autosave to all form fields
+    document.getElementById('form').addEventListener('input', triggerAutoSave);
+    document.getElementById('form').addEventListener('change', triggerAutoSave);
+
+    // 4. УДАЛЕНИЕ
+    document.getElementById("deleteBtn").onclick = async () => {
+      if (!selectedId || !confirm("Удалить съемку?")) return;
+      const { error } = await supabaseClient.from('shoots').delete().eq('id', selectedId);
+      if (!error) {
+        toggleForm(false);
+        await loadFromCloud();
+      }
+    };
+
+    // STATUS TOGGLE & RESCHEDULE
+    async function toggleStatus(id, newStatus) {
+      // Optimistic update
+      const ev = allEvents.find(e => e.id === id);
+      if (ev) ev.status = newStatus;
+      render();
+
+      const { error } = await supabaseClient.from('shoots').update({ status: newStatus }).eq('id', id);
+      if (error) await loadFromCloud(); // Revert on error
+    }
+
+    async function rescheduleTask(id) {
+      const reason = prompt("Причина переноса?");
+      if (!reason) return;
+
+      // Simple prompt for new date (mockup flow, ideally a date picker)
+      // For now, just open the form and let user pick date, but pre-fill note
+      const ev = allEvents.find(e => e.id === id);
+      if (!ev) return;
+
+      selectedId = id;
+      // Populate form
+      f.project.value = ev.project; f.location.value = ev.location;
+      f.callTime.value = ev.callTime; f.wrapTime.value = ev.wrapTime;
+      f.address.value = ev.address; f.contact.value = ev.contact;
+      f.deliverables.value = ev.deliverables; f.crew.value = ev.crew;
+      f.schedule.value = ev.schedule; f.gear.value = ev.gear;
+      // Append reason to notes
+      f.notes.value = (ev.notes ? ev.notes + "\n" : "") + `[Перенос с ${ev.date}: ${reason}]`;
+
+      document.getElementById("deleteBtn").style.display = "block";
+      toggleForm(true);
+      // User manually changes date and saves
+      alert("Выберите новую дату и нажмите Сохранить");
+    }
+
+    // 5. ЛОГИКА КАЛЕНДАРЯ
+    function render() {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+      const today = new Date();
+
+      document.getElementById("monthLabel").textContent = monthName(currentMonth);
+      document.getElementById("selectedLabel").textContent = `${niceDate(selectedDate)} (${weekday(selectedDate)})`;
+
+      const monEvents = allEvents.filter(e => {
+        const d = new Date(e.date);
+        return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
+      });
+
+      // Calculate Stats
+      const done = monEvents.filter(e => e.status === 'done').length;
+      const pending = monEvents.filter(e => e.status === 'pending').length;
+      const overdue = monEvents.filter(e => e.status === 'overdue').length;
+
+      // Update Header with Icons
+      const statHtml = `
+        <span style="color:#4cd964">✅ ${done}</span>
+        <span style="color:#ffcc00; margin-left:8px">🟡 ${pending}</span>
+        <span style="color:#ff3b30; margin-left:8px">🔥 ${overdue}</span>
+      `;
+      document.getElementById("monthStat").innerHTML = statHtml;
+
+      const first = startMonth(currentMonth);
+      const offset = (first.getDay() + 6) % 7;
+      const start = new Date(first);
+      start.setDate(first.getDate() - offset);
+
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const iso = toISO(d);
+
+        // Dot Logic (Shoots)
+        const dayEvents = allEvents.filter(e => e.date === iso);
+        let dotsHtml = "";
+        dayEvents.forEach(e => {
+          const st = getStatus(e);
+          dotsHtml += `<div class="dot ${st}"></div>`;
+        });
+
+        // Line Logic (Tasks)
+        const dayTasks = allTasks.filter(t => {
+          if (t.status === 'done') return false;
+          if (!t.deadline) return false;
+
+          // Startdate: created_at or fallback to deadline if missing
+          // We want to show line from start to deadline
+          // If created_at is missing, we assume it's a single day task (deadline)
+          let start = t.created_at ? t.created_at.split('T')[0] : t.deadline;
+          if (start > t.deadline) start = t.deadline; // Safety
+
+          return iso >= start && iso <= t.deadline;
+        });
+
+        let linesHtml = "";
+        if (dayTasks.length > 0) {
+          linesHtml += `<div class="task-lines">`;
+          dayTasks.forEach(t => {
+            const start = t.created_at ? t.created_at.split('T')[0] : t.deadline;
+            const isStart = (start === iso);
+            const isEnd = (t.deadline === iso);
+
+            // Style for rounded ends
+            let style = '';
+
+            // GRADIENT COLOR CALCULATION
+            const startDate = new Date(start);
+            const endDate = new Date(t.deadline);
+            const currDate = new Date(iso);
+
+            // Total duration in ms
+            const total = endDate - startDate;
+            // Elapsed in ms
+            const elapsed = currDate - startDate;
+
+            // Ratio (0 to 1)
+            let ratio = 0;
+            if (total > 0) ratio = Math.max(0, Math.min(1, elapsed / total));
+
+            // Interpolate color from #FFCC00 (Yellow) to #FF3B30 (Red)
+            // Yellow: 255, 204, 0
+            // Red:    255, 59,  48
+            const r = Math.round(255 + ratio * (255 - 255));
+            const g = Math.round(204 + ratio * (59 - 204));
+            const b = Math.round(0 + ratio * (48 - 0));
+            const color = `rgb(${r}, ${g}, ${b})`;
+
+            // Apply styles
+            if (isStart && isEnd) { style = 'border-radius: 2px; margin: 0 2px;'; }
+            else if (isStart) { style = 'border-radius: 2px 0 0 2px; margin-right:-4px;'; }
+            else if (isEnd) { style = 'border-radius: 0 2px 2px 0; margin-left:-4px;'; }
+            else { style = 'border-radius: 0; margin: 0 -4px;'; }
+
+            const stClass = (t.deadline < todayISO) ? 'overdue' : 'pending';
+
+            // Override background color if pending/overdue (completed is green usually, but let's stick to gradient for active)
+            if (t.status !== 'done') {
+              style += ` background-color: ${color} !important;`;
+            }
+
+            linesHtml += `<div class="task-line ${stClass}" style="${style}"></div>`;
+          });
+          linesHtml += `</div>`;
+        }
+
+        // Highlight Logic
+        const isPast = iso < todayISO;
+        const hasPendingShoot = dayEvents.some(e => getStatus(e) === 'pending');
+
+        const cell = document.createElement("div");
+        let cellClasses = "day" + (d.getMonth() !== currentMonth.getMonth() ? " out" : "") + (iso === toISO(selectedDate) ? " sel" : "") + (iso === toISO(today) ? " today" : "");
+        if (hasPendingShoot) cellClasses += " has-pending";
+
+        cell.className = cellClasses;
+
+        // Gray out past days numbers
+        const numStyle = isPast ? 'style="color:#444;"' : '';
+
+        cell.innerHTML = `<div class="num" ${numStyle}><span>${d.getDate()}</span></div><div class="dots">${dotsHtml}</div>${linesHtml}`;
+        cell.onclick = () => {
+          selectedDate = d;
+          selectedId = null;
+          selectedTaskId = null; // Clear Task editing state too
+          toggleForm(false);
+          document.getElementById('taskForm').style.display = 'none';
+          render();
+        };
+        grid.appendChild(cell);
+      }
+
+      // Список проектов дня (Shoots + Tasks)
+      const listDiv = document.getElementById("eventList");
+      const dayShoots = allEvents.filter(e => e.date === toISO(selectedDate)).sort((a, b) => a.callTime.localeCompare(b.callTime));
+      const dayTasksList = allTasks.filter(t => t.deadline === toISO(selectedDate)); // Show done too? Maybe.
+
+      let html = "";
+      if (!dayShoots.length && !dayTasksList.length) html = '<div class="item" style="color:gray">Нет событий</div>';
+
+      // Render Shoots
+      dayShoots.forEach(e => {
+        const st = getStatus(e);
+        // ... (Buttons logic same as before)
+        let buttons = "";
+        if (st === 'pending' || st === 'overdue') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'done')">✅</button>`;
+        if (st === 'done') buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'pending')">↩️</button>`;
+        if (st === 'overdue') buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); rescheduleTask('${e.id}')">📅</button>`;
+
+        html += `
+            <div class="item ${st}" onclick="editShoot('${e.id}')">
+                <div class="item-content">
+                    <b>${e.project || "Без названия"}</b><br>
+                    <small>🎥 ${e.callTime || "--:--"}—${e.wrapTime || "--:--"} • ${e.location || ""}</small><br>
+                    ${e.crew ? `<small style="opacity:0.7">👥 ${e.crew}</small><br>` : ''}
+                    ${e.post_production ? `<small style="color:var(--accent)">✂️ ${e.post_production}</small>` : ''}
+                </div>
+                <div class="item-actions">${buttons}</div>
+            </div>
+        `;
+      });
+
+      // Render Tasks
+      dayTasksList.forEach(t => {
+        const st = t.status === 'done' ? 'done' : (t.deadline < todayISO ? 'overdue' : 'pending');
+        // Task Buttons
+        let buttons = "";
+        if (t.status !== 'done') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'done')">✅</button>`;
+        else buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'pending')">↩️</button>`;
+        buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); deleteTask('${t.id}')">🗑</button>`;
+
+        html += `
+            <div class="item ${st}" style="border-left: 2px solid ${st === 'done' ? '#4cd964' : '#ffcc00'};" onclick="editTask('${t.id}')">
+                <div class="item-content">
+                    <b>${t.title}</b><br>
+                    <small>📌 ${t.project ? t.project + ' • ' : ''}${t.type}</small>
+                </div>
+                <div class="item-actions">${buttons}</div>
+            </div>
+         `;
+      });
+
+      listDiv.innerHTML = html;
+      document.getElementById("preview").innerHTML = buildExportText(true);
+    }
+
+    // Helper to edit shoot (since we construct HTML string)
+    function editShoot(id) {
+      const e = allEvents.find(x => x.id === id);
+      if (!e) return;
+      selectedId = e.id;
+      f.project.value = e.project || '';
+      f.location.value = e.location || '';
+      f.callTime.value = e.callTime || '';
+      f.wrapTime.value = e.wrapTime || '';
+      f.address.value = e.address && e.address.includes(' | ') ? e.address.split(' | ')[0] : (e.address || '');
+      f.address.dataset.full = e.address || '';
+      f.contact.value = e.contact || '';
+      f.deliverables.value = e.deliverables || '';
+      f.crew.value = e.crew || '';
+      f.post_production.value = e.post_production || '';
+      f.casting_project.value = e.casting_project || '';
+      f.actors.value = e.actors || '';
+      f.schedule.value = e.schedule || '';
+      setTimingData(e.schedule || '');
+      f.gear.value = e.gear || '';
+      setGearData(e.gear || '');
+      f.notes.value = e.notes || '';
+      f.report_link.value = e.report_link || '';
+      updateDatalists(); // Refresh autocomplete for timing grid
+      renderCrewTags();
+      renderPostTags();
+      renderActorsTags();
+      document.getElementById("deleteBtn").style.display = "block";
+      toggleForm(true);
+    }
+
+    // ... (rest of helper functions: buildExportText, toggleForm, etc.) ...
+
+    // STARTUP
+    function buildSingleShootExport(e, i = null, isHtml = false, fullDetails = true) {
+      const hlL = (txt, html) => html ? `<span class="hl-label">${txt}</span>` : txt;
+      const hlT = (txt, html) => html ? `<span class="hl-time">${txt}</span>` : txt;
+
+      const stat = getStatus(e) === 'done' ? '✅ ' : '';
+      const studioAddress = "Comfort Residencies, Улица Иванилова, 63з";
+      const studioLink = "https://go.2gis.com/bd4n9";
+      let displayAddr = e.address || '';
+
+      if (displayAddr.includes(' | ')) {
+        const parts = displayAddr.split(' | ');
+        displayAddr = (parts[0] === studioAddress) ? `[${studioAddress}](${studioLink})` : `[${parts[0]}](${parts[1]})`;
+      } else if (displayAddr.includes("Иванилова, 63з") || displayAddr === studioAddress) {
+        displayAddr = `[${studioAddress}](${studioLink})`;
+      }
+
+      const shiftTime = `${e.callTime || '--:--'}—${e.wrapTime || '--:--'}`;
+      let lines = [];
+      const header = i !== null ? `🎥 ${hlL(`ПРОЕКТ #${i + 1}`, isHtml)}` : `🎥 ${hlL(e.project || 'ПРОЕКТ', isHtml)}`;
+
+      lines.push(`${stat}${header}`);
+      if (i !== null) lines.push(`${hlL('ПРОЕКТ:', isHtml)} ${e.project}`);
+      lines.push(`${hlL('СМЕНА:', isHtml)} ${hlT(shiftTime, isHtml)}`);
+      lines.push(`${hlL('ЛОКАЦИЯ:', isHtml)} ${e.location}`);
+      lines.push(`${hlL('АДРЕС:', isHtml)} ${displayAddr}`);
+      lines.push(`${hlL('КОМАНДА:', isHtml)} ${e.crew}`);
+
+      if (e.post_production) lines.push(`${hlL('ПОСТ/МОНТАЖ:', isHtml)} ${e.post_production}`);
+      if (e.casting_project || e.actors) {
+        lines.push(`${hlL('КАСТИНГ:', isHtml)} ${e.casting_project || '—'}`);
+        if (e.actors) lines.push(`${hlL('🎬 АКТЕРЫ:', isHtml)} ${e.actors}`);
+      }
+
+      if (fullDetails && e.schedule) {
+        try {
+          const sch = JSON.parse(e.schedule);
+          if (Array.isArray(sch) && sch.some(r => r.start || r.task || r.loc || r.act || r.link)) {
+            lines.push(`\n${hlL('🕒 ТАЙМИНГ:', isHtml)}`);
+            sch.forEach(row => {
+              const timeStr = row.start ? (row.end ? `${row.start}—${row.end}` : row.start) : '';
+              const task = row.task || '';
+              const obj = row.loc ? ` (${row.loc})` : '';
+              const acts = row.act ? ` — 👤 ${row.act}` : '';
+              const link = row.link ? ` [🔗](${row.link})` : '';
+              const num = row.num ? `№${row.num} ` : '';
+              if (timeStr || task || obj || row.act || row.link) {
+                lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${num}${task}${obj}${acts}${link}`);
+              }
+            });
+          }
+        } catch (ex) { }
+      }
+
+      if (fullDetails && e.deliverables) lines.push(`\n${hlL('📝 ЗАДАЧИ:', isHtml)}\n${e.deliverables}`);
+      if (e.gear) {
+        try {
+          const gd = JSON.parse(e.gear);
+          if (Array.isArray(gd) && gd.length > 0) {
+            lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}`);
+            gd.forEach(g => {
+              lines.push(`  • ${g.cat}: ${g.model}${g.qty > 1 ? ` (x${g.qty})` : ''}${g.note ? ` — ${g.note}` : ''}`);
+            });
+          } else if (typeof e.gear === 'string' && e.gear.trim()) {
+            lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}\n${e.gear}`);
+          }
+        } catch (ex) {
+          if (e.gear && e.gear.trim()) lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}\n${e.gear}`);
+        }
+      }
+      if (e.notes) lines.push(`\n${hlL('⚠️ ИНФО:', isHtml)}\n${e.notes}`);
+      if (e.contact) lines.push(`${hlL('📞 КОНТАКТ:', isHtml)} ${e.contact}`);
+      if (e.report_link) lines.push(`${hlL('📊 ОТЧЕТ:', isHtml)} ${e.report_link}`);
+
+      return lines.join("\n");
+    }
+
+    function buildExportText(isHtml = false) {
+      const list = allEvents.filter(e => e.date === toISO(selectedDate));
+      if (!list.length) return "Смен нет.";
+
+      let lines = [`📅 **СЪЁМОЧНЫЙ ДЕНЬ — ${niceDate(selectedDate)}**`];
+      list.forEach((e, i) => {
+        lines.push(`\n— — — — — — — — —\n`);
+        lines.push(buildSingleShootExport(e, i, isHtml, false)); // No details in daily export
+      });
+      return lines.join("\n");
+    }
+
+    function toggleForm(show) {
+      const form = document.getElementById("form");
+      const btn = document.getElementById("newBtn");
+
+      if (show === undefined) show = (form.style.display === "none");
+
+      form.style.display = show ? "grid" : "none";
+      btn.textContent = show ? "Свернуть" : "Новая";
+
+      if (show) {
+        if (selectedId === null) {
+          form.reset();
+          f.address.dataset.full = '';
+          setTimingData('');
+          setGearData('');
+          renderCrewTags();
+          renderPostTags();
+          renderActorsTags();
+          document.getElementById("deleteBtn").style.display = "none";
+        }
+        form.scrollIntoView({ behavior: "smooth" });
+      } else {
+        selectedId = null;
+        form.reset();
+        f.address.dataset.full = '';
+        setTimingData('');
+        setGearData('');
+        renderCrewTags();
+        renderPostTags();
+        renderActorsTags();
+      }
+      updateDatalists();
+    }
+
+    function moveMonth(n) { currentMonth.setMonth(currentMonth.getMonth() + n); render(); }
+    document.getElementById("prevBtn").onclick = () => moveMonth(-1);
+    document.getElementById("nextBtn").onclick = () => moveMonth(1);
+    document.getElementById("todayBtn").onclick = () => { selectedDate = new Date(); currentMonth = startMonth(selectedDate); render(); };
+    document.getElementById("newBtn").onclick = () => toggleForm();
+    document.getElementById("copyDayBtn").onclick = () => { navigator.clipboard.writeText(buildExportText(false)); alert("Скопировано!"); };
+
+    // Init
+    document.getElementById("form").style.display = "none";
+    render();
+    // 2. ЗАГРУЗКА ИЗ ОБЛАКА
+    async function loadFromCloud() {
+      await fetchAutocompleteData();
+      try {
+        // Fetch Shoots
+        const shoots = await supabaseClient.from('shoots').select('*');
+        if (shoots.data) allEvents = shoots.data;
+
+        // Fetch Tasks
+        const tasks = await supabaseClient.from('tasks').select('*');
+        if (tasks.data) allTasks = tasks.data;
+
+        render();
+        updateContactPool();
+
+      } catch (err) { console.error("Network/Other Error:", err); }
+    }
+
+    loadFromCloud();
+  </script>
+</body>
+
+</html>
