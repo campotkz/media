@@ -26,8 +26,7 @@ app = Flask(__name__)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Version indicator for debugging
-VERSION = "1.5.4 (Fix Links)" 
-
+VERSION = "1.5.5 (Final Link Fix)"
 def format_casting_message(data, is_selected=False):
     """
     Generates the HTML message body for a casting application.
