@@ -572,7 +572,7 @@ def handle_app_select_callback(call):
         for row in markup.keyboard:
             for btn in row:
                 if btn.callback_data == call.data:
-                    btn.text = "✅ ВЫБРАН" if new_status else "✅ ВЫБРАТЬ"
+                    btn.text = "✅ ВЫБРАН" if new_status else "ВЫБРАТЬ"
         
         try:
             bot.edit_message_text(new_text, cid, call.message.message_id, reply_markup=markup, parse_mode="HTML")
@@ -1331,22 +1331,19 @@ def handle_actor_update_link(message):
         link = f"https://campotkz.github.io/media/update.html?id={app_data['id']}&type={update_type}"
         
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton(text="📥 ЗАГРУЗИТЬ МАТЕРИАЛЫ", url=link))
+        markup.add(types.InlineKeyboardButton(text=f"📥 ДОБАВИТЬ {'ФОТО' if update_type == 'photo' else 'ВИДЕО'}", url=link))
         
         type_text = "фотографии" if update_type == 'photo' else "видео-визитку"
         msg = (
             f"👤 **АКТЕР:** {app_data['full_name']}\n"
-            f"🔗 **ССЫЛКА ДЛЯ ОБНОВЛЕНИЯ:**\n\n"
-            f"Скопируйте и отправьте актеру:\n"
+            f"📱 **ТЕЛЕФОН:** {app_data['phone']}\n\n"
+            f"🔗 **ССЫЛКА ДЛЯ ЗАГРУЗКИ:**\n"
             f"`{link}`\n\n"
-            f"По этой ссылке он сможет загрузить дополнительные {type_text}. "
-            f"После загрузки анкета в чате обновится автоматически."
+            f"Отправьте эту ссылку актеру. Когда он загрузит {type_text}, они автоматически добавятся сюда ответом на анкету."
         )
         
         # Send message with button and link
         m = bot.send_message(message.chat.id, msg, reply_markup=markup, message_thread_id=message.message_thread_id, parse_mode="Markdown")
-        # Do NOT auto-delete this message, as the user needs to copy the link
-        # auto_delete(m, delay=60) 
         
         # Cleanup command message only
         try: bot.delete_message(message.chat.id, message.message_id)
