@@ -2711,9 +2711,11 @@
 
       const monEvents = allEvents.filter(e => {
         const d = new Date(e.date);
-        // Hide events for closed projects
+        // Hide only PENDING events for closed projects. Keep DONE/OVERDUE visible.
         const isHidden = clientsData.find(c => c.name === e.project)?.is_hidden;
-        return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth() && !isHidden;
+        const status = getStatus(e);
+        const shouldHide = isHidden && status === 'pending';
+        return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth() && !shouldHide;
       });
 
       // Calculate Stats
@@ -2752,10 +2754,11 @@
           if (t.status === 'done') return false;
           if (!t.deadline) return false;
 
-          // Hide tasks for closed projects
+          // Hide only PENDING tasks for closed projects. Keep OVERDUE visible.
           const isProjHidden = clientsData.find(c => c.name === t.project_id)?.is_hidden;
           const isCastHidden = clientsData.find(c => c.name === t.casting_project)?.is_hidden;
-          if (isProjHidden || isCastHidden) return false;
+          const isOverdue = t.deadline < todayISO;
+          if ((isProjHidden || isCastHidden) && !isOverdue) return false;
 
           // Startdate: created_at or fallback to deadline if missing
           // We want to show line from start to deadline
@@ -2846,13 +2849,18 @@
       const listDiv = document.getElementById("eventList");
       const dayShoots = allEvents.filter(e => {
         const isHidden = clientsData.find(c => c.name === e.project)?.is_hidden;
-        return e.date === toISO(selectedDate) && !isHidden;
+        const status = getStatus(e);
+        const shouldHide = isHidden && status === 'pending';
+        return e.date === toISO(selectedDate) && !shouldHide;
       }).sort((a, b) => a.callTime.localeCompare(b.callTime));
       
       const dayTasksList = allTasks.filter(t => {
         const isProjHidden = clientsData.find(c => c.name === t.project_id)?.is_hidden;
         const isCastHidden = clientsData.find(c => c.name === t.casting_project)?.is_hidden;
-        return t.deadline === toISO(selectedDate) && !isProjHidden && !isCastHidden;
+        const isOverdue = t.deadline < todayISO;
+        const isDone = t.status === 'done';
+        const shouldHide = (isProjHidden || isCastHidden) && !isOverdue && !isDone;
+        return t.deadline === toISO(selectedDate) && !shouldHide;
       });
 
       let html = "";
