@@ -686,206 +686,292 @@
         </div>
     </div>
 
-    <div class="container" id="formContainer" style="display:none">
-        <div class="header">
-            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА</h1>
-            <p>Sklad Productions • Casting Management</p>
-            <div id="projectBadge" class="project-badge" style="display:none">
-                Проект: <span id="projectName"></span>
-                <span id="topicIdInfo"
-                    style="opacity:0.6; font-size:10px; margin-left:8px; border-left:1px solid rgba(255,255,255,0.2); padding-left:8px">ID:
-                    <span id="topicId"></span></span>
+    <script>
+        const welcomeContainer = document.getElementById('welcomeContainer');
+        const formContainer = document.getElementById('formContainer');
+        const reentryInputGroup = document.getElementById('reentryInputGroup');
+        const reentryFetchBtn = document.getElementById('reentryFetchBtn');
+        const reentryPhone = document.getElementById('reentryPhone');
+        const fetchStatus = document.getElementById('fetchStatus');
+
+        // Mode Switching
+        document.getElementById('startNewBtn').onclick = () => {
+            welcomeContainer.style.display = 'none';
+            formContainer.style.display = 'block';
+            window.scrollTo(0, 0);
+        };
+
+        document.getElementById('reentryStartBtn').onclick = () => {
+            reentryInputGroup.style.display = 'block';
+        };
+
+        // Reentry Logic (Fetch old data)
+        reentryFetchBtn.onclick = async () => {
+            const phone = reentryPhone.value.replace(/\s+/g, '').trim();
+            if (!phone) {
+                fetchStatus.textContent = "Введите номер телефона";
+                fetchStatus.className = "fetch-status error";
+                return;
+            }
+
+            fetchStatus.textContent = "Поиск...";
+            fetchStatus.className = "fetch-status";
+            reentryFetchBtn.disabled = true;
+
+            try {
+                // 1. Search in DB
+                const { data, error } = await sb
+                    .from('casting_applications')
+                    .select('*')
+                    .eq('phone', phone)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    throw new Error("Анкета с таким номером не найдена");
+                }
+
+                const app = data[0];
+
+                // 2. Pre-fill Form
+                const form = document.getElementById('castingForm');
+
+                // Text fields
+                ['full_name', 'city', 'dob', 'nationality', 'phone', 'instagram', 'height_weight', 'sizes', 'experience', 'skills', 'fee_range', 'portfolio_url'].forEach(key => {
+                    if (form[key]) form[key].value = app[key] || '';
+                });
+
+                // Radio buttons
+                ['gender', 'underwear_ok', 'extras_ok'].forEach(key => {
+                    if (app[key]) {
+                        const radio = form.querySelector(`input[name="${key}"][value="${app[key]}"]`);
+                        if (radio) radio.checked = true;
+                    }
+                });
+
+                // Fill media
+                if (app.photo_urls && Array.from(app.photo_urls).length > 0) {
+                    uploadedPhotos = app.photo_urls.map((url, index) => {
+                        const id = Math.random().toString(36).substr(2, 9);
+                        const fileItem = createMediaItem(id, { name: `Old_Photo_${index}` });
+                        document.getElementById('photoList').appendChild(fileItem);
+                        fileItem.style.backgroundImage = `url(${url})`;
+                        fileItem.querySelector('.progress-bar').style.width = '100%';
+                        return { id, url };
+                    });
+                }
+
+                if (app.video_audition_url) {
+                    const id = Math.random().toString(36).substr(2, 9);
+                    const fileItem = createMediaItem(id, { name: 'Old_Video' }, true);
+                    document.getElementById('videoList').innerHTML = '';
+                    document.getElementById('videoList').appendChild(fileItem);
+                    fileItem.querySelector('.progress-bar').style.width = '100%';
+                    uploadedVideo = app.video_audition_url;
+                }
+
+                fetchStatus.textContent = "✅ Данные найдены! Вы можете обновить фото и видео для этого проекта";
+                fetchStatus.className = "fetch-status success";
+
+                // Redirect to form after short delay
+                setTimeout(() => {
+                    welcomeContainer.style.display = 'none';
+                    formContainer.style.display = 'block';
+                    window.scrollTo(0, 0);
+                }, 1500);
+
+            } catch (err) {
+                console.error(err);
+                fetchStatus.textContent = "❌ Ошибка при поиске: " + err.message;
+                fetchStatus.className = "fetch-status error";
+            } finally {
+                reentryFetchBtn.disabled = false;
+            }
+        };
+    </script>
+    <!-- Блок 1 -->
+    <div class="block">
+        <div class="block-title">Проект и Роль</div>
+        <div class="form-group">
+            <label>На какой кастинг вы подаетесь?<span>*</span></label>
+            <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.3;">
+                Выбирайте точно тот проект, на который видели объявление. Анкеты, отправленные без соответствия
+                кастингу, будут удалены.
+            </div>
+            <div class="checklist-group" id="castingChecklist">
+                <!-- Сюда будут грузиться чекбоксы -->
+                <div style="padding: 10px; font-size: 12px; color: var(--muted);">Загрузка проектов...</div>
+            </div>
+            <div class="multi-warning" id="multiWarning">
+                ⚠️ Вы выбрали несколько кастингов. Убедитесь, что вы подходите под критерии всех выбранных
+                проектов!
+            </div>
+            <input type="hidden" name="casting_target" id="casting_target_hidden" required>
+        </div>
+        <div class="form-group">
+            <label>На какого персонажа вы подаетесь?<span>*</span></label>
+            <input type="text" name="character_name" required
+                placeholder="например: «Главный герой», «Отец», «Прохожий»">
+        </div>
+        <div class="form-group">
+            <label>Ваше полное имя (Фамилия Имя)<span>*</span></label>
+            <input type="text" name="full_name" required placeholder="Иванов Иван">
+        </div>
+        <div class="form-group">
+            <label>Ваш гендер<span>*</span></label>
+            <div class="radio-group">
+                <label class="radio-item">
+                    <input type="radio" name="gender" value="Мужчина" required>
+                    <div class="radio-mark"></div>
+                    <span>Мужчина</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="gender" value="Женщина">
+                    <div class="radio-mark"></div>
+                    <span>Женщина</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="gender" value="Другое">
+                    <div class="radio-mark"></div>
+                    <span>Другое</span>
+                </label>
             </div>
         </div>
+    </div>
 
-        <div class="important-note">
-            ⚠️ <b>Важно:</b> Анкета привязывается к проекту. Заполняйте все поля честно для оперативного рассмотрения
-            вашей кандидатуры.
+    <!-- Блок 2 -->
+    <div class="block">
+        <div class="block-title">Контакты</div>
+        <div class="form-group">
+            <label>Город проживания<span>*</span></label>
+            <input type="text" name="city" required placeholder="Алматы">
+        </div>
+        <div class="form-group">
+            <label>Возраст (лет)<span>*</span></label>
+            <input type="number" name="dob" required placeholder="например: 25" min="0" max="120">
+        </div>
+        <div class="form-group">
+            <label>Внешность (Типаж)<span>*</span></label>
+            <input type="text" name="nationality" required placeholder="азиат, европеец, глаза карие, стройный...">
+        </div>
+        <div class="form-group">
+            <label>Номер телефона (WhatsApp)<span>*</span></label>
+            <input type="tel" name="phone" required placeholder="+7 777 000 00 00" inputmode="numeric">
+        </div>
+        <div class="form-group">
+            <label>Ссылка на Instagram<span>*</span></label>
+            <input type="text" name="instagram" required placeholder="@username">
+        </div>
+    </div>
+
+    <!-- Блок 3 -->
+    <div class="block">
+        <div class="block-title">Параметры и Опыт</div>
+        <div class="form-group">
+            <label>Рост / Вес<span>*</span></label>
+            <input type="text" name="height_weight" required placeholder="180 см / 75 кг">
+        </div>
+        <div class="form-group">
+            <label>Размер одежды / Обуви<span>*</span></label>
+            <input type="text" name="sizes" required placeholder="L / 43">
+        </div>
+        <div class="form-group">
+            <label>Опыт в кино / Образование<span>*</span></label>
+            <textarea name="experience" rows="3" required
+                placeholder="Кратко опишите работы или укажите «нет»"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Навыки и таланты<span>*</span></label>
+            <textarea name="skills" rows="3" required
+                placeholder="вокал, танцы, владение инструментами и т.д."></textarea>
+        </div>
+    </div>
+
+    <!-- Блок 4 -->
+    <div class="block">
+        <div class="block-title">Бюджет</div>
+        <div class="form-group">
+            <label>Ваш гонорар (Вилка «ОТ» и «ДО» за смену)<span>*</span></label>
+            <input type="text" name="fee_range" required placeholder="например: 50.000 - 150.000">
+        </div>
+        <div class="form-group">
+            <label>Готовы к съемкам в белье / купальниках?<span>*</span></label>
+            <div class="radio-group">
+                <label class="radio-item">
+                    <input type="radio" name="underwear_ok" value="Да" required>
+                    <div class="radio-mark"></div>
+                    <span>Да</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="underwear_ok" value="Нет">
+                    <div class="radio-mark"></div>
+                    <span>Нет</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="underwear_ok" value="Зависит от гонорара">
+                    <div class="radio-mark"></div>
+                    <span>Зависит от суммы</span>
+                </label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Готовы участвовать в массовке / эпизодах?<span>*</span></label>
+            <div class="radio-group">
+                <label class="radio-item">
+                    <input type="radio" name="extras_ok" value="Да" required>
+                    <div class="radio-mark"></div>
+                    <span>Да</span>
+                </label>
+                <label class="radio-item">
+                    <input type="radio" name="extras_ok" value="Нет">
+                    <div class="radio-mark"></div>
+                    <span>Нет</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Блок 5 -->
+    <div class="block">
+        <div class="block-title">Медиа-материалы</div>
+
+        <div class="form-group">
+            <label>Фотографии (минимум 3 шт)<span>*</span></label>
+            <p style="font-size:11px; color:var(--muted); margin-bottom:10px">Анфас, профиль, в полный рост. Без
+                фильтров. <b>Max 50MB/файл.</b></p>
+            <div class="upload-area" id="photoUpload">
+                <i>📸</i>
+                <span>Нажмите для выбора фото (JPG, PNG)</span>
+                <input type="file" id="photoInput" multiple accept="image/*" style="display:none">
+            </div>
+            <div class="file-list" id="photoList"></div>
         </div>
 
-        <form id="castingForm">
-            <!-- Блок 1 -->
-            <div class="block">
-                <div class="block-title">Проект и Роль</div>
-                <div class="form-group">
-                    <label>На какой кастинг вы подаетесь?<span>*</span></label>
-                    <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.3;">
-                        Выбирайте точно тот проект, на который видели объявление. Анкеты, отправленные без соответствия
-                        кастингу, будут удалены.
-                    </div>
-                    <div class="checklist-group" id="castingChecklist">
-                        <!-- Сюда будут грузиться чекбоксы -->
-                        <div style="padding: 10px; font-size: 12px; color: var(--muted);">Загрузка проектов...</div>
-                    </div>
-                    <div class="multi-warning" id="multiWarning">
-                        ⚠️ Вы выбрали несколько кастингов. Убедитесь, что вы подходите под критерии всех выбранных
-                        проектов!
-                    </div>
-                    <input type="hidden" name="casting_target" id="casting_target_hidden" required>
-                </div>
-                <div class="form-group">
-                    <label>На какого персонажа вы подаетесь?<span>*</span></label>
-                    <input type="text" name="character_name" required
-                        placeholder="например: «Главный герой», «Отец», «Прохожий»">
-                </div>
-                <div class="form-group">
-                    <label>Ваше полное имя (Фамилия Имя)<span>*</span></label>
-                    <input type="text" name="full_name" required placeholder="Иванов Иван">
-                </div>
-                <div class="form-group">
-                    <label>Ваш гендер<span>*</span></label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" name="gender" value="Мужчина" required>
-                            <div class="radio-mark"></div>
-                            <span>Мужчина</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="gender" value="Женщина">
-                            <div class="radio-mark"></div>
-                            <span>Женщина</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="gender" value="Другое">
-                            <div class="radio-mark"></div>
-                            <span>Другое</span>
-                        </label>
-                    </div>
-                </div>
+        <div class="form-group">
+            <label>Видео-визитка (Актерский этюд)<span>*</span></label>
+            <p style="font-size:11px; color:var(--muted); margin-bottom:10px">
+                До 1 минуты. Эмоции и подача в кадре. <b>Лимит 50MB.</b><br>
+                <i>Если прикрепить новое видео до минуты с визиткой именно по персонажу, на которого подаетесь,
+                    шансов больше или можете добавить ссылку на портфолио ниже.</i>
+            </p>
+            <div class="upload-area" id="videoUpload">
+                <i>🎬</i>
+                <span>Нажмите для выбора видео (MP4, MOV)</span>
+                <input type="file" id="videoInput" accept="video/*" style="display:none">
             </div>
+            <div class="file-list" id="videoList"></div>
+        </div>
 
-            <!-- Блок 2 -->
-            <div class="block">
-                <div class="block-title">Контакты</div>
-                <div class="form-group">
-                    <label>Город проживания<span>*</span></label>
-                    <input type="text" name="city" required placeholder="Алматы">
-                </div>
-                <div class="form-group">
-                    <label>Возраст (лет)<span>*</span></label>
-                    <input type="number" name="dob" required placeholder="например: 25" min="0" max="120">
-                </div>
-                <div class="form-group">
-                    <label>Внешность (Типаж)<span>*</span></label>
-                    <input type="text" name="nationality" required
-                        placeholder="азиат, европеец, глаза карие, стройный...">
-                </div>
-                <div class="form-group">
-                    <label>Номер телефона (WhatsApp)<span>*</span></label>
-                    <input type="tel" name="phone" required placeholder="+7 777 000 00 00" inputmode="numeric">
-                </div>
-                <div class="form-group">
-                    <label>Ссылка на Instagram<span>*</span></label>
-                    <input type="text" name="instagram" required placeholder="@username">
-                </div>
-            </div>
+        <div class="form-group">
+            <label>Ссылка на видео-визитку / портфолио</label>
+            <input type="text" name="portfolio_url" placeholder="YouTube, Vimeo или Google Диск">
+        </div>
+    </div>
 
-            <!-- Блок 3 -->
-            <div class="block">
-                <div class="block-title">Параметры и Опыт</div>
-                <div class="form-group">
-                    <label>Рост / Вес<span>*</span></label>
-                    <input type="text" name="height_weight" required placeholder="180 см / 75 кг">
-                </div>
-                <div class="form-group">
-                    <label>Размер одежды / Обуви<span>*</span></label>
-                    <input type="text" name="sizes" required placeholder="L / 43">
-                </div>
-                <div class="form-group">
-                    <label>Опыт в кино / Образование<span>*</span></label>
-                    <textarea name="experience" rows="3" required
-                        placeholder="Кратко опишите работы или укажите «нет»"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Навыки и таланты<span>*</span></label>
-                    <textarea name="skills" rows="3" required
-                        placeholder="вокал, танцы, владение инструментами и т.д."></textarea>
-                </div>
-            </div>
-
-            <!-- Блок 4 -->
-            <div class="block">
-                <div class="block-title">Бюджет</div>
-                <div class="form-group">
-                    <label>Ваш гонорар (Вилка «ОТ» и «ДО» за смену)<span>*</span></label>
-                    <input type="text" name="fee_range" required placeholder="например: 50.000 - 150.000">
-                </div>
-                <div class="form-group">
-                    <label>Готовы к съемкам в белье / купальниках?<span>*</span></label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" name="underwear_ok" value="Да" required>
-                            <div class="radio-mark"></div>
-                            <span>Да</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="underwear_ok" value="Нет">
-                            <div class="radio-mark"></div>
-                            <span>Нет</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="underwear_ok" value="Зависит от гонорара">
-                            <div class="radio-mark"></div>
-                            <span>Зависит от суммы</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Готовы участвовать в массовке / эпизодах?<span>*</span></label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" name="extras_ok" value="Да" required>
-                            <div class="radio-mark"></div>
-                            <span>Да</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="extras_ok" value="Нет">
-                            <div class="radio-mark"></div>
-                            <span>Нет</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Блок 5 -->
-            <div class="block">
-                <div class="block-title">Медиа-материалы</div>
-
-                <div class="form-group">
-                    <label>Фотографии (минимум 3 шт)<span>*</span></label>
-                    <p style="font-size:11px; color:var(--muted); margin-bottom:10px">Анфас, профиль, в полный рост. Без
-                        фильтров. <b>Max 50MB/файл.</b></p>
-                    <div class="upload-area" id="photoUpload">
-                        <i>📸</i>
-                        <span>Нажмите для выбора фото (JPG, PNG)</span>
-                        <input type="file" id="photoInput" multiple accept="image/*" style="display:none">
-                    </div>
-                    <div class="file-list" id="photoList"></div>
-                </div>
-
-                <div class="form-group">
-                    <label>Видео-визитка (Актерский этюд)<span>*</span></label>
-                    <p style="font-size:11px; color:var(--muted); margin-bottom:10px">
-                        До 1 минуты. Эмоции и подача в кадре. <b>Лимит 50MB.</b><br>
-                        <i>Если прикрепить новое видео до минуты с визиткой именно по персонажу, на которого подаетесь,
-                            шансов больше или можете добавить ссылку на портфолио ниже.</i>
-                    </p>
-                    <div class="upload-area" id="videoUpload">
-                        <i>🎬</i>
-                        <span>Нажмите для выбора видео (MP4, MOV)</span>
-                        <input type="file" id="videoInput" accept="video/*" style="display:none">
-                    </div>
-                    <div class="file-list" id="videoList"></div>
-                </div>
-
-                <div class="form-group">
-                    <label>Ссылка на видео-визитку / портфолио</label>
-                    <input type="text" name="portfolio_url" placeholder="YouTube, Vimeo или Google Диск">
-                </div>
-            </div>
-
-            <button type="submit" class="submit-btn" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
-        </form>
+    <button type="submit" class="submit-btn" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
+    </form>
     </div>
 
     <div class="container success-screen" id="successScreen">
@@ -1152,36 +1238,36 @@
             }
         }
 
-    <script>
+        <script>
         // --- 1. Client-Side Compression & Optimization ---
-        async function compressImage(file) {
+            async function compressImage(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
-                reader.readAsDataURL(file);
+            reader.readAsDataURL(file);
                 reader.onload = (event) => {
                     const img = new Image();
-                    img.src = event.target.result;
+            img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 1024;
-                        const MAX_HEIGHT = 1024;
-                        let width = img.width;
-                        let height = img.height;
+            const MAX_WIDTH = 1024;
+            const MAX_HEIGHT = 1024;
+            let width = img.width;
+            let height = img.height;
 
                         if (width > height) {
-                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                            if (width > MAX_WIDTH) {height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                         } else {
-                            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                            if (height > MAX_HEIGHT) {width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
                         }
 
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
                         // Compress to JPEG with 0.6 quality (High compression)
                         canvas.toBlob((blob) => {
-                            resolve(new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' }));
+                resolve(new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' }));
                         }, 'image/jpeg', 0.6);
                     };
                 };
@@ -1193,45 +1279,45 @@
             const files = Array.from(e.target.files);
             for (const file of files) {
                 pendingUploads++;
-                updateSubmitButton();
-                
-                const id = Math.random().toString(36).substr(2, 9);
-                const fileItem = createMediaItem(id, file);
-                document.getElementById('photoList').appendChild(fileItem);
+            updateSubmitButton();
 
-                try {
-                    // Compress if image
-                    let uploadFile = file;
-                    if (file.type.match(/image.*/)) {
-                        uploadFile = await compressImage(file);
+            const id = Math.random().toString(36).substr(2, 9);
+            const fileItem = createMediaItem(id, file);
+            document.getElementById('photoList').appendChild(fileItem);
+
+            try {
+                // Compress if image
+                let uploadFile = file;
+            if (file.type.match(/image.*/)) {
+                uploadFile = await compressImage(file);
                     }
 
-                    const ext = uploadFile.name.split('.').pop();
-                    const path = `photos/${Date.now()}_${id}.${ext}`;
-                    
-                    const { error } = await sb.storage.from('casting_media').upload(path, uploadFile, {
-                        onUploadProgress: (progress) => {
+            const ext = uploadFile.name.split('.').pop();
+            const path = `photos/${Date.now()}_${id}.${ext}`;
+
+            const {error} = await sb.storage.from('casting_media').upload(path, uploadFile, {
+                onUploadProgress: (progress) => {
                             const percent = (progress.loaded / progress.total) * 100;
-                            fileItem.querySelector('.progress-bar').style.width = percent + '%';
+            fileItem.querySelector('.progress-bar').style.width = percent + '%';
                         }
                     });
-                    
-                    if (error) throw error;
 
-                    const { data: { publicUrl } } = sb.storage.from('casting_media').getPublicUrl(path);
-                    
+            if (error) throw error;
+
+            const {data: {publicUrl} } = sb.storage.from('casting_media').getPublicUrl(path);
+
                     // Wait for URL to be available (simple fetch check)
-                    // await fetch(publicUrl, { method: 'HEAD' }); 
+                    // await fetch(publicUrl, {method: 'HEAD' });
 
-                    uploadedPhotos.push({ id, url: publicUrl });
-                    fileItem.style.backgroundImage = `url(${publicUrl})`;
+            uploadedPhotos.push({id, url: publicUrl });
+            fileItem.style.backgroundImage = `url(${publicUrl})`;
                 } catch (err) {
-                    console.error(err);
-                    fileItem.remove();
-                    alert(`Ошибка загрузки ${file.name}: ${err.message}`);
+                console.error(err);
+            fileItem.remove();
+            alert(`Ошибка загрузки ${file.name}: ${err.message}`);
                 } finally {
-                    pendingUploads--;
-                    updateSubmitButton();
+                pendingUploads--;
+            updateSubmitButton();
                 }
             }
         };
@@ -1245,8 +1331,8 @@
             const MAX_SIZE = 50 * 1024 * 1024; // 50MB
             if (file.size > MAX_SIZE) {
                 alert(`Видео слишком тяжелое (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимум — 50MB. Пожалуйста, сожмите его или укажите ссылку на Google Диск / YouTube ниже.`);
-                e.target.value = '';
-                return;
+            e.target.value = '';
+            return;
             }
 
             pendingUploads++;
@@ -1259,27 +1345,27 @@
 
             try {
                 const ext = file.name.split('.').pop();
-                const path = `videos/${id}.${ext}`;
-                const { data, error } = await sb.storage.from('casting_media').upload(path, file, {
-                    onUploadProgress: (p) => {
+            const path = `videos/${id}.${ext}`;
+            const {data, error} = await sb.storage.from('casting_media').upload(path, file, {
+                onUploadProgress: (p) => {
                         const pct = (p.loaded / p.total) * 100;
-                        fileItem.querySelector('.progress-bar').style.width = pct + '%';
+            fileItem.querySelector('.progress-bar').style.width = pct + '%';
                     }
                 });
-                if (error) throw error;
-                const { data: { publicUrl } } = sb.storage.from('casting_media').getPublicUrl(path);
-                uploadedVideo = publicUrl;
+            if (error) throw error;
+            const {data: {publicUrl} } = sb.storage.from('casting_media').getPublicUrl(path);
+            uploadedVideo = publicUrl;
             } catch (err) {
                 console.error(err);
-                fileItem.remove();
-                alert("Ошибка загрузки видео: " + err.message);
+            fileItem.remove();
+            alert("Ошибка загрузки видео: " + err.message);
             } finally {
                 pendingUploads--;
-                updateSubmitButton();
+            updateSubmitButton();
             }
         };
 
-        function createMediaItem(id, file, isVideo = false) {
+            function createMediaItem(id, file, isVideo = false) {
             const div = document.createElement('div');
             div.className = 'file-item' + (isVideo ? ' video' : '');
             div.id = 'media-' + id;
