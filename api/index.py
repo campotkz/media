@@ -1279,8 +1279,49 @@ def handle_actor_update_link(message):
                 
                 res = query.order("created_at", descending=True).limit(1).execute()
         
+            # 4. Try searching by PHONE or INSTAGRAM found in text
+            if not res.data:
+                # Phone pattern (digits, possibly with +)
+                phone_match = re.search(r'(?:\+?\d[\d\-\s]{8,})', txt)
+                # Instagram pattern (after "Inst:" or similar)
+                insta_match = re.search(r'Inst:\s*([^\n\s]+)', txt, re.IGNORECASE)
+
+                query = supabase.table("casting_applications").select("*")
+                conditions = []
+
+                if phone_match:
+                    found_phone = re.sub(r'\D', '', phone_match.group(0)) # Clean non-digits
+                    if len(found_phone) > 6:
+                        # Use ILIKE for partial match or just simple match
+                        print(f"DEBUG: Searching by phone '{found_phone}'")
+                        conditions.append(f"phone.ilike.%{found_phone}%")
+
+                if insta_match:
+                    found_insta = insta_match.group(1).strip()
+                    if len(found_insta) > 2:
+                        print(f"DEBUG: Searching by insta '{found_insta}'")
+                        conditions.append(f"instagram.eq.{found_insta}")
+
+                if conditions:
+                    query = query.or_(",".join(conditions))
+                    # Filter by thread/topic to be safe
+                    if message.message_thread_id:
+                        query = query.eq("thread_id", message.message_thread_id)
+                    
+                    res = query.order("created_at", descending=True).limit(1).execute()
+
+            # 5. Last Resort: Find LATEST application in this topic
+            if not res.data and message.message_thread_id:
+                print("DEBUG: Using Last Resort - fetching latest app in topic")
+                res = supabase.table("casting_applications").select("*")\
+                    .eq("chat_id", message.chat.id)\
+                    .eq("thread_id", message.message_thread_id)\
+                    .order("created_at", descending=True)\
+                    .limit(1)\
+                    .execute()
+
         if not res.data:
-            bot.reply_to(message, "❌ Анкета не найдена в базе. \n\nПопробуйте ответить на **текстовое** сообщение анкеты (не на фото).")
+            bot.reply_to(message, "❌ Не удалось найти анкету. Попробуйте найти её по имени или телефону вручную.")
             return
 
         app_data = res.data[0]
