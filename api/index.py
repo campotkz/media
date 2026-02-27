@@ -590,7 +590,7 @@ def handle_app_select_callback(call):
         cid = call.message.chat.id
         
         # 1. Get current status from DB
-        res = supabase.table("casting_applications").select("is_selected, full_name").eq("id", app_id).execute()
+        res = supabase.table("casting_applications").select("*").eq("id", app_id).execute()
         if not res.data:
             bot.answer_callback_query(call.id, "❌ Анкета не найдена.")
             return
