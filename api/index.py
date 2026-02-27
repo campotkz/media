@@ -499,6 +499,57 @@ def handle_reply_input(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка сохранения: {e}")
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_sel:'))
+def handle_app_select_callback(call):
+    try:
+        app_id = call.data.split(':')[1]
+        cid = call.message.chat.id
+        
+        # 1. Get current status from DB
+        res = supabase.table("casting_applications").select("is_selected, full_name").eq("id", app_id).execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ Анкета не найдена.")
+            return
+        
+        current_status = res.data[0].get('is_selected', False)
+        new_status = not current_status
+        actor_name = res.data[0].get('full_name', 'Актер')
+        
+        # 2. Update DB
+        supabase.table("casting_applications").update({"is_selected": new_status}).eq("id", app_id).execute()
+        
+        # 3. Update Message (Add/Remove Checkmark in header)
+        original_text = call.message.text or call.message.caption or ""
+        new_text = original_text
+        
+        checkmark = "🟢 SELECTED: "
+        if new_status:
+            if checkmark not in original_text:
+                new_text = checkmark + original_text
+        else:
+            new_text = original_text.replace(checkmark, "")
+            
+        # Update button text too
+        markup = call.message.reply_markup
+        for row in markup.keyboard:
+            for btn in row:
+                if btn.callback_data == call.data:
+                    btn.text = "✅ ВЫБРАН" if new_status else "✅ ВЫБРАТЬ"
+        
+        try:
+            bot.edit_message_text(new_text, cid, call.message.message_id, reply_markup=markup, parse_mode="HTML")
+        except:
+            # If it's a caption (media group)
+            try: bot.edit_message_caption(new_text, cid, call.message.message_id, reply_markup=markup, parse_mode="HTML")
+            except: pass
+            
+        status_msg = f"🌟 {actor_name} выбран!" if new_status else f"⚪️ Выбор снят: {actor_name}"
+        bot.answer_callback_query(call.id, status_msg)
+
+    except Exception as e:
+        print(f"App Select Err: {e}")
+        bot.answer_callback_query(call.id, "❌ Ошибка при выборе.")
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_del:'))
 def handle_app_delete_callback(call):
     try:
@@ -789,15 +840,16 @@ def notify_casting():
             else:
                 media.append(types.InputMediaVideo(video))
 
-        # 3. Inline Buttons (Delete)
+        # 3. Inline Buttons (Select & Delete)
         markup = types.InlineKeyboardMarkup()
-        # We need the ID of the record we just inserted. 
-        # Since it was inserted by frontend, we search for the latest one.
         try:
             app_res = supabase.table("casting_applications").select("id").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
             if app_res.data:
                 app_id = app_res.data[0]['id']
-                markup.add(types.InlineKeyboardButton("🗑️ УДАЛИТЬ АНКЕТУ", callback_data=f"app_del:{app_id}"))
+                markup.add(
+                    types.InlineKeyboardButton("✅ ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
+                    types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
+                )
         except: pass
 
         try:
