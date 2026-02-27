@@ -60,7 +60,10 @@ def format_casting_message(data, is_selected=False):
     if data.get('portfolio_url'):
         full_txt += f"\n🔗 <a href='{data.get('portfolio_url')}'>Портфолио / Ссылка</a>\n"
 
-    photos = data.get('photo_urls', [])
+    # CRITICAL FIX: Ensure we use the correct keys. 
+    # Sometimes data comes from DB (photo_urls) sometimes from Frontend JSON (photo_urls).
+    # DB usually returns a list.
+    photos = data.get('photo_urls') or []
     video = data.get('video_audition_url')
 
     # Add direct links to the message text
@@ -1014,7 +1017,7 @@ def notify_casting():
             except Exception as e:
                 print(f"⚠️ Self-Cleanup Error: {e}")
 
-        # 1. FIND AND DELETE OLD APPLICATION (Deduplication)
+        # 1. FIND AND DELETE DUPLICATES (Strictly Different IDs)
         try:
             # Search by phone OR instagram for the same project
             # AND exclude the current application (app_id) we just created
@@ -1043,7 +1046,7 @@ def notify_casting():
             
             # CRITICAL: Exclude the CURRENT application ID (if we have it)
             # Otherwise we might delete the record we just inserted if logic is flawed
-            app_id = data.get('application_id')
+            app_id = data.get('application_id') or data.get('id')
             if app_id:
                 query = query.neq("id", app_id)
 
@@ -1065,17 +1068,10 @@ def notify_casting():
                             print(f"   Deleted text msg {old_msg_id}")
                             
                             # SMART MEDIA DELETION:
-                            # We know how many photos/videos were attached to this old application.
-                            # We should only delete exactly that many previous messages to avoid deleting unrelated chat history.
-                            
                             media_count = 0
                             try:
                                 old_photos = old_app.get('photo_urls') or []
                                 old_video = old_app.get('video_audition_url')
-                                # In send_media_group, each photo/video is a separate message.
-                                # BUT: The first media item holds the caption, and subsequent ones are just media.
-                                # If we sent text separately (which we do in step 3), then the media group is BEFORE the text message.
-                                # Usually media group messages have sequential IDs.
                                 
                                 media_count = len(old_photos)
                                 if old_video: media_count += 1
@@ -1088,7 +1084,6 @@ def notify_casting():
                             print(f"   Attempting to delete {media_count} media messages for app {old_db_id}")
 
                             # The text message (old_msg_id) was sent LAST.
-                            # So the media messages are at IDs: old_msg_id-1, old_msg_id-2, ...
                             for i in range(1, media_count + 1):
                                 try: 
                                     target_id = int(old_msg_id) - i
@@ -1096,13 +1091,12 @@ def notify_casting():
                                     print(f"   Deleted media msg {target_id}")
                                 except Exception as e:
                                     print(f"   Failed to delete media {target_id}: {e}")
-                                    # If we fail to delete one (e.g. it doesn't exist), maybe stop?
-                                    # But sometimes IDs skip, so we could try to continue.
                                     pass
                         except Exception as tg_del_e: 
                             print(f"   TG Delete Err: {tg_del_e}")
                     
                     # 1.2 Delete from Supabase
+                    # Only delete duplicates (different IDs), never the current one (self-cleanup handles msg deletion only)
                     supabase.table("casting_applications").delete().eq("id", old_db_id).execute()
                     print(f"✅ Deduplicated: Deleted old application {old_db_id}")
         except Exception as dedup_e:
