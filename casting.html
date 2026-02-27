@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>АНКЕТА УЧАСТНИКА КАСТИНГА</title>
-    <!-- Version: 2.0.5 -->
+    <!-- Version: 2.0.6 -->
     <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -225,6 +225,118 @@
         .radio-item:has(input:checked) {
             background: rgba(122, 162, 255, 0.1);
             border-color: var(--accent);
+        }
+
+        /* Checklist Styles */
+        .checklist-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--stroke);
+        }
+
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .check-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .check-item input {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .check-item.active {
+            background: rgba(122, 162, 255, 0.15);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: #15171f;
+            border: 1px solid var(--accent);
+            border-radius: 20px;
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-card h3 {
+            color: #ff3b30;
+            margin: 0 0 16px;
+        }
+
+        .modal-card p {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .modal-btns {
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.2s;
+        }
+
+        .btn-confirm {
+            background: var(--accent);
+            color: #000;
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .modal-btn:hover {
+            opacity: 0.8;
         }
 
         .radio-mark {
@@ -464,7 +576,7 @@
 <body>
     <div class="container" id="welcomeContainer">
         <div class="header">
-            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.0.5</span></h1>
+            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.0.6</span></h1>
             <p>Sklad Productions • Casting Management</p>
         </div>
 
@@ -530,9 +642,11 @@
                     <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.3;">
                         Выбирайте точно тот проект, на который видели объявление. Анкеты, отправленные без соответствия кастингу, будут удалены.
                     </div>
-                    <select name="casting_target" id="castingSelect" required>
-                        <option value="">Загрузка проектов...</option>
-                    </select>
+                    <div class="checklist-group" id="castingChecklist">
+                        <!-- Сюда будут грузиться чекбоксы -->
+                        <div style="padding: 10px; font-size: 12px; color: var(--muted);">Загрузка проектов...</div>
+                    </div>
+                    <input type="hidden" name="casting_target" id="casting_target_hidden" required>
                 </div>
                 <div class="form-group">
                     <label>На какого персонажа вы подаетесь?<span>*</span></label>
@@ -710,6 +824,17 @@
         <div id="loadingText" style="font-size:14px; color:white">Загрузка данных...</div>
     </div>
 
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-card">
+            <h3>⚠️ ВНИМАНИЕ</h3>
+            <p>Вы выбрали несколько кастингов. Вы подтверждаете, что подходите под критерии <b>всех</b> выбранных проектов? <br><br> Если вы отправляете анкету «на удачу», не соответствуя запросу — ваша анкета будет удалена.</p>
+            <div class="modal-btns">
+                <button class="modal-btn btn-back" id="modalBack">НАЗАД</button>
+                <button class="modal-btn btn-confirm" id="modalConfirm">ПОДТВЕРЖДАЮ</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
         const SUPABASE_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
@@ -729,7 +854,9 @@
 
         // Fetch active casting projects for the dropdown
         async function loadCastingProjects() {
-            const select = document.getElementById('castingSelect');
+            const container = document.getElementById('castingChecklist');
+            const hiddenInput = document.getElementById('casting_target_hidden');
+            
             try {
                 const { data, error } = await sb.from('clients')
                     .select('name')
@@ -739,30 +866,41 @@
 
                 if (error) throw error;
 
-                select.innerHTML = '<option value="">-- Выберите кастинг --</option>';
+                container.innerHTML = '';
                 
-                // If we have a project in URL, make it the first/default option if it's not in the list
-                if (proj) {
-                    const option = document.createElement('option');
-                    option.value = proj;
-                    option.textContent = proj;
-                    option.selected = true;
-                    select.appendChild(option);
-                }
+                const projects = data || [];
+                
+                // If we have proj in URL, make it first
+                const sortedProjects = proj ? [ {name: proj}, ...projects.filter(p => p.name !== proj) ] : projects;
 
-                if (data) {
-                    data.forEach(p => {
-                        if (p.name === proj) return; // Skip if already added from URL
-                        const option = document.createElement('option');
-                        option.value = p.name;
-                        option.textContent = p.name;
-                        select.appendChild(option);
-                    });
-                }
+                sortedProjects.forEach(p => {
+                    const label = document.createElement('label');
+                    label.className = 'check-item';
+                    if (p.name === proj) label.classList.add('active');
+                    
+                    const isChecked = p.name === proj ? 'checked' : '';
+                    label.innerHTML = `
+                        <input type="checkbox" value="${p.name}" ${isChecked}>
+                        <span>${p.name}</span>
+                    `;
+                    
+                    label.querySelector('input').onchange = (e) => {
+                        if (e.target.checked) label.classList.add('active');
+                        else label.classList.remove('active');
+                        
+                        // Update hidden input for validation
+                        const checked = Array.from(container.querySelectorAll('input:checked')).map(i => i.value);
+                        hiddenInput.value = checked.join(', ');
+                    };
+                    
+                    container.appendChild(label);
+                });
+                
+                if (proj) hiddenInput.value = proj;
+
             } catch (err) {
                 console.error("Error loading projects:", err);
-                select.innerHTML = '<option value="">Ошибка загрузки. Введите вручную...</option>';
-                // Fallback to input if select fails? For now just keep it simple.
+                container.innerHTML = '<div style="color:var(--error)">Ошибка загрузки проектов</div>';
             }
         }
         loadCastingProjects();
@@ -1052,11 +1190,36 @@
         // Form Submit
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
+            
+            const checkedProjects = Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => i.value);
+            if (checkedProjects.length === 0) {
+                return alert("Пожалуйста, выберите хотя бы один кастинг.");
+            }
+
             if (pendingUploads > 0) {
                 return alert("Пожалуйста, дождитесь завершения загрузки всех медиа-файлов.");
             }
 
-            const formData = new FormData(e.target);
+            // If multi-select, show confirmation modal
+            if (checkedProjects.length > 1) {
+                const modal = document.getElementById('confirmModal');
+                modal.style.display = 'flex';
+                
+                document.getElementById('modalBack').onclick = () => {
+                    modal.style.display = 'none';
+                };
+                
+                document.getElementById('modalConfirm').onclick = () => {
+                    modal.style.display = 'none';
+                    processSubmit(e.target, checkedProjects);
+                };
+            } else {
+                processSubmit(e.target, checkedProjects);
+            }
+        };
+
+        async function processSubmit(formElement, selectedProjects) {
+            const formData = new FormData(formElement);
             const results = Object.fromEntries(formData.entries());
 
             if (uploadedPhotos.length < 3) return alert("Пожалуйста, загрузите минимум 3 фотографии.");
@@ -1070,33 +1233,47 @@
             submitBtn.disabled = true;
 
             try {
-                const formData = new FormData(e.target);
-                const results = Object.fromEntries(formData.entries());
-
+                // 1. Save to DB (One record, multiple projects in string)
                 const finalData = {
                     ...results,
-                    casting_target: results.casting_target || proj || "General",
+                    casting_target: selectedProjects.join(', '),
                     chat_id: cid,
                     thread_id: tid,
-                    project_name: results.casting_target || proj || "General",
+                    project_name: selectedProjects[0], // Primary project
                     photo_urls: uploadedPhotos.map(p => p.url),
                     video_audition_url: uploadedVideo
                 };
 
-                // 1. Save to DB
                 const { error } = await sb.from('casting_applications').insert([finalData]);
                 if (error) throw error;
 
-                // 2. Notify Bot (Wait 2s to ensure Supabase public URL is ready for Telegram Crawler)
-                document.getElementById('loadingText').textContent = "Подготовка медиа...";
-                await new Promise(r => setTimeout(r, 2000));
+                // 2. Notify Bot for EACH project
+                document.getElementById('loadingText').textContent = "Отправка в Telegram...";
                 
-                document.getElementById('loadingText').textContent = "Отправка уведомления...";
-                await fetch('https://media-seven-eta.vercel.app/api/casting', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(finalData)
-                });
+                for (const pName of selectedProjects) {
+                    // Find chat/thread for this project from our clients list
+                    const { data: clientData } = await sb.from('clients')
+                        .select('chat_id, thread_id')
+                        .eq('name', pName)
+                        .limit(1);
+                    
+                    const targetCid = (clientData && clientData[0]) ? clientData[0].chat_id : cid;
+                    const targetTid = (clientData && clientData[0]) ? clientData[0].thread_id : tid;
+
+                    const notifyData = {
+                        ...finalData,
+                        casting_target: pName,
+                        project_name: pName,
+                        chat_id: targetCid,
+                        thread_id: targetTid
+                    };
+
+                    await fetch('https://media-seven-eta.vercel.app/api/casting', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(notifyData)
+                    });
+                }
 
                 document.getElementById('formContainer').style.display = 'none';
                 document.getElementById('successScreen').style.display = 'block';
@@ -1109,7 +1286,7 @@
                 submitBtn.disabled = false;
                 updateSubmitButton();
             }
-        };
+        }
     </script>
 </body>
 
