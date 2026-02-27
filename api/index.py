@@ -1281,10 +1281,12 @@ def handle_actor_update_link(message):
             f"После загрузки анкета в чате обновится автоматически."
         )
         
+        # Send message with button and link
         m = bot.send_message(message.chat.id, msg, reply_markup=markup, message_thread_id=message.message_thread_id, parse_mode="Markdown")
-        auto_delete(m, delay=60) # Link for actor stays longer
+        # Do NOT auto-delete this message, as the user needs to copy the link
+        # auto_delete(m, delay=60) 
         
-        # Cleanup command
+        # Cleanup command message only
         try: bot.delete_message(message.chat.id, message.message_id)
         except: pass
 
