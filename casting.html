@@ -1270,14 +1270,16 @@
                     };
 
                     // Save to DB
-                    const { error } = await sb.from('casting_applications').insert([finalData]);
+                    const { data: insertedData, error } = await sb.from('casting_applications').insert([finalData]).select();
                     if (error) throw error;
+                    
+                    const newAppId = insertedData && insertedData[0] ? insertedData[0].id : null;
 
                     // Notify Bot
                     const resp = await fetch('https://media-seven-eta.vercel.app/api/casting', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(finalData)
+                        body: JSON.stringify({ ...finalData, application_id: newAppId })
                     });
 
                     if (!resp.ok) {
