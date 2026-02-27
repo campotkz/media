@@ -942,7 +942,17 @@ def handle_forwarded_message(message):
             fresh_res = supabase.table("casting_applications").select("id").eq("phone", phone).eq("casting_target", new_project_name).order("created_at", descending=True).limit(1).execute()
             if fresh_res.data:
                 markup.add(types.InlineKeyboardButton("🗑️ УДАЛИТЬ ИЗ ЭТОГО ТОПИКА", callback_data=f"app_del:{fresh_res.data[0]['id']}"))
-                bot.reply_to(message, f"✅ Актер **{found_name}** добавлен в проект **{new_project_name}**.", reply_markup=markup)
+                conf_msg = bot.reply_to(message, f"✅ Актер **{found_name}** добавлен в проект **{new_project_name}**.", reply_markup=markup)
+                
+                # Auto-delete confirmation message after 10 seconds to keep chat clean
+                import threading
+                import time
+                def delayed_delete(chat_id, msg_id):
+                    time.sleep(10)
+                    try: bot.delete_message(chat_id, msg_id)
+                    except: pass
+                
+                threading.Thread(target=delayed_delete, args=(cid, conf_msg.message_id)).start()
             
             print(f"🔄 FORWARD SYNC: Actor {found_name} synced to new project {new_project_name}")
 
