@@ -2422,21 +2422,35 @@ def handle_topic_deleted(message):
 @bot.message_handler(content_types=['forum_topic_closed'])
 def handle_topic_closed(message):
     try:
-        cid, tid = message.chat.id, message.message_thread_id
+        cid = message.chat.id
+        # message.message_thread_id might be None for General topic?
+        # For topic closed service message, usually message_thread_id IS the topic ID.
+        tid = message.message_thread_id 
+        
         print(f"DEBUG: Catch forum_topic_closed in chat {cid}, thread {tid}")
         if tid:
+            # CLOSED = HIDDEN from Form + INACTIVE in Calendar (Archived)
+            # User wants it to disappear from everywhere when closed via UI.
+            # To bring it back to Calendar -> /on
+            # To bring it back to Form -> /unarchive
             supabase.from_("clients").update({"is_hidden": True, "is_active": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
-            print(f"✅ SUCCESS: Topic {tid} in chat {cid} CLOSED and HIDDEN.")
+            # Optional: Send a small notification that it's archived? 
+            # Ideally no, just silently handle it.
+            print(f"✅ SUCCESS: Topic {tid} in chat {cid} CLOSED and FULLY ARCHIVED.")
     except Exception as e: print(f"❌ Topic Closed Err: {e}")
 
 @bot.message_handler(content_types=['forum_topic_reopened'])
 def handle_topic_reopened(message):
     try:
-        cid, tid = message.chat.id, message.message_thread_id
+        cid = message.chat.id
+        tid = message.message_thread_id
         print(f"DEBUG: Catch forum_topic_reopened in chat {cid}, thread {tid}")
         if tid:
-            supabase.from_("clients").update({"is_hidden": False, "is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
-            print(f"✅ SUCCESS: Topic {tid} in chat {cid} REOPENED and REVEALED.")
+            # REOPENED = ACTIVE in Calendar + HIDDEN from Form (Safe default)
+            # Or should we unarchive completely? 
+            # Let's make it ACTIVE in Calendar (so you can work), but keep it hidden from public form until explicit /unarchive
+            supabase.from_("clients").update({"is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
+            print(f"✅ SUCCESS: Topic {tid} in chat {cid} REOPENED and ACTIVATED (Calendar only).")
     except Exception as e: print(f"❌ Topic Reopened Err: {e}")
 
 # Catch-all logger for debugging service messages
