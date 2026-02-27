@@ -1596,13 +1596,6 @@ def handle_reload_command(message):
         if tid:
             query = query.eq("thread_id", tid)
         else:
-            # If no thread_id, we might be in General or a simple group.
-            # But maybe DB has stored 'null' explicitly?
-            # Or maybe we want to reload ALL chat applications if thread is missing?
-            # Let's try matching null thread_id
-            # query = query.is_("thread_id", "null") 
-            # Actually, let's just NOT filter by thread_id if it's missing, to find EVERYTHING in this chat?
-            # Risk: might mix topics. But better than finding nothing.
             print("⚠️ No thread_id, fetching all apps for this chat.")
             
         res = query.order("created_at", ascending=True).execute()
@@ -1675,6 +1668,10 @@ def handle_reload_command(message):
         print(f"RELOAD FATAL: {e}")
         try: bot.reply_to(message, f"❌ Критическая ошибка: {e}")
         except: pass
+
+@bot.message_handler(func=lambda m: m.text and (m.text.lower() == "!reload" or m.text.lower() == "релоад"))
+def handle_reload_text_trigger(message):
+    handle_reload_command(message)
 
 @app.route('/api/reload', methods=['POST', 'OPTIONS'])
 def reload_casting_endpoint():
