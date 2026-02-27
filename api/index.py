@@ -900,6 +900,7 @@ def notify_casting():
         # 1. FIND AND DELETE OLD APPLICATION (Deduplication)
         try:
             # Search by phone OR instagram for the same project
+            # AND exclude the current application (app_id) we just created
             query = supabase.table("casting_applications").select("id, tg_message_id").eq("casting_target", target)
             
             # Complex OR filter for phone or instagram
@@ -910,7 +911,13 @@ def notify_casting():
             elif insta:
                 query = query.eq("instagram", insta)
             
-            # Get only records that ARE NOT the one just inserted (latest one has no tg_message_id yet)
+            # CRITICAL: Exclude the CURRENT application ID (if we have it)
+            # Otherwise we might delete the record we just inserted if logic is flawed
+            app_id = data.get('application_id')
+            if app_id:
+                query = query.neq("id", app_id)
+
+            # Get OLD records that have a telegram message ID
             old_res = query.not_.is_("tg_message_id", "null").order("created_at", descending=True).execute()
             
             if old_res.data:
@@ -918,21 +925,30 @@ def notify_casting():
                     old_msg_id = old_app.get('tg_message_id')
                     old_db_id = old_app.get('id')
                     
+                    print(f"🗑️ Found duplicate: {old_db_id} (msg: {old_msg_id})")
+
                     # 1.1 Delete from Telegram
                     if old_msg_id:
                         try:
-                            # Also try to delete the media group message (it's usually msg_id - 1 if media was sent)
-                            # Telegram doesn't give media group IDs easily, but we can try to delete previous 2 messages
-                            # for safety if they belong to the same topic.
+                            # Try to delete the main text message
                             bot.delete_message(cid, old_msg_id)
-                            # Optional: try to delete the media message too (sent just before text)
-                            try: bot.delete_message(cid, int(old_msg_id) - 1)
-                            except: pass
-                        except Exception as tg_del_e: print(f"TG Delete Err: {tg_del_e}")
+                            print(f"   Deleted text msg {old_msg_id}")
+                            
+                            # Try to delete associated media group messages
+                            # Heuristic: media messages are usually immediately preceding the text message
+                            # We try to delete up to 9 previous messages if they look like part of a group
+                            # But safely, let's just try 3 previous IDs.
+                            for i in range(1, 4):
+                                try: 
+                                    bot.delete_message(cid, int(old_msg_id) - i)
+                                    print(f"   Deleted potential media msg {int(old_msg_id) - i}")
+                                except: pass
+                        except Exception as tg_del_e: 
+                            print(f"   TG Delete Err: {tg_del_e}")
                     
                     # 1.2 Delete from Supabase
                     supabase.table("casting_applications").delete().eq("id", old_db_id).execute()
-                    print(f"✅ Deduplicated: Deleted old application {old_db_id} for {phone}/{insta}")
+                    print(f"✅ Deduplicated: Deleted old application {old_db_id}")
         except Exception as dedup_e:
             print(f"Deduplication Error: {dedup_e}")
 
