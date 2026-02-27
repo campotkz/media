@@ -297,46 +297,57 @@
         let pendingUploads = 0;
 
         async function init() {
+            console.log("Init started. AppID:", appId);
+            
             if (!appId) {
-                document.getElementById('userInfo').innerHTML = "<span style='color:var(--error)'>Ошибка: Анкета не найдена.</span>";
+                console.error("No App ID provided in URL");
+                document.getElementById('userInfo').innerHTML = "<span style='color:var(--error)'>Ошибка: Некорректная ссылка (нет ID).</span>";
                 return;
             }
 
-            if (type === 'photo') {
-                document.getElementById('photoSection').style.display = 'block';
-                document.getElementById('instructionBox').textContent = "Пожалуйста, загрузите дополнительные фотографии, о которых просил менеджер.";
-            } else {
-                document.getElementById('videoSection').style.display = 'block';
-                document.getElementById('instructionBox').textContent = "Пожалуйста, загрузите дополнительную видео-визитку или пробу.";
-            }
+            try {
+                const { data, error } = await sb.from('casting_applications').select('*').eq('id', appId).single();
+                
+                if (error) {
+                    console.error("Supabase Error:", error);
+                    document.getElementById('userInfo').innerHTML = `<span style='color:var(--error)'>❌ Ошибка базы данных: ${error.message}</span>`;
+                    return;
+                }
+                
+                if (!data) {
+                    console.error("No data found for ID:", appId);
+                    document.getElementById('userInfo').innerHTML = "<span style='color:var(--error)'>❌ Анкета не найдена (возможно, удалена).</span>";
+                    return;
+                }
 
-            const { data, error } = await sb.from('casting_applications').select('*').eq('id', appId).single();
+                console.log("Data loaded:", data);
+                actorData = data;
+                
+                // Safe display of data
+                const name = data.full_name || "Неизвестный";
+                const project = data.casting_target || "Кастинг";
+                const phone = data.phone || "—";
+                
+                document.getElementById('userInfo').innerHTML = `
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div>👤 Актер: <b style="color:#fff">${name}</b></div>
+                        <div>📱 Телефон: <b>${phone}</b></div>
+                        <div>🎬 Проект: <b>${project}</b></div>
+                    </div>
+                `;
+                
+                // Show upload sections
+                if (type === 'photo') {
+                    document.getElementById('photoSection').style.display = 'block';
+                    document.getElementById('instructionBox').textContent = "Пожалуйста, загрузите дополнительные фотографии.";
+                } else {
+                    document.getElementById('videoSection').style.display = 'block';
+                    document.getElementById('instructionBox').textContent = "Пожалуйста, загрузите видео-визитку.";
+                }
 
-            if (error || !data) {
-                document.getElementById('userInfo').innerHTML = "<span style='color:var(--error)'>❌ Ошибка: Анкета не найдена.</span>";
-                return;
-            }
-
-            actorData = data;
-
-            // Safe display of data
-            const name = data.full_name || "Неизвестный";
-            const project = data.casting_target || "Кастинг";
-            const phone = data.phone || "—";
-
-            document.getElementById('userInfo').innerHTML = `
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    <div>👤 Актер: <b style="color:#fff">${name}</b></div>
-                    <div>📱 Телефон: <b>${phone}</b></div>
-                    <div>🎬 Проект: <b>${project}</b></div>
-                </div>
-            `;
-
-            // Show upload sections
-            if (type === 'photo') {
-                document.getElementById('photoSection').style.display = 'block';
-            } else {
-                document.getElementById('videoSection').style.display = 'block';
+            } catch (err) {
+                console.error("Unexpected Init Error:", err);
+                document.getElementById('userInfo').innerHTML = `<span style='color:var(--error)'>❌ Системная ошибка: ${err.message}</span>`;
             }
         }
 
