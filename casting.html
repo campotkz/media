@@ -1152,84 +1152,83 @@
             }
         }
 
+    <script>
+        // --- 1. Client-Side Compression & Optimization ---
         async function compressImage(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
-                reader.onload = (e) => {
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
                     const img = new Image();
+                    img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 1280;
+                        const MAX_HEIGHT = 1280;
                         let width = img.width;
                         let height = img.height;
-                        const MAX_WIDTH = 1200;
-                        const MAX_HEIGHT = 1200;
 
                         if (width > height) {
-                            if (width > MAX_WIDTH) {
-                                height *= MAX_WIDTH / width;
-                                width = MAX_WIDTH;
-                            }
+                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                         } else {
-                            if (height > MAX_HEIGHT) {
-                                width *= MAX_HEIGHT / height;
-                                height = MAX_HEIGHT;
-                            }
+                            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
                         }
 
                         canvas.width = width;
                         canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Compress to JPEG with 0.8 quality
                         canvas.toBlob((blob) => {
-                            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
-                        }, 'image/jpeg', 0.75);
+                            resolve(new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' }));
+                        }, 'image/jpeg', 0.8);
                     };
-                    img.src = e.target.result;
                 };
-                reader.readAsDataURL(file);
             });
         }
 
-        // Photo Upload Handling
-        document.getElementById('photoUpload').onclick = () => document.getElementById('photoInput').click();
+        // --- 2. Upload Logic ---
         document.getElementById('photoInput').onchange = async (e) => {
-            const MAX_SIZE = 50 * 1024 * 1024; // 50MB
             const files = Array.from(e.target.files);
             for (const file of files) {
-                if (file.size > MAX_SIZE) {
-                    alert(`Файл "${file.name}" слишком большой (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимум — 50MB.`);
-                    continue;
-                }
-
                 pendingUploads++;
                 updateSubmitButton();
-
+                
                 const id = Math.random().toString(36).substr(2, 9);
                 const fileItem = createMediaItem(id, file);
                 document.getElementById('photoList').appendChild(fileItem);
 
                 try {
-                    let fileToUpload = file;
-                    if (file.type.startsWith('image/')) {
-                        fileToUpload = await compressImage(file);
+                    // Compress if image
+                    let uploadFile = file;
+                    if (file.type.match(/image.*/)) {
+                        uploadFile = await compressImage(file);
                     }
 
-                    const ext = file.name.split('.').pop();
-                    const path = `photos/${id}.${ext}`;
-                    const { data, error } = await sb.storage.from('casting_media').upload(path, fileToUpload, {
-                        onUploadProgress: (p) => {
-                            const pct = (p.loaded / p.total) * 100;
-                            fileItem.querySelector('.progress-bar').style.width = pct + '%';
+                    const ext = uploadFile.name.split('.').pop();
+                    const path = `photos/${Date.now()}_${id}.${ext}`;
+                    
+                    const { error } = await sb.storage.from('casting_media').upload(path, uploadFile, {
+                        onUploadProgress: (progress) => {
+                            const percent = (progress.loaded / progress.total) * 100;
+                            fileItem.querySelector('.progress-bar').style.width = percent + '%';
                         }
                     });
+                    
                     if (error) throw error;
+
                     const { data: { publicUrl } } = sb.storage.from('casting_media').getPublicUrl(path);
+                    
+                    // Wait for URL to be available (simple fetch check)
+                    // await fetch(publicUrl, { method: 'HEAD' }); 
+
                     uploadedPhotos.push({ id, url: publicUrl });
                     fileItem.style.backgroundImage = `url(${publicUrl})`;
                 } catch (err) {
                     console.error(err);
                     fileItem.remove();
-                    alert("Ошибка загрузки фото: " + err.message);
+                    alert(`Ошибка загрузки ${file.name}: ${err.message}`);
                 } finally {
                     pendingUploads--;
                     updateSubmitButton();
