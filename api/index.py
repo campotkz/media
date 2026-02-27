@@ -251,16 +251,20 @@ def handle_on_command(message):
         ensure_project(cid, tid, chat_title)
         
         # 2. Set Active (Visible in Calendar)
-        # We DO NOT touch is_hidden. If it was archived (hidden), it stays hidden from form.
-        # But we ensure it is ACTIVE in the system (Calendar/ERP).
+        # We KEEP is_hidden=True if it was already hidden.
+        # This allows user to work in Calendar without exposing project to public form.
         
+        # However, we must ensure we don't accidentally UNHIDE it if user wanted it hidden.
+        # But wait, if project was closed (is_active=False, is_hidden=True), and we run /on:
+        # We want is_active=True, is_hidden=True.
+        
+        # Let's just update is_active.
         res = supabase.from_("clients").update({"is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
         
         bot.reply_to(message, 
             "✅ **ПРОЕКТ АКТИВИРОВАН В КАЛЕНДАРЕ**\n"
-            "Теперь он доступен для выбора в ERP.\n\n"
-            "🔒 Статус публичной видимости (для анкеты) не изменен.\n"
-            "Используйте `/archive` чтобы скрыть, или `/unarchive` чтобы открыть для всех.",
+            "Теперь он доступен для выбора в ERP (даже если топик закрыт).\n"
+            "Публичная видимость в анкете не изменена.",
             parse_mode="Markdown"
         )
     except Exception as e:
@@ -2446,11 +2450,10 @@ def handle_topic_reopened(message):
         tid = message.message_thread_id
         print(f"DEBUG: Catch forum_topic_reopened in chat {cid}, thread {tid}")
         if tid:
-            # REOPENED = ACTIVE in Calendar + HIDDEN from Form (Safe default)
-            # Or should we unarchive completely? 
-            # Let's make it ACTIVE in Calendar (so you can work), but keep it hidden from public form until explicit /unarchive
-            supabase.from_("clients").update({"is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
-            print(f"✅ SUCCESS: Topic {tid} in chat {cid} REOPENED and ACTIVATED (Calendar only).")
+            # REOPENED = ACTIVE in Calendar + VISIBLE in Form (Fully Open)
+            # If user manually reopens the topic, they probably want it back in action fully.
+            supabase.from_("clients").update({"is_active": True, "is_hidden": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
+            print(f"✅ SUCCESS: Topic {tid} in chat {cid} REOPENED and FULLY RESTORED.")
     except Exception as e: print(f"❌ Topic Reopened Err: {e}")
 
 # Catch-all logger for debugging service messages
