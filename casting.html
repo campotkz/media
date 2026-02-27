@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>АНКЕТА УЧАСТНИКА КАСТИНГА</title>
-    <!-- Version: 2.0.7 -->
+    <!-- Version: 2.0.8 -->
     <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -589,7 +589,7 @@
 <body>
     <div class="container" id="welcomeContainer">
         <div class="header">
-            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.0.7</span></h1>
+            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.0.8</span></h1>
             <p>Sklad Productions • Casting Management</p>
         </div>
 
@@ -901,18 +901,41 @@
                     `;
                     
                     label.querySelector('input').onchange = (e) => {
-                        if (e.target.checked) label.classList.add('active');
-                        else label.classList.remove('active');
+                        const checkedCount = container.querySelectorAll('input:checked').length;
                         
-                        // Update hidden input for validation
+                        // Если это вторая (или более) галочка, показываем модалку СРАЗУ
+                        if (e.target.checked && checkedCount > 1) {
+                            const modal = document.getElementById('confirmModal');
+                            modal.style.display = 'flex';
+                            
+                            document.getElementById('modalBack').onclick = () => {
+                                modal.style.display = 'none';
+                                e.target.checked = false; // Снимаем галочку назад
+                                label.classList.remove('active');
+                                updateHiddenInput();
+                            };
+                            
+                            document.getElementById('modalConfirm').onclick = () => {
+                                modal.style.display = 'none';
+                                // Оставляем галочку
+                                label.classList.add('active');
+                                updateHiddenInput();
+                            };
+                        } else {
+                            if (e.target.checked) label.classList.add('active');
+                            else label.classList.remove('active');
+                            updateHiddenInput();
+                        }
+                    };
+
+                    function updateHiddenInput() {
                         const checked = Array.from(container.querySelectorAll('input:checked')).map(i => i.value);
                         hiddenInput.value = checked.join(', ');
 
-                        // Show/hide immediate warning
                         const warning = document.getElementById('multiWarning');
                         if (checked.length > 1) warning.style.display = 'block';
                         else warning.style.display = 'none';
-                    };
+                    }
                     
                     container.appendChild(label);
                 });
@@ -1221,22 +1244,8 @@
                 return alert("Пожалуйста, дождитесь завершения загрузки всех медиа-файлов.");
             }
 
-            // If multi-select, show confirmation modal
-            if (checkedProjects.length > 1) {
-                const modal = document.getElementById('confirmModal');
-                modal.style.display = 'flex';
-                
-                document.getElementById('modalBack').onclick = () => {
-                    modal.style.display = 'none';
-                };
-                
-                document.getElementById('modalConfirm').onclick = () => {
-                    modal.style.display = 'none';
-                    processSubmit(e.target, checkedProjects);
-                };
-            } else {
-                processSubmit(e.target, checkedProjects);
-            }
+            // Модалка теперь срабатывает при клике на чекбокс, поэтому здесь просто отправляем
+            processSubmit(e.target, checkedProjects);
         };
 
         async function processSubmit(formElement, selectedProjects) {
