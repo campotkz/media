@@ -13,7 +13,7 @@ from datetime import datetime
 # Config
 TOKEN = os.environ.get('BOT_KEY')
 SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co"
-SUPABASE_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V" 
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY') 
 APP_URL = "https://campotkz.github.io/media/"
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
