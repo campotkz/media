@@ -1582,133 +1582,98 @@ def process_manual_media_update(source_msg, application_msg):
 def handle_reload_command(message):
     try:
         cid = message.chat.id
-        # IMPORTANT: message.message_thread_id is ONLY present if it is a topic message.
-        # But if the bot is admin, it might work differently? No.
-        # Check if message.is_topic_message is True or just rely on message_thread_id
         tid = message.message_thread_id
         
-        print(f"🔄 RELOAD CMD TRIGGERED: CID={cid}, TID={tid}")
+        # DEBUG: Verify we are here
+        print(f"🔥 RELOAD COMMAND CAUGHT! Chat: {cid}, Thread: {tid}")
         
-        if not tid:
-            # Maybe user is in General topic? (tid=None usually means General in some contexts, or not a topic group)
-            # But our DB stores thread_id for topics.
-            # If user wants to reload General topic, tid might be None or 1?
-            # Let's try to proceed even if tid is None, but warn.
-            print("⚠️ Reload: No TID. Assuming General or Group without topics.")
-            # If DB has thread_id=null for General, this is fine.
-            # bot.reply_to(message, "❌ Эту команду нужно использовать внутри топика.")
-            # return
-            
-        m = bot.reply_to(message, "🔄 Перезагрузка анкет... (Ищу в базе)")
+        # Send immediate acknowledgment to confirm bot is alive
+        status_msg = bot.reply_to(message, "⏳ Начинаю перезагрузку... (v3)")
         
-        # DEBUG: Check what we find
-        query = supabase.table("casting_applications").select("id").eq("chat_id", cid)
+        query = supabase.table("casting_applications").select("*").eq("chat_id", cid)
+        
+        # Handle thread logic
         if tid:
             query = query.eq("thread_id", tid)
         else:
-            # If tid is None, should we fetch where thread_id IS null?
-            # Or fetch everything for the chat?
-            # Usually casting is in topics. If tid is None, we likely want thread_id.is.null
-            query = query.is_("thread_id", "null")
+            # If no thread_id, we might be in General or a simple group.
+            # But maybe DB has stored 'null' explicitly?
+            # Or maybe we want to reload ALL chat applications if thread is missing?
+            # Let's try matching null thread_id
+            # query = query.is_("thread_id", "null") 
+            # Actually, let's just NOT filter by thread_id if it's missing, to find EVERYTHING in this chat?
+            # Risk: might mix topics. But better than finding nothing.
+            print("⚠️ No thread_id, fetching all apps for this chat.")
             
-        count_check = query.execute()
-        print(f"📊 Found {len(count_check.data)} applications to reload.")
+        res = query.order("created_at", ascending=True).execute()
         
-        if not count_check.data:
-             bot.edit_message_text(f"⚠️ Анкет не найдено (CID={cid}, TID={tid}).", cid, m.message_id)
-             return
+        if not res.data:
+            bot.edit_message_text(f"⚠️ Анкет не найдено в базе для этого чата/топика.", cid, status_msg.message_id)
+            return
 
-        # Fetch FULL data
-        query_full = supabase.table("casting_applications").select("*").eq("chat_id", cid)
-        if tid:
-            query_full = query_full.eq("thread_id", tid)
-        else:
-            query_full = query_full.is_("thread_id", "null")
-            
-        res = query_full.order("created_at", ascending=True).execute()
-        
         count = 0
-        if res.data:
-            for app_data in res.data:
-                try:
-                    print(f"   ♻️ Reloading app {app_data.get('id')}...")
-                    # 1. Delete OLD message if exists
-                    old_msg_id = app_data.get('tg_message_id')
-                    if old_msg_id:
-                        try:
-                            print(f"      Deleting old msg {old_msg_id}")
-                            bot.delete_message(cid, old_msg_id)
-                            # Try delete media (previous 9 messages)
-                            for i in range(1, 10):
-                                try: bot.delete_message(cid, int(old_msg_id) - i)
-                                except: pass
-                        except Exception as e_del:
-                            print(f"      Delete failed (ok): {e_del}")
+        for app_data in res.data:
+            try:
+                # 1. Delete OLD message
+                old_msg_id = app_data.get('tg_message_id')
+                if old_msg_id:
+                    try:
+                        bot.delete_message(cid, old_msg_id)
+                        # Delete media
+                        for i in range(1, 10):
+                            try: bot.delete_message(cid, int(old_msg_id) - i)
+                            except: pass
+                    except: pass
 
-                    # 2. Re-send
-                    full_txt = format_casting_message(app_data, is_selected=app_data.get('is_selected', False))
-                    
-                    def v(k): return str(app_data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
-                    simple_caption = (
-                        f"📸 <b>Анкета: {v('full_name')}</b>\n"
-                        f"🎯 {v('casting_target')}\n\n"
-                        f"Описание придет следующим сообщением... ⬇️"
-                    )
-                    
-                    photos = app_data.get('photo_urls', []) or []
-                    video = app_data.get('video_audition_url')
-                    media = []
-                    
-                    # 3 photos + 1 video max as requested
-                    p_limit = 3
-                    for i, url in enumerate(photos):
-                        if i >= p_limit: break
-                        if i == 0:
-                            media.append(types.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
-                        else:
-                            media.append(types.InputMediaPhoto(url))
-                    
-                    if video:
-                        if not media:
-                            media.append(types.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
-                        else:
-                            media.append(types.InputMediaVideo(video))
-                    
-                    markup = types.InlineKeyboardMarkup()
-                    app_id = app_data.get('id')
-                    is_sel = app_data.get('is_selected', False)
-                    select_btn_text = "✅ ВЫБРАН" if is_sel else "ВЫБРАТЬ"
-                    btns = [
-                        types.InlineKeyboardButton(select_btn_text, callback_data=f"app_sel:{app_id}"),
-                        types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
-                    ]
-                    markup.add(*btns)
-                    
-                    sent_msg = None
-                    if media:
-                        try:
-                            print(f"      Sending media group ({len(media)} items)...")
-                            bot.send_media_group(cid, media, message_thread_id=tid)
-                        except Exception as e: print(f"      Reload Media Fail: {e}")
-                    
-                    print(f"      Sending text...")
-                    sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-                    
-                    if sent_msg:
-                        print(f"      ✅ Sent! New ID: {sent_msg.message_id}")
-                        supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
-                    
-                    count += 1
-                    import time
-                    time.sleep(0.5)
-                except Exception as e:
-                    print(f"❌ Reload item error: {e}")
+                # 2. Prepare New Message
+                full_txt = format_casting_message(app_data, is_selected=app_data.get('is_selected', False))
+                
+                # ... (Media & Buttons logic same as before) ...
+                def v(k): return str(app_data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
+                simple_caption = f"📸 <b>Анкета: {v('full_name')}</b>\n🎯 {v('casting_target')}\n\n⬇️⬇️⬇️"
+                
+                photos = app_data.get('photo_urls') or []
+                video = app_data.get('video_audition_url')
+                media = []
+                
+                for i, url in enumerate(photos[:3]): # Max 3 photos
+                    if i == 0: media.append(types.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
+                    else: media.append(types.InputMediaPhoto(url))
+                
+                if video and len(media) < 10:
+                    if not media: media.append(types.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
+                    else: media.append(types.InputMediaVideo(video))
+                
+                markup = types.InlineKeyboardMarkup()
+                app_id = app_data.get('id')
+                sel_txt = "✅ ВЫБРАН" if app_data.get('is_selected') else "ВЫБРАТЬ"
+                markup.add(
+                    types.InlineKeyboardButton(sel_txt, callback_data=f"app_sel:{app_id}"),
+                    types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
+                )
+                
+                # 3. Send
+                sent_msg = None
+                if media:
+                    try: bot.send_media_group(cid, media, message_thread_id=tid)
+                    except Exception as e: print(f"Media err: {e}")
+                
+                sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                
+                if sent_msg:
+                    supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
+                
+                count += 1
+                import time; time.sleep(0.5)
+                
+            except Exception as e:
+                print(f"Reload Item Error: {e}")
 
-        bot.edit_message_text(f"✅ Перезагружено анкет: {count}", cid, m.message_id)
+        bot.edit_message_text(f"✅ Успешно перезагружено: {count}", cid, status_msg.message_id)
         
     except Exception as e:
-        print(f"CRITICAL RELOAD ERROR: {e}")
-        try: bot.reply_to(message, f"❌ Ошибка: {e}")
+        print(f"RELOAD FATAL: {e}")
+        try: bot.reply_to(message, f"❌ Критическая ошибка: {e}")
         except: pass
 
 @app.route('/api/reload', methods=['POST', 'OPTIONS'])
