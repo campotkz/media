@@ -1069,7 +1069,7 @@ def notify_casting():
 
         if app_id:
             btns = [
-                types.InlineKeyboardButton("✅ ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
+                types.InlineKeyboardButton("ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
                 types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
             ]
             markup.add(*btns)
