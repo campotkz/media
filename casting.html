@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>АНКЕТА УЧАСТНИКА КАСТИНГА</title>
-    <!-- Version: 2.0.9 -->
+    <!-- Version: 2.1.0 -->
     <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -589,7 +589,7 @@
 <body>
     <div class="container" id="welcomeContainer">
         <div class="header">
-            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.0.9</span></h1>
+            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.1.0</span></h1>
             <p>Sklad Productions • Casting Management</p>
         </div>
 
@@ -1263,22 +1263,8 @@
             submitBtn.disabled = true;
 
             try {
-                // 1. Save to DB (One record, multiple projects in string)
-                const finalData = {
-                    ...results,
-                    casting_target: selectedProjects.join(', '),
-                    chat_id: cid,
-                    thread_id: tid,
-                    project_name: selectedProjects[0], // Primary project
-                    photo_urls: uploadedPhotos.map(p => p.url),
-                    video_audition_url: uploadedVideo
-                };
-
-                const { error } = await sb.from('casting_applications').insert([finalData]);
-                if (error) throw error;
-
-                // 2. Notify Bot for EACH project
-                document.getElementById('loadingText').textContent = "Отправка в Telegram...";
+                // 1. Save to DB (Separate record for EACH selected project for filtering)
+                document.getElementById('loadingText').textContent = "Сохранение данных...";
                 
                 for (const pName of selectedProjects) {
                     // Find chat/thread for this project from our clients list
@@ -1290,18 +1276,25 @@
                     const targetCid = (clientData && clientData[0]) ? clientData[0].chat_id : cid;
                     const targetTid = (clientData && clientData[0]) ? clientData[0].thread_id : tid;
 
-                    const notifyData = {
-                        ...finalData,
+                    const finalData = {
+                        ...results,
                         casting_target: pName,
                         project_name: pName,
                         chat_id: targetCid,
-                        thread_id: targetTid
+                        thread_id: targetTid,
+                        photo_urls: uploadedPhotos.map(p => p.url),
+                        video_audition_url: uploadedVideo
                     };
 
+                    // Save record for this specific project
+                    const { error } = await sb.from('casting_applications').insert([finalData]);
+                    if (error) throw error;
+
+                    // 2. Notify Bot for this project
                     await fetch('https://media-seven-eta.vercel.app/api/casting', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(notifyData)
+                        body: JSON.stringify(finalData)
                     });
                 }
 

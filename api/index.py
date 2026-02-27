@@ -199,33 +199,24 @@ def handle_unarchive(message):
             bot.reply_to(message, "❌ Ошибка: Проект не найден.", parse_mode="Markdown")
     except Exception as e: bot.reply_to(message, f"❌ Ошибка разархивации: {e}")
 
-@bot.message_handler(commands=['cast_link'])
-def handle_cast_link(message):
+@bot.message_handler(commands=['cast_link', 'casting'])
+def handle_universal_casting(message):
     try:
         cid = message.chat.id
         tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
         
-        # 1. Ensure project exists in DB
-        ensure_project(cid, tid, message.chat.title)
-        
-        # 2. Fetch the current name
-        p_res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
-        
-        # 3. If still "Project X", try to use topic name if it's better
-        p_name = "Unknown Project"
-        if p_res.data:
-            p_name = p_res.data[0]['name']
-            if p_name.startswith("Project ") and message.reply_to_message:
-                # Fallback: if we only have Project ID, maybe the topic name is in the chat title?
-                # Usually chat.title is the group name, not topic name.
-                pass
-
-        link = f"{APP_URL}casting.html?cid={cid}&tid={tid or ''}&proj={p_name.replace(' ', '%20')}"
+        # Universal link without project pre-selection
+        link = f"{APP_URL}casting.html"
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton(text="🎭 ОТКРЫТЬ АНКЕТУ", url=link))
+        markup.add(types.InlineKeyboardButton(text="🎭 ОТКРЫТЬ АНКЕТУ КАСТИНГА", url=link))
         
-        msg = f"📋 **ССЫЛКА НА АНКЕТУ**\nПроект: **{p_name}**\n\n`{link}`\n\nОтправьте эту ссылку кандидатам. Все анкеты прилетят прямо в этот чат."
-        bot.send_message(cid, msg, reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
+        msg = (
+            f"🌟 <b>УНИВЕРСАЛЬНАЯ ССЫЛКА НА КАСТИНГ</b>\n\n"
+            f"Эта ссылка позволяет кандидату выбрать любой активный проект внутри анкеты.\n\n"
+            f"🔗 <code>{link}</code>\n\n"
+            f"Все анкеты автоматически попадут в соответствующие топики проектов."
+        )
+        bot.send_message(cid, msg, reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка генерации ссылки: {e}")
 
