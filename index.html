@@ -1487,9 +1487,9 @@
     function renderTaskProjects() {
       const val = tProjInput.value.toLowerCase();
       tProjDropdown.innerHTML = '';
+      // Show ALL projects, even hidden ones. Just mark them.
       const matches = clientsData.filter(c =>
         (c.category || 'media') === 'media' &&
-        !c.is_hidden &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
 
@@ -1498,7 +1498,7 @@
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.textContent = c.name;
+        div.innerHTML = c.name + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => { tProjInput.value = c.name; tProjDropdown.style.display = 'none'; };
         tProjDropdown.appendChild(div);
       });
@@ -1511,8 +1511,9 @@
     function renderTaskCastingProjects() {
       const val = tCastProjInput.value.toLowerCase();
       tCastProjDropdown.innerHTML = '';
+      // Show ALL projects, even hidden ones.
       const matches = clientsData.filter(c =>
-        c.category === 'casting' && !c.is_hidden &&
+        c.category === 'casting' &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
 
@@ -1521,7 +1522,7 @@
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.textContent = c.name;
+        div.innerHTML = c.name + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => { tCastProjInput.value = c.name; tCastProjDropdown.style.display = 'none'; };
         tCastProjDropdown.appendChild(div);
       });
@@ -1577,16 +1578,16 @@
     const renderProjects = () => {
       const val = projInput.value.toLowerCase();
       projDropdown.innerHTML = '';
+      // Show hidden projects too
       const matches = clientsData.filter(c =>
         (c.category || 'media') === 'media' &&
-        !c.is_hidden &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
       if (!matches.length) { projDropdown.style.display = 'none'; return; }
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = `<span>${c.name}</span> <small style="background:#4cd96433; color:#4cd964; padding:2px 6px; border-radius:4px; font-size:9px">MEDIA</small>`;
+        div.innerHTML = `<span>${c.name}</span> <small style="background:#4cd96433; color:#4cd964; padding:2px 6px; border-radius:4px; font-size:9px">MEDIA</small>` + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => {
           projInput.value = c.name;
           projDropdown.style.display = 'none';
@@ -1603,16 +1604,16 @@
     const renderCastingProjects = () => {
       const val = castInput.value.toLowerCase();
       castDropdown.innerHTML = '';
+      // Show hidden projects too
       const matches = clientsData.filter(c =>
         c.category === 'casting' &&
-        !c.is_hidden &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
       if (!matches.length) { castDropdown.style.display = 'none'; return; }
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = `<span>${c.name}</span> <small style="background:#7aa2ff33; color:#7aa2ff; padding:2px 6px; border-radius:4px; font-size:9px">CASTING</small>`;
+        div.innerHTML = `<span>${c.name}</span> <small style="background:#7aa2ff33; color:#7aa2ff; padding:2px 6px; border-radius:4px; font-size:9px">CASTING</small>` + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => {
           castInput.value = c.name;
           castDropdown.style.display = 'none';
@@ -2746,11 +2747,8 @@
 
       const monEvents = allEvents.filter(e => {
         const d = new Date(e.date);
-        // Hide only PENDING events for closed projects. Keep DONE/OVERDUE visible.
-        const isHidden = clientsData.find(c => c.name === e.project)?.is_hidden;
-        const status = getStatus(e);
-        const shouldHide = isHidden && status === 'pending';
-        return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth() && !shouldHide;
+        // Show ALL events even for hidden projects (Manager view)
+        return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
       });
 
       // Calculate Stats
@@ -2789,11 +2787,11 @@
           if (t.status === 'done') return false;
           if (!t.deadline) return false;
 
-          // Hide only PENDING tasks for closed projects. Keep OVERDUE visible.
-          const isProjHidden = clientsData.find(c => c.name === t.project_id)?.is_hidden;
-          const isCastHidden = clientsData.find(c => c.name === t.casting_project)?.is_hidden;
-          const isOverdue = t.deadline < todayISO;
-          if ((isProjHidden || isCastHidden) && !isOverdue) return false;
+          // Show ALL tasks even for hidden projects
+          // const isProjHidden = clientsData.find(c => c.name === t.project_id)?.is_hidden;
+          // const isCastHidden = clientsData.find(c => c.name === t.casting_project)?.is_hidden;
+          // const isOverdue = t.deadline < todayISO;
+          // if ((isProjHidden || isCastHidden) && !isOverdue) return false;
 
           // Startdate: created_at or fallback to deadline if missing
           // We want to show line from start to deadline
@@ -2883,19 +2881,13 @@
       // Список проектов дня (Shoots + Tasks)
       const listDiv = document.getElementById("eventList");
       const dayShoots = allEvents.filter(e => {
-        const isHidden = clientsData.find(c => c.name === e.project)?.is_hidden;
-        const status = getStatus(e);
-        const shouldHide = isHidden && status === 'pending';
-        return e.date === toISO(selectedDate) && !shouldHide;
+        // Show ALL
+        return e.date === toISO(selectedDate);
       }).sort((a, b) => a.callTime.localeCompare(b.callTime));
 
       const dayTasksList = allTasks.filter(t => {
-        const isProjHidden = clientsData.find(c => c.name === t.project_id)?.is_hidden;
-        const isCastHidden = clientsData.find(c => c.name === t.casting_project)?.is_hidden;
-        const isOverdue = t.deadline < todayISO;
-        const isDone = t.status === 'done';
-        const shouldHide = (isProjHidden || isCastHidden) && !isOverdue && !isDone;
-        return t.deadline === toISO(selectedDate) && !shouldHide;
+        // Show ALL
+        return t.deadline === toISO(selectedDate);
       });
 
       let html = "";

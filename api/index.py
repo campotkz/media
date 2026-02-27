@@ -240,6 +240,32 @@ def handle_rename(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
+@bot.message_handler(commands=['on'])
+def handle_on_command(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
+        chat_title = message.chat.title or "Unknown"
+        
+        # 1. Ensure project exists
+        ensure_project(cid, tid, chat_title)
+        
+        # 2. Set Active (Visible in Calendar)
+        # We default to is_hidden=False (Public), unless user wants otherwise.
+        # Since user asked for "Closed topic -> Hidden in Form", we advise them to use /archive
+        # But we ensure it is ACTIVE in the system.
+        
+        res = supabase.from_("clients").update({"is_active": True, "is_hidden": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        
+        bot.reply_to(message, 
+            "✅ **ПРОЕКТ АКТИВИРОВАН**\n"
+            "Он виден в анкете кастинга и в календаре.\n\n"
+            "🔒 Если топик закрыт и вы хотите скрыть его из анкеты (но оставить в календаре), используйте команду `/archive`.",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
 @bot.message_handler(commands=['archive'])
 def handle_archive(message):
     try:
