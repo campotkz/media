@@ -617,12 +617,24 @@ def handle_app_blacklist_confirm(call):
 def handle_app_delete_initial(call):
     try:
         app_id = call.data.split(':')[1]
+        cid = call.message.chat.id
+        
+        # Check current buttons to preserve Blacklist button if present
+        current_markup = call.message.reply_markup
+        has_blacklist = False
+        if current_markup:
+            for row in current_markup.keyboard:
+                for btn in row:
+                    if btn.callback_data and btn.callback_data.startswith('app_bl:'):
+                        has_blacklist = True
+                        break
+
         markup = types.InlineKeyboardMarkup()
         markup.add(
             types.InlineKeyboardButton("🗑️ ДА, УДАЛИТЬ", callback_data=f"app_del_ok:{app_id}"),
-            types.InlineKeyboardButton("❌ ОТМЕНА", callback_data=f"app_del_no:{app_id}")
+            types.InlineKeyboardButton("❌ ОТМЕНА", callback_data=f"app_del_no:{app_id}{':bl' if has_blacklist else ''}")
         )
-        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.edit_message_reply_markup(cid, call.message.message_id, reply_markup=markup)
         bot.answer_callback_query(call.id, "⚠️ Вы уверены?")
     except Exception as e:
         print(f"App Del Initial Err: {e}")
@@ -630,12 +642,21 @@ def handle_app_delete_initial(call):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_del_no:'))
 def handle_app_delete_cancel(call):
     try:
-        app_id = call.data.split(':')[1]
+        parts = call.data.split(':')
+        app_id = parts[1]
+        has_blacklist = len(parts) > 2 and parts[2] == 'bl'
+
         markup = types.InlineKeyboardMarkup()
-        markup.add(
+        
+        btns = [
             types.InlineKeyboardButton("✅ ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
             types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
-        )
+        ]
+        if has_blacklist:
+             btns.append(types.InlineKeyboardButton("🏴 ЧС", callback_data=f"app_bl:{app_id}"))
+             
+        markup.add(*btns)
+        
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
         bot.answer_callback_query(call.id, "Ок, отмена.")
     except Exception as e:
