@@ -1327,8 +1327,13 @@ def handle_actor_update_link(message):
         app_data = res.data[0]
         update_type = 'photo' if 'foto' in message.text else 'video'
         
-        # Generate Personal Link
-        link = f"https://campotkz.github.io/media/update.html?id={app_data['id']}&type={update_type}"
+        # Generate Personal Link with EXPLICIT Context
+        # We pass cid/tid to ensure we know exactly where to return the result
+        cid = message.chat.id
+        tid = message.message_thread_id or 0
+        
+        # Safe project name from chat title or topic name could be added too, but IDs are most important
+        link = f"https://campotkz.github.io/media/update.html?id={app_data['id']}&type={update_type}&cid={cid}&tid={tid}"
         
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton(text=f"📥 ДОБАВИТЬ {'ФОТО' if update_type == 'photo' else 'ВИДЕО'}", url=link))

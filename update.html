@@ -286,6 +286,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         const appId = urlParams.get('id');
         const type = urlParams.get('type'); // 'photo' or 'video'
+        
+        // Context params (optional, but preferred for reliable return)
+        const ctxCid = urlParams.get('cid');
+        const ctxTid = urlParams.get('tid');
 
         let actorData = null;
         let uploadedPhotos = [];
@@ -424,12 +428,17 @@
 
                 // 2. Notify Bot (Repost)
                 document.getElementById('loadingText').textContent = "Отправка менеджеру...";
+                
+                // Use context IDs if available, otherwise fallback to DB IDs
+                const finalCid = ctxCid ? parseInt(ctxCid) : actorData.chat_id;
+                const finalTid = ctxTid ? parseInt(ctxTid) : actorData.thread_id;
+                
                 const payload = {
                     ...actorData,
                     photo_urls: newPhotos,
                     video_audition_url: finalVideo,
-                    chat_id: actorData.chat_id,
-                    thread_id: actorData.thread_id
+                    chat_id: finalCid,
+                    thread_id: finalTid
                 };
 
                 await fetch('https://media-seven-eta.vercel.app/api/casting', {
