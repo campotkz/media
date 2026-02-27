@@ -482,7 +482,7 @@ def handle_add_callback(call):
     except Exception as e:
         bot.answer_callback_query(call.id, f"❌ Ошибка: {e}")
 
-@bot.message_handler(func=lambda m: m.reply_to_message and m.reply_to_message.from_user.id == bot.get_me().id)
+@bot.message_handler(func=lambda m: m.reply_to_message and m.reply_to_message.from_user.id == bot.get_me().id and not m.text.startswith('/'))
 def handle_reply_input(message):
     try:
         cid = message.chat.id
@@ -1295,6 +1295,10 @@ def handle_actor_update_link(message):
         bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(func=lambda m: (m.text and "/add" in m.text) or (m.caption and "/add" in m.caption), content_types=['text', 'photo', 'video', 'document'])
+def handle_add_media_legacy(message):
+    # Rename this handler to avoid conflict or just remove it if unused.
+    # It seems to be conflicting with /foto and /video commands?
+    pass
 def handle_manual_add_media(message):
     try:
         reply = message.reply_to_message
