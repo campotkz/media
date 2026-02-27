@@ -1487,9 +1487,10 @@
     function renderTaskProjects() {
       const val = tProjInput.value.toLowerCase();
       tProjDropdown.innerHTML = '';
-      // Show ALL projects, even hidden ones. Just mark them.
+      // Show ONLY ACTIVE projects (even if hidden from form)
       const matches = clientsData.filter(c =>
         (c.category || 'media') === 'media' &&
+        c.is_active &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
 
@@ -1511,9 +1512,10 @@
     function renderTaskCastingProjects() {
       const val = tCastProjInput.value.toLowerCase();
       tCastProjDropdown.innerHTML = '';
-      // Show ALL projects, even hidden ones.
+      // Show ONLY ACTIVE projects (even if hidden from form)
       const matches = clientsData.filter(c =>
         c.category === 'casting' &&
+        c.is_active &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
 
@@ -1578,9 +1580,10 @@
     const renderProjects = () => {
       const val = projInput.value.toLowerCase();
       projDropdown.innerHTML = '';
-      // Show hidden projects too
+      // Show ONLY ACTIVE projects (even if hidden from form)
       const matches = clientsData.filter(c =>
         (c.category || 'media') === 'media' &&
+        c.is_active &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
       if (!matches.length) { projDropdown.style.display = 'none'; return; }
@@ -1604,9 +1607,10 @@
     const renderCastingProjects = () => {
       const val = castInput.value.toLowerCase();
       castDropdown.innerHTML = '';
-      // Show hidden projects too
+      // Show ONLY ACTIVE projects (even if hidden from form)
       const matches = clientsData.filter(c =>
         c.category === 'casting' &&
+        c.is_active &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
       if (!matches.length) { castDropdown.style.display = 'none'; return; }
@@ -2747,7 +2751,11 @@
 
       const monEvents = allEvents.filter(e => {
         const d = new Date(e.date);
-        // Show ALL events even for hidden projects (Manager view)
+
+        // Filter by ACTIVE projects
+        const proj = clientsData.find(c => c.name === e.project);
+        if (proj && !proj.is_active) return false;
+
         return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
       });
 
@@ -2787,11 +2795,11 @@
           if (t.status === 'done') return false;
           if (!t.deadline) return false;
 
-          // Show ALL tasks even for hidden projects
-          // const isProjHidden = clientsData.find(c => c.name === t.project_id)?.is_hidden;
-          // const isCastHidden = clientsData.find(c => c.name === t.casting_project)?.is_hidden;
-          // const isOverdue = t.deadline < todayISO;
-          // if ((isProjHidden || isCastHidden) && !isOverdue) return false;
+          // Hide tasks for INACTIVE projects
+          const p = clientsData.find(c => c.name === t.project_id);
+          const cp = clientsData.find(c => c.name === t.casting_project);
+          if (p && !p.is_active) return false;
+          if (cp && !cp.is_active) return false;
 
           // Startdate: created_at or fallback to deadline if missing
           // We want to show line from start to deadline
@@ -2881,12 +2889,16 @@
       // Список проектов дня (Shoots + Tasks)
       const listDiv = document.getElementById("eventList");
       const dayShoots = allEvents.filter(e => {
-        // Show ALL
+        const proj = clientsData.find(c => c.name === e.project);
+        if (proj && !proj.is_active) return false;
         return e.date === toISO(selectedDate);
       }).sort((a, b) => a.callTime.localeCompare(b.callTime));
 
       const dayTasksList = allTasks.filter(t => {
-        // Show ALL
+        const p = clientsData.find(c => c.name === t.project_id);
+        const cp = clientsData.find(c => c.name === t.casting_project);
+        if (p && !p.is_active) return false;
+        if (cp && !cp.is_active) return false;
         return t.deadline === toISO(selectedDate);
       });
 

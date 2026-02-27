@@ -251,16 +251,16 @@ def handle_on_command(message):
         ensure_project(cid, tid, chat_title)
         
         # 2. Set Active (Visible in Calendar)
-        # We default to is_hidden=False (Public), unless user wants otherwise.
-        # Since user asked for "Closed topic -> Hidden in Form", we advise them to use /archive
-        # But we ensure it is ACTIVE in the system.
+        # We DO NOT touch is_hidden. If it was archived (hidden), it stays hidden from form.
+        # But we ensure it is ACTIVE in the system (Calendar/ERP).
         
-        res = supabase.from_("clients").update({"is_active": True, "is_hidden": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        res = supabase.from_("clients").update({"is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
         
         bot.reply_to(message, 
-            "✅ **ПРОЕКТ АКТИВИРОВАН**\n"
-            "Он виден в анкете кастинга и в календаре.\n\n"
-            "🔒 Если топик закрыт и вы хотите скрыть его из анкеты (но оставить в календаре), используйте команду `/archive`.",
+            "✅ **ПРОЕКТ АКТИВИРОВАН В КАЛЕНДАРЕ**\n"
+            "Теперь он доступен для выбора в ERP.\n\n"
+            "🔒 Статус публичной видимости (для анкеты) не изменен.\n"
+            "Используйте `/archive` чтобы скрыть, или `/unarchive` чтобы открыть для всех.",
             parse_mode="Markdown"
         )
     except Exception as e:
