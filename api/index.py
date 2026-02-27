@@ -1564,6 +1564,54 @@ def handle_new_member(message):
     for u in (message.new_chat_members or []):
         if not u.is_bot: register_user(u, message.chat.id, tid)
 
+@bot.message_handler(content_types=['forum_topic_created'])
+def handle_topic_created(message):
+    try:
+        cid = message.chat.id
+        # The title of the new topic is in forum_topic_created object
+        topic_title = message.forum_topic_created.name
+        tid = message.message_thread_id
+        
+        category = 'casting' if 'КАСТИНГ' in (message.chat.title or "").upper() else 'media'
+        
+        print(f"🆕 NEW TOPIC: {topic_title} (ID: {tid}) in Chat: {cid}")
+        
+        # Immediately save to DB with the correct name
+        supabase.table("clients").upsert({
+            "name": topic_title,
+            "chat_id": cid,
+            "thread_id": tid,
+            "category": category,
+            "is_active": True,
+            "is_hidden": False
+        }, on_conflict="chat_id,thread_id").execute()
+        
+        print(f"✅ SUCCESS: Project '{topic_title}' saved to DB automatically.")
+    except Exception as e:
+        print(f"❌ Topic Created Err: {e}")
+
+@bot.message_handler(content_types=['forum_topic_edited'])
+def handle_topic_edited(message):
+    try:
+        cid, tid = message.chat.id, message.message_thread_id
+        new_name = message.forum_topic_edited.name
+        if tid and new_name:
+            supabase.from_("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
+            print(f"📝 EDITED: Topic {tid} in chat {cid} renamed to '{new_name}'")
+    except Exception as e: print(f"❌ Topic Edited Err: {e}")
+
+@bot.message_handler(content_types=['forum_topic_deleted'])
+def handle_topic_deleted(message):
+    try:
+        cid, tid = message.chat.id, message.message_thread_id
+        if tid:
+            # Delete project from clients
+            supabase.from_("clients").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
+            # Also delete related contacts? (Optional but clean)
+            # supabase.from_("contacts").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
+            print(f"🗑️ DELETED: Project from topic {tid} in chat {cid} removed from DB.")
+    except Exception as e: print(f"❌ Topic Deleted Err: {e}")
+
 @bot.message_handler(content_types=['forum_topic_closed'])
 def handle_topic_closed(message):
     try:
