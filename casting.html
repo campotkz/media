@@ -85,6 +85,50 @@
             color: rgba(255, 255, 255, 0.8);
         }
 
+        .reentry-block {
+            background: rgba(122, 162, 255, 0.1);
+            border: 1px solid var(--accent-stroke);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .reentry-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .reentry-checkbox input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+        }
+
+        #reentryInputGroup {
+            margin-top: 12px;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fetch-status {
+            font-size: 11px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .fetch-status.loading { color: var(--accent); display: block; }
+        .fetch-status.error { color: var(--error); display: block; }
+        .fetch-status.success { color: var(--success); display: block; }
+
         .block {
             background: var(--card-bg);
             border: 1px solid var(--stroke);
@@ -314,7 +358,65 @@
             padding: 60px 20px;
         }
 
-        .success-screen h2 {
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .welcome-card {
+            background: var(--card-bg);
+            border: 1px solid var(--stroke);
+            border-radius: var(--radius);
+            padding: 24px;
+            backdrop-filter: blur(20px);
+        }
+
+        .welcome-text {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .welcome-instruction {
+            background: rgba(122, 162, 255, 0.1);
+            border-left: 3px solid var(--accent);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .option-btn {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--stroke);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .option-btn:hover {
+            border-color: var(--accent);
+            background: rgba(122, 162, 255, 0.05);
+        }
+
+        .option-btn i {
+            font-size: 20px;
+            opacity: 0.8;
+        }
+
+        .option-btn .label {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .loading-overlay {
             font-size: 24px;
             margin-bottom: 12px;
         }
@@ -358,7 +460,49 @@
 </head>
 
 <body>
-    <div class="container" id="formContainer">
+    <div class="container" id="welcomeContainer">
+        <div class="header">
+            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА</h1>
+            <p>Sklad Productions • Casting Management</p>
+        </div>
+
+        <div class="welcome-screen">
+            <div class="welcome-card">
+                <div class="welcome-text">
+                    Вы заполняете анкету на кастинг.
+                </div>
+                <div class="welcome-instruction">
+                    ⚡️ <b>Важно:</b> Ваши шансы значительно увеличатся, если вы загрузите актуальные фото (сделайте их прямо сейчас на телефон) и видеовизитку (до 1 минуты) с отыгрышем персонажа, на которого вы претендуете.
+                </div>
+                <div class="welcome-text" style="color: var(--error); font-weight: 600;">
+                    ⚠️ Анкеты с неактуальными фото или снимками, не имеющими отношения к кастингу, рассматриваться не будут.
+                </div>
+            </div>
+
+            <div class="welcome-card">
+                <div class="option-btn" id="startNewBtn">
+                    <i>📝</i>
+                    <div class="label">Я заполняю первый раз</div>
+                </div>
+
+                <div class="option-btn" id="reentryStartBtn">
+                    <i>🔄</i>
+                    <div class="label">Я уже заполнял(а) анкету ранее</div>
+                </div>
+
+                <div id="reentryInputGroup" style="display:none; margin-top: 16px; border-top: 1px solid var(--stroke); padding-top: 16px;">
+                    <label style="font-size: 12px; margin-bottom: 8px;">Введите номер телефона (который указывали ранее):</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="tel" id="reentryPhone" placeholder="+7 777 000 00 00" style="flex: 1; padding: 12px;">
+                        <button type="button" id="reentryFetchBtn" style="min-height: auto; padding: 0 16px; font-size: 12px; background: var(--accent); color: #000; border-radius: 10px; border: none; font-weight: 700;">НАЙТИ</button>
+                    </div>
+                    <div id="fetchStatus" class="fetch-status"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="formContainer" style="display:none">
         <div class="header">
             <h1>АНКЕТА УЧАСТНИКА КАСТИНГА</h1>
             <p>Sklad Productions • Casting Management</p>
@@ -519,9 +663,11 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Видео-проба (Актерский этюд)<span>*</span></label>
-                    <p style="font-size:11px; color:var(--muted); margin-bottom:10px">До 1 минуты. Эмоции и подача в
-                        кадре. <b>Лимит 50MB.</b> Если файл больше, укажите ссылку ниже.</p>
+                    <label>Видео-визитка (Актерский этюд)<span>*</span></label>
+                    <p style="font-size:11px; color:var(--muted); margin-bottom:10px">
+                        До 1 минуты. Эмоции и подача в кадре. <b>Лимит 50MB.</b><br>
+                        <i>Если прикрепить новое видео до минуты с визиткой именно по персонажу, на которого подаетесь, шансов больше или можете добавить ссылку на портфолио ниже.</i>
+                    </p>
                     <div class="upload-area" id="videoUpload">
                         <i>🎬</i>
                         <span>Нажмите для выбора видео (MP4, MOV)</span>
@@ -572,6 +718,165 @@
 
         let uploadedPhotos = [];
         let uploadedVideo = null;
+        let pendingUploads = 0;
+
+        // Onboarding / Re-entry logic
+        const welcomeContainer = document.getElementById('welcomeContainer');
+        const formContainer = document.getElementById('formContainer');
+        const startNewBtn = document.getElementById('startNewBtn');
+        const reentryStartBtn = document.getElementById('reentryStartBtn');
+        const reentryInputGroup = document.getElementById('reentryInputGroup');
+        const reentryPhone = document.getElementById('reentryPhone');
+        const reentryFetchBtn = document.getElementById('reentryFetchBtn');
+        const fetchStatus = document.getElementById('fetchStatus');
+
+        startNewBtn.onclick = () => {
+            welcomeContainer.style.display = 'none';
+            formContainer.style.display = 'block';
+            window.scrollTo(0, 0);
+        };
+
+        reentryStartBtn.onclick = () => {
+            reentryInputGroup.style.display = 'block';
+            reentryPhone.focus();
+        };
+
+        reentryFetchBtn.onclick = async () => {
+            const phone = reentryPhone.value.trim().replace(/\D/g, '');
+            if (phone.length < 10) return alert("Введите корректный номер телефона");
+
+            fetchStatus.textContent = "🔍 Ищем анкету...";
+            fetchStatus.className = "fetch-status loading";
+            reentryFetchBtn.disabled = true;
+
+            try {
+                // Search in casting_applications (latest one)
+                const { data, error } = await sb.from('casting_applications')
+                    .select('*')
+                    .or(`phone.ilike.%${phone}%,phone.ilike.%${phone.slice(-10)}%`)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    fetchStatus.textContent = "❌ Номер не найден. Пожалуйста, проверьте ввод или нажмите 'Я заполняю первый раз'";
+                    fetchStatus.className = "fetch-status error";
+                    return;
+                }
+
+                const app = data[0];
+                const form = document.getElementById('castingForm');
+                
+                // Fill fields
+                const fields = [
+                    'full_name', 'gender', 'city', 'dob', 'nationality', 'phone', 
+                    'instagram', 'height_weight', 'sizes', 'experience', 'skills', 
+                    'fee_range', 'underwear_ok', 'extras_ok', 'portfolio_url'
+                ];
+
+                fields.forEach(f => {
+                    const input = form.querySelector(`[name="${f}"]`);
+                    if (input) {
+                        if (input.type === 'radio') {
+                            const radio = form.querySelector(`[name="${f}"][value="${app[f]}"]`);
+                            if (radio) radio.checked = true;
+                        } else {
+                            input.value = app[f] || '';
+                        }
+                    }
+                });
+
+                // Fill media
+                if (app.photo_urls && Array.from(app.photo_urls).length > 0) {
+                    uploadedPhotos = app.photo_urls.map((url, index) => {
+                        const id = Math.random().toString(36).substr(2, 9);
+                        const fileItem = createMediaItem(id, { name: `Old_Photo_${index}` });
+                        document.getElementById('photoList').appendChild(fileItem);
+                        fileItem.style.backgroundImage = `url(${url})`;
+                        fileItem.querySelector('.progress-bar').style.width = '100%';
+                        return { id, url };
+                    });
+                }
+
+                if (app.video_audition_url) {
+                    const id = Math.random().toString(36).substr(2, 9);
+                    const fileItem = createMediaItem(id, { name: 'Old_Video' }, true);
+                    document.getElementById('videoList').innerHTML = '';
+                    document.getElementById('videoList').appendChild(fileItem);
+                    fileItem.querySelector('.progress-bar').style.width = '100%';
+                    uploadedVideo = app.video_audition_url;
+                }
+
+                fetchStatus.textContent = "✅ Данные найдены! Вы можете обновить фото и видео для этого проекта";
+                fetchStatus.className = "fetch-status success";
+                
+                // Redirect to form after short delay
+                setTimeout(() => {
+                    welcomeContainer.style.display = 'none';
+                    formContainer.style.display = 'block';
+                    window.scrollTo(0, 0);
+                }, 1500);
+
+            } catch (err) {
+                console.error(err);
+                fetchStatus.textContent = "❌ Ошибка при поиске: " + err.message;
+                fetchStatus.className = "fetch-status error";
+            } finally {
+                reentryFetchBtn.disabled = false;
+            }
+        };
+
+        function updateSubmitButton() {
+            const btn = document.getElementById('submitBtn');
+            if (pendingUploads > 0) {
+                btn.disabled = true;
+                btn.textContent = "⏳ ЗАГРУЗКА МЕДИА (" + pendingUploads + ")...";
+                btn.style.background = "var(--muted)";
+            } else {
+                btn.disabled = false;
+                btn.textContent = "ОТПРАВИТЬ АНКЕТУ";
+                btn.style.background = "var(--accent)";
+            }
+        }
+
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        const MAX_WIDTH = 1200;
+                        const MAX_HEIGHT = 1200;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        canvas.toBlob((blob) => {
+                            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+                        }, 'image/jpeg', 0.75);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
 
         // Photo Upload Handling
         document.getElementById('photoUpload').onclick = () => document.getElementById('photoInput').click();
@@ -583,14 +888,23 @@
                     alert(`Файл "${file.name}" слишком большой (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимум — 50MB.`);
                     continue;
                 }
+                
+                pendingUploads++;
+                updateSubmitButton();
+
                 const id = Math.random().toString(36).substr(2, 9);
                 const fileItem = createMediaItem(id, file);
                 document.getElementById('photoList').appendChild(fileItem);
 
                 try {
+                    let fileToUpload = file;
+                    if (file.type.startsWith('image/')) {
+                        fileToUpload = await compressImage(file);
+                    }
+
                     const ext = file.name.split('.').pop();
                     const path = `photos/${id}.${ext}`;
-                    const { data, error } = await sb.storage.from('casting_media').upload(path, file, {
+                    const { data, error } = await sb.storage.from('casting_media').upload(path, fileToUpload, {
                         onUploadProgress: (p) => {
                             const pct = (p.loaded / p.total) * 100;
                             fileItem.querySelector('.progress-bar').style.width = pct + '%';
@@ -604,6 +918,9 @@
                     console.error(err);
                     fileItem.remove();
                     alert("Ошибка загрузки фото: " + err.message);
+                } finally {
+                    pendingUploads--;
+                    updateSubmitButton();
                 }
             }
         };
@@ -620,6 +937,9 @@
                 e.target.value = '';
                 return;
             }
+
+            pendingUploads++;
+            updateSubmitButton();
 
             const id = Math.random().toString(36).substr(2, 9);
             const fileItem = createMediaItem(id, file, true);
@@ -642,6 +962,9 @@
                 console.error(err);
                 fileItem.remove();
                 alert("Ошибка загрузки видео: " + err.message);
+            } finally {
+                pendingUploads--;
+                updateSubmitButton();
             }
         };
 
@@ -662,6 +985,10 @@
         // Form Submit
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
+            if (pendingUploads > 0) {
+                return alert("Пожалуйста, дождитесь завершения загрузки всех медиа-файлов.");
+            }
+
             const formData = new FormData(e.target);
             const results = Object.fromEntries(formData.entries());
 
@@ -692,7 +1019,10 @@
                 const { error } = await sb.from('casting_applications').insert([finalData]);
                 if (error) throw error;
 
-                // 2. Notify Bot
+                // 2. Notify Bot (Wait 2s to ensure Supabase public URL is ready for Telegram Crawler)
+                document.getElementById('loadingText').textContent = "Подготовка медиа...";
+                await new Promise(r => setTimeout(r, 2000));
+                
                 document.getElementById('loadingText').textContent = "Отправка уведомления...";
                 await fetch('https://media-seven-eta.vercel.app/api/casting', {
                     method: 'POST',
@@ -709,6 +1039,7 @@
             } finally {
                 overlay.style.display = 'none';
                 submitBtn.disabled = false;
+                updateSubmitButton();
             }
         };
     </script>
