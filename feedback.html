@@ -12,24 +12,51 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <style>
         body {
-            background-color: #000;
+            background-color: #0a0a0a;
             color: #fff;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        /* Subtle VHS/Glitch Textures */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: repeating-linear-gradient(0deg,
+                    rgba(255, 255, 255, 0.03) 0px,
+                    rgba(255, 255, 255, 0.03) 1px,
+                    transparent 1px,
+                    transparent 2px);
+            background-size: 100% 2px;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.5;
+        }
+
+        #root {
+            position: relative;
+            z-index: 10;
         }
 
         .campot-red {
-            color: #F92A1F;
+            color: #f45925;
         }
 
         .bg-campot-red {
-            background-color: #F92A1F;
+            background-color: #f45925;
         }
 
         .border-campot-red {
-            border-color: #F92A1F;
+            border-color: #f45925;
         }
 
         .input-style {
@@ -38,7 +65,8 @@
             color: white;
             padding: 1rem;
             width: 100%;
-            border-radius: 0;
+            border-radius: 8px;
+            /* custom rounded corners */
             outline: none;
             transition: border-color 0.2s;
             font-size: 16px;
@@ -46,16 +74,18 @@
         }
 
         .input-style:focus {
-            border-color: #F92A1F;
+            border-color: #f45925;
         }
 
         .btn-campot {
-            background: #F92A1F;
+            background: #f45925;
             color: #fff;
             font-weight: 900;
             text-transform: uppercase;
             padding: 1.25rem;
             width: 100%;
+            border-radius: 8px;
+            /* custom rounded corners */
             transition: opacity 0.2s;
         }
 
@@ -75,6 +105,8 @@
             text-transform: uppercase;
             padding: 1rem;
             width: 100%;
+            border-radius: 8px;
+            /* custom rounded corners */
             font-size: 0.8rem;
         }
 
@@ -102,7 +134,7 @@
         .select-wrapper::after {
             content: '▼';
             font-size: 10px;
-            color: #F92A1F;
+            color: #f45925;
             position: absolute;
             right: 15px;
             top: 50%;

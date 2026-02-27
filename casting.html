@@ -8,18 +8,21 @@
     <!-- Version: 2.1.5 -->
     <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <style>
         :root {
-            --bg: #0a0b10;
-            --card-bg: rgba(20, 22, 30, 0.6);
-            --accent: #7aa2ff;
+            --bg: #0a0a0a;
+            --card-bg: rgba(22, 22, 22, 0.7);
+            --accent: #f45925;
             --text: rgba(255, 255, 255, 0.92);
             --muted: rgba(255, 255, 255, 0.6);
-            --stroke: rgba(255, 255, 255, 0.1);
+            --stroke: #262626;
             --error: #ff3b30;
             --success: #4cd964;
-            --radius: 16px;
+            --radius: 8px;
         }
 
         * {
@@ -32,11 +35,34 @@
             padding: 0;
             background: var(--bg);
             color: var(--text);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Space Grotesk', sans-serif;
             line-height: 1.5;
             display: flex;
             justify-content: center;
             min-height: 100vh;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: repeating-linear-gradient(0deg,
+                    rgba(255, 255, 255, 0.03) 0px,
+                    rgba(255, 255, 255, 0.03) 1px,
+                    transparent 1px,
+                    transparent 2px);
+            background-size: 100% 2px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
         }
 
         .container {
@@ -57,6 +83,7 @@
             margin: 0 0 8px;
             letter-spacing: -0.5px;
             text-transform: uppercase;
+            text-shadow: 2px 0 var(--accent), -2px 0 #00fff2;
         }
 
         .header p {
@@ -117,8 +144,15 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .fetch-status {
@@ -127,9 +161,20 @@
             display: none;
         }
 
-        .fetch-status.loading { color: var(--accent); display: block; }
-        .fetch-status.error { color: var(--error); display: block; }
-        .fetch-status.success { color: var(--success); display: block; }
+        .fetch-status.loading {
+            color: var(--accent);
+            display: block;
+        }
+
+        .fetch-status.error {
+            color: var(--error);
+            display: block;
+        }
+
+        .fetch-status.success {
+            color: var(--success);
+            display: block;
+        }
 
         .block {
             background: var(--card-bg);
@@ -245,11 +290,13 @@
             align-items: center;
             gap: 12px;
             padding: 10px 14px;
-            background: rgba(255, 255, 255, 0.08); /* Чуть светлее чтобы было видно на фоне блока */
+            background: rgba(255, 255, 255, 0.08);
+            /* Чуть светлее чтобы было видно на фоне блока */
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s;
-            border: 1px solid var(--stroke); /* Четкая граница */
+            border: 1px solid var(--stroke);
+            /* Четкая граница */
             color: #fff;
             font-size: 14px;
         }
@@ -263,13 +310,15 @@
             height: 20px;
             accent-color: var(--accent);
             cursor: pointer;
-            filter: grayscale(0); /* Убираем обесцвечивание если оно есть */
+            filter: grayscale(0);
+            /* Убираем обесцвечивание если оно есть */
         }
 
         .check-item.active {
             background: rgba(122, 162, 255, 0.2);
             border-color: var(--accent);
-            color: #fff; /* Белый текст на синем фоне для лучшей читаемости */
+            color: #fff;
+            /* Белый текст на синем фоне для лучшей читаемости */
         }
 
         .multi-warning {
@@ -589,7 +638,8 @@
 <body>
     <div class="container" id="welcomeContainer">
         <div class="header">
-            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.1.5</span></h1>
+            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span
+                    style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.1.5</span></h1>
             <p>Sklad Productions • Casting Management</p>
         </div>
 
@@ -599,10 +649,13 @@
                     Вы заполняете анкету на кастинг.
                 </div>
                 <div class="welcome-instruction">
-                    ⚡️ <b>Важно:</b> Ваши шансы значительно увеличатся, если вы загрузите актуальные фото (сделайте их прямо сейчас на телефон) и видеовизитку (до 1 минуты) с отыгрышем персонажа, на которого вы претендуете.
+                    ⚡️ <b>Важно:</b> Ваши шансы значительно увеличатся, если вы загрузите актуальные фото (сделайте их
+                    прямо сейчас на телефон) и видеовизитку (до 1 минуты) с отыгрышем персонажа, на которого вы
+                    претендуете.
                 </div>
                 <div class="welcome-text" style="color: var(--error); font-weight: 600;">
-                    ⚠️ Анкеты с неактуальными фото или снимками, не имеющими отношения к кастингу, рассматриваться не будут.
+                    ⚠️ Анкеты с неактуальными фото или снимками, не имеющими отношения к кастингу, рассматриваться не
+                    будут.
                 </div>
             </div>
 
@@ -617,11 +670,15 @@
                     <div class="label">Я уже заполнял(а) анкету ранее</div>
                 </div>
 
-                <div id="reentryInputGroup" style="display:none; margin-top: 16px; border-top: 1px solid var(--stroke); padding-top: 16px;">
-                    <label style="font-size: 12px; margin-bottom: 8px;">Введите номер телефона (который указывали ранее):</label>
+                <div id="reentryInputGroup"
+                    style="display:none; margin-top: 16px; border-top: 1px solid var(--stroke); padding-top: 16px;">
+                    <label style="font-size: 12px; margin-bottom: 8px;">Введите номер телефона (который указывали
+                        ранее):</label>
                     <div style="display: flex; gap: 8px;">
-                        <input type="tel" id="reentryPhone" placeholder="+7 777 000 00 00" style="flex: 1; padding: 12px;">
-                        <button type="button" id="reentryFetchBtn" style="min-height: auto; padding: 0 16px; font-size: 12px; background: var(--accent); color: #000; border-radius: 10px; border: none; font-weight: 700;">НАЙТИ</button>
+                        <input type="tel" id="reentryPhone" placeholder="+7 777 000 00 00"
+                            style="flex: 1; padding: 12px;">
+                        <button type="button" id="reentryFetchBtn"
+                            style="min-height: auto; padding: 0 16px; font-size: 12px; background: var(--accent); color: #000; border-radius: 10px; border: none; font-weight: 700;">НАЙТИ</button>
                     </div>
                     <div id="fetchStatus" class="fetch-status"></div>
                 </div>
@@ -653,20 +710,23 @@
                 <div class="form-group">
                     <label>На какой кастинг вы подаетесь?<span>*</span></label>
                     <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.3;">
-                        Выбирайте точно тот проект, на который видели объявление. Анкеты, отправленные без соответствия кастингу, будут удалены.
+                        Выбирайте точно тот проект, на который видели объявление. Анкеты, отправленные без соответствия
+                        кастингу, будут удалены.
                     </div>
                     <div class="checklist-group" id="castingChecklist">
                         <!-- Сюда будут грузиться чекбоксы -->
                         <div style="padding: 10px; font-size: 12px; color: var(--muted);">Загрузка проектов...</div>
                     </div>
                     <div class="multi-warning" id="multiWarning">
-                        ⚠️ Вы выбрали несколько кастингов. Убедитесь, что вы подходите под критерии всех выбранных проектов!
+                        ⚠️ Вы выбрали несколько кастингов. Убедитесь, что вы подходите под критерии всех выбранных
+                        проектов!
                     </div>
                     <input type="hidden" name="casting_target" id="casting_target_hidden" required>
                 </div>
                 <div class="form-group">
                     <label>На какого персонажа вы подаетесь?<span>*</span></label>
-                    <input type="text" name="character_name" required placeholder="например: «Главный герой», «Отец», «Прохожий»">
+                    <input type="text" name="character_name" required
+                        placeholder="например: «Главный герой», «Отец», «Прохожий»">
                 </div>
                 <div class="form-group">
                     <label>Ваше полное имя (Фамилия Имя)<span>*</span></label>
@@ -807,7 +867,8 @@
                     <label>Видео-визитка (Актерский этюд)<span>*</span></label>
                     <p style="font-size:11px; color:var(--muted); margin-bottom:10px">
                         До 1 минуты. Эмоции и подача в кадре. <b>Лимит 50MB.</b><br>
-                        <i>Если прикрепить новое видео до минуты с визиткой именно по персонажу, на которого подаетесь, шансов больше или можете добавить ссылку на портфолио ниже.</i>
+                        <i>Если прикрепить новое видео до минуты с визиткой именно по персонажу, на которого подаетесь,
+                            шансов больше или можете добавить ссылку на портфолио ниже.</i>
                     </p>
                     <div class="upload-area" id="videoUpload">
                         <i>🎬</i>
@@ -843,7 +904,9 @@
     <div class="modal-overlay" id="confirmModal">
         <div class="modal-card">
             <h3>⚠️ ВНИМАНИЕ</h3>
-            <p>Вы выбрали несколько кастингов. Вы подтверждаете, что подходите под критерии <b>всех</b> выбранных проектов? <br><br> Если вы просто решили отправлять анкету на все подряд кастинги без разбору — ваша анкета будет удалена.</p>
+            <p>Вы выбрали несколько кастингов. Вы подтверждаете, что подходите под критерии <b>всех</b> выбранных
+                проектов? <br><br> Если вы просто решили отправлять анкету на все подряд кастинги без разбору — ваша
+                анкета будет удалена.</p>
             <div class="modal-btns">
                 <button class="modal-btn btn-back" id="modalBack">НАЗАД</button>
                 <button class="modal-btn btn-confirm" id="modalConfirm">ПОДТВЕРЖДАЮ</button>
@@ -872,7 +935,7 @@
         async function loadCastingProjects() {
             const container = document.getElementById('castingChecklist');
             const hiddenInput = document.getElementById('casting_target_hidden');
-            
+
             try {
                 const { data, error } = await sb.from('clients')
                     .select('name')
@@ -883,38 +946,38 @@
                 if (error) throw error;
 
                 container.innerHTML = '';
-                
+
                 const projects = data || [];
-                
+
                 // If we have proj in URL, make it first
-                const sortedProjects = proj ? [ {name: proj}, ...projects.filter(p => p.name !== proj) ] : projects;
+                const sortedProjects = proj ? [{ name: proj }, ...projects.filter(p => p.name !== proj)] : projects;
 
                 sortedProjects.forEach(p => {
                     const label = document.createElement('label');
                     label.className = 'check-item';
                     if (p.name === proj) label.classList.add('active');
-                    
+
                     const isChecked = p.name === proj ? 'checked' : '';
                     label.innerHTML = `
                         <input type="checkbox" value="${p.name}" ${isChecked}>
                         <span>${p.name}</span>
                     `;
-                    
+
                     label.querySelector('input').onchange = (e) => {
                         const checkedCount = container.querySelectorAll('input:checked').length;
-                        
+
                         // Если это вторая (или более) галочка, показываем модалку СРАЗУ
                         if (e.target.checked && checkedCount > 1) {
                             const modal = document.getElementById('confirmModal');
                             modal.style.display = 'flex';
-                            
+
                             document.getElementById('modalBack').onclick = () => {
                                 modal.style.display = 'none';
                                 e.target.checked = false; // Снимаем галочку назад
                                 label.classList.remove('active');
                                 updateHiddenInput();
                             };
-                            
+
                             document.getElementById('modalConfirm').onclick = () => {
                                 modal.style.display = 'none';
                                 // Оставляем галочку
@@ -936,10 +999,10 @@
                         if (checked.length > 1) warning.style.display = 'block';
                         else warning.style.display = 'none';
                     }
-                    
+
                     container.appendChild(label);
                 });
-                
+
                 if (proj) hiddenInput.value = proj;
 
             } catch (err) {
@@ -977,12 +1040,12 @@
         reentryFetchBtn.onclick = async () => {
             const rawPhone = reentryPhone.value.trim();
             const digits = rawPhone.replace(/\D/g, '');
-            
+
             if (digits.length < 10) return alert("Введите минимум 10 цифр номера телефона");
-            
+
             // Берем последние 10 цифр (основная часть номера без кода страны)
             const last10 = digits.slice(-10);
-            
+
             // Создаем "пушистый" поиск: %7%0%1%1%2%3%4%5%6%7%
             // Это позволит найти номер независимо от того, как он записан в базе:
             // +7 (701) 123-45-67 или 87011234567 или 701-123-4567
@@ -1005,7 +1068,7 @@
                     console.error("Supabase Error:", error);
                     throw error;
                 }
-                
+
                 console.log("Search result:", data);
 
                 if (!data || data.length === 0) {
@@ -1016,11 +1079,11 @@
 
                 const app = data[0];
                 const form = document.getElementById('castingForm');
-                
+
                 // Fill fields
                 const fields = [
-                    'full_name', 'gender', 'city', 'dob', 'nationality', 'phone', 
-                    'instagram', 'height_weight', 'sizes', 'experience', 'skills', 
+                    'full_name', 'gender', 'city', 'dob', 'nationality', 'phone',
+                    'instagram', 'height_weight', 'sizes', 'experience', 'skills',
                     'fee_range', 'underwear_ok', 'extras_ok', 'portfolio_url'
                 ];
 
@@ -1059,7 +1122,7 @@
 
                 fetchStatus.textContent = "✅ Данные найдены! Вы можете обновить фото и видео для этого проекта";
                 fetchStatus.className = "fetch-status success";
-                
+
                 // Redirect to form after short delay
                 setTimeout(() => {
                     welcomeContainer.style.display = 'none';
@@ -1137,7 +1200,7 @@
                     alert(`Файл "${file.name}" слишком большой (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимум — 50MB.`);
                     continue;
                 }
-                
+
                 pendingUploads++;
                 updateSubmitButton();
 
@@ -1234,7 +1297,7 @@
         // Form Submit
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
-            
+
             const checkedProjects = Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => i.value);
             if (checkedProjects.length === 0) {
                 return alert("Пожалуйста, выберите хотя бы один кастинг.");
@@ -1265,14 +1328,14 @@
             try {
                 // 1. Save to DB (Separate record for EACH selected project for filtering)
                 document.getElementById('loadingText').textContent = "Сохранение данных...";
-                
+
                 for (const pName of selectedProjects) {
                     // Find chat/thread for this project from our clients list
                     const { data: clientData } = await sb.from('clients')
                         .select('chat_id, thread_id')
                         .eq('name', pName)
                         .limit(1);
-                    
+
                     const targetCid = (clientData && clientData[0]) ? clientData[0].chat_id : cid;
                     const targetTid = (clientData && clientData[0]) ? clientData[0].thread_id : tid;
 
