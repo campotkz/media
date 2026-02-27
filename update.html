@@ -22,20 +22,46 @@
             --radius: 16px;
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-        body {
-            margin: 0; padding: 0;
-            background: var(--bg); color: var(--text);
-            font-family: 'Inter', sans-serif;
-            display: flex; justify-content: center; min-height: 100vh;
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .container { width: 100%; max-width: 500px; padding: 20px; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
 
-        .header { text-align: center; margin-bottom: 32px; }
-        .header h1 { font-size: 20px; font-weight: 700; margin: 0 0 8px; text-transform: uppercase; color: var(--accent); }
-        .header p { font-size: 14px; color: var(--muted); margin: 0; }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 8px;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .header p {
+            font-size: 14px;
+            color: var(--muted);
+            margin: 0;
+        }
 
         .card {
             background: var(--card-bg);
@@ -53,7 +79,10 @@
             border-bottom: 1px solid var(--stroke);
             color: var(--muted);
         }
-        .user-info b { color: var(--text); }
+
+        .user-info b {
+            color: var(--text);
+        }
 
         .instruction {
             background: rgba(122, 162, 255, 0.1);
@@ -65,8 +94,17 @@
             border: 1px solid rgba(122, 162, 255, 0.2);
         }
 
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--muted); }
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--muted);
+        }
 
         .upload-area {
             border: 2px dashed var(--stroke);
@@ -78,11 +116,27 @@
             background: rgba(255, 255, 255, 0.02);
         }
 
-        .upload-area:hover { border-color: var(--accent); background: rgba(122, 162, 255, 0.05); }
-        .upload-area.active { border-color: var(--success); background: rgba(76, 217, 100, 0.05); }
+        .upload-area:hover {
+            border-color: var(--accent);
+            background: rgba(122, 162, 255, 0.05);
+        }
 
-        .upload-area i { font-size: 24px; display: block; margin-bottom: 10px; opacity: 0.5; }
-        .upload-area span { font-size: 13px; color: var(--muted); }
+        .upload-area.active {
+            border-color: var(--success);
+            background: rgba(76, 217, 100, 0.05);
+        }
+
+        .upload-area i {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .upload-area span {
+            font-size: 13px;
+            color: var(--muted);
+        }
 
         .preview-grid {
             display: grid;
@@ -99,8 +153,11 @@
             position: relative;
         }
 
-        .preview-item img, .preview-item video {
-            width: 100%; height: 100%; object-fit: cover;
+        .preview-item img,
+        .preview-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .btn {
@@ -117,24 +174,52 @@
             margin-top: 10px;
         }
 
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
 
-        #successScreen { display: none; text-align: center; padding: 40px 20px; }
-        .success-icon { font-size: 60px; color: var(--success); margin-bottom: 20px; }
+        #successScreen {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .success-icon {
+            font-size: 60px;
+            color: var(--success);
+            margin-bottom: 20px;
+        }
 
         .loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: none; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 1000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
         }
 
         .spinner {
-            width: 40px; height: 40px; border: 3px solid rgba(122,162,255,0.1);
-            border-top: 3px solid var(--accent); border-radius: 50%;
-            animation: spin 1s linear infinite; margin-bottom: 15px;
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(122, 162, 255, 0.1);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
@@ -147,7 +232,7 @@
 
         <div class="card" id="formCard">
             <div class="user-info" id="userInfo">
-                Загрузка данных об актере...
+                <div class="spinner" style="margin:20px auto"></div>
             </div>
 
             <div class="instruction" id="instructionBox">
@@ -222,14 +307,32 @@
             }
 
             const { data, error } = await sb.from('casting_applications').select('*').eq('id', appId).single();
-            if (data) {
-                actorData = data;
-                document.getElementById('userInfo').innerHTML = `
-                    Актер: <b>${data.full_name}</b><br>
-                    Проект: <b>${data.casting_target}</b>
-                `;
+
+            if (error || !data) {
+                document.getElementById('userInfo').innerHTML = "<span style='color:var(--error)'>❌ Ошибка: Анкета не найдена.</span>";
+                return;
+            }
+
+            actorData = data;
+
+            // Safe display of data
+            const name = data.full_name || "Неизвестный";
+            const project = data.casting_target || "Кастинг";
+            const phone = data.phone || "—";
+
+            document.getElementById('userInfo').innerHTML = `
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div>👤 Актер: <b style="color:#fff">${name}</b></div>
+                    <div>📱 Телефон: <b>${phone}</b></div>
+                    <div>🎬 Проект: <b>${project}</b></div>
+                </div>
+            `;
+
+            // Show upload sections
+            if (type === 'photo') {
+                document.getElementById('photoSection').style.display = 'block';
             } else {
-                document.getElementById('userInfo').innerHTML = "<span style='color:var(--error)'>Ошибка: Анкета не найдена в базе.</span>";
+                document.getElementById('videoSection').style.display = 'block';
             }
         }
 
@@ -251,13 +354,13 @@
 
                 try {
                     const ext = file.name.split('.').pop();
-                    const path = `photos/${Date.now()}_${Math.random().toString(36).substr(2,9)}.${ext}`;
+                    const path = `photos/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${ext}`;
                     const { error } = await sb.storage.from('casting_media').upload(path, file);
                     if (error) throw error;
 
                     const url = `${SUPABASE_URL}/storage/v1/object/public/casting_media/${path}`;
                     uploadedPhotos.push(url);
-                    
+
                     previewItem.innerHTML = `<img src="${url}">`;
                 } catch (err) {
                     console.error(err);
@@ -282,7 +385,7 @@
 
             try {
                 const ext = file.name.split('.').pop();
-                const path = `videos/${Date.now()}_${Math.random().toString(36).substr(2,9)}.${ext}`;
+                const path = `videos/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${ext}`;
                 const { error } = await sb.storage.from('casting_media').upload(path, file);
                 if (error) throw error;
 
@@ -309,7 +412,7 @@
             try {
                 const newPhotos = [...(actorData.photo_urls || [])];
                 if (type === 'photo') newPhotos.push(...uploadedPhotos);
-                
+
                 const finalVideo = type === 'video' ? uploadedVideo : actorData.video_audition_url;
 
                 // 1. Update DB
@@ -345,4 +448,5 @@
         };
     </script>
 </body>
+
 </html>
