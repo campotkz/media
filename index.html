@@ -2711,7 +2711,9 @@
 
       const monEvents = allEvents.filter(e => {
         const d = new Date(e.date);
-        return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
+        // Hide events for closed projects
+        const isHidden = clientsData.find(c => c.name === e.project)?.is_hidden;
+        return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth() && !isHidden;
       });
 
       // Calculate Stats
@@ -2749,6 +2751,11 @@
         const dayTasks = allTasks.filter(t => {
           if (t.status === 'done') return false;
           if (!t.deadline) return false;
+
+          // Hide tasks for closed projects
+          const isProjHidden = clientsData.find(c => c.name === t.project_id)?.is_hidden;
+          const isCastHidden = clientsData.find(c => c.name === t.casting_project)?.is_hidden;
+          if (isProjHidden || isCastHidden) return false;
 
           // Startdate: created_at or fallback to deadline if missing
           // We want to show line from start to deadline
@@ -2837,8 +2844,16 @@
 
       // Список проектов дня (Shoots + Tasks)
       const listDiv = document.getElementById("eventList");
-      const dayShoots = allEvents.filter(e => e.date === toISO(selectedDate)).sort((a, b) => a.callTime.localeCompare(b.callTime));
-      const dayTasksList = allTasks.filter(t => t.deadline === toISO(selectedDate)); // Show done too? Maybe.
+      const dayShoots = allEvents.filter(e => {
+        const isHidden = clientsData.find(c => c.name === e.project)?.is_hidden;
+        return e.date === toISO(selectedDate) && !isHidden;
+      }).sort((a, b) => a.callTime.localeCompare(b.callTime));
+      
+      const dayTasksList = allTasks.filter(t => {
+        const isProjHidden = clientsData.find(c => c.name === t.project_id)?.is_hidden;
+        const isCastHidden = clientsData.find(c => c.name === t.casting_project)?.is_hidden;
+        return t.deadline === toISO(selectedDate) && !isProjHidden && !isCastHidden;
+      });
 
       let html = "";
       if (!dayShoots.length && !dayTasksList.length) html = '<div class="item" style="color:gray">Нет событий</div>';
