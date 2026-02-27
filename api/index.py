@@ -550,6 +550,69 @@ def handle_app_select_callback(call):
         print(f"App Select Err: {e}")
         bot.answer_callback_query(call.id, "❌ Ошибка при выборе.")
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_bl:'))
+def handle_app_blacklist_initial(call):
+    try:
+        app_id = call.data.split(':')[1]
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("🏴 ДА, В ЧЕРНЫЙ СПИСОК", callback_data=f"app_bl_ok:{app_id}"),
+            types.InlineKeyboardButton("❌ ОТМЕНА", callback_data=f"app_bl_no:{app_id}")
+        )
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.answer_callback_query(call.id, "⚠️ Добавить актера в ЧС навсегда?")
+    except Exception as e:
+        print(f"App BL Initial Err: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_bl_no:'))
+def handle_app_blacklist_cancel(call):
+    try:
+        app_id = call.data.split(':')[1]
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("✅ ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
+            types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}"),
+            types.InlineKeyboardButton("🏴 ЧС", callback_data=f"app_bl:{app_id}")
+        )
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.answer_callback_query(call.id, "Отмена ЧС.")
+    except Exception as e:
+        print(f"App BL Cancel Err: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_bl_ok:'))
+def handle_app_blacklist_confirm(call):
+    try:
+        app_id = call.data.split(':')[1]
+        cid = call.message.chat.id
+        
+        # 1. Fetch actor data
+        res = supabase.table("casting_applications").select("*").eq("id", app_id).execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ Ошибка: Анкета не найдена.")
+            return
+        
+        app_data = res.data[0]
+        phone = app_data.get('phone')
+        insta = app_data.get('instagram')
+        
+        # 2. Add to Blacklist table
+        supabase.table("blacklist").upsert({
+            "phone": phone,
+            "instagram": insta,
+            "reason": "Added via Telegram Bot",
+            "full_name": app_data.get('full_name')
+        }, on_conflict="phone").execute()
+        
+        # 3. Permanent Delete from everywhere
+        # (Reuse deletion logic manually)
+        handle_app_delete_callback(types.CallbackQuery(id="0", from_user=call.from_user, chat_instance="0", 
+                                                      message=call.message, data=f"app_del_ok:{app_id}"))
+        
+        bot.answer_callback_query(call.id, "🏴 АКТЕР В ЧЕРНОМ СПИСКЕ. Больше его анкеты не придут.")
+    except Exception as e:
+        print(f"App BL Confirm Err: {e}")
+        bot.answer_callback_query(call.id, f"❌ Ошибка: {e}")
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_del:'))
 def handle_app_delete_initial(call):
     try:
@@ -753,6 +816,21 @@ def notify_casting():
         
         if not cid: return jsonify({'error': 'No chat_id'}), 400
 
+        # --- 0. BLACKLIST CHECK ---
+        if phone or insta:
+            bl_query = supabase.table("blacklist").select("id")
+            if phone and insta:
+                bl_query = bl_query.or_(f"phone.eq.{phone},instagram.eq.{insta}")
+            elif phone:
+                bl_query = bl_query.eq("phone", phone)
+            elif insta:
+                bl_query = bl_query.eq("instagram", insta)
+            
+            bl_res = bl_query.execute()
+            if bl_res.data:
+                print(f"🚫 BLOCKED: Application from {phone}/{insta} is in Blacklist.")
+                return jsonify({'status': 'blocked', 'message': 'User is blacklisted'}), 200
+
         # Cast to integers
         cid = int(cid)
         tid = int(tid) if tid else None
@@ -874,10 +952,17 @@ def notify_casting():
             app_res = supabase.table("casting_applications").select("id").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
             if app_res.data:
                 app_id = app_res.data[0]['id']
-                markup.add(
+                
+                btns = [
                     types.InlineKeyboardButton("✅ ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
                     types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
-                )
+                ]
+                
+                # Add Blacklist button ONLY for General topic
+                if "ОБЩИЙ" in (target or "").upper():
+                    btns.append(types.InlineKeyboardButton("🏴 ЧС", callback_data=f"app_bl:{app_id}"))
+                
+                markup.add(*btns)
         except: pass
 
         try:
