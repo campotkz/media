@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>АНКЕТА УЧАСТНИКА КАСТИНГА</title>
-    <!-- Version: 2.2.0 (Fixed Structure) -->
+    <!-- Version: 2.2.1 (ID Fix) -->
     <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com" rel="preconnect" />
@@ -568,7 +568,7 @@
     <div class="container" id="welcomeContainer">
         <div class="header">
             <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span
-                    style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.2.0</span></h1>
+                    style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.2.1</span></h1>
             <p>Sklad Productions • Casting Management</p>
         </div>
 
@@ -890,7 +890,24 @@
 
                 container.innerHTML = '';
                 const projects = data || [];
-                const sortedProjects = proj ? [{ name: proj }, ...projects.filter(p => p.name !== proj)] : projects;
+
+                // --- CRITICAL FIX ---
+                // Find the actual DB object for 'proj' if it exists.
+                // Do NOT create a dummy {name: proj} because it lacks chat_id/thread_id!
+                const targetProj = proj ? projects.find(p => p.name === proj) : null;
+                const otherProjects = projects.filter(p => p.name !== proj);
+
+                // If target found in DB, put it first. If not found (renamed?), just list others.
+                // If proj was passed but not found, we can't force-select it correctly without ID.
+                // Fallback: If proj not found, maybe add it as a "custom" option using URL cid/tid?
+                let sortedProjects = otherProjects;
+
+                if (targetProj) {
+                    sortedProjects = [targetProj, ...otherProjects];
+                } else if (proj && cid && tid) {
+                    // Fallback for renamed project where we have IDs in URL
+                    sortedProjects = [{ name: proj, chat_id: cid, thread_id: tid }, ...otherProjects];
+                }
 
                 sortedProjects.forEach(p => {
                     const label = document.createElement('label');
@@ -1257,11 +1274,16 @@
                     if (error) throw error;
 
                     // Notify Bot
-                    await fetch('https://media-seven-eta.vercel.app/api/casting', {
+                    const resp = await fetch('https://media-seven-eta.vercel.app/api/casting', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(finalData)
                     });
+
+                    if (!resp.ok) {
+                        const errJson = await resp.json().catch(() => ({}));
+                        throw new Error(errJson.error || `Server Error: ${resp.status}`);
+                    }
                 }
 
                 formContainer.style.display = 'none';
