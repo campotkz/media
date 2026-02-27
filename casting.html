@@ -742,19 +742,29 @@
         };
 
         reentryFetchBtn.onclick = async () => {
-            const phone = reentryPhone.value.trim().replace(/\D/g, '');
-            if (phone.length < 10) return alert("Введите корректный номер телефона");
+            const rawPhone = reentryPhone.value.trim();
+            const digits = rawPhone.replace(/\D/g, '');
+            
+            if (digits.length < 10) return alert("Введите минимум 10 цифр номера телефона");
+            
+            // Берем последние 10 цифр (основная часть номера без кода страны)
+            const last10 = digits.slice(-10);
+            
+            // Создаем "пушистый" поиск: %7%0%1%1%2%3%4%5%6%7%
+            // Это позволит найти номер независимо от того, как он записан в базе:
+            // +7 (701) 123-45-67 или 87011234567 или 701-123-4567
+            const fuzzyPattern = '%' + last10.split('').join('%') + '%';
 
             fetchStatus.textContent = "🔍 Ищем анкету...";
             fetchStatus.className = "fetch-status loading";
             reentryFetchBtn.disabled = true;
 
             try {
-                console.log("Searching for phone:", phone);
-                // Search in casting_applications (latest one)
+                console.log("Searching with fuzzy pattern:", fuzzyPattern);
+                // Поиск в базе (и по точному совпадению цифр, и по "пушистому" паттерну)
                 const { data, error } = await sb.from('casting_applications')
                     .select('*')
-                    .or(`phone.ilike.%${phone}%,phone.ilike.%${phone.slice(-10)}%`)
+                    .or(`phone.ilike.${fuzzyPattern}`)
                     .order('created_at', { ascending: false })
                     .limit(1);
 
