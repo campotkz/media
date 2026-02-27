@@ -904,12 +904,19 @@ def notify_casting():
             query = supabase.table("casting_applications").select("id, tg_message_id, photo_urls, video_audition_url").eq("casting_target", target)
             
             # Complex OR filter for phone or instagram
-            if phone and insta:
-                query = query.or_(f"phone.eq.{phone},instagram.eq.{insta}")
-            elif phone:
-                query = query.eq("phone", phone)
-            elif insta:
-                query = query.eq("instagram", insta)
+            # We must be careful not to match empty strings if they somehow exist
+            conditions = []
+            if phone and len(str(phone)) > 5:
+                conditions.append(f"phone.eq.{phone}")
+            if insta and len(str(insta)) > 2:
+                conditions.append(f"instagram.eq.{insta}")
+            
+            if conditions:
+                query = query.or_(",".join(conditions))
+            else:
+                # If neither phone nor insta provided, we can't deduplicate safely
+                print("⚠️ Deduplication skipped: No valid phone or instagram to match.")
+                raise Exception("No identifiers for deduplication")
             
             # CRITICAL: Exclude the CURRENT application ID (if we have it)
             # Otherwise we might delete the record we just inserted if logic is flawed
