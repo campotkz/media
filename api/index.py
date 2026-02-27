@@ -940,10 +940,15 @@ def notify_casting():
         try:
             # Search by phone OR instagram for the same project
             # AND exclude the current application (app_id) we just created
-            query = supabase.table("casting_applications").select("id, tg_message_id, photo_urls, video_audition_url").eq("casting_target", target)
+            query = supabase.table("casting_applications").select("id, tg_message_id, photo_urls, video_audition_url")
             
-            # Complex OR filter for phone or instagram
-            # We must be careful not to match empty strings if they somehow exist
+            # Match by project (target) AND chat context (cid/tid) to be safer
+            # We want to delete ONLY duplicates in THIS specific chat/topic
+            query = query.eq("chat_id", cid)
+            if tid:
+                query = query.eq("thread_id", tid)
+            
+            # Match by phone or instagram
             conditions = []
             if phone and len(str(phone)) > 5:
                 conditions.append(f"phone.eq.{phone}")
@@ -953,7 +958,8 @@ def notify_casting():
             if conditions:
                 query = query.or_(",".join(conditions))
             else:
-                # If neither phone nor insta provided, we can't deduplicate safely
+                # Fallback: if no phone/insta, maybe search by name? No, too risky.
+                # Just skip dedup if no identifiers.
                 print("⚠️ Deduplication skipped: No valid phone or instagram to match.")
                 raise Exception("No identifiers for deduplication")
             
