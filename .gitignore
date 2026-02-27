@@ -1,0 +1,36 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# Capacitor
+campot-app/node_modules/
+campot-app/www/
+campot-app/android/.gradle/
+campot-app/android/build/
+campot-app/android/app/build/
+campot-app/android/.idea/
+
+# Vercel
+.vercel/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.sql
+!supabase_schema.sql
+!create_*.sql
+!update_*.sql
+!add_*.sql
+!fix_*.sql
+!reset_*.sql
