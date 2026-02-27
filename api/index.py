@@ -1249,17 +1249,38 @@ def handle_actor_update_link(message):
             return
 
         # Find the application in DB
+        # 1. Try by Message ID
         res = supabase.table("casting_applications").select("*").eq("tg_message_id", reply.message_id).execute()
+        
+        # 2. Try by Message ID of the reply target (if reply is to a media group item)
+        if not res.data and reply.reply_to_message:
+             res = supabase.table("casting_applications").select("*").eq("tg_message_id", reply.reply_to_message.message_id).execute()
+
+        # 3. Try searching by NAME and PROJECT (Topic)
         if not res.data:
-            # Try searching by name if message_id not found (old message)
             txt = reply.text or reply.caption or ""
+            # Extract Name from "🌟 НОВАЯ АНКЕТА: Имя Фамилия"
             m_name = re.search(r'АНКЕТА:\s*([^\n<]+)', txt, re.IGNORECASE)
+            
+            # Or from "📸 Анкета: Имя Фамилия" (Media caption)
+            if not m_name:
+                m_name = re.search(r'Анкета:\s*([^\n<]+)', txt, re.IGNORECASE)
+
             if m_name:
                 found_name = m_name.group(1).strip().replace("<b>", "").replace("</b>", "")
-                res = supabase.table("casting_applications").select("*").ilike("full_name", f"%{found_name}%").eq("chat_id", message.chat.id).execute()
+                print(f"DEBUG: Searching by name '{found_name}' in chat {message.chat.id}")
+                
+                # Search by name AND current chat/thread to avoid duplicates
+                query = supabase.table("casting_applications").select("*").ilike("full_name", f"%{found_name}%")
+                
+                # If we are in a topic, filter by thread_id
+                if message.message_thread_id:
+                     query = query.eq("thread_id", message.message_thread_id)
+                
+                res = query.order("created_at", descending=True).limit(1).execute()
         
         if not res.data:
-            bot.reply_to(message, "❌ Анкета не найдена в базе. Возможно, она слишком старая.")
+            bot.reply_to(message, "❌ Анкета не найдена в базе. \n\nПопробуйте ответить на **текстовое** сообщение анкеты (не на фото).")
             return
 
         app_data = res.data[0]
