@@ -441,9 +441,15 @@
                 document.getElementById('loadingText').textContent = "Отправка менеджеру...";
                 
                 // Use context IDs if available, otherwise fallback to DB IDs
-                const finalCid = ctxCid ? parseInt(ctxCid) : actorData.chat_id;
-                const finalTid = ctxTid ? parseInt(ctxTid) : actorData.thread_id;
+                // Ensure we parse correctly and don't send NaN if ctx is invalid
+                let finalCid = ctxCid ? parseInt(ctxCid) : (actorData.chat_id || null);
+                let finalTid = ctxTid ? parseInt(ctxTid) : (actorData.thread_id || null);
                 
+                // If context is still missing, alert user but try anyway
+                if (!finalCid) {
+                    console.warn("No chat_id context found");
+                }
+
                 const payload = {
                     ...actorData,
                     photo_urls: newPhotos,
