@@ -835,7 +835,11 @@ def notify_casting():
         insta = data.get('instagram')
         target = data.get('casting_target')
         
-        if not cid: return jsonify({'error': 'No chat_id'}), 400
+        print(f"🔔 NEW CASTING REQUEST: Target='{target}', CID={cid}, TID={tid}, Phone={phone}")
+
+        if not cid: 
+            print("❌ Error: No chat_id provided")
+            return jsonify({'error': 'No chat_id'}), 400
 
         # --- 0. BLACKLIST CHECK ---
         if phone or insta:
@@ -853,8 +857,13 @@ def notify_casting():
                 return jsonify({'status': 'blocked', 'message': 'User is blacklisted'}), 200
 
         # Cast to integers
-        cid = int(cid)
-        tid = int(tid) if tid else None
+        try:
+            cid = int(cid)
+            tid = int(tid) if tid and str(tid).isdigit() and int(tid) > 0 else None
+            print(f"✅ Parsed Target: CID={cid}, TID={tid}")
+        except ValueError:
+            print(f"❌ Invalid CID/TID: {cid} / {tid}")
+            return jsonify({'error': 'Invalid chat_id or thread_id format'}), 400
 
         print(f"DEBUG: notify_casting for project: {target} (phone: {phone}, insta: {insta})")
 
@@ -1022,11 +1031,7 @@ def notify_casting():
             print("✅ SUCCESS: Notification sent to Telegram")
         except Exception as bot_err:
             print(f"❌ CRITICAL BOT SEND ERROR: {bot_err}")
-            # Fallback to pure text message
-            try:
-                bot.send_message(cid, f"⚠️ Ошибка медиа. Данные анкеты:\n\n{full_txt}", message_thread_id=tid, parse_mode="HTML")
-            except Exception as e2:
-                print(f"❌ FALLBACK FAILED: {e2}")
+            return jsonify({'error': f'Failed to send message: {str(bot_err)}'}), 500
 
         res = jsonify({'status': 'ok'})
         res.headers.add('Access-Control-Allow-Origin', '*')
