@@ -842,19 +842,22 @@ def notify_casting():
             return jsonify({'error': 'No chat_id'}), 400
 
         # --- 0. BLACKLIST CHECK ---
-        if phone or insta:
-            bl_query = supabase.table("blacklist").select("id")
-            if phone and insta:
-                bl_query = bl_query.or_(f"phone.eq.{phone},instagram.eq.{insta}")
-            elif phone:
-                bl_query = bl_query.eq("phone", phone)
-            elif insta:
-                bl_query = bl_query.eq("instagram", insta)
-            
-            bl_res = bl_query.execute()
-            if bl_res.data:
-                print(f"🚫 BLOCKED: Application from {phone}/{insta} is in Blacklist.")
-                return jsonify({'status': 'blocked', 'message': 'User is blacklisted'}), 200
+        try:
+            if phone or insta:
+                bl_query = supabase.table("blacklist").select("id")
+                if phone and insta:
+                    bl_query = bl_query.or_(f"phone.eq.{phone},instagram.eq.{insta}")
+                elif phone:
+                    bl_query = bl_query.eq("phone", phone)
+                elif insta:
+                    bl_query = bl_query.eq("instagram", insta)
+                
+                bl_res = bl_query.execute()
+                if bl_res.data:
+                    print(f"🚫 BLOCKED: Application from {phone}/{insta} is in Blacklist.")
+                    return jsonify({'status': 'blocked', 'message': 'User is blacklisted'}), 200
+        except Exception as bl_err:
+            print(f"⚠️ Blacklist Check Failed (skipping): {bl_err}")
 
         # Cast to integers
         try:
