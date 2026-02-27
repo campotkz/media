@@ -730,6 +730,57 @@ def notify_casting():
         print(f"Casting Notify Error: {e}")
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
 
+@bot.message_handler(commands=['foto', 'video'])
+def handle_actor_update_link(message):
+    try:
+        reply = message.reply_to_message
+        if not reply:
+            bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение с анкетой актера.")
+            return
+
+        # Find the application in DB
+        res = supabase.table("casting_applications").select("*").eq("tg_message_id", reply.message_id).execute()
+        if not res.data:
+            # Try searching by name if message_id not found (old message)
+            txt = reply.text or reply.caption or ""
+            m_name = re.search(r'АНКЕТА:\s*([^\n<]+)', txt, re.IGNORECASE)
+            if m_name:
+                found_name = m_name.group(1).strip().replace("<b>", "").replace("</b>", "")
+                res = supabase.table("casting_applications").select("*").ilike("full_name", f"%{found_name}%").eq("chat_id", message.chat.id).execute()
+        
+        if not res.data:
+            bot.reply_to(message, "❌ Анкета не найдена в базе. Возможно, она слишком старая.")
+            return
+
+        app_data = res.data[0]
+        update_type = 'photo' if 'foto' in message.text else 'video'
+        
+        # Generate Personal Link
+        link = f"https://campotkz.github.io/media/update.html?id={app_data['id']}&type={update_type}"
+        
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton(text="📥 ЗАГРУЗИТЬ МАТЕРИАЛЫ", url=link))
+        
+        type_text = "фотографии" if update_type == 'photo' else "видео-визитку"
+        msg = (
+            f"👤 **АКТЕР:** {app_data['full_name']}\n"
+            f"🔗 **ССЫЛКА ДЛЯ ОБНОВЛЕНИЯ:**\n\n"
+            f"Скопируйте и отправьте актеру:\n"
+            f"`{link}`\n\n"
+            f"По этой ссылке он сможет загрузить дополнительные {type_text}. "
+            f"После загрузки анкета в чате обновится автоматически."
+        )
+        
+        bot.send_message(message.chat.id, msg, reply_markup=markup, message_thread_id=message.message_thread_id, parse_mode="Markdown")
+        
+        # Cleanup command
+        try: bot.delete_message(message.chat.id, message.message_id)
+        except: pass
+
+    except Exception as e:
+        print(f"Actor Update Link Err: {e}")
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
 @bot.message_handler(func=lambda m: (m.text and "/add" in m.text) or (m.caption and "/add" in m.caption), content_types=['text', 'photo', 'video', 'document'])
 def handle_manual_add_media(message):
     try:
