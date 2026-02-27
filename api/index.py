@@ -990,12 +990,22 @@ def notify_casting():
             sent_msg = None
             if media:
                 print(f"DEBUG: sending media group with {len(media)} items")
-                bot.send_media_group(cid, media, message_thread_id=tid)
-                # 3. Always send full text as a separate message for guaranteed delivery
+                try:
+                    bot.send_media_group(cid, media, message_thread_id=tid)
+                except Exception as mg_e:
+                    print(f"❌ Media Group Send Failed: {mg_e}")
+                    # If media group fails (e.g. invalid URL), fallback to sending just the text message
+                    # or try sending photos one by one (simplified fallback)
+                    full_txt += "\n⚠️ Не удалось загрузить медиа-файлы в виде альбома. Ссылки выше."
+            
+            # 3. Always send full text as a separate message for guaranteed delivery
+            print(f"DEBUG: sending text message")
+            try:
                 sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, parse_mode="HTML", disable_web_page_preview=True, reply_markup=markup)
-            else:
-                print(f"DEBUG: sending text message only")
-                sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, parse_mode="HTML", reply_markup=markup)
+            except Exception as txt_e:
+                print(f"❌ Text Send Failed (HTML): {txt_e}")
+                # Fallback to plain text if HTML parsing fails
+                sent_msg = bot.send_message(cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
             
             # 4. CAPTURE MESSAGE ID to DB for future edits
             if sent_msg:
@@ -1011,7 +1021,7 @@ def notify_casting():
 
             print("✅ SUCCESS: Notification sent to Telegram")
         except Exception as bot_err:
-            print(f"❌ BOT SEND ERROR: {bot_err}")
+            print(f"❌ CRITICAL BOT SEND ERROR: {bot_err}")
             # Fallback to pure text message
             try:
                 bot.send_message(cid, f"⚠️ Ошибка медиа. Данные анкеты:\n\n{full_txt}", message_thread_id=tid, parse_mode="HTML")
