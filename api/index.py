@@ -1070,11 +1070,13 @@ def notify_casting():
 
         # 3. Inline Buttons (Select & Delete)
         markup = types.InlineKeyboardMarkup()
-        app_id = data.get('application_id')
+        app_id = data.get('application_id') or data.get('id') # CHECK 'id' field too!
 
         # Fallback if ID not provided by frontend (legacy cache)
         if not app_id:
             try:
+                # IMPORTANT: Fetch the ID of the record we just updated/inserted
+                # Since we might have just updated a record via update.html, we need to find it
                 app_res = supabase.table("casting_applications").select("id, is_selected").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
                 if app_res.data:
                     app_id = app_res.data[0]['id']
@@ -1104,6 +1106,8 @@ def notify_casting():
                 types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
             ]
             markup.add(*btns)
+        else:
+            print("❌ WARNING: Could not find app_id for buttons!")
 
         try:
             sent_msg = None
