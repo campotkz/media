@@ -505,43 +505,54 @@ def handle_app_delete_callback(call):
         cid = call.message.chat.id
         tid = call.message.message_thread_id
         
-        # 1. Fetch data to get media URLs
+        # 1. Fetch data
         res = supabase.table("casting_applications").select("*").eq("id", app_id).execute()
         if not res.data:
-            bot.answer_callback_query(call.id, "❌ Анкета уже удалена из базы.")
+            bot.answer_callback_query(call.id, "❌ Анкета уже удалена.")
             bot.delete_message(cid, call.message.message_id)
             return
         
         app_data = res.data[0]
+        phone = app_data.get('phone')
         
-        # 2. Delete media from Storage
-        photos = app_data.get('photo_urls', [])
-        video = app_data.get('video_audition_url')
-        
-        all_media_urls = list(photos)
-        if video: all_media_urls.append(video)
-        
-        for url in all_media_urls:
-            try:
-                # Extract path from URL: .../casting_media/photos/123.jpg -> photos/123.jpg
-                if 'casting_media/' in url:
-                    path = url.split('casting_media/')[-1]
-                    supabase.storage.from_('casting_media').remove([path])
-            except: pass
+        # 2. Delete from contacts table FOR THIS TOPIC
+        # This removes the actor from the selection list (autocomplete) in this project
+        if phone and tid:
+            supabase.table("contacts").delete().eq("phone", phone).eq("thread_id", tid).eq("chat_id", cid).execute()
 
-        # 3. Delete from Supabase
+        # 3. Check if we should delete files from Storage
+        # Only delete if this actor has NO OTHER applications in ANY project
+        other_apps = supabase.table("casting_applications").select("id").eq("phone", phone).neq("id", app_id).execute()
+        
+        if not other_apps.data:
+            # No other projects using these files -> SAFE TO DELETE FROM STORAGE
+            photos = app_data.get('photo_urls', [])
+            video = app_data.get('video_audition_url')
+            all_media_urls = list(photos)
+            if video: all_media_urls.append(video)
+            
+            for url in all_media_urls:
+                try:
+                    if 'casting_media/' in url:
+                        path = url.split('casting_media/')[-1]
+                        supabase.storage.from_('casting_media').remove([path])
+                except: pass
+            print(f"📦 STORAGE CLEANED: Files for actor {phone} deleted.")
+        else:
+            print(f"📦 STORAGE KEPT: Actor {phone} has {len(other_apps.data)} other applications.")
+
+        # 4. Delete from casting_applications (THIS SPECIFIC PROJECT ENTRY)
         supabase.table("casting_applications").delete().eq("id", app_id).execute()
         
-        # 4. Delete from Telegram
+        # 5. Delete from Telegram
         try:
             bot.delete_message(cid, call.message.message_id)
-            # Try to delete media group too (msg_id - 1)
             try: bot.delete_message(cid, int(call.message.message_id) - 1)
             except: pass
         except: pass
         
-        bot.answer_callback_query(call.id, "✅ Анкета и файлы удалены.")
-        print(f"🗑️ FULL DELETE: App {app_id} removed from DB, Storage and TG.")
+        bot.answer_callback_query(call.id, "✅ Удалено из этого топика.")
+        print(f"🗑️ TOPIC DELETE: App {app_id} removed from DB Topic and TG.")
 
     except Exception as e:
         print(f"App Delete Err: {e}")
