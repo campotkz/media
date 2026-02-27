@@ -216,7 +216,8 @@ def handle_universal_casting(message):
             f"🔗 <code>{link}</code>\n\n"
             f"Все анкеты автоматически попадут в соответствующие топики проектов."
         )
-        bot.send_message(cid, msg, reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
+        m = bot.send_message(cid, msg, reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
+        auto_delete(m, delay=60) # Universal link stays longer
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка генерации ссылки: {e}")
 
@@ -1000,7 +1001,8 @@ def handle_actor_update_link(message):
             f"После загрузки анкета в чате обновится автоматически."
         )
         
-        bot.send_message(message.chat.id, msg, reply_markup=markup, message_thread_id=message.message_thread_id, parse_mode="Markdown")
+        m = bot.send_message(message.chat.id, msg, reply_markup=markup, message_thread_id=message.message_thread_id, parse_mode="Markdown")
+        auto_delete(m, delay=60) # Link for actor stays longer
         
         # Cleanup command
         try: bot.delete_message(message.chat.id, message.message_id)
@@ -1753,7 +1755,9 @@ def ensure_project(chat_id, thread_id, chat_title, content="", message=None, for
                 "thread_id": thread_id, "chat_id": chat_id, "name": t_name, 
                 "category": category, "is_active": is_active
             }).execute()
-            if message: bot.reply_to(message, f"✅ Проект определен: **{t_name}**" + (" (Активен)" if is_active else ""))
+            if message: 
+                m = bot.reply_to(message, f"✅ Проект определен: **{t_name}**" + (" (Активен)" if is_active else ""))
+                auto_delete(m)
             return category, False
 
         # 3. Interactive Naming Flow (via Reply)
@@ -1763,7 +1767,8 @@ def ensure_project(chat_id, thread_id, chat_title, content="", message=None, for
             # Handle "нет" to hide topic
             if new_name.lower() == "нет":
                 supabase.from_("clients").update({"is_hidden": True}).eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
-                bot.reply_to(message, "🤐 Понял, этот топик будет скрыт из списков на сайте.")
+                m = bot.reply_to(message, "🤐 Понял, этот топик будет скрыт из списков на сайте.")
+                auto_delete(m)
                 return category, False
 
             is_active = '✅' in new_name
@@ -1772,14 +1777,16 @@ def ensure_project(chat_id, thread_id, chat_title, content="", message=None, for
                 supabase.from_("clients").update({
                     "thread_id": thread_id, "chat_id": chat_id, "category": category, "is_active": is_active
                 }).eq("id", ex.data[0]['id']).execute()
-                bot.reply_to(message, f"🔗 Проект **{ex.data[0]['name']}** привязан к этому топику.")
+                m = bot.reply_to(message, f"🔗 Проект **{ex.data[0]['name']}** привязан к этому топику.")
+                auto_delete(m)
                 return category, False
             else:
                 supabase.from_("clients").insert({
                     "thread_id": thread_id, "chat_id": chat_id, "name": new_name, 
                     "category": category, "is_active": is_active
                 }).execute()
-                bot.reply_to(message, f"✅ Проект создан: **{new_name}**" + (" (Активен)" if is_active else ""))
+                m = bot.reply_to(message, f"✅ Проект создан: **{new_name}**" + (" (Активен)" if is_active else ""))
+                auto_delete(m)
                 return category, False
 
         # 4. Fallback - Ask for Name
@@ -1824,7 +1831,8 @@ def handle_manual_contact(message):
             supabase.table("contacts").upsert({
                 "name": name, "phone": ph, "thread_id": tid, "chat_id": cid, "category": category
             }, on_conflict="phone,chat_id,thread_id").execute()
-            bot.reply_to(message, f"✅ **{cmd.capitalize()}** сохранен: **{name}** ({ph})")
+            m = bot.reply_to(message, f"✅ **{cmd.capitalize()}** сохранен: **{name}** ({ph})")
+            auto_delete(m)
         except Exception as ex: bot.reply_to(message, f"❌ Ошибка базы данных: {ex}")
     except Exception as e: bot.reply_to(message, f"❌ Ошибка: {e}")
 
@@ -1850,8 +1858,21 @@ def handle_manual_staff(message):
         else:
             rec["username"] = identity
             supabase.from_("team").upsert(rec, on_conflict="username").execute()
-        bot.reply_to(message, f"✅ Сотрудник **{name}** добавлен.")
+        m = bot.reply_to(message, f"✅ Сотрудник **{name}** добавлен.")
+        auto_delete(m)
     except Exception as e: bot.reply_to(message, f"❌ Ошибка: {e}")
+
+# --- HELPERS ---
+def auto_delete(msg, delay=20):
+    """Automatically deletes a message after N seconds."""
+    if not msg: return
+    def do_delete():
+        import time
+        time.sleep(delay)
+        try: bot.delete_message(msg.chat.id, msg.message_id)
+        except: pass
+    import threading
+    threading.Thread(target=do_delete).start()
 
 def register_user(user, chat_id, thread_id=None, silent=False):
     try:
@@ -1880,7 +1901,8 @@ def register_user(user, chat_id, thread_id=None, silent=False):
         rec = {"telegram_id": uid, "username": username, "full_name": f"{first} {last}".strip(), "roles": ["task"]}
         supabase.from_("team").insert(rec).execute()
         if not silent:
-            bot.send_message(chat_id, f"👋 Привет, {first}! Какая у тебя **Должность**? (ответь на это сообщение)", message_thread_id=thread_id)
+            m = bot.send_message(chat_id, f"👋 Привет, {first}! Какая у тебя **Должность**? (ответь на это сообщение)", message_thread_id=thread_id)
+            auto_delete(m, delay=60) # Give more time for greeting
         return None
     except Exception as e: print(f"Reg err: {e}"); return None
 
