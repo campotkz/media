@@ -1753,11 +1753,27 @@ def handle_reload_command(message):
             _tg_retry(bot.edit_message_text, f"⚠️ Анкет не найдено для этого топика (ID: {tid}).", cid, status_msg.message_id)
             return
 
-        count = len(apps)
-        _tg_retry(bot.edit_message_text, f"⏳ Найдено {count} анкет. Отправляю в этот топик...", cid, status_msg.message_id)
+        # --- DEDUPLICATION LOGIC (PER TOPIC) ---
+        # User wants to see ONLY the latest application per person in THIS topic.
+        # But different topics should keep their own copies.
+        # Since fetch_casting_applications already filters by cid+tid, we just need to dedupe by phone here.
+        unique_map = {}
+        for app in apps:
+            phone = app.get('phone')
+            # If no phone, try instagram, else use ID as unique key
+            key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
+            
+            # Since apps are ordered by created_at ASC (Old -> New), 
+            # overwriting here ensures we keep the LATEST one.
+            unique_map[key] = app
+            
+        clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
+        count = len(clean_apps)
+        
+        _tg_retry(bot.edit_message_text, f"⏳ Найдено {len(apps)} записей. Уникальных для топика: {count}. Отправляю...", cid, status_msg.message_id)
 
         success_count = 0
-        for idx, app_data in enumerate(apps, start=1):
+        for idx, app_data in enumerate(clean_apps, start=1):
             try:
                 app_id = app_data.get('id')
                 safe_app = dict(app_data)
