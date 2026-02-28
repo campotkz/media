@@ -26,7 +26,7 @@ app = Flask(__name__)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Version indicator for debugging
-VERSION = "1.5.5 (Final Link Fix)"
+VERSION = "1.6.0 (New Menu & Lock)"
 def format_casting_message(data, is_selected=False):
     """
     Generates the HTML message body for a casting application.
@@ -194,9 +194,32 @@ def send_excel():
 def handle_start(message):
     cid = message.chat.id
     tid = message.message_thread_id or ''
-    markup = types.InlineKeyboardMarkup()
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    
+    # 1. Calendar
     cal_url = f"{APP_URL}index.html?cid={cid}&tid={tid}"
-    markup.add(types.InlineKeyboardButton(text="🎬 ОТКРЫТЬ GULYWOOD", url=cal_url))
+    markup.add(types.InlineKeyboardButton(text="📅 КАЛЕНДАРЬ", url=cal_url))
+    
+    # 2. Feedback
+    fb_url = f"{APP_URL}feedback.html?cid={cid}&tid={tid}"
+    markup.add(types.InlineKeyboardButton(text="📊 ФИДБЕК", url=fb_url))
+    
+    # 3. General Casting
+    cast_url = f"{APP_URL}casting.html"
+    markup.add(types.InlineKeyboardButton(text="🎭 КАСТИНГ", url=cast_url))
+    
+    # 4. Specific Casting (Only if in a topic)
+    if tid:
+        try:
+            res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
+            if res.data:
+                pname = res.data[0]['name']
+                import urllib.parse
+                safe_pname = urllib.parse.quote(pname)
+                spec_url = f"{APP_URL}casting.html?cid={cid}&tid={tid}&proj={safe_pname}&lock=1"
+                markup.add(types.InlineKeyboardButton(text="🎯 ТОЛЬКО ЭТОТ КАСТИНГ", url=spec_url))
+        except: pass
+
     bot.send_message(cid, "🦾 **GULYWOOD ERP**", reply_markup=markup, message_thread_id=tid or None, parse_mode="Markdown")
 
 @bot.message_handler(commands=['status'])
@@ -315,27 +338,61 @@ def handle_unarchive(message):
             bot.reply_to(message, "❌ Ошибка: Проект не найден.", parse_mode="Markdown")
     except Exception as e: bot.reply_to(message, f"❌ Ошибка разархивации: {e}")
 
-@bot.message_handler(commands=['cast_link', 'casting'])
-def handle_universal_casting(message):
+@bot.message_handler(commands=['casting'])
+def handle_general_casting(message):
     try:
         cid = message.chat.id
         tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
         
-        # Universal link without project pre-selection
         link = f"{APP_URL}casting.html"
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton(text="🎭 ОТКРЫТЬ АНКЕТУ КАСТИНГА", url=link))
+        markup.add(types.InlineKeyboardButton(text="🎭 ОТКРЫТЬ ОБЩИЙ КАСТИНГ", url=link))
         
         msg = (
             f"🌟 <b>УНИВЕРСАЛЬНАЯ ССЫЛКА НА КАСТИНГ</b>\n\n"
-            f"Эта ссылка позволяет кандидату выбрать любой активный проект внутри анкеты.\n\n"
-            f"🔗 <code>{link}</code>\n\n"
-            f"Все анкеты автоматически попадут в соответствующие топики проектов."
+            f"Эта ссылка позволяет кандидату выбрать любой активный проект.\n"
+            f"🔗 <code>{link}</code>"
         )
         m = bot.send_message(cid, msg, reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
-        auto_delete(m, delay=60) # Universal link stays longer
+        auto_delete(m, delay=60)
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка генерации ссылки: {e}")
+
+@bot.message_handler(commands=['cast_link'])
+def handle_specific_casting(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
+        
+        if not tid:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика.")
+            return
+
+        # Ensure project exists
+        ensure_project(cid, tid, message.chat.title)
+        
+        # Get project name
+        res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
+        if not res.data:
+            bot.reply_to(message, "❌ Проект не найден.")
+            return
+            
+        pname = res.data[0]['name']
+        import urllib.parse
+        safe_pname = urllib.parse.quote(pname)
+        
+        link = f"{APP_URL}casting.html?cid={cid}&tid={tid}&proj={safe_pname}&lock=1"
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton(text="🎯 ЗАПОЛНИТЬ АНКЕТУ (ТОЛЬКО ЭТОТ)", url=link))
+        
+        msg = (
+            f"🎯 <b>КАСТИНГ: {pname}</b>\n\n"
+            f"Ссылка только для этого проекта (другие скрыты).\n"
+            f"🔗 <code>{link}</code>"
+        )
+        bot.send_message(cid, msg, reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(commands=['timer'])
 def handle_timer(message):

@@ -105,7 +105,7 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
             position: relative;
         }
-        
+
         .welcome-card::after {
             content: "";
             position: absolute;
@@ -149,10 +149,10 @@
         .option-btn:hover {
             background: rgba(255, 255, 255, 0.08);
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
             border-color: rgba(255, 255, 255, 0.2);
         }
-        
+
         .option-btn:active {
             transform: scale(0.98);
         }
@@ -341,7 +341,7 @@
             position: relative;
             background-size: cover;
             background-position: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
         }
 
         .file-item.video::before {
@@ -368,7 +368,7 @@
             color: white;
             cursor: pointer;
             z-index: 2;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
         }
 
         .progress-bar {
@@ -884,6 +884,7 @@
         const cid = params.get('cid');
         const tid = params.get('tid');
         const proj = params.get('proj');
+        const lock = params.get('lock');
 
         let uploadedPhotos = [];
         let uploadedVideo = null;
@@ -941,10 +942,18 @@
                 let sortedProjects = otherProjects;
 
                 if (targetProj) {
-                    sortedProjects = [targetProj, ...otherProjects];
+                    if (lock) {
+                        sortedProjects = [targetProj];
+                    } else {
+                        sortedProjects = [targetProj, ...otherProjects];
+                    }
                 } else if (proj && cid && tid) {
                     // Fallback for renamed project where we have IDs in URL
-                    sortedProjects = [{ name: proj, chat_id: cid, thread_id: tid }, ...otherProjects];
+                    if (lock) {
+                        sortedProjects = [{ name: proj, chat_id: cid, thread_id: tid }];
+                    } else {
+                        sortedProjects = [{ name: proj, chat_id: cid, thread_id: tid }, ...otherProjects];
+                    }
                 }
 
                 sortedProjects.forEach(p => {
@@ -1310,7 +1319,7 @@
                     // Save to DB
                     const { data: insertedData, error } = await sb.from('casting_applications').insert([finalData]).select();
                     if (error) throw error;
-                    
+
                     const newAppId = insertedData && insertedData[0] ? insertedData[0].id : null;
 
                     // Notify Bot
