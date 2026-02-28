@@ -256,26 +256,29 @@ def generate_casting_docx(applications, project_name):
         if app.get('portfolio_url'):
             c_info.add_paragraph(f"📂 Портфолио: {app.get('portfolio_url')}")
 
+        photos = _normalize_url_list(app.get('photo_urls'))
+        limit = 3
+
+        if len(photos) > limit:
+            p = c_info.add_paragraph()
+            p.add_run("🖼 Остальные фото и медиа:").bold = True
+            for extra_url in photos[limit:]:
+                c_info.add_paragraph(extra_url)
+
         # --- RIGHT COLUMN: PHOTOS ---
         c_photo = row.cells[1]
         c_photo.width = Cm(6)
         
-        photos = _normalize_url_list(app.get('photo_urls'))
-        
-        # Try to download and insert up to 5 photos
-        limit = 5
         count = 0
-        
         p_para = c_photo.paragraphs[0]
         p_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
         for url in photos:
             if count >= limit: break
-            
             try:
-                # Optimize URL first to save bandwidth
-                opt_url = optimize_url(url, width=600)
-                resp = requests.get(opt_url, timeout=5)
+                # Optimize URL to use smaller size (400 width) to save bandwidth and speed up
+                opt_url = optimize_url(url, width=400)
+                resp = requests.get(opt_url, timeout=15) # Increased timeout to prevent failing
                 
                 if resp.status_code == 200:
                     img_io = io.BytesIO(resp.content)
@@ -285,9 +288,6 @@ def generate_casting_docx(applications, project_name):
                     count += 1
             except Exception as e:
                 print(f"Doc Photo Err: {e}")
-                
-        if len(photos) > limit:
-            c_photo.add_paragraph(f"Еще {len(photos)-limit} фото доступны по ссылке...")
 
     # Save to buffer
     f_out = io.BytesIO()

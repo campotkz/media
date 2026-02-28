@@ -1,4 +1,5 @@
 import os
+import sys
 from supabase import create_client
 
 url = "https://waekzofajzqcpoeldhkt.supabase.co"
