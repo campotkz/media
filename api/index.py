@@ -1732,48 +1732,64 @@ def process_manual_media_update(source_msg, application_msg):
     except Exception as e:
         print(f"process_manual_media_update err: {e}")
 
-@bot.message_handler(commands=['reload'])
-def handle_reload_command(message):
+@bot.callback_query_handler(func=lambda call: call.data.startswith('reload_batch:'))
+def handle_reload_batch_callback(call):
     try:
-        cid = message.chat.id
-        tid = message.message_thread_id
+        _, offset_str = call.data.split(':')
+        offset = int(offset_str)
+        cid, tid = call.message.chat.id, call.message.message_thread_id
         
-        # DEBUG: Verify we are here
-        print(f"🔥 RELOAD COMMAND CAUGHT! Chat: {cid}, Thread: {tid}")
-
-        if not tid:
-            bot.reply_to(message, "⚠️ /reload работает только внутри топика.")
-            return
+        # Reuse logic by calling handle_reload_command with offset
+        # But handle_reload_command expects a Message object. 
+        # We can construct a fake message or refactor.
+        # Better: Refactor the core logic into a separate function.
         
-        # Send immediate acknowledgment to confirm bot is alive
-        status_msg = bot.reply_to(message, "⏳ Поиск анкет в базе данных...")
+        bot.answer_callback_query(call.id, "Загружаю следующую партию...")
+        process_reload_batch(cid, tid, offset, status_msg=call.message)
+        
+    except Exception as e:
+        print(f"Reload Batch Err: {e}")
 
-        apps = fetch_casting_applications(cid, tid)
-        if not apps:
-            _tg_retry(bot.edit_message_text, f"⚠️ Анкет не найдено для этого топика (ID: {tid}).", cid, status_msg.message_id)
+def process_reload_batch(cid, tid, offset=0, status_msg=None):
+    try:
+        BATCH_SIZE = 10
+        
+        # 1. Fetch ALL apps (cached or fresh)
+        # Note: Fetching ALL every time is inefficient but safest for consistency.
+        # Optimization: fetch_casting_applications could take offset/limit, 
+        # but we need to DEDUPLICATE first, so we must fetch all (or enough) to dedupe correctly.
+        # Given user has ~60 apps, fetching all is fine.
+        
+        all_apps = fetch_casting_applications(cid, tid)
+        if not all_apps:
+            if status_msg:
+                _tg_retry(bot.edit_message_text, f"⚠️ Анкет не найдено.", cid, status_msg.message_id)
             return
 
-        # --- DEDUPLICATION LOGIC (PER TOPIC) ---
-        # User wants to see ONLY the latest application per person in THIS topic.
-        # But different topics should keep their own copies.
-        # Since fetch_casting_applications already filters by cid+tid, we just need to dedupe by phone here.
+        # Deduplicate
         unique_map = {}
-        for app in apps:
+        for app in all_apps:
             phone = app.get('phone')
-            # If no phone, try instagram, else use ID as unique key
             key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
-            
-            # Since apps are ordered by created_at ASC (Old -> New), 
-            # overwriting here ensures we keep the LATEST one.
             unique_map[key] = app
             
         clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
-        count = len(clean_apps)
+        total_count = len(clean_apps)
         
-        _tg_retry(bot.edit_message_text, f"⏳ Найдено {len(apps)} записей. Уникальных для топика: {count}. Отправляю...", cid, status_msg.message_id)
+        # Slice Batch
+        batch = clean_apps[offset : offset + BATCH_SIZE]
+        
+        if not batch:
+            if status_msg:
+                _tg_retry(bot.edit_message_text, f"✅ Все анкеты загружены ({total_count}).", cid, status_msg.message_id)
+            return
 
-        success_count = 0
-        for idx, app_data in enumerate(clean_apps, start=1):
+        # Notify Start of Batch
+        if status_msg:
+            _tg_retry(bot.edit_message_text, f"⏳ Загрузка {offset+1}-{min(offset+BATCH_SIZE, total_count)} из {total_count}...", cid, status_msg.message_id)
+        
+        # Send Batch
+        for app_data in batch:
             try:
                 app_id = app_data.get('id')
                 safe_app = dict(app_data)
@@ -1782,7 +1798,6 @@ def handle_reload_command(message):
 
                 # Prepare Media
                 media = []
-                # Limit to 3 photos max for reload stability, resize them
                 for i, url in enumerate(photos[:3]):
                     opt_url = optimize_url(url, width=1024)
                     if i == 0:
@@ -1791,13 +1806,12 @@ def handle_reload_command(message):
                     else:
                         media.append(types.InputMediaPhoto(opt_url))
 
-                # Send Media Group first if exists
+                # Send Media Group
                 if media:
                     try:
                         _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
                     except Exception as e:
                         print(f"Reload Media Group Fail: {e}")
-                        # Fallback: Try single photo
                         if photos:
                             try:
                                 _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
@@ -1821,22 +1835,50 @@ def handle_reload_command(message):
                 if sent_msg:
                     supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
                 
-                success_count += 1
-                if idx % 10 == 0:
-                    try:
-                        _tg_retry(bot.edit_message_text, f"⏳ Отправлено {success_count}/{count}...", cid, status_msg.message_id)
-                    except:
-                        pass
-                
             except Exception as e:
                 print(f"Reload Item Error: {e}")
 
-        try:
-            _tg_retry(bot.delete_message, cid, status_msg.message_id)
-        except:
-            pass
-        final_msg = _tg_retry(bot.send_message, cid, f"✅ Перезагрузка завершена. Отправлено анкет: {success_count} из {count}", message_thread_id=tid)
-        auto_delete(final_msg, 5)
+        # Check if more remain
+        next_offset = offset + BATCH_SIZE
+        if next_offset < total_count:
+            # Send "Load More" button
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton(f"🔄 Загрузить еще ({next_offset+1}-{min(next_offset+BATCH_SIZE, total_count)})", callback_data=f"reload_batch:{next_offset}"))
+            
+            if status_msg:
+                _tg_retry(bot.delete_message, cid, status_msg.message_id)
+            
+            bot.send_message(cid, f"✅ Загружено {min(next_offset, total_count)} из {total_count}. Продолжить?", message_thread_id=tid, reply_markup=markup)
+        else:
+            if status_msg:
+                _tg_retry(bot.delete_message, cid, status_msg.message_id)
+            final_msg = bot.send_message(cid, f"✅ Все {total_count} анкет загружены.", message_thread_id=tid)
+            auto_delete(final_msg, 5)
+
+    except Exception as e:
+        print(f"Process Batch Err: {e}")
+        if status_msg:
+             try: bot.edit_message_text(f"❌ Ошибка: {e}", cid, status_msg.message_id)
+             except: pass
+
+@bot.message_handler(commands=['reload'])
+def handle_reload_command(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id
+        
+        # DEBUG: Verify we are here
+        print(f"🔥 RELOAD COMMAND CAUGHT! Chat: {cid}, Thread: {tid}")
+
+        if not tid:
+            bot.reply_to(message, "⚠️ /reload работает только внутри топика.")
+            return
+        
+        # Send immediate acknowledgment
+        status_msg = bot.reply_to(message, "⏳ Поиск анкет...")
+        
+        # Start Batch 0
+        process_reload_batch(cid, tid, offset=0, status_msg=status_msg)
         
     except Exception as e:
         print(f"RELOAD FATAL: {e}")
