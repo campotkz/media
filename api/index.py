@@ -109,6 +109,23 @@ def ensure_blacklist_table():
         print(f"❌ AUTO-MIGRATION ERROR: {e}")
         return False
 
+def optimize_url(url, width=1280):
+    """
+    If URL is from Supabase Storage, append transformation params.
+    """
+    if not url: return url
+    try:
+        if "supabase.co" in url and "storage/v1/object/public" in url:
+            # Check for image extensions
+            ext = url.lower().split('.')[-1]
+            if ext in ['jpg', 'jpeg', 'png', 'webp', 'tiff']:
+                if '?' in url:
+                    return f"{url}&width={width}&quality=80&format=origin"
+                else:
+                    return f"{url}?width={width}&quality=80&format=origin"
+    except: pass
+    return url
+
 @app.route('/api', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -1714,8 +1731,8 @@ def handle_reload_command(message):
                 def v(k): return str(app_data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
                 simple_caption = f"📸 <b>Анкета: {v('full_name')}</b>\n🎯 {v('casting_target')}\n\n⬇️⬇️⬇️"
                 
-                # Robust Photo Handling (Handle string vs list)
-                photos = app_data.get('photo_urls') or []
+                # Prepare Media
+                photos = app_data.get('photo_urls', [])
                 if isinstance(photos, str):
                     try: photos = json.loads(photos)
                     except: photos = [photos] if photos.startswith('http') else []
@@ -1723,9 +1740,16 @@ def handle_reload_command(message):
                 video = app_data.get('video_audition_url')
                 media = []
                 
-                for i, url in enumerate(photos[:9]): # Max 9 photos
-                    if i == 0: media.append(types.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
-                    else: media.append(types.InputMediaPhoto(url))
+                # OPTIMIZATION for Reload:
+                limit_count = 5 
+                
+                for i, url in enumerate(photos):
+                    if i >= limit_count: break
+                    
+                    opt_url = optimize_url(url, width=1280)
+                    
+                    if i == 0: media.append(types.InputMediaPhoto(opt_url, caption=simple_caption, parse_mode="HTML"))
+                    else: media.append(types.InputMediaPhoto(opt_url))
                 
                 if video and len(media) < 10:
                     if not media: media.append(types.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
@@ -1854,15 +1878,22 @@ def reload_casting_endpoint():
                 video = app_data.get('video_audition_url')
                 media = []
                 
-                # Limit to 3 photos + 1 video as requested, or just all valid media
-                # Telegram limit is 10 items in a group.
+                # OPTIMIZATION: 
+                # 1. Limit to fewer photos for stability (User request: "not all but first few")
+                # 2. Resize images using Supabase Transform
+                
+                limit_count = 5 # Reduced from 9 to 5
                 
                 for i, url in enumerate(photos):
-                    if i >= 9: break # Safety limit
+                    if i >= limit_count: break
+                    
+                    # Resize!
+                    opt_url = optimize_url(url, width=1280)
+                    
                     if i == 0:
-                        media.append(types.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
+                        media.append(types.InputMediaPhoto(opt_url, caption=simple_caption, parse_mode="HTML"))
                     else:
-                        media.append(types.InputMediaPhoto(url))
+                        media.append(types.InputMediaPhoto(opt_url))
                 
                 if video:
                     if len(media) < 10:
