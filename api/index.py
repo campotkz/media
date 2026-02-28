@@ -200,12 +200,7 @@ def webhook():
         try:
             json_string = request.get_data().decode('utf-8')
             update = telebot.types.Update.de_json(json_string)
-            def run_update():
-                try:
-                    bot.process_new_updates([update])
-                except Exception as e:
-                    print(f"Webhook Update Error: {e}")
-            threading.Thread(target=run_update).start()
+            bot.process_new_updates([update])
         except Exception as e:
             print(f"Webhook Error: {e}")
         return ''
