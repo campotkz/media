@@ -1762,7 +1762,30 @@ def handle_reload_command(message):
                 app_id = app_data.get('id')
                 safe_app = dict(app_data)
                 photos = _normalize_url_list(safe_app.get("photo_urls"))
-                safe_app["photo_urls"] = photos[:5]
+                safe_app["photo_urls"] = photos
+
+                # Prepare Media
+                media = []
+                # Limit to 3 photos max for reload stability, resize them
+                for i, url in enumerate(photos[:3]):
+                    opt_url = optimize_url(url, width=1024)
+                    if i == 0:
+                        caption = f"📸 <b>{safe_app.get('full_name')}</b>\n{safe_app.get('casting_target')}\n⬇️ Описание ниже"
+                        media.append(types.InputMediaPhoto(opt_url, caption=caption, parse_mode="HTML"))
+                    else:
+                        media.append(types.InputMediaPhoto(opt_url))
+
+                # Send Media Group first if exists
+                if media:
+                    try:
+                        _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                    except Exception as e:
+                        print(f"Reload Media Group Fail: {e}")
+                        # Fallback: Try single photo
+                        if photos:
+                            try:
+                                _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
+                            except: pass
 
                 full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
 
