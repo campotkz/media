@@ -323,6 +323,17 @@ def webhook():
         return ''
     return 'Forbidden', 403
 
+@app.route('/api/drop', methods=['GET'])
+def drop_updates():
+    try:
+        # Reset webhook and declare we want to drop pending updates
+        new_url = APP_URL.replace("campotkz.github.io/media/", "media-seven-eta.vercel.app/api")
+        bot.remove_webhook()
+        bot.set_webhook(url=new_url, drop_pending_updates=True)
+        return jsonify({"status": "ok", "message": "Pending updates dropped, webhook reset."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/report', methods=['POST', 'OPTIONS'])
 def submit_report():
     if request.method == 'OPTIONS':
