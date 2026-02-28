@@ -1702,7 +1702,12 @@ def handle_reload_command(message):
             
             # Since apps are ordered by created_at ASC (Old -> New), 
             # overwriting here ensures we keep the LATEST one.
-            unique_map[key] = app
+            # CRITICAL: We only deduplicate within the SAME project to avoid deleting 
+            # actor's applications for DIFFERENT projects.
+            
+            p_name = app.get('project_name') or app.get('casting_target')
+            full_key = f"{key}_{p_name}"
+            unique_map[full_key] = app
             
         # Convert back to list and sort by time
         clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
@@ -1715,7 +1720,32 @@ def handle_reload_command(message):
             try:
                 # 1. Delete OLD message
                 old_msg_id = app_data.get('tg_message_id')
+                # CRITICAL: Do NOT delete messages if we are just "reloading" the view and the messages might be in a different thread or chat.
+                # Actually, reload means "delete old and send new".
+                # But if we are running reload in a NEW topic for OLD applications, we should NOT delete the old messages in the OLD topic.
+                
+                # Check if the old message was in the SAME chat and SAME thread
+                old_chat_id = app_data.get('chat_id')
+                old_thread_id = app_data.get('thread_id')
+                
+                # Convert to int for comparison
+                try: old_chat_id = int(old_chat_id)
+                except: old_chat_id = None
+                
+                try: old_thread_id = int(old_thread_id) if old_thread_id else None
+                except: old_thread_id = None
+                
+                # Only delete if it matches current context
+                should_delete = False
                 if old_msg_id:
+                    if old_chat_id == cid:
+                         # If both have thread_id, they must match.
+                         # If app has no thread_id (None) and current is None, match.
+                         # If app has thread_id and current is None -> Mismatch (don't delete from general in private)
+                         if old_thread_id == tid:
+                             should_delete = True
+                
+                if should_delete:
                     try:
                         bot.delete_message(cid, old_msg_id)
                         # Delete media (up to 9 previous messages)
@@ -1848,11 +1878,15 @@ def reload_casting_endpoint():
         apps = res.data
         
         # --- DEDUPLICATION LOGIC ---
+        # Keep only the LATEST application per phone number
         unique_map = {}
         for app in apps:
             phone = app.get('phone')
             key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
-            unique_map[key] = app
+            
+            p_name = app.get('project_name') or app.get('casting_target')
+            full_key = f"{key}_{p_name}"
+            unique_map[full_key] = app
             
         clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
         count = len(clean_apps)
@@ -1862,6 +1896,29 @@ def reload_casting_endpoint():
                 # 2. Re-send each application
                 # Reuse the exact logic from notify_casting, but we need to handle it carefully
                 # We can just call the internal logic, but we need to mock 'data'
+                
+                # Check deletion context
+                old_msg_id = app_data.get('tg_message_id')
+                old_chat_id = app_data.get('chat_id')
+                old_thread_id = app_data.get('thread_id')
+                
+                # Convert to int for comparison
+                try: old_chat_id = int(old_chat_id)
+                except: old_chat_id = None
+                try: old_thread_id = int(old_thread_id) if old_thread_id else None
+                except: old_thread_id = None
+                
+                should_delete = False
+                if old_msg_id and old_chat_id == cid and old_thread_id == tid:
+                    should_delete = True
+                
+                if should_delete:
+                    try:
+                        bot.delete_message(cid, old_msg_id)
+                        for i in range(1, 10):
+                            try: bot.delete_message(cid, int(old_msg_id) - i)
+                            except: pass
+                    except: pass
                 
                 # Format message
                 full_txt = format_casting_message(app_data, is_selected=app_data.get('is_selected', False))
