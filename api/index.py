@@ -190,7 +190,7 @@ def send_excel():
         r.headers.add('Access-Control-Allow-Origin', '*')
         return r, 500
 
-@bot.message_handler(commands=['start', 'cal'])
+@bot.message_handler(commands=['start'])
 def handle_start(message):
     cid = message.chat.id
     tid = message.message_thread_id or ''
@@ -221,6 +221,18 @@ def handle_start(message):
         except: pass
 
     bot.send_message(cid, "🦾 **GULYWOOD ERP**", reply_markup=markup, message_thread_id=tid or None, parse_mode="Markdown")
+
+@bot.message_handler(commands=['cal'])
+def handle_calendar(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id or ''
+        markup = types.InlineKeyboardMarkup()
+        cal_url = f"{APP_URL}index.html?cid={cid}&tid={tid}"
+        markup.add(types.InlineKeyboardButton(text="📅 ОТКРЫТЬ КАЛЕНДАРЬ", url=cal_url))
+        bot.send_message(cid, "🗓 **GULYWOOD CALENDAR**", reply_markup=markup, message_thread_id=tid or None, parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(commands=['status'])
 def handle_status(message):
