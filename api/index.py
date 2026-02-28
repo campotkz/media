@@ -1605,11 +1605,27 @@ def handle_reload_command(message):
             return
 
         apps = res.data
-        count = len(apps)
-        bot.edit_message_text(f"⏳ Найдено {count} анкет. Начинаю перезагрузку...", cid, status_msg.message_id)
+        
+        # --- DEDUPLICATION LOGIC ---
+        # Keep only the LATEST application per phone number
+        unique_map = {}
+        for app in apps:
+            phone = app.get('phone')
+            # If no phone, try instagram, else use ID as unique key (so we don't merge unknowns)
+            key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
+            
+            # Since apps are ordered by created_at ASC (Old -> New), 
+            # overwriting here ensures we keep the LATEST one.
+            unique_map[key] = app
+            
+        # Convert back to list and sort by time
+        clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
+        
+        count = len(clean_apps)
+        bot.edit_message_text(f"⏳ Найдено {len(apps)} записей. Уникальных: {count}. Перезагрузка...", cid, status_msg.message_id)
 
         success_count = 0
-        for app_data in apps:
+        for app_data in clean_apps:
             try:
                 # 1. Delete OLD message
                 old_msg_id = app_data.get('tg_message_id')
@@ -1730,9 +1746,18 @@ def reload_casting_endpoint():
             return jsonify({'status': 'empty', 'message': 'No applications found'}), 200
             
         apps = res.data
-        count = 0
         
-        for app_data in apps:
+        # --- DEDUPLICATION LOGIC ---
+        unique_map = {}
+        for app in apps:
+            phone = app.get('phone')
+            key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
+            unique_map[key] = app
+            
+        clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
+        count = len(clean_apps)
+        
+        for app_data in clean_apps:
             try:
                 # 2. Re-send each application
                 # Reuse the exact logic from notify_casting, but we need to handle it carefully
