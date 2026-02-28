@@ -13,6 +13,11 @@ from datetime import datetime
 import requests
 import threading
 import time
+from docx import Document
+from docx.shared import Cm, Pt
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 
 # Config
 TOKEN = os.environ.get('BOT_KEY')
@@ -177,6 +182,118 @@ def _normalize_url_list(value):
             pass
         return [value] if value.startswith("http") else []
     return []
+
+def generate_casting_docx(applications, project_name):
+    doc = Document()
+    
+    # Setup styles
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Calibri'
+    font.size = Pt(11)
+    
+    # Title
+    head = doc.add_heading(f'КАСТИНГ-ЛИСТ: {project_name}', 0)
+    head.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph(f'Сформировано: {datetime.now().strftime("%d.%m.%Y %H:%M")}')
+    
+    # Table
+    table = doc.add_table(rows=0, cols=2)
+    table.style = 'Table Grid'
+    table.autofit = False
+    
+    # Set column widths
+    # col 0 (Info) = 10cm, col 1 (Photos) = 6cm
+    for i in range(2):
+        for cell in table.add_row().cells:
+            pass # just init
+            
+    # Remove init row
+    # table._tbl.remove(table.rows[0]._tr)
+    
+    # Iterate apps
+    for app in applications:
+        row = table.add_row()
+        
+        # --- LEFT COLUMN: INFO ---
+        c_info = row.cells[0]
+        c_info.width = Cm(11)
+        
+        # Name
+        p = c_info.paragraphs[0]
+        run = p.add_run(f"{app.get('full_name', 'Без имени')}")
+        run.bold = True
+        run.font.size = Pt(14)
+        
+        # Details
+        info_text = []
+        if app.get('city'): info_text.append(f"📍 {app.get('city')}")
+        if app.get('age') or app.get('dob'): info_text.append(f"🎂 {app.get('age') or app.get('dob')}")
+        if app.get('height_weight'): info_text.append(f"📏 {app.get('height_weight')}")
+        if app.get('sizes'): info_text.append(f"👟 {app.get('sizes')}")
+        
+        for line in info_text:
+            c_info.add_paragraph(line)
+            
+        # Contacts
+        c_info.add_paragraph("📱 Контакты:")
+        if app.get('phone'): c_info.add_paragraph(f"Tel: {app.get('phone')}")
+        if app.get('instagram'): c_info.add_paragraph(f"Inst: {app.get('instagram')}")
+        
+        # Experience/Skills (Shortened)
+        if app.get('experience'):
+            exp = app.get('experience')[:200] + "..." if len(app.get('experience') or "") > 200 else app.get('experience')
+            c_info.add_paragraph(f"💡 Опыт: {exp}")
+            
+        # Links
+        c_info.add_paragraph("🔗 Ссылки:")
+        if app.get('video_audition_url'):
+            p = c_info.add_paragraph()
+            p.add_run("🎬 Видео-визитка").bold = True
+            # Hyperlink hack would be needed here, but for now just text URL
+            c_info.add_paragraph(app.get('video_audition_url'))
+            
+        if app.get('portfolio_url'):
+            c_info.add_paragraph(f"📂 Портфолио: {app.get('portfolio_url')}")
+
+        # --- RIGHT COLUMN: PHOTOS ---
+        c_photo = row.cells[1]
+        c_photo.width = Cm(6)
+        
+        photos = _normalize_url_list(app.get('photo_urls'))
+        
+        # Try to download and insert up to 5 photos
+        limit = 5
+        count = 0
+        
+        p_para = c_photo.paragraphs[0]
+        p_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        for url in photos:
+            if count >= limit: break
+            
+            try:
+                # Optimize URL first to save bandwidth
+                opt_url = optimize_url(url, width=600)
+                resp = requests.get(opt_url, timeout=5)
+                
+                if resp.status_code == 200:
+                    img_io = io.BytesIO(resp.content)
+                    run = p_para.add_run()
+                    run.add_picture(img_io, width=Cm(5.5))
+                    run.add_break() # New line after photo
+                    count += 1
+            except Exception as e:
+                print(f"Doc Photo Err: {e}")
+                
+        if len(photos) > limit:
+            c_photo.add_paragraph(f"Еще {len(photos)-limit} фото доступны по ссылке...")
+
+    # Save to buffer
+    f_out = io.BytesIO()
+    doc.save(f_out)
+    f_out.seek(0)
+    return f_out
 
 def fetch_casting_applications(chat_id, thread_id=None, page_size=500):
     all_rows = []
@@ -1860,6 +1977,56 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
         if status_msg:
              try: bot.edit_message_text(f"❌ Ошибка: {e}", cid, status_msg.message_id)
              except: pass
+
+@bot.message_handler(commands=['doc'])
+def handle_doc_command(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id
+        
+        if not tid:
+            bot.reply_to(message, "⚠️ Команда работает только внутри топика.")
+            return
+            
+        status_msg = bot.reply_to(message, "⏳ Поиск ВЫБРАННЫХ анкет...")
+        
+        # 1. Fetch apps for this topic
+        apps = fetch_casting_applications(cid, tid)
+        
+        # 2. Filter SELECTED only (and deduplicate if needed)
+        selected_apps = [a for a in apps if a.get('is_selected')]
+        
+        # Dedupe by phone (keep latest)
+        unique_map = {}
+        for app in selected_apps:
+            key = app.get('phone') or app.get('instagram') or app.get('id')
+            unique_map[key] = app
+        
+        final_list = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
+        
+        if not final_list:
+            bot.edit_message_text("⚠️ В этом топике нет выбранных анкет (с зеленой галочкой).", cid, status_msg.message_id)
+            return
+            
+        count = len(final_list)
+        bot.edit_message_text(f"⏳ Генерирую документ для {count} актеров...\n(Скачивание фото может занять время)", cid, status_msg.message_id)
+        
+        # 3. Generate DOCX
+        project_name = message.chat.title or "Casting"
+        doc_io = generate_casting_docx(final_list, project_name)
+        doc_io.name = f"Casting_Selection_{datetime.now().strftime('%Y-%m-%d')}.docx"
+        
+        # 4. Send
+        bot.send_chat_action(cid, 'upload_document', message_thread_id=tid)
+        bot.send_document(cid, doc_io, message_thread_id=tid, caption=f"✅ Кастинг-лист ({count} чел.)")
+        
+        try: bot.delete_message(cid, status_msg.message_id)
+        except: pass
+        
+    except Exception as e:
+        print(f"DOC Error: {e}")
+        try: bot.edit_message_text(f"❌ Ошибка генерации: {e}", cid, status_msg.message_id)
+        except: pass
 
 @bot.message_handler(commands=['reload'])
 def handle_reload_command(message):
