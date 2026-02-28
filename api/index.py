@@ -1746,8 +1746,15 @@ def handle_reload_command(message):
                         bot.send_media_group(cid, media, message_thread_id=tid)
                     except Exception as e: 
                         print(f"Media err for app {app_id}: {e}")
-                        # Fallback: Add warning to text
-                        full_txt += f"\n\n⚠️ <b>Ошибка загрузки медиа:</b> {e}"
+                        # Fallback: Try sending just the first photo/video
+                        try:
+                            if photos:
+                                bot.send_photo(cid, photos[0], caption=simple_caption, parse_mode="HTML", message_thread_id=tid)
+                            elif video:
+                                bot.send_video(cid, video, caption=simple_caption, parse_mode="HTML", message_thread_id=tid)
+                        except Exception as fe:
+                            # Final Fallback: Add warning to text
+                            full_txt += f"\n\n⚠️ <b>Не удалось загрузить превью медиа.</b>\n(Telegram не смог скачать файлы по ссылке. Используйте прямые ссылки выше)"
                 
                 try:
                     sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
@@ -1883,7 +1890,14 @@ def reload_casting_endpoint():
                         bot.send_media_group(cid, media, message_thread_id=tid)
                     except Exception as e:
                         print(f"Reload Media Fail: {e}")
-                        # Fallback: send text only?
+                        # Fallback: Try sending just the first photo/video
+                        try:
+                            if photos:
+                                bot.send_photo(cid, photos[0], caption=simple_caption, parse_mode="HTML", message_thread_id=tid)
+                            elif video:
+                                bot.send_video(cid, video, caption=simple_caption, parse_mode="HTML", message_thread_id=tid)
+                        except Exception as fe:
+                            full_txt += f"\n\n⚠️ <b>Не удалось загрузить превью медиа.</b>\n(Telegram не смог скачать файлы по ссылке. Используйте прямые ссылки выше)"
                 
                 # Send Text Info
                 sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
