@@ -273,21 +273,33 @@ def generate_casting_docx(applications, project_name):
         p_para = c_photo.paragraphs[0]
         p_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        for url in photos:
-            if count >= limit: break
+        for url in photos[:limit]:
             try:
                 # Optimize URL to use smaller size (400 width) to save bandwidth and speed up
                 opt_url = optimize_url(url, width=400)
-                resp = requests.get(opt_url, timeout=15) # Increased timeout to prevent failing
+                resp = requests.get(opt_url, timeout=10) # 10 sec timeout for each photo
                 
                 if resp.status_code == 200:
                     img_io = io.BytesIO(resp.content)
                     run = p_para.add_run()
                     run.add_picture(img_io, width=Cm(5.5))
-                    run.add_break() # New line after photo
+                    run.add_break()
                     count += 1
+                else:
+                    raise Exception(f"HTTP {resp.status_code}")
             except Exception as e:
                 print(f"Doc Photo Err: {e}")
+                # Placeholder for manual insertion
+                run = p_para.add_run(f"⚠️ [ФОТО НЕ ЗАГРУЖЕНО: {url}]")
+                run.italic = True
+                run.font.size = Pt(8)
+                run.add_break()
+                
+                # Also duplicate the link in the info column for easy manual download
+                p_fail = c_info.add_paragraph()
+                p_fail.add_run(f"📥 Ссылка на фото {count+1} (вставьте вручную):").italic = True
+                c_info.add_paragraph(url)
+                count += 1
 
     # Save to buffer
     f_out = io.BytesIO()
