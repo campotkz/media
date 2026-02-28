@@ -398,6 +398,12 @@ def handle_start(message):
     tid = message.message_thread_id or ''
     markup = types.InlineKeyboardMarkup(row_width=1)
     
+    if tid:
+        try:
+            # Reactivate chat operations if it was stopped by /stop
+            supabase.from_("clients").update({"is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        except: pass
+
     # 1. Calendar
     cal_url = f"{APP_URL}index.html?cid={cid}&tid={tid}"
     markup.add(types.InlineKeyboardButton(text="📅 КАЛЕНДАРЬ", url=cal_url))
@@ -423,6 +429,21 @@ def handle_start(message):
         except: pass
 
     bot.send_message(cid, "🦾 **GULYWOOD ERP**", reply_markup=markup, message_thread_id=tid or None, parse_mode="Markdown")
+
+@bot.message_handler(commands=['stop'])
+def handle_stop(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id
+        
+        if tid:
+            # Mark client/topic as inactive to pause big loops (like /reload)
+            supabase.from_("clients").update({"is_active": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
+            bot.reply_to(message, "🛑 **БОТ ОСТАНОВЛЕН**\nВсе цикличные действия (включая загрузку анкет) в этом топике прерваны.\n\nНажмите /start чтобы снова активировать бота для этого топика.", parse_mode="Markdown")
+        else:
+            bot.reply_to(message, "⚠️ Вы можете останавливать бота только внутри топика проекта.")
+    except Exception as e:
+        print(f"Stop Error: {e}")
 
 @bot.message_handler(commands=['cal'])
 def handle_calendar(message):
@@ -1908,6 +1929,15 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
         # Send Batch
         for app_data in batch:
             try:
+                # CHECK FOR STOP COMMAND
+                if tid:
+                    cl_check = supabase.from_("clients").select("is_active").eq("chat_id", cid).eq("thread_id", tid).execute()
+                    if cl_check.data and cl_check.data[0].get("is_active") is False:
+                        if status_msg:
+                            try: bot.edit_message_text(f"🛑 Загрузка прервана командой /stop.", cid, status_msg.message_id)
+                            except: pass
+                        return # Exit the function completely to break the reload loop
+
                 app_id = app_data.get('id')
                 safe_app = dict(app_data)
                 photos = _normalize_url_list(safe_app.get("photo_urls"))
