@@ -212,6 +212,9 @@ def generate_casting_docx(applications, project_name):
     # table._tbl.remove(table.rows[0]._tr)
     
     # Iterate apps
+    total_images_embedded = 0
+    MAX_GLOBAL_IMAGES = 50 # Strict limit to keep file size under 10MB (Telegram limit is ~20MB for some, but 413 happens earlier)
+
     for app in applications:
         row = table.add_row()
         
@@ -231,6 +234,7 @@ def generate_casting_docx(applications, project_name):
         if app.get('age') or app.get('dob'): info_text.append(f"🎂 {app.get('age') or app.get('dob')}")
         if app.get('height_weight'): info_text.append(f"📏 {app.get('height_weight')}")
         if app.get('sizes'): info_text.append(f"👟 {app.get('sizes')}")
+        if app.get('fee_range'): info_text.append(f"💰 Бюджет: {app.get('fee_range')}")
         
         for line in info_text:
             c_info.add_paragraph(line)
@@ -259,12 +263,6 @@ def generate_casting_docx(applications, project_name):
         photos = _normalize_url_list(app.get('photo_urls'))
         limit = 3
 
-        if len(photos) > limit:
-            p = c_info.add_paragraph()
-            p.add_run("🖼 Остальные фото и медиа:").bold = True
-            for extra_url in photos[limit:]:
-                c_info.add_paragraph(extra_url)
-
         # --- RIGHT COLUMN: PHOTOS ---
         c_photo = row.cells[1]
         c_photo.width = Cm(6)
@@ -273,11 +271,22 @@ def generate_casting_docx(applications, project_name):
         p_para = c_photo.paragraphs[0]
         p_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        for url in photos[:limit]:
+        for url in photos:
+            if count >= limit: break
+            
+            # Global limit check
+            if total_images_embedded >= MAX_GLOBAL_IMAGES:
+                # Add as link to info column instead
+                p_skip = c_info.add_paragraph()
+                p_skip.add_run(f"🔗 Фото {count+1}:").bold = True
+                c_info.add_paragraph(url)
+                count += 1
+                continue
+
             try:
-                # Optimize URL to use smaller size (400 width) to save bandwidth and speed up
-                opt_url = optimize_url(url, width=400)
-                resp = requests.get(opt_url, timeout=10) # 10 sec timeout for each photo
+                # Aggressive optimization: 200px width is enough for Word preview and prevents 413 error
+                opt_url = optimize_url(url, width=200)
+                resp = requests.get(opt_url, timeout=5) # 5 sec timeout to avoid hanging
                 
                 if resp.status_code == 200:
                     img_io = io.BytesIO(resp.content)
@@ -285,21 +294,30 @@ def generate_casting_docx(applications, project_name):
                     run.add_picture(img_io, width=Cm(5.5))
                     run.add_break()
                     count += 1
+                    total_images_embedded += 1
                 else:
                     raise Exception(f"HTTP {resp.status_code}")
             except Exception as e:
                 print(f"Doc Photo Err: {e}")
                 # Placeholder for manual insertion
-                run = p_para.add_run(f"⚠️ [ФОТО НЕ ЗАГРУЖЕНО: {url}]")
+                run = p_para.add_run(f"⚠️ [НЕ ЗАГРУЖЕНО: {url}]")
                 run.italic = True
                 run.font.size = Pt(8)
                 run.add_break()
                 
-                # Also duplicate the link in the info column for easy manual download
+                # Link fallback
                 p_fail = c_info.add_paragraph()
                 p_fail.add_run(f"📥 Ссылка на фото {count+1} (вставьте вручную):").italic = True
                 c_info.add_paragraph(url)
                 count += 1
+
+        # If there were more than limit photos, they already handled by original logic? 
+        # Actually I removed that. Let's add it back or ensure they show as links.
+        if len(photos) > limit:
+            p_extra = c_info.add_paragraph()
+            p_extra.add_run("🖼 Остальные медиа:").bold = True
+            for extra_url in photos[limit:]:
+                c_info.add_paragraph(extra_url)
 
     # Save to buffer
     f_out = io.BytesIO()
@@ -2065,13 +2083,17 @@ def handle_doc_command(message):
         bot.edit_message_text(f"⏳ Генерирую документ для {count} актеров...\n(Скачивание фото может занять время)", cid, status_msg.message_id)
         
         # 3. Generate DOCX
-        project_name = message.chat.title or "Casting"
-        doc_io = generate_casting_docx(final_list, project_name)
-        doc_io.name = f"Casting_Selection_{datetime.now().strftime('%Y-%m-%d')}.docx"
+        target_name = final_list[0].get('casting_target', message.chat.title or "Casting")
+        doc_io = generate_casting_docx(final_list, target_name)
+        
+        # Sanitize filename
+        clean_name = re.sub(r'[^\w\s-]', '', target_name).strip().replace(' ', '_')
+        if not clean_name: clean_name = "Selection"
+        doc_io.name = f"{clean_name}_{datetime.now().strftime('%Y-%m-%d')}.docx"
         
         # 4. Send
         bot.send_chat_action(cid, 'upload_document', message_thread_id=tid)
-        bot.send_document(cid, doc_io, message_thread_id=tid, caption=f"✅ Кастинг-лист ({count} чел.)")
+        bot.send_document(cid, doc_io, message_thread_id=tid, caption=f"✅ Кастинг-лист: {target_name} ({count} чел.)")
         
         try: bot.delete_message(cid, status_msg.message_id)
         except: pass
