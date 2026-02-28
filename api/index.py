@@ -212,9 +212,6 @@ def generate_casting_docx(applications, project_name):
     # table._tbl.remove(table.rows[0]._tr)
     
     # Iterate apps
-    total_images_embedded = 0
-    MAX_GLOBAL_IMAGES = 50 # Strict limit to keep file size under 10MB (Telegram limit is ~20MB for some, but 413 happens earlier)
-
     for app in applications:
         row = table.add_row()
         
@@ -228,7 +225,7 @@ def generate_casting_docx(applications, project_name):
         run.bold = True
         run.font.size = Pt(14)
         
-        # Details
+        # Details (Basic)
         info_text = []
         if app.get('city'): info_text.append(f"📍 {app.get('city')}")
         if app.get('age') or app.get('dob'): info_text.append(f"🎂 {app.get('age') or app.get('dob')}")
@@ -240,84 +237,40 @@ def generate_casting_docx(applications, project_name):
             c_info.add_paragraph(line)
             
         # Contacts
-        c_info.add_paragraph("📱 Контакты:")
+        c_info.add_paragraph("📱 Контакты")
         if app.get('phone'): c_info.add_paragraph(f"Tel: {app.get('phone')}")
         if app.get('instagram'): c_info.add_paragraph(f"Inst: {app.get('instagram')}")
         
-        # Experience/Skills (Shortened)
+        # Experience (Shortened)
         if app.get('experience'):
-            exp = app.get('experience')[:200] + "..." if len(app.get('experience') or "") > 200 else app.get('experience')
+            exp = app.get('experience')[:200] + "..." if len(str(app.get('experience') or "")) > 200 else app.get('experience')
             c_info.add_paragraph(f"💡 Опыт: {exp}")
             
-        # Links
-        c_info.add_paragraph("🔗 Ссылки:")
+        # --- MEDIA LINKS (All in left column as requested) ---
+        p_links = c_info.add_paragraph()
+        p_links.add_run("🔗 ССЫЛКИ НА МЕДИА:").bold = True
+        
+        # Video
         if app.get('video_audition_url'):
-            p = c_info.add_paragraph()
-            p.add_run("🎬 Видео-визитка").bold = True
-            # Hyperlink hack would be needed here, but for now just text URL
-            c_info.add_paragraph(app.get('video_audition_url'))
+            c_info.add_paragraph(f"🎬 Видео-визитка: {app.get('video_audition_url')}")
             
+        # Portfolio
         if app.get('portfolio_url'):
             c_info.add_paragraph(f"📂 Портфолио: {app.get('portfolio_url')}")
 
+        # Photos (List all)
         photos = _normalize_url_list(app.get('photo_urls'))
-        limit = 3
+        if photos:
+            c_info.add_paragraph("📸 Фотографии (скачайте и вставьте в правую колонку):")
+            for i, url in enumerate(photos):
+                c_info.add_paragraph(f"• Фото {i+1}: {url}")
 
-        # --- RIGHT COLUMN: PHOTOS ---
+        # --- RIGHT COLUMN: EMPTY (For manual insertion) ---
         c_photo = row.cells[1]
         c_photo.width = Cm(6)
-        
-        count = 0
-        p_para = c_photo.paragraphs[0]
-        p_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        for url in photos:
-            if count >= limit: break
-            
-            # Global limit check
-            if total_images_embedded >= MAX_GLOBAL_IMAGES:
-                # Add as link to info column instead
-                p_skip = c_info.add_paragraph()
-                p_skip.add_run(f"🔗 Фото {count+1}:").bold = True
-                c_info.add_paragraph(url)
-                count += 1
-                continue
-
-            try:
-                # Aggressive optimization: 200px width is enough for Word preview and prevents 413 error
-                opt_url = optimize_url(url, width=200)
-                resp = requests.get(opt_url, timeout=5) # 5 sec timeout to avoid hanging
-                
-                if resp.status_code == 200:
-                    img_io = io.BytesIO(resp.content)
-                    run = p_para.add_run()
-                    run.add_picture(img_io, width=Cm(5.5))
-                    run.add_break()
-                    count += 1
-                    total_images_embedded += 1
-                else:
-                    raise Exception(f"HTTP {resp.status_code}")
-            except Exception as e:
-                print(f"Doc Photo Err: {e}")
-                # Placeholder for manual insertion
-                run = p_para.add_run(f"⚠️ [НЕ ЗАГРУЖЕНО: {url}]")
-                run.italic = True
-                run.font.size = Pt(8)
-                run.add_break()
-                
-                # Link fallback
-                p_fail = c_info.add_paragraph()
-                p_fail.add_run(f"📥 Ссылка на фото {count+1} (вставьте вручную):").italic = True
-                c_info.add_paragraph(url)
-                count += 1
-
-        # If there were more than limit photos, they already handled by original logic? 
-        # Actually I removed that. Let's add it back or ensure they show as links.
-        if len(photos) > limit:
-            p_extra = c_info.add_paragraph()
-            p_extra.add_run("🖼 Остальные медиа:").bold = True
-            for extra_url in photos[limit:]:
-                c_info.add_paragraph(extra_url)
+        p_p = c_photo.paragraphs[0]
+        p_p.add_run("[Место для фото]").italic = True
+        p_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # Save to buffer
     f_out = io.BytesIO()
