@@ -1702,12 +1702,8 @@ def handle_reload_command(message):
             
             # Since apps are ordered by created_at ASC (Old -> New), 
             # overwriting here ensures we keep the LATEST one.
-            # CRITICAL: We only deduplicate within the SAME project to avoid deleting 
-            # actor's applications for DIFFERENT projects.
-            
-            p_name = app.get('project_name') or app.get('casting_target')
-            full_key = f"{key}_{p_name}"
-            unique_map[full_key] = app
+            # We treat the entire 'thread' as one context, so we deduplicate by person only.
+            unique_map[key] = app
             
         # Convert back to list and sort by time
         clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
@@ -1879,14 +1875,13 @@ def reload_casting_endpoint():
         
         # --- DEDUPLICATION LOGIC ---
         # Keep only the LATEST application per phone number
+        # We filter by 'key' only, because we are already scoped to a specific thread_id (topic).
+        # Even if project name changed, it's the same topic, so we treat it as one context.
         unique_map = {}
         for app in apps:
             phone = app.get('phone')
             key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
-            
-            p_name = app.get('project_name') or app.get('casting_target')
-            full_key = f"{key}_{p_name}"
-            unique_map[full_key] = app
+            unique_map[key] = app
             
         clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
         count = len(clean_apps)
