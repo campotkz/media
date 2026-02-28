@@ -2,6 +2,7 @@ import os
 import telebot
 import re
 from telebot import types
+from telebot.apihelper import ApiTelegramException
 from flask import Flask, request, jsonify
 from supabase import create_client, Client
 import pandas as pd
@@ -10,6 +11,8 @@ import io
 import json
 from datetime import datetime
 import requests
+import threading
+import time
 
 # Config
 TOKEN = os.environ.get('BOT_KEY')
@@ -126,13 +129,83 @@ def optimize_url(url, width=1280):
     except: pass
     return url
 
+def _get_retry_after_seconds(exc):
+    try:
+        if isinstance(exc, ApiTelegramException):
+            if getattr(exc, "error_code", None) == 429:
+                try:
+                    params = (exc.result_json or {}).get("parameters") or {}
+                except:
+                    params = {}
+                if "retry_after" in params:
+                    try:
+                        return int(params["retry_after"])
+                    except:
+                        pass
+        m = re.search(r"retry after (\d+)", str(exc), re.IGNORECASE)
+        if m:
+            return int(m.group(1))
+    except:
+        pass
+    return None
+
+def _tg_retry(fn, *args, **kwargs):
+    attempts = 0
+    while True:
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            retry_after = _get_retry_after_seconds(e)
+            if retry_after is None:
+                raise
+            attempts += 1
+            if attempts >= 6:
+                raise
+            time.sleep(max(1, retry_after) + 1)
+
+def _normalize_url_list(value):
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [v for v in value if isinstance(v, str) and v.startswith("http")]
+    if isinstance(value, str):
+        try:
+            data = json.loads(value)
+            if isinstance(data, list):
+                return [v for v in data if isinstance(v, str) and v.startswith("http")]
+        except:
+            pass
+        return [value] if value.startswith("http") else []
+    return []
+
+def fetch_casting_applications(chat_id, thread_id=None, page_size=500):
+    all_rows = []
+    offset = 0
+    while True:
+        q = supabase.table("casting_applications").select("*").eq("chat_id", chat_id)
+        if thread_id is not None:
+            q = q.eq("thread_id", thread_id)
+        q = q.order("created_at", desc=False).range(offset, offset + page_size - 1)
+        res = q.execute()
+        rows = res.data or []
+        all_rows.extend(rows)
+        if len(rows) < page_size:
+            break
+        offset += page_size
+    return all_rows
+
 @app.route('/api', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
         try:
             json_string = request.get_data().decode('utf-8')
             update = telebot.types.Update.de_json(json_string)
-            bot.process_new_updates([update])
+            def run_update():
+                try:
+                    bot.process_new_updates([update])
+                except Exception as e:
+                    print(f"Webhook Update Error: {e}")
+            threading.Thread(target=run_update).start()
         except Exception as e:
             print(f"Webhook Error: {e}")
         return ''
@@ -1672,157 +1745,63 @@ def handle_reload_command(message):
         
         # DEBUG: Verify we are here
         print(f"🔥 RELOAD COMMAND CAUGHT! Chat: {cid}, Thread: {tid}")
+
+        if not tid:
+            bot.reply_to(message, "⚠️ /reload работает только внутри топика.")
+            return
         
         # Send immediate acknowledgment to confirm bot is alive
         status_msg = bot.reply_to(message, "⏳ Поиск анкет в базе данных...")
-        
-        query = supabase.table("casting_applications").select("*").eq("chat_id", cid)
-        
-        # Handle thread logic
-        if tid:
-            query = query.eq("thread_id", tid)
-        else:
-            print("⚠️ No thread_id, fetching all apps for this chat.")
-            
-        res = query.order("created_at", desc=False).execute()
-        
-        if not res.data:
-            bot.edit_message_text(f"⚠️ Анкет не найдено для этого топика (ID: {tid}).", cid, status_msg.message_id)
+
+        apps = fetch_casting_applications(cid, tid)
+        if not apps:
+            _tg_retry(bot.edit_message_text, f"⚠️ Анкет не найдено для этого топика (ID: {tid}).", cid, status_msg.message_id)
             return
 
-        apps = res.data
-        
-        # --- DEDUPLICATION LOGIC ---
-        # Keep only the LATEST application per phone number
-        unique_map = {}
-        for app in apps:
-            phone = app.get('phone')
-            # If no phone, try instagram, else use ID as unique key (so we don't merge unknowns)
-            key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
-            
-            # Since apps are ordered by created_at ASC (Old -> New), 
-            # overwriting here ensures we keep the LATEST one.
-            # We treat the entire 'thread' as one context, so we deduplicate by person only.
-            unique_map[key] = app
-            
-        # Convert back to list and sort by time
-        clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
-        
-        count = len(clean_apps)
-        bot.edit_message_text(f"⏳ Найдено {len(apps)} записей. Уникальных: {count}. Перезагрузка...", cid, status_msg.message_id)
+        count = len(apps)
+        _tg_retry(bot.edit_message_text, f"⏳ Найдено {count} анкет. Отправляю в этот топик...", cid, status_msg.message_id)
 
         success_count = 0
-        for app_data in clean_apps:
+        for idx, app_data in enumerate(apps, start=1):
             try:
-                # 1. Delete OLD message
-                old_msg_id = app_data.get('tg_message_id')
-                # CRITICAL: Do NOT delete messages if we are just "reloading" the view and the messages might be in a different thread or chat.
-                # Actually, reload means "delete old and send new".
-                # But if we are running reload in a NEW topic for OLD applications, we should NOT delete the old messages in the OLD topic.
-                
-                # Check if the old message was in the SAME chat and SAME thread
-                old_chat_id = app_data.get('chat_id')
-                old_thread_id = app_data.get('thread_id')
-                
-                # Convert to int for comparison
-                try: old_chat_id = int(old_chat_id)
-                except: old_chat_id = None
-                
-                try: old_thread_id = int(old_thread_id) if old_thread_id else None
-                except: old_thread_id = None
-                
-                # Only delete if it matches current context
-                should_delete = False
-                if old_msg_id:
-                    if old_chat_id == cid:
-                         # If both have thread_id, they must match.
-                         # If app has no thread_id (None) and current is None, match.
-                         # If app has thread_id and current is None -> Mismatch (don't delete from general in private)
-                         if old_thread_id == tid:
-                             should_delete = True
-                
-                if should_delete:
-                    try:
-                        bot.delete_message(cid, old_msg_id)
-                        # Delete media (up to 9 previous messages)
-                        for i in range(1, 10):
-                            try: bot.delete_message(cid, int(old_msg_id) - i)
-                            except: pass
-                    except: pass
-
-                # 2. Prepare New Message
-                full_txt = format_casting_message(app_data, is_selected=app_data.get('is_selected', False))
-                
-                # ... (Media & Buttons logic same as before) ...
-                def v(k): return str(app_data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
-                simple_caption = f"📸 <b>Анкета: {v('full_name')}</b>\n🎯 {v('casting_target')}\n\n⬇️⬇️⬇️"
-                
-                # Prepare Media
-                photos = app_data.get('photo_urls', [])
-                if isinstance(photos, str):
-                    try: photos = json.loads(photos)
-                    except: photos = [photos] if photos.startswith('http') else []
-                
-                video = app_data.get('video_audition_url')
-                media = []
-                
-                # OPTIMIZATION for Reload:
-                limit_count = 5 
-                
-                for i, url in enumerate(photos):
-                    if i >= limit_count: break
-                    
-                    opt_url = optimize_url(url, width=1280)
-                    
-                    if i == 0: media.append(types.InputMediaPhoto(opt_url, caption=simple_caption, parse_mode="HTML"))
-                    else: media.append(types.InputMediaPhoto(opt_url))
-                
-                if video and len(media) < 10:
-                    if not media: media.append(types.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
-                    else: media.append(types.InputMediaVideo(video))
-                
-                markup = types.InlineKeyboardMarkup()
                 app_id = app_data.get('id')
-                sel_txt = "✅ ВЫБРАН" if app_data.get('is_selected') else "ВЫБРАТЬ"
+                safe_app = dict(app_data)
+                photos = _normalize_url_list(safe_app.get("photo_urls"))
+                safe_app["photo_urls"] = photos[:5]
+
+                full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
+
+                markup = types.InlineKeyboardMarkup()
+                sel_txt = "✅ ВЫБРАН" if safe_app.get('is_selected') else "ВЫБРАТЬ"
                 markup.add(
                     types.InlineKeyboardButton(sel_txt, callback_data=f"app_sel:{app_id}"),
                     types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
                 )
                 
-                # 3. Send
                 sent_msg = None
-                if media:
-                    try: 
-                        bot.send_media_group(cid, media, message_thread_id=tid)
-                    except Exception as e: 
-                        print(f"Media err for app {app_id}: {e}")
-                        # Fallback: Try sending just the first photo/video
-                        try:
-                            if photos:
-                                bot.send_photo(cid, photos[0], caption=simple_caption, parse_mode="HTML", message_thread_id=tid)
-                            elif video:
-                                bot.send_video(cid, video, caption=simple_caption, parse_mode="HTML", message_thread_id=tid)
-                        except Exception as fe:
-                            # Final Fallback: Add warning to text
-                            full_txt += f"\n\n⚠️ <b>Не удалось загрузить превью медиа.</b>\n(Telegram не смог скачать файлы по ссылке. Используйте прямые ссылки выше)"
-                
                 try:
-                    sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                    sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
                 except Exception as e:
-                    # Fallback to plain text
-                    sent_msg = bot.send_message(cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+                    sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
                 
                 if sent_msg:
                     supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
                 
                 success_count += 1
-                import time; time.sleep(0.5)
+                if idx % 10 == 0:
+                    try:
+                        _tg_retry(bot.edit_message_text, f"⏳ Отправлено {success_count}/{count}...", cid, status_msg.message_id)
+                    except:
+                        pass
                 
             except Exception as e:
                 print(f"Reload Item Error: {e}")
 
-        bot.delete_message(cid, status_msg.message_id)
-        final_msg = bot.send_message(cid, f"✅ Перезагрузка завершена. Обновлено анкет: {success_count} из {count}", message_thread_id=tid)
+        try:
+            _tg_retry(bot.delete_message, cid, status_msg.message_id)
+        except:
+            pass
+        final_msg = _tg_retry(bot.send_message, cid, f"✅ Перезагрузка завершена. Отправлено анкет: {success_count} из {count}", message_thread_id=tid)
         auto_delete(final_msg, 5)
         
     except Exception as e:
@@ -1860,144 +1839,42 @@ def reload_casting_endpoint():
             
         print(f"🔄 RELOAD REQUEST for CID={cid}, TID={tid}")
         
-        # 1. Fetch ALL applications for this thread
-        query = supabase.table("casting_applications").select("*").eq("chat_id", cid)
-        if tid:
-            query = query.eq("thread_id", tid)
-        
-        # Order by created_at ascending (repost in order)
-        res = query.order("created_at", desc=False).execute()
-        
-        if not res.data:
+        apps = fetch_casting_applications(cid, tid)
+        if not apps:
             return jsonify({'status': 'empty', 'message': 'No applications found'}), 200
             
-        apps = res.data
+        found_count = len(apps)
+        sent_count = 0
         
-        # --- DEDUPLICATION LOGIC ---
-        # Keep only the LATEST application per phone number
-        # We filter by 'key' only, because we are already scoped to a specific thread_id (topic).
-        # Even if project name changed, it's the same topic, so we treat it as one context.
-        unique_map = {}
-        for app in apps:
-            phone = app.get('phone')
-            key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
-            unique_map[key] = app
-            
-        clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
-        count = len(clean_apps)
-        
-        for app_data in clean_apps:
+        for app_data in apps:
             try:
-                # 2. Re-send each application
-                # Reuse the exact logic from notify_casting, but we need to handle it carefully
-                # We can just call the internal logic, but we need to mock 'data'
-                
-                # Check deletion context
-                old_msg_id = app_data.get('tg_message_id')
-                old_chat_id = app_data.get('chat_id')
-                old_thread_id = app_data.get('thread_id')
-                
-                # Convert to int for comparison
-                try: old_chat_id = int(old_chat_id)
-                except: old_chat_id = None
-                try: old_thread_id = int(old_thread_id) if old_thread_id else None
-                except: old_thread_id = None
-                
-                should_delete = False
-                if old_msg_id and old_chat_id == cid and old_thread_id == tid:
-                    should_delete = True
-                
-                if should_delete:
-                    try:
-                        bot.delete_message(cid, old_msg_id)
-                        for i in range(1, 10):
-                            try: bot.delete_message(cid, int(old_msg_id) - i)
-                            except: pass
-                    except: pass
-                
-                # Format message
-                full_txt = format_casting_message(app_data, is_selected=app_data.get('is_selected', False))
-                
-                def v(k): return str(app_data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
-                simple_caption = (
-                    f"📸 <b>Анкета: {v('full_name')}</b>\n"
-                    f"🎯 {v('casting_target')}\n\n"
-                    f"Описание придет следующим сообщением... ⬇️"
-                )
-                
-                # Prepare Media
-                photos = app_data.get('photo_urls', [])
-                video = app_data.get('video_audition_url')
-                media = []
-                
-                # OPTIMIZATION: 
-                # 1. Limit to fewer photos for stability (User request: "not all but first few")
-                # 2. Resize images using Supabase Transform
-                
-                limit_count = 5 # Reduced from 9 to 5
-                
-                for i, url in enumerate(photos):
-                    if i >= limit_count: break
-                    
-                    # Resize!
-                    opt_url = optimize_url(url, width=1280)
-                    
-                    if i == 0:
-                        media.append(types.InputMediaPhoto(opt_url, caption=simple_caption, parse_mode="HTML"))
-                    else:
-                        media.append(types.InputMediaPhoto(opt_url))
-                
-                if video:
-                    if len(media) < 10:
-                        if not media:
-                            media.append(types.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
-                        else:
-                            media.append(types.InputMediaVideo(video))
-                
-                # Buttons
-                markup = types.InlineKeyboardMarkup()
                 app_id = app_data.get('id')
-                is_sel = app_data.get('is_selected', False)
-                select_btn_text = "✅ ВЫБРАН" if is_sel else "ВЫБРАТЬ"
-                btns = [
+                safe_app = dict(app_data)
+                photos = _normalize_url_list(safe_app.get("photo_urls"))
+                safe_app["photo_urls"] = photos[:5]
+
+                full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
+
+                markup = types.InlineKeyboardMarkup()
+                select_btn_text = "✅ ВЫБРАН" if safe_app.get('is_selected', False) else "ВЫБРАТЬ"
+                markup.add(
                     types.InlineKeyboardButton(select_btn_text, callback_data=f"app_sel:{app_id}"),
                     types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
-                ]
-                markup.add(*btns)
+                )
+
+                try:
+                    sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                except Exception:
+                    sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
                 
-                sent_msg = None
-                
-                # Send Media Group
-                if media:
-                    try:
-                        bot.send_media_group(cid, media, message_thread_id=tid)
-                    except Exception as e:
-                        print(f"Reload Media Fail: {e}")
-                        # Fallback: Try sending just the first photo/video
-                        try:
-                            if photos:
-                                bot.send_photo(cid, photos[0], caption=simple_caption, parse_mode="HTML", message_thread_id=tid)
-                            elif video:
-                                bot.send_video(cid, video, caption=simple_caption, parse_mode="HTML", message_thread_id=tid)
-                        except Exception as fe:
-                            full_txt += f"\n\n⚠️ <b>Не удалось загрузить превью медиа.</b>\n(Telegram не смог скачать файлы по ссылке. Используйте прямые ссылки выше)"
-                
-                # Send Text Info
-                sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-                
-                # Update DB with new message ID (so buttons work for updates later)
                 if sent_msg:
                     supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
-                
-                count += 1
-                # Sleep briefly to avoid flood limits
-                import time
-                time.sleep(0.5)
+                    sent_count += 1
                 
             except Exception as e:
                 print(f"Failed to reload app {app_data.get('id')}: {e}")
                 
-        return jsonify({'status': 'ok', 'reloaded_count': count}), 200
+        return jsonify({'status': 'ok', 'found_count': found_count, 'reloaded_count': sent_count}), 200
 
     except Exception as e:
         print(f"Reload Error: {e}")
