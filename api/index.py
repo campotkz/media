@@ -1810,65 +1810,7 @@ def reload_casting_endpoint():
 
     except Exception as e:
         print(f"Reload Error: {e}")
-        return jsonify({'error': str(e)}), 500                    req_chat = int(str(chat_id).strip())
-            except (ValueError, TypeError): pass
-            try:
-                if thread_id and str(thread_id).strip():
-                    req_thread = int(str(thread_id).strip())
-            except (ValueError, TypeError): pass
-            
-            target_chat = db_chat or req_chat
-            target_thread = db_thread or req_thread
-            
-            print(f"Using target_chat={target_chat}, target_thread={target_thread}")
-            
-            if not target_chat:
-                raise ValueError(f"Missing chat_id for report delivery. DB={db_chat}, req={req_chat}")
-
-            total_takes = len(df_logs[df_logs['event_type'].isin(['motor', 'take_increment', 'series'])])
-            project_name = shift.get('project_id') or shift.get('project') or 'N/A'
-            
-            print(f"Sending document '{file_name}' to chat {target_chat}, thread {target_thread}, takes={total_takes}")
-            output.seek(0)  # make sure pointer is at start
-            msg = bot.send_document(
-                target_chat,
-                output,
-                caption=f"📋 **ОТЧЕТ ЗА СМЕНУ (DPR)**\n📅 Дата: {start_t.strftime('%d.%m.%Y')}\n🎬 Проект: {project_name}\n⏱ Смена: {start_t.strftime('%H:%M')} - {end_t.strftime('%H:%M')}\n🔥 Всего дублей: {total_takes}",
-                message_thread_id=target_thread,
-                visible_file_name=file_name,
-                parse_mode="Markdown"
-            )
-            print(f"Document sent successfully, msg_id={msg.message_id if msg else None}")
-            
-            # --- AUTOMATED LINKING ---
-            if msg and shift.get('shoot_id'):
-                s_cid = str(target_chat)
-                if s_cid.startswith("-100"): s_cid = s_cid[4:]
-                report_link = f"https://t.me/c/{s_cid}/{msg.message_id}"
-                
-                print(f"Auto-linking report to shoot {shift['shoot_id']}: {report_link}")
-                supabase.table('shoots').update({'report_link': report_link}).eq('id', shift['shoot_id']).execute()
-            # -------------------------
-
-        except Exception as tel_err:
-            print(f"Telegram send error: {tel_err}")
-            # Try sending to a fallback or just log it
-            raise tel_err
-
-        report_link = None
-        if msg:
-            s_cid = str(target_chat)
-            if s_cid.startswith("-100"): s_cid = s_cid[4:]
-            report_link = f"https://t.me/c/{s_cid}/{msg.message_id}"
-
-        res = jsonify({'status': 'ok', 'report_link': report_link})
-        res.headers.add('Access-Control-Allow-Origin', '*')
-        return res
-    except Exception as e:
-        print(f"Report generator error: {e}")
-        import traceback
-        traceback.print_exc()
-        r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
+        return jsonify({'error': str(e)}), 500
 
 def ensure_project(chat_id, thread_id, chat_title, content="", message=None, forced_name=None):
     """Ensures a project (topic) exists. Returns (category, is_new)."""
