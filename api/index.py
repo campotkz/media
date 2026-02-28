@@ -1598,7 +1598,7 @@ def handle_reload_command(message):
         else:
             print("⚠️ No thread_id, fetching all apps for this chat.")
             
-        res = query.order("created_at", ascending=True).execute()
+        res = query.order("created_at", desc=False).execute()
         
         if not res.data:
             bot.edit_message_text(f"⚠️ Анкет не найдено для этого топика (ID: {tid}).", cid, status_msg.message_id)
@@ -1724,7 +1724,7 @@ def reload_casting_endpoint():
             query = query.eq("thread_id", tid)
         
         # Order by created_at ascending (repost in order)
-        res = query.order("created_at", ascending=True).execute()
+        res = query.order("created_at", desc=False).execute()
         
         if not res.data:
             return jsonify({'status': 'empty', 'message': 'No applications found'}), 200
