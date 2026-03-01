@@ -1617,7 +1617,7 @@ def handle_forwarded_message(message):
                 
                 # Auto-delete confirmation message after 10 seconds to keep chat clean
                 import threading
-from concurrent.futures import ThreadPoolExecutor
+                from concurrent.futures import ThreadPoolExecutor
                 import time
                 def delayed_delete(chat_id, msg_id):
                     time.sleep(10)
@@ -2149,6 +2149,43 @@ def reload_casting_endpoint():
         print(f"Reload Error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@bot.message_handler(commands=['del_project'])
+def handle_del_project(message):
+    try:
+        # Only allow if there's a name provided
+        args = message.text.replace('/del_project', '').strip()
+        if not args:
+            bot.reply_to(message, "❌ Укажите точное название проекта для удаления. Пример: `/del_project ТЕСТОВЫЙ`", parse_mode="Markdown")
+            return
+
+        cid = message.chat.id
+
+        # Search for project by name in this chat
+        res = supabase.from_("clients").select("id, name, thread_id").eq("chat_id", cid).ilike("name", args).execute()
+
+        if not res.data:
+            bot.reply_to(message, f"❌ Проект с именем '{args}' не найден.")
+            return
+
+        deleted_count = 0
+        for p in res.data:
+            pid = p['id']
+            tid = p['thread_id']
+            pname = p['name']
+
+            # Delete project
+            supabase.from_("clients").delete().eq("id", pid).execute()
+
+            # Delete related contacts
+            if tid:
+                supabase.from_("contacts").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
+
+            deleted_count += 1
+
+        bot.reply_to(message, f"🗑️ Успешно удалено проектов: {deleted_count}.")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка удаления проекта: {e}")
+
 def ensure_project(chat_id, thread_id, chat_title, content="", message=None, forced_name=None):
     """Ensures a project (topic) exists. Returns (category, is_new)."""
     try:
@@ -2336,7 +2373,7 @@ def auto_delete(msg, delay=20):
         try: bot.delete_message(msg.chat.id, msg.message_id)
         except: pass
     import threading
-from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor
     threading.Thread(target=do_delete).start()
 
 def register_user(user, chat_id, thread_id=None, silent=False):
@@ -2416,13 +2453,24 @@ def handle_topic_edited(message):
 @bot.message_handler(content_types=['forum_topic_deleted'])
 def handle_topic_deleted(message):
     try:
-        cid, tid = message.chat.id, message.message_thread_id
+        cid = message.chat.id
+        # IMPORTANT: The message_thread_id might not be the same as the deleted topic ID in all cases.
+        # However, for forum_topic_deleted, it IS the thread_id of the topic being deleted.
+        tid = message.message_thread_id
+
         if tid:
-            # Delete project from clients
-            supabase.from_("clients").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
-            # Also delete related contacts? (Optional but clean)
-            # supabase.from_("contacts").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
-            print(f"🗑️ DELETED: Project from topic {tid} in chat {cid} removed from DB.")
+            # Check if it exists before deleting (for logging)
+            p_res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
+            if p_res.data:
+                p_name = p_res.data[0]['name']
+                # Delete project from clients
+                supabase.from_("clients").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
+                print(f"🗑️ DELETED: Project '{p_name}' (Topic {tid}) removed from DB.")
+
+                # We can also clean up contacts related to this project
+                supabase.from_("contacts").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
+            else:
+                print(f"⚠️ DELETED TOPIC: Topic {tid} deleted, but no corresponding project found in DB.")
     except Exception as e: print(f"❌ Topic Deleted Err: {e}")
 
 @bot.message_handler(content_types=['forum_topic_closed'])
