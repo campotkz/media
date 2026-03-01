@@ -933,8 +933,14 @@
                 // --- CRITICAL FIX ---
                 // Find the actual DB object for 'proj' if it exists.
                 // Do NOT create a dummy {name: proj} because it lacks chat_id/thread_id!
-                const targetProj = proj ? projects.find(p => p.name === proj) : null;
-                const otherProjects = projects.filter(p => p.name !== proj);
+                let targetProj = proj ? projects.find(p => p.name === proj) : null;
+
+                // If not found by name, try finding by chat_id and thread_id if available
+                if (!targetProj && cid && tid) {
+                    targetProj = projects.find(p => p.chat_id == cid && p.thread_id == tid);
+                }
+
+                const otherProjects = projects.filter(p => p !== targetProj);
 
                 // If target found in DB, put it first. If not found (renamed?), just list others.
                 // If proj was passed but not found, we can't force-select it correctly without ID.
@@ -956,12 +962,14 @@
                     }
                 }
 
+                const activeProjName = targetProj ? targetProj.name : proj;
+
                 sortedProjects.forEach(p => {
                     const label = document.createElement('label');
                     label.className = 'check-item';
-                    if (p.name === proj) label.classList.add('active');
+                    if (p.name === activeProjName) label.classList.add('active');
 
-                    const isChecked = p.name === proj ? 'checked' : '';
+                    const isChecked = p.name === activeProjName ? 'checked' : '';
 
                     // Store IDs directly in data attributes
                     const cidAttr = p.chat_id ? `data-cid="${p.chat_id}"` : '';
