@@ -1882,6 +1882,61 @@ def handle_reload_batch_callback(call):
     except Exception as e:
         print(f"Reload Batch Err: {e}")
 
+
+def send_casting_application_message(cid, tid, app_data):
+    """
+    Helper function to construct and send a casting application to a specific chat/thread.
+    Used by process_reload_batch and can be used by notify_casting.
+    """
+    try:
+        app_id = app_data.get('id')
+        safe_app = dict(app_data)
+        photos = _normalize_url_list(safe_app.get("photo_urls"))
+        safe_app["photo_urls"] = photos
+
+        # Prepare Media
+        media = []
+        for i, url in enumerate(photos[:3]):
+            opt_url = optimize_url(url, width=1024)
+            if i == 0:
+                caption = f"📸 <b>{safe_app.get('full_name')}</b>\n{safe_app.get('casting_target')}\n⬇️ Описание ниже"
+
+
+                media.append(types.InputMediaPhoto(opt_url, caption=caption, parse_mode="HTML"))
+            else:
+                media.append(types.InputMediaPhoto(opt_url))
+
+        # Send Media Group
+        if media:
+            try:
+                _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+            except Exception as e:
+                print(f"Send Media Group Fail: {e}")
+                if photos:
+                    try:
+                        _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
+                    except: pass
+
+        full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
+
+        markup = types.InlineKeyboardMarkup()
+        sel_txt = "✅ ВЫБРАН" if safe_app.get('is_selected') else "ВЫБРАТЬ"
+        markup.add(
+            types.InlineKeyboardButton(sel_txt, callback_data=f"app_sel:{app_id}"),
+            types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
+        )
+
+        sent_msg = None
+        try:
+            sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+        except Exception as e:
+            sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+
+        if sent_msg:
+            supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
+    except Exception as e:
+        print(f"Send Item Error: {e}")
+
 def process_reload_batch(cid, tid, offset=0, status_msg=None):
     try:
         BATCH_SIZE = 10
@@ -1932,50 +1987,7 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                             except: pass
                         return # Exit the function completely to break the reload loop
 
-                app_id = app_data.get('id')
-                safe_app = dict(app_data)
-                photos = _normalize_url_list(safe_app.get("photo_urls"))
-                safe_app["photo_urls"] = photos
-
-                # Prepare Media
-                media = []
-                for i, url in enumerate(photos[:3]):
-                    opt_url = optimize_url(url, width=1024)
-                    if i == 0:
-                        caption = f"📸 <b>{safe_app.get('full_name')}</b>\n{safe_app.get('casting_target')}\n⬇️ Описание ниже"
-                        media.append(types.InputMediaPhoto(opt_url, caption=caption, parse_mode="HTML"))
-                    else:
-                        media.append(types.InputMediaPhoto(opt_url))
-
-                # Send Media Group
-                if media:
-                    try:
-                        _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-                    except Exception as e:
-                        print(f"Reload Media Group Fail: {e}")
-                        if photos:
-                            try:
-                                _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
-                            except: pass
-
-                full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
-
-                markup = types.InlineKeyboardMarkup()
-                sel_txt = "✅ ВЫБРАН" if safe_app.get('is_selected') else "ВЫБРАТЬ"
-                markup.add(
-                    types.InlineKeyboardButton(sel_txt, callback_data=f"app_sel:{app_id}"),
-                    types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
-                )
-                
-                sent_msg = None
-                try:
-                    sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-                except Exception as e:
-                    sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
-                
-                if sent_msg:
-                    supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
-                
+                send_casting_application_message(cid, tid, app_data)
             except Exception as e:
                 print(f"Reload Item Error: {e}")
 
