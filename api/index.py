@@ -10,6 +10,7 @@ import base64
 import io
 import json
 from datetime import datetime
+import binascii
 import requests
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -27,6 +28,9 @@ SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 APP_URL = "https://campotkz.github.io/media/"
 VERCEL_URL = os.environ.get("VERCEL_URL", "media-seven-eta.vercel.app")
 BASE_API_URL = f"https://{VERCEL_URL}"
+
+# Max Base64 length equivalent to 50MB
+MAX_BASE64_LENGTH = 50 * 1024 * 1024 * 4 // 3
 
 # --- AUTO-MIGRATION CONFIG (Added by User Request) ---
 SUPABASE_PAT = os.environ.get('SUPABASE_PAT', "7cc5f46c-43e4-409c-91af-b71cb62a7f1b") # Personal Access Token
@@ -381,6 +385,9 @@ def send_excel():
         if not project_name or not base64_data:
             return jsonify({'error': 'Missing project_name or base64_data'}), 400
 
+        if len(base64_data) > MAX_BASE64_LENGTH:
+            return jsonify({'error': 'Payload too large'}), 413
+
         # Find target chat/thread from database
         res = supabase.from_("clients").select("chat_id, thread_id").eq("name", project_name).execute()
         if not res.data:
@@ -394,7 +401,10 @@ def send_excel():
             return jsonify({'error': f'Project "{project_name}" has no linked chat_id'}), 400
 
         # Decode base64 file
-        file_bytes = base64.b64decode(base64_data)
+        try:
+            file_bytes = base64.b64decode(base64_data, validate=True)
+        except binascii.Error:
+            return jsonify({'error': 'Invalid base64 data'}), 400
         file_io = io.BytesIO(file_bytes)
         file_io.name = filename
 
