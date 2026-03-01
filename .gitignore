@@ -34,3 +34,5 @@ Thumbs.db
 !add_*.sql
 !fix_*.sql
 !reset_*.sql
+tests/__pycache__
+api/__pycache__
