@@ -12,6 +12,7 @@ import json
 from datetime import datetime
 import requests
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 from docx import Document
 from docx.shared import Cm, Pt
@@ -1370,14 +1371,17 @@ def notify_casting():
                             print(f"   Attempting to delete {media_count} media messages for app {old_db_id}")
 
                             # The text message (old_msg_id) was sent LAST.
-                            for i in range(1, media_count + 1):
-                                try: 
+                            def delete_single_media(i):
+                                try:
                                     target_id = int(old_msg_id) - i
                                     bot.delete_message(cid, target_id)
                                     print(f"   Deleted media msg {target_id}")
                                 except Exception as e:
                                     print(f"   Failed to delete media {target_id}: {e}")
-                                    pass
+
+                            if media_count > 0:
+                                with ThreadPoolExecutor(max_workers=min(media_count, 5)) as executor:
+                                    executor.map(delete_single_media, range(1, media_count + 1))
                         except Exception as tg_del_e: 
                             print(f"   TG Delete Err: {tg_del_e}")
                     
