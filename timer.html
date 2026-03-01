@@ -1977,7 +1977,7 @@
             const finishDesc = document.getElementById('finishDesc');
             if (finishDesc) finishDesc.textContent = '⏳ Формируется отчет...';
 
-            fetch('https://media-seven-eta.vercel.app/api/timer/report', {
+            fetch('/api/timer/report', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(reportPayload)
             }).then(r => {
