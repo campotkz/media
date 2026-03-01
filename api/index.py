@@ -755,10 +755,8 @@ def handle_delete(message):
             # 1.1 Check for Links
             urls = re.findall(r'(https?://[^\s]+)', txt)
             if urls:
-                deleted_urls = []
-                for url in urls:
-                    res = supabase.table("project_resources").delete().eq("chat_id", cid).eq("thread_id", tid).eq("url", url).execute()
-                    if res.data: deleted_urls.append(url)
+                res = supabase.table("project_resources").delete().eq("chat_id", cid).eq("thread_id", tid).in_("url", urls).execute()
+                deleted_urls = [item['url'] for item in res.data] if res.data else []
                 
                 if deleted_urls:
                     bot.reply_to(message, f"🗑️ Удалено ресурсов: {len(deleted_urls)}")
