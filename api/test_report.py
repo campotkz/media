@@ -26,7 +26,7 @@ except: pass
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def test_report(shift_id):
+def generate_test_report(shift_id):
     print(f"Testing report for shift: {shift_id}")
     
     # 1. Fetch Data
@@ -96,6 +96,6 @@ if __name__ == "__main__":
     # Get last shift id
     res = supabase.table('production_shifts').select("id").order("start_time", desc=True).limit(1).execute()
     if res.data:
-        test_report(res.data[0]['id'])
+        generate_test_report(res.data[0]['id'])
     else:
         print("No shifts found in DB")
