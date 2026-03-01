@@ -24,6 +24,7 @@ TOKEN = os.environ.get('BOT_KEY')
 SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co"
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY') 
 APP_URL = "https://campotkz.github.io/media/"
+API_SECRET = os.environ.get('API_SECRET', 'campot-media-secret-777')
 
 # --- AUTO-MIGRATION CONFIG (Added by User Request) ---
 SUPABASE_PAT = os.environ.get('SUPABASE_PAT', "7cc5f46c-43e4-409c-91af-b71cb62a7f1b") # Personal Access Token
@@ -322,7 +323,7 @@ def submit_report():
     if request.method == 'OPTIONS':
         r = app.make_response('')
         r.headers.add('Access-Control-Allow-Origin', '*')
-        r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        r.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-API-Key')
         r.headers.add('Access-Control-Allow-Methods', 'POST')
         return r
     try:
@@ -1126,7 +1127,7 @@ def handle_app_delete_callback(call):
                     
                     # Notify General Topic (Repost)
                     import requests
-                    requests.post('https://media-seven-eta.vercel.app/api/casting', json={
+                    requests.post('https://media-seven-eta.vercel.app/api/casting', headers={'X-API-Key': API_SECRET}, json={
                         **app_data,
                         "casting_target": "Casting: ОБЩИЙ",
                         "chat_id": g_cid,
@@ -1222,9 +1223,14 @@ def notify_casting():
     if request.method == 'OPTIONS':
         r = app.make_response('')
         r.headers.add('Access-Control-Allow-Origin', '*')
-        r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        r.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-API-Key')
         r.headers.add('Access-Control-Allow-Methods', 'POST')
         return r
+
+    api_key = request.headers.get('X-API-Key')
+    if not api_key or api_key != API_SECRET:
+        return jsonify({'error': 'Unauthorized'}), 401
+
     try:
         data = request.json or {}
         cid = data.get('chat_id')
@@ -1859,7 +1865,7 @@ def process_manual_media_update(source_msg, application_msg):
 
         # SEND NEW MESSAGE
         import requests
-        requests.post('https://media-seven-eta.vercel.app/api/casting', json=updated_payload)
+        requests.post('https://media-seven-eta.vercel.app/api/casting', headers={'X-API-Key': API_SECRET}, json=updated_payload)
 
     except Exception as e:
         print(f"process_manual_media_update err: {e}")

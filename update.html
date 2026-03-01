@@ -511,7 +511,7 @@
 
                 await fetch('https://media-seven-eta.vercel.app/api/casting', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': 'campot-media-secret-777' },
                     body: JSON.stringify(payload)
                 });
 
