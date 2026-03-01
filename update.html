@@ -509,7 +509,7 @@
                     thread_id: finalTid
                 };
 
-                await fetch('https://media-seven-eta.vercel.app/api/casting', {
+                await fetch('/api/casting', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)

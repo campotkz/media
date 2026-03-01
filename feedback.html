@@ -470,7 +470,7 @@
                     if (error) throw new Error(error.message);
 
                     // 2. Trigger Backend Report (Vercel)
-                    const backendUrl = "https://media-seven-eta.vercel.app/api/report";
+                    const backendUrl = "/api/report";
                     const resp = await fetch(backendUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

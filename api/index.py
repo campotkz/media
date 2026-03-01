@@ -12,6 +12,7 @@ import json
 from datetime import datetime
 import requests
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 from docx import Document
 from docx.shared import Cm, Pt
@@ -24,10 +25,32 @@ TOKEN = os.environ.get('BOT_KEY')
 SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co"
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY') 
 APP_URL = "https://campotkz.github.io/media/"
+VERCEL_URL = os.environ.get("VERCEL_URL", "media-seven-eta.vercel.app")
+BASE_API_URL = f"https://{VERCEL_URL}"
 
 # --- AUTO-MIGRATION CONFIG (Added by User Request) ---
 SUPABASE_PAT = os.environ.get('SUPABASE_PAT', "7cc5f46c-43e4-409c-91af-b71cb62a7f1b") # Personal Access Token
 PROJECT_REF = "waekzofajzqcpoeldhkt"
+
+
+def ensure_casting_schema_update():
+    sql = """
+    ALTER TABLE public.casting_applications ADD COLUMN IF NOT EXISTS media_message_ids jsonb;
+    """
+    try:
+        url = f"https://api.supabase.com/v1/projects/{PROJECT_REF}/query"
+        headers = {"Authorization": f"Bearer {SUPABASE_PAT}", "Content-Type": "application/json"}
+        payload = {"query": sql}
+        resp = requests.post(url, json=payload, headers=headers)
+        if resp.status_code in [200, 201]:
+            print("✅ AUTO-MIGRATION SUCCESS: Table 'casting_applications' updated with media_message_ids.")
+    except Exception as e:
+        print(f"❌ AUTO-MIGRATION ERROR: {e}")
+
+# Run it once on startup (only if SUPABASE_PAT is set and looks real)
+if SUPABASE_PAT and len(SUPABASE_PAT) > 10:
+    import threading
+    threading.Thread(target=ensure_casting_schema_update).start()
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
@@ -310,7 +333,7 @@ def webhook():
 def drop_updates():
     try:
         # Reset webhook and declare we want to drop pending updates
-        new_url = APP_URL.replace("campotkz.github.io/media/", "media-seven-eta.vercel.app/api")
+        new_url = f"https://{VERCEL_URL}/api"
         bot.remove_webhook()
         bot.set_webhook(url=new_url, drop_pending_updates=True)
         return jsonify({"status": "ok", "message": "Pending updates dropped, webhook reset."})
@@ -1126,7 +1149,7 @@ def handle_app_delete_callback(call):
                     
                     # Notify General Topic (Repost)
                     import requests
-                    requests.post('https://media-seven-eta.vercel.app/api/casting', json={
+                    requests.post(f'{BASE_API_URL}/api/casting', json={
                         **app_data,
                         "casting_target": "Casting: ОБЩИЙ",
                         "chat_id": g_cid,
@@ -1148,10 +1171,14 @@ def handle_app_delete_callback(call):
 
         # 5. Delete from Telegram (current chat)
         try:
-            bot.delete_message(cid, call.message.message_id)
-            try: bot.delete_message(cid, int(call.message.message_id) - 1)
-            except: pass
-        except: pass
+            old_media_ids = app_data.get('media_message_ids') or []
+            old_photos = app_data.get('photo_urls') or []
+            old_video = app_data.get('video_audition_url')
+            media_count = min(len(old_photos) + (1 if old_video else 0), 10)
+            all_ids_to_del = [call.message.message_id] + old_media_ids if old_media_ids else None
+            safe_delete_messages(cid, call.message.message_id, media_count, all_ids_to_del)
+        except Exception as e:
+            print(f"TG Delete Err: {e}")
 
     except Exception as e:
         print(f"App Delete Err: {e}")
@@ -1277,27 +1304,19 @@ def notify_casting():
         if app_id:
             try:
                 # Fetch the CURRENT record to see if it has an old message ID
-                self_res = supabase.table("casting_applications").select("tg_message_id, photo_urls, video_audition_url").eq("id", app_id).single().execute()
+                self_res = supabase.table("casting_applications").select("tg_message_id, media_message_ids, photo_urls, video_audition_url").eq("id", app_id).single().execute()
                 if self_res.data:
                     old_msg_id = self_res.data.get('tg_message_id')
                     
                     if old_msg_id:
                         print(f"🔄 Self-Cleanup: Deleting old message {old_msg_id} for app {app_id}")
                         try:
-                            # Delete main text message
-                            bot.delete_message(cid, old_msg_id)
-                            
-                            # Delete associated media
-                            media_count = 0
+                            old_media_ids = self_res.data.get('media_message_ids') or []
                             old_photos = self_res.data.get('photo_urls') or []
                             old_video = self_res.data.get('video_audition_url')
-                            media_count = len(old_photos)
-                            if old_video: media_count += 1
-                            media_count = min(media_count, 10) # Safety
-                            
-                            for i in range(1, media_count + 1):
-                                try: bot.delete_message(cid, int(old_msg_id) - i)
-                                except: pass
+                            media_count = min(len(old_photos) + (1 if old_video else 0), 10)
+                            all_ids_to_del = [old_msg_id] + old_media_ids if old_media_ids else None
+                            safe_delete_messages(cid, old_msg_id, media_count, all_ids_to_del)
                         except Exception as e:
                             print(f"⚠️ Self-Cleanup Failed (msg too old?): {e}")
             except Exception as e:
@@ -1307,7 +1326,7 @@ def notify_casting():
         try:
             # Search by phone OR instagram for the same project
             # AND exclude the current application (app_id) we just created
-            query = supabase.table("casting_applications").select("id, tg_message_id, photo_urls, video_audition_url")
+            query = supabase.table("casting_applications").select("id, tg_message_id, media_message_ids, photo_urls, video_audition_url")
             
             # Match by project (target) AND chat context (cid/tid) to be safer
             # We want to delete ONLY duplicates in THIS specific chat/topic
@@ -1349,35 +1368,13 @@ def notify_casting():
                     # 1.1 Delete from Telegram
                     if old_msg_id:
                         try:
-                            # Try to delete the main text message
-                            bot.delete_message(cid, old_msg_id)
-                            print(f"   Deleted text msg {old_msg_id}")
-                            
-                            # SMART MEDIA DELETION:
-                            media_count = 0
-                            try:
-                                old_photos = old_app.get('photo_urls') or []
-                                old_video = old_app.get('video_audition_url')
-                                
-                                media_count = len(old_photos)
-                                if old_video: media_count += 1
-                                
-                                # Safety limit: don't delete more than 10 messages blindly
-                                media_count = min(media_count, 10)
-                            except: 
-                                media_count = 3 # Fallback default
-                                
-                            print(f"   Attempting to delete {media_count} media messages for app {old_db_id}")
-
-                            # The text message (old_msg_id) was sent LAST.
-                            for i in range(1, media_count + 1):
-                                try: 
-                                    target_id = int(old_msg_id) - i
-                                    bot.delete_message(cid, target_id)
-                                    print(f"   Deleted media msg {target_id}")
-                                except Exception as e:
-                                    print(f"   Failed to delete media {target_id}: {e}")
-                                    pass
+                            old_media_ids = old_app.get('media_message_ids') or []
+                            old_photos = old_app.get('photo_urls') or []
+                            old_video = old_app.get('video_audition_url')
+                            media_count = min(len(old_photos) + (1 if old_video else 0), 10)
+                            all_ids_to_del = [old_msg_id] + old_media_ids if old_media_ids else None
+                            safe_delete_messages(cid, old_msg_id, media_count, all_ids_to_del)
+                            print(f"   Deleted messages for app {old_db_id}")
                         except Exception as tg_del_e: 
                             print(f"   TG Delete Err: {tg_del_e}")
                     
@@ -1469,14 +1466,14 @@ def notify_casting():
 
         try:
             sent_msg = None
+            media_message_ids = []
             if media:
                 print(f"DEBUG: sending media group with {len(media)} items")
                 try:
-                    bot.send_media_group(cid, media, message_thread_id=tid)
+                    sent_media = bot.send_media_group(cid, media, message_thread_id=tid)
+                    media_message_ids = [m.message_id for m in sent_media] if sent_media else []
                 except Exception as mg_e:
                     print(f"❌ Media Group Send Failed: {mg_e}")
-                    # If media group fails (e.g. invalid URL), fallback to sending just the text message
-                    # or try sending photos one by one (simplified fallback)
                     full_txt += "\n⚠️ Не удалось загрузить медиа-файлы в виде альбома. Ссылки выше."
             
             # 3. Always send full text as a separate message for guaranteed delivery
@@ -1493,7 +1490,7 @@ def notify_casting():
                 try:
                     # Find the latest record that was just inserted by the frontend
                     supabase.table("casting_applications")\
-                        .update({"tg_message_id": sent_msg.message_id})\
+                        .update({"tg_message_id": sent_msg.message_id, "media_message_ids": media_message_ids})\
                         .eq("phone", phone)\
                         .eq("casting_target", target)\
                         .is_("tg_message_id", "null")\
@@ -1620,6 +1617,7 @@ def handle_forwarded_message(message):
                 
                 # Auto-delete confirmation message after 10 seconds to keep chat clean
                 import threading
+from concurrent.futures import ThreadPoolExecutor
                 import time
                 def delayed_delete(chat_id, msg_id):
                     time.sleep(10)
@@ -1859,7 +1857,7 @@ def process_manual_media_update(source_msg, application_msg):
 
         # SEND NEW MESSAGE
         import requests
-        requests.post('https://media-seven-eta.vercel.app/api/casting', json=updated_payload)
+        requests.post(f'{BASE_API_URL}/api/casting', json=updated_payload)
 
     except Exception as e:
         print(f"process_manual_media_update err: {e}")
@@ -2314,6 +2312,21 @@ def handle_manual_staff(message):
     except Exception as e: bot.reply_to(message, f"❌ Ошибка: {e}")
 
 # --- HELPERS ---
+
+def safe_delete_messages(chat_id, text_msg_id, media_count, media_ids=None):
+    def _del(m_id):
+        try: bot.delete_message(chat_id, m_id)
+        except: pass
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        if media_ids:
+            for m_id in media_ids:
+                executor.submit(_del, m_id)
+        elif text_msg_id:
+            executor.submit(_del, text_msg_id)
+            for i in range(1, media_count + 1):
+                executor.submit(_del, int(text_msg_id) - i)
+
 def auto_delete(msg, delay=20):
     """Automatically deletes a message after N seconds."""
     if not msg: return
@@ -2323,6 +2336,7 @@ def auto_delete(msg, delay=20):
         try: bot.delete_message(msg.chat.id, msg.message_id)
         except: pass
     import threading
+from concurrent.futures import ThreadPoolExecutor
     threading.Thread(target=do_delete).start()
 
 def register_user(user, chat_id, thread_id=None, silent=False):
