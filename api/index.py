@@ -286,17 +286,45 @@ def generate_casting_docx(applications, project_name):
 
         # Photos (List all)
         photos = _normalize_url_list(app.get('photo_urls'))
-        if photos:
-            c_info.add_paragraph("📸 Фотографии (скачайте и вставьте в правую колонку):")
-            for i, url in enumerate(photos):
-                c_info.add_paragraph(f"• Фото {i+1}: {url}")
 
-        # --- RIGHT COLUMN: EMPTY (For manual insertion) ---
+        # Determine how many photos to embed (max 3)
+        embedded_photos = photos[:3]
+        remaining_photos = photos[3:]
+
+        if remaining_photos:
+            c_info.add_paragraph("📸 Остальные фото (ссылки):")
+            for i, url in enumerate(remaining_photos):
+                c_info.add_paragraph(f"• Фото {i+4}: {url}")
+        elif not photos:
+            c_info.add_paragraph("📸 Фото: нет")
+
+        # --- RIGHT COLUMN: EMBED IMAGES ---
         c_photo = row.cells[1]
-        c_photo.width = Cm(6)
+        c_photo.width = Cm(6.82)
         p_p = c_photo.paragraphs[0]
-        p_p.add_run("[Место для фото]").italic = True
         p_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        if embedded_photos:
+            run = p_p.add_run()
+            for i, url in enumerate(embedded_photos):
+                try:
+                    # Request the optimized image
+                    opt_url = optimize_url(url, width=800)
+                    response = requests.get(opt_url, timeout=5)
+                    if response.status_code == 200:
+                        image_stream = io.BytesIO(response.content)
+                        # Add image to the cell, set width to exactly 6.82 cm
+                        run.add_picture(image_stream, width=Cm(6.82))
+                        # Add a line break between photos if it's not the last one
+                        if i < len(embedded_photos) - 1:
+                            run.add_break()
+                    else:
+                        run.add_text(f"[Ошибка загрузки фото {i+1}]")
+                except Exception as e:
+                    print(f"Error downloading image {url}: {e}")
+                    run.add_text(f"[Ошибка фото {i+1}]")
+        else:
+            p_p.add_run("[Нет фото]").italic = True
 
     # Save to buffer
     f_out = io.BytesIO()
@@ -1372,7 +1400,43 @@ def notify_casting():
                     
                     print(f"🗑️ Found duplicate: {old_db_id} (msg: {old_msg_id})")
 
+                    # Extract old media to merge
+                    old_photos = _normalize_url_list(old_app.get('photo_urls'))
+                    old_video = old_app.get('video_audition_url')
+                    old_portfolio = old_app.get('portfolio_url')
+
+                    # Merge media to current new record (if we have its ID)
+                    if app_id:
+                        try:
+                            # 1. Fetch current new record media
+                            curr_res = supabase.table("casting_applications").select("photo_urls, video_audition_url, portfolio_url").eq("id", app_id).single().execute()
+                            if curr_res.data:
+                                curr_photos = _normalize_url_list(curr_res.data.get('photo_urls'))
+                                curr_video = curr_res.data.get('video_audition_url')
+                                curr_portfolio = curr_res.data.get('portfolio_url')
+
+                                # 2. Merge unique
+                                merged_photos = list(dict.fromkeys(curr_photos + old_photos))  # remove duplicates, keep order
+                                merged_video = curr_video or old_video
+                                merged_portfolio = curr_portfolio or old_portfolio
+
+                                # 3. Update current
+                                supabase.table("casting_applications").update({
+                                    "photo_urls": ",".join(merged_photos) if merged_photos else None,
+                                    "video_audition_url": merged_video,
+                                    "portfolio_url": merged_portfolio
+                                }).eq("id", app_id).execute()
+
+                                # 4. Update memory object so Telegram msg has all photos
+                                data['photo_urls'] = ",".join(merged_photos) if merged_photos else None
+                                data['video_audition_url'] = merged_video
+                                data['portfolio_url'] = merged_portfolio
+                                print(f"✅ Merged old media from {old_db_id} to new app {app_id}")
+                        except Exception as merge_e:
+                            print(f"⚠️ Merge Error: {merge_e}")
+
                     # 1.1 Delete from Telegram
+
                     if old_msg_id:
                         try:
                             old_media_ids = old_app.get('media_message_ids') or []
