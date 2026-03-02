@@ -5,7 +5,6 @@ from telebot import types
 from telebot.apihelper import ApiTelegramException
 from flask import Flask, request, jsonify
 from supabase import create_client, Client
-import pandas as pd
 import base64
 import io
 import json
