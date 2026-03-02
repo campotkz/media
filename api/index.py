@@ -143,7 +143,7 @@ def ensure_blacklist_table():
         print(f"❌ AUTO-MIGRATION ERROR: {e}")
         return False
 
-def optimize_url(url, width=1280):
+def optimize_url(url, width=800):
     """
     If URL is from Supabase Storage, append transformation params.
     """
@@ -1902,7 +1902,7 @@ def send_casting_application_message(cid, tid, app_data):
         # Prepare Media
         media = []
         for i, url in enumerate(photos[:3]):
-            opt_url = optimize_url(url, width=1024)
+            opt_url = optimize_url(url, width=800)
             if i == 0:
                 caption = f"📸 <b>{safe_app.get('full_name')}</b>\n{safe_app.get('casting_target')}\n⬇️ Описание ниже"
 
@@ -1919,7 +1919,7 @@ def send_casting_application_message(cid, tid, app_data):
                 print(f"Send Media Group Fail: {e}")
                 if photos:
                     try:
-                        _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
+                        _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=800), message_thread_id=tid)
                     except: pass
 
         full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
