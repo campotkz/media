@@ -308,9 +308,17 @@ def generate_casting_docx(applications, project_name):
             run = p_p.add_run()
             for i, url in enumerate(embedded_photos):
                 try:
-                    # Request the optimized image
-                    opt_url = optimize_url(url, width=800)
-                    response = requests.get(opt_url, timeout=5)
+                    if url.startswith('tg://'):
+                        # Download from Telegram
+                        file_id = url.replace('tg://', '')
+                        file_info = bot.get_file(file_id)
+                        file_url = f"https://api.telegram.org/file/bot{BOT_KEY}/{file_info.file_path}"
+                        response = requests.get(file_url, timeout=5)
+                    else:
+                        # Request the optimized image from Supabase
+                        opt_url = optimize_url(url, width=800)
+                        response = requests.get(opt_url, timeout=5)
+
                     if response.status_code == 200:
                         image_stream = io.BytesIO(response.content)
                         # Add image to the cell, set width to exactly 6.82 cm
@@ -1280,6 +1288,91 @@ def handle_del_callback(call):
         bot.answer_callback_query(call.id, f"❌ Ошибка: {e}")
 
 @app.route('/api/casting', methods=['POST', 'OPTIONS'])
+
+def offload_media_to_telegram(app_id, data):
+    '''
+    Downloads images/videos from Supabase Storage URLs,
+    sends them to the private MEDIA_CHANNEL_ID,
+    gets the Telegram file_id,
+    and deletes the file from Supabase Storage.
+    Returns the modified data dict with tg://... URIs.
+    '''
+    try:
+        if not MEDIA_CHANNEL_ID: return data
+
+        photos = _normalize_url_list(data.get('photo_urls'))
+        video = data.get('video_audition_url')
+
+        new_photos = []
+        new_video = video
+
+        # Process Photos
+        if photos:
+            for url in photos:
+                if url.startswith('http') and 'supabase' in url:
+                    try:
+                        # Extract relative path for deletion
+                        # URL example: https://xxx.supabase.co/storage/v1/object/public/casting_media/photos/123.jpg
+                        if '/casting_media/' in url:
+                            rel_path = url.split('/casting_media/')[1].split('?')[0]
+                        else:
+                            rel_path = None
+
+                        opt_url = optimize_url(url, width=800)
+                        msg = _tg_retry(bot.send_photo, MEDIA_CHANNEL_ID, opt_url, disable_notification=True)
+                        if msg and msg.photo:
+                            file_id = msg.photo[-1].file_id
+                            new_photos.append(f"tg://{file_id}")
+                            print(f"✅ Offloaded photo to TG: {file_id}")
+
+                            # Delete from Supabase
+                            if rel_path:
+                                supabase.storage.from_('casting_media').remove([rel_path])
+                                print(f"🗑️ Deleted from Supabase: {rel_path}")
+                        else:
+                            new_photos.append(url) # fallback
+                    except Exception as e:
+                        print(f"⚠️ Failed to offload photo {url}: {e}")
+                        new_photos.append(url)
+                else:
+                    new_photos.append(url)
+
+        # Process Video
+        if video and video.startswith('http') and 'supabase' in video:
+            try:
+                if '/casting_media/' in video:
+                    rel_path = video.split('/casting_media/')[1].split('?')[0]
+                else:
+                    rel_path = None
+
+                msg = _tg_retry(bot.send_video, MEDIA_CHANNEL_ID, video, disable_notification=True)
+                if msg and msg.video:
+                    file_id = msg.video.file_id
+                    new_video = f"tg://{file_id}"
+                    print(f"✅ Offloaded video to TG: {file_id}")
+
+                    if rel_path:
+                        supabase.storage.from_('casting_media').remove([rel_path])
+                        print(f"🗑️ Deleted from Supabase: {rel_path}")
+            except Exception as e:
+                print(f"⚠️ Failed to offload video {video}: {e}")
+
+        # Update data and DB
+        if new_photos != photos or new_video != video:
+            data['photo_urls'] = ",".join(new_photos) if new_photos else None
+            data['video_audition_url'] = new_video
+            if app_id:
+                supabase.table('casting_applications').update({
+                    'photo_urls': data['photo_urls'],
+                    'video_audition_url': new_video
+                }).eq('id', app_id).execute()
+
+    except Exception as overall_e:
+        print(f"⚠️ Offload media overall error: {overall_e}")
+
+    return data
+
+@app.route('/api/casting', methods=['POST', 'OPTIONS'])
 def notify_casting():
     if request.method == 'OPTIONS':
         r = app.make_response('')
@@ -1356,6 +1449,11 @@ def notify_casting():
                             print(f"⚠️ Self-Cleanup Failed (msg too old?): {e}")
             except Exception as e:
                 print(f"⚠️ Self-Cleanup Error: {e}")
+
+        # 0.5 OFFLOAD MEDIA TO TELEGRAM STORAGE
+        app_id = data.get('application_id') or data.get('id')
+        if app_id:
+            data = offload_media_to_telegram(app_id, data)
 
         # 1. FIND AND DELETE DUPLICATES (Strictly Different IDs)
         try:
@@ -1970,7 +2068,11 @@ def send_casting_application_message(cid, tid, app_data):
 
         # Add up to 3 photos
         for i, url in enumerate(photos[:3]):
-            opt_url = optimize_url(url, width=800)
+            if url.startswith('tg://'):
+                opt_url = url.replace('tg://', '') # telegram file_id
+            else:
+                opt_url = optimize_url(url, width=800)
+
             if i == 0:
                 caption = f"📸 <b>{safe_app.get('full_name')}</b>\n{safe_app.get('casting_target')}\n⬇️ Описание ниже"
                 media.append(types.InputMediaPhoto(opt_url, caption=caption, parse_mode="HTML"))
@@ -1979,6 +2081,8 @@ def send_casting_application_message(cid, tid, app_data):
 
         # Add 1 video if available
         if video_url:
+            if video_url.startswith('tg://'):
+                video_url = video_url.replace('tg://', '')
             media.append(types.InputMediaVideo(video_url))
 
         # Send Media Group
