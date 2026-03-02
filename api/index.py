@@ -12,7 +12,6 @@ import json
 from datetime import datetime
 import requests
 import threading
-from concurrent.futures import ThreadPoolExecutor
 import time
 from docx import Document
 from docx.shared import Cm, Pt
@@ -25,32 +24,10 @@ TOKEN = os.environ.get('BOT_KEY')
 SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co"
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY') 
 APP_URL = "https://campotkz.github.io/media/"
-VERCEL_URL = os.environ.get("VERCEL_URL", "media-seven-eta.vercel.app")
-BASE_API_URL = f"https://{VERCEL_URL}"
 
 # --- AUTO-MIGRATION CONFIG (Added by User Request) ---
 SUPABASE_PAT = os.environ.get('SUPABASE_PAT', "7cc5f46c-43e4-409c-91af-b71cb62a7f1b") # Personal Access Token
 PROJECT_REF = "waekzofajzqcpoeldhkt"
-
-
-def ensure_casting_schema_update():
-    sql = """
-    ALTER TABLE public.casting_applications ADD COLUMN IF NOT EXISTS media_message_ids jsonb;
-    """
-    try:
-        url = f"https://api.supabase.com/v1/projects/{PROJECT_REF}/query"
-        headers = {"Authorization": f"Bearer {SUPABASE_PAT}", "Content-Type": "application/json"}
-        payload = {"query": sql}
-        resp = requests.post(url, json=payload, headers=headers)
-        if resp.status_code in [200, 201]:
-            print("✅ AUTO-MIGRATION SUCCESS: Table 'casting_applications' updated with media_message_ids.")
-    except Exception as e:
-        print(f"❌ AUTO-MIGRATION ERROR: {e}")
-
-# Run it once on startup (only if SUPABASE_PAT is set and looks real)
-if SUPABASE_PAT and len(SUPABASE_PAT) > 10:
-    import threading
-    threading.Thread(target=ensure_casting_schema_update).start()
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
@@ -333,7 +310,7 @@ def webhook():
 def drop_updates():
     try:
         # Reset webhook and declare we want to drop pending updates
-        new_url = f"https://{VERCEL_URL}/api"
+        new_url = APP_URL.replace("campotkz.github.io/media/", "media-seven-eta.vercel.app/api")
         bot.remove_webhook()
         bot.set_webhook(url=new_url, drop_pending_updates=True)
         return jsonify({"status": "ok", "message": "Pending updates dropped, webhook reset."})
@@ -778,8 +755,10 @@ def handle_delete(message):
             # 1.1 Check for Links
             urls = re.findall(r'(https?://[^\s]+)', txt)
             if urls:
-                res = supabase.table("project_resources").delete().eq("chat_id", cid).eq("thread_id", tid).in_("url", urls).execute()
-                deleted_urls = [item['url'] for item in res.data] if res.data else []
+                deleted_urls = []
+                for url in urls:
+                    res = supabase.table("project_resources").delete().eq("chat_id", cid).eq("thread_id", tid).eq("url", url).execute()
+                    if res.data: deleted_urls.append(url)
                 
                 if deleted_urls:
                     bot.reply_to(message, f"🗑️ Удалено ресурсов: {len(deleted_urls)}")
@@ -1147,7 +1126,7 @@ def handle_app_delete_callback(call):
                     
                     # Notify General Topic (Repost)
                     import requests
-                    requests.post(f'{BASE_API_URL}/api/casting', json={
+                    requests.post('https://media-seven-eta.vercel.app/api/casting', json={
                         **app_data,
                         "casting_target": "Casting: ОБЩИЙ",
                         "chat_id": g_cid,
@@ -1169,14 +1148,10 @@ def handle_app_delete_callback(call):
 
         # 5. Delete from Telegram (current chat)
         try:
-            old_media_ids = app_data.get('media_message_ids') or []
-            old_photos = app_data.get('photo_urls') or []
-            old_video = app_data.get('video_audition_url')
-            media_count = min(len(old_photos) + (1 if old_video else 0), 10)
-            all_ids_to_del = [call.message.message_id] + old_media_ids if old_media_ids else None
-            safe_delete_messages(cid, call.message.message_id, media_count, all_ids_to_del)
-        except Exception as e:
-            print(f"TG Delete Err: {e}")
+            bot.delete_message(cid, call.message.message_id)
+            try: bot.delete_message(cid, int(call.message.message_id) - 1)
+            except: pass
+        except: pass
 
     except Exception as e:
         print(f"App Delete Err: {e}")
@@ -1242,6 +1217,328 @@ def handle_del_callback(call):
     except Exception as e:
         bot.answer_callback_query(call.id, f"❌ Ошибка: {e}")
 
+
+def _prepare_telegram_media(data, simple_caption, types_module):
+    photos = data.get('photo_urls', [])
+    video = data.get('video_audition_url')
+    media = []
+    for i, url in enumerate(photos):
+        if i == 0: media.append(types_module.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
+        else: media.append(types_module.InputMediaPhoto(url))
+    if video:
+        if not media: media.append(types_module.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
+        else: media.append(types_module.InputMediaVideo(video))
+    return media
+
+def _get_app_id_and_selection_state(data, phone, target, supabase_client):
+    app_id = data.get('application_id') or data.get('id')
+    is_selected = False
+    if not app_id:
+        try:
+            app_res = supabase_client.table("casting_applications").select("id, is_selected").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
+            if app_res.data:
+                app_id = app_res.data[0]['id']
+                is_selected = app_res.data[0].get('is_selected', False)
+        except: pass
+    else:
+        try:
+            sel_res = supabase_client.table("casting_applications").select("is_selected").eq("id", app_id).single().execute()
+            is_selected = sel_res.data.get('is_selected', False) if sel_res.data else False
+        except: pass
+    return app_id, is_selected
+
+
+
+def _check_blacklist(phone, insta, supabase_client):
+    try:
+        if phone or insta:
+            bl_query = supabase_client.table("blacklist").select("id")
+            if phone and insta:
+                bl_query = bl_query.or_(f"phone.eq.{phone},instagram.eq.{insta}")
+            elif phone:
+                bl_query = bl_query.eq("phone", phone)
+            elif insta:
+                bl_query = bl_query.eq("instagram", insta)
+
+            bl_res = bl_query.execute()
+            if bl_res.data:
+                print(f"🚫 BLOCKED: Application from {phone}/{insta} is in Blacklist.")
+                return True, {'status': 'blocked', 'message': 'User is blacklisted'}
+    except Exception as bl_err:
+        print(f"⚠️ Blacklist Check Failed: {bl_err}")
+        if "relation \"public.blacklist\" does not exist" in str(bl_err) or "404" in str(bl_err):
+            ensure_blacklist_table()
+    return False, None
+
+def _cleanup_previous_application(app_id, cid, supabase_client, bot_client):
+    if not app_id: return
+    try:
+        self_res = supabase_client.table("casting_applications").select("tg_message_id, photo_urls, video_audition_url").eq("id", app_id).single().execute()
+        if self_res.data:
+            old_msg_id = self_res.data.get('tg_message_id')
+            if old_msg_id:
+                print(f"🔄 Self-Cleanup: Deleting old message {old_msg_id} for app {app_id}")
+                try:
+                    bot_client.delete_message(cid, old_msg_id)
+                    media_count = len(self_res.data.get('photo_urls') or [])
+                    if self_res.data.get('video_audition_url'): media_count += 1
+                    media_count = min(media_count, 10)
+                    for i in range(1, media_count + 1):
+                        try: bot_client.delete_message(cid, int(old_msg_id) - i)
+                        except: pass
+                except Exception as e:
+                    print(f"⚠️ Self-Cleanup Failed (msg too old?): {e}")
+    except Exception as e:
+        print(f"⚠️ Self-Cleanup Error: {e}")
+
+def _remove_duplicate_applications(data, cid, tid, phone, insta, app_id, supabase_client, bot_client):
+    try:
+        query = supabase_client.table("casting_applications").select("id, tg_message_id, photo_urls, video_audition_url")
+        query = query.eq("chat_id", cid)
+        if tid: query = query.eq("thread_id", tid)
+
+        conditions = []
+        if phone and len(str(phone)) > 5: conditions.append(f"phone.eq.{phone}")
+        if insta and len(str(insta)) > 2: conditions.append(f"instagram.eq.{insta}")
+
+        if conditions: query = query.or_(",".join(conditions))
+        else:
+            print("⚠️ Deduplication skipped: No valid phone or instagram to match.")
+            return
+
+        if app_id: query = query.neq("id", app_id)
+
+        old_res = query.not_.is_("tg_message_id", "null").order("created_at", descending=True).execute()
+
+        if old_res.data:
+            for old_app in old_res.data:
+                old_msg_id = old_app.get('tg_message_id')
+                old_db_id = old_app.get('id')
+                print(f"🗑️ Found duplicate: {old_db_id} (msg: {old_msg_id})")
+
+                if old_msg_id:
+                    try:
+                        bot_client.delete_message(cid, old_msg_id)
+                        print(f"   Deleted text msg {old_msg_id}")
+                        media_count = len(old_app.get('photo_urls') or [])
+                        if old_app.get('video_audition_url'): media_count += 1
+                        media_count = min(media_count, 10)
+
+                        print(f"   Attempting to delete {media_count} media messages for app {old_db_id}")
+                        for i in range(1, media_count + 1):
+                            try:
+                                target_id = int(old_msg_id) - i
+                                bot_client.delete_message(cid, target_id)
+                                print(f"   Deleted media msg {target_id}")
+                            except Exception: pass
+                    except Exception as tg_del_e:
+                        print(f"   TG Delete Err: {tg_del_e}")
+
+                supabase_client.table("casting_applications").delete().eq("id", old_db_id).execute()
+                print(f"✅ Deduplicated: Deleted old application {old_db_id}")
+    except Exception as dedup_e:
+        print(f"Deduplication Error: {dedup_e}")
+
+def _auto_register_contact(data, cid, tid, supabase_client):
+    try:
+        name, phone = data.get('full_name'), data.get('phone')
+        if name and phone:
+            supabase_client.table("contacts").upsert({
+                "name": name, "phone": phone, "thread_id": tid, "chat_id": cid, "category": "casting"
+            }, on_conflict="phone,chat_id,thread_id").execute()
+    except: pass
+
+def _prepare_telegram_media(data, simple_caption, types_module):
+    photos = data.get('photo_urls', [])
+    video = data.get('video_audition_url')
+    media = []
+    for i, url in enumerate(photos):
+        if i == 0: media.append(types_module.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
+        else: media.append(types_module.InputMediaPhoto(url))
+    if video:
+        if not media: media.append(types_module.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
+        else: media.append(types_module.InputMediaVideo(video))
+    return media
+
+def _get_app_id_and_selection_state(data, phone, target, supabase_client):
+    app_id = data.get('application_id') or data.get('id')
+    is_selected = False
+    if not app_id:
+        try:
+            app_res = supabase_client.table("casting_applications").select("id, is_selected").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
+            if app_res.data:
+                app_id = app_res.data[0]['id']
+                is_selected = app_res.data[0].get('is_selected', False)
+        except: pass
+    else:
+        try:
+            sel_res = supabase_client.table("casting_applications").select("is_selected").eq("id", app_id).single().execute()
+            is_selected = sel_res.data.get('is_selected', False) if sel_res.data else False
+        except: pass
+    return app_id, is_selected
+
+
+
+def _check_blacklist(phone, insta, supabase_client):
+    try:
+        if phone or insta:
+            bl_query = supabase_client.table("blacklist").select("id")
+            if phone and insta:
+                bl_query = bl_query.or_(f"phone.eq.{phone},instagram.eq.{insta}")
+            elif phone:
+                bl_query = bl_query.eq("phone", phone)
+            elif insta:
+                bl_query = bl_query.eq("instagram", insta)
+
+            bl_res = bl_query.execute()
+            if bl_res.data:
+                print(f"🚫 BLOCKED: Application from {phone}/{insta} is in Blacklist.")
+                return True, {'status': 'blocked', 'message': 'User is blacklisted'}
+    except Exception as bl_err:
+        print(f"⚠️ Blacklist Check Failed: {bl_err}")
+        if "relation \"public.blacklist\" does not exist" in str(bl_err) or "404" in str(bl_err):
+            ensure_blacklist_table()
+    return False, None
+
+def _cleanup_previous_application(app_id, cid, supabase_client, bot_client):
+    if not app_id: return
+    try:
+        self_res = supabase_client.table("casting_applications").select("tg_message_id, photo_urls, video_audition_url").eq("id", app_id).single().execute()
+        if self_res.data:
+            old_msg_id = self_res.data.get('tg_message_id')
+            if old_msg_id:
+                print(f"🔄 Self-Cleanup: Deleting old message {old_msg_id} for app {app_id}")
+                try:
+                    bot_client.delete_message(cid, old_msg_id)
+                    media_count = len(self_res.data.get('photo_urls') or [])
+                    if self_res.data.get('video_audition_url'): media_count += 1
+                    media_count = min(media_count, 10)
+                    for i in range(1, media_count + 1):
+                        try: bot_client.delete_message(cid, int(old_msg_id) - i)
+                        except: pass
+                except Exception as e:
+                    print(f"⚠️ Self-Cleanup Failed (msg too old?): {e}")
+    except Exception as e:
+        print(f"⚠️ Self-Cleanup Error: {e}")
+
+def _remove_duplicate_applications(data, cid, tid, phone, insta, app_id, supabase_client, bot_client):
+    try:
+        query = supabase_client.table("casting_applications").select("id, tg_message_id, photo_urls, video_audition_url")
+        query = query.eq("chat_id", cid)
+        if tid: query = query.eq("thread_id", tid)
+
+        conditions = []
+        if phone and len(str(phone)) > 5: conditions.append(f"phone.eq.{phone}")
+        if insta and len(str(insta)) > 2: conditions.append(f"instagram.eq.{insta}")
+
+        if conditions: query = query.or_(",".join(conditions))
+        else:
+            print("⚠️ Deduplication skipped: No valid phone or instagram to match.")
+            return
+
+        if app_id: query = query.neq("id", app_id)
+
+        old_res = query.not_.is_("tg_message_id", "null").order("created_at", descending=True).execute()
+
+        if old_res.data:
+            for old_app in old_res.data:
+                old_msg_id = old_app.get('tg_message_id')
+                old_db_id = old_app.get('id')
+                print(f"🗑️ Found duplicate: {old_db_id} (msg: {old_msg_id})")
+
+                if old_msg_id:
+                    try:
+                        bot_client.delete_message(cid, old_msg_id)
+                        print(f"   Deleted text msg {old_msg_id}")
+                        media_count = len(old_app.get('photo_urls') or [])
+                        if old_app.get('video_audition_url'): media_count += 1
+                        media_count = min(media_count, 10)
+
+                        print(f"   Attempting to delete {media_count} media messages for app {old_db_id}")
+                        for i in range(1, media_count + 1):
+                            try:
+                                target_id = int(old_msg_id) - i
+                                bot_client.delete_message(cid, target_id)
+                                print(f"   Deleted media msg {target_id}")
+                            except Exception: pass
+                    except Exception as tg_del_e:
+                        print(f"   TG Delete Err: {tg_del_e}")
+
+                supabase_client.table("casting_applications").delete().eq("id", old_db_id).execute()
+                print(f"✅ Deduplicated: Deleted old application {old_db_id}")
+    except Exception as dedup_e:
+        print(f"Deduplication Error: {dedup_e}")
+
+def _auto_register_contact(data, cid, tid, supabase_client):
+    try:
+        name, phone = data.get('full_name'), data.get('phone')
+        if name and phone:
+            supabase_client.table("contacts").upsert({
+                "name": name, "phone": phone, "thread_id": tid, "chat_id": cid, "category": "casting"
+            }, on_conflict="phone,chat_id,thread_id").execute()
+    except: pass
+
+def _prepare_telegram_media(data, simple_caption, types_module):
+    photos = data.get('photo_urls', [])
+    video = data.get('video_audition_url')
+    media = []
+    for i, url in enumerate(photos):
+        if i == 0: media.append(types_module.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
+        else: media.append(types_module.InputMediaPhoto(url))
+    if video:
+        if not media: media.append(types_module.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
+        else: media.append(types_module.InputMediaVideo(video))
+    return media
+
+def _get_app_id_and_selection_state(data, phone, target, supabase_client):
+    app_id = data.get('application_id') or data.get('id')
+    is_selected = False
+    if not app_id:
+        try:
+            app_res = supabase_client.table("casting_applications").select("id, is_selected").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
+            if app_res.data:
+                app_id = app_res.data[0]['id']
+                is_selected = app_res.data[0].get('is_selected', False)
+        except: pass
+    else:
+        try:
+            sel_res = supabase_client.table("casting_applications").select("is_selected").eq("id", app_id).single().execute()
+            is_selected = sel_res.data.get('is_selected', False) if sel_res.data else False
+        except: pass
+    return app_id, is_selected
+
+
+
+def _prepare_telegram_media(data, simple_caption, types_module):
+    photos = data.get('photo_urls', [])
+    video = data.get('video_audition_url')
+    media = []
+    for i, url in enumerate(photos):
+        if i == 0: media.append(types_module.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
+        else: media.append(types_module.InputMediaPhoto(url))
+    if video:
+        if not media: media.append(types_module.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
+        else: media.append(types_module.InputMediaVideo(video))
+    return media
+
+def _get_app_id_and_selection_state(data, phone, target, supabase_client):
+    app_id = data.get('application_id') or data.get('id')
+    is_selected = False
+    if not app_id:
+        try:
+            app_res = supabase_client.table("casting_applications").select("id, is_selected").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
+            if app_res.data:
+                app_id = app_res.data[0]['id']
+                is_selected = app_res.data[0].get('is_selected', False)
+        except: pass
+    else:
+        try:
+            sel_res = supabase_client.table("casting_applications").select("is_selected").eq("id", app_id).single().execute()
+            is_selected = sel_res.data.get('is_selected', False) if sel_res.data else False
+        except: pass
+    return app_id, is_selected
+
+
 @app.route('/api/casting', methods=['POST', 'OPTIONS'])
 def notify_casting():
     if request.method == 'OPTIONS':
@@ -1265,25 +1562,9 @@ def notify_casting():
             return jsonify({'error': 'No chat_id'}), 400
 
         # --- 0. BLACKLIST CHECK ---
-        try:
-            if phone or insta:
-                bl_query = supabase.table("blacklist").select("id")
-                if phone and insta:
-                    bl_query = bl_query.or_(f"phone.eq.{phone},instagram.eq.{insta}")
-                elif phone:
-                    bl_query = bl_query.eq("phone", phone)
-                elif insta:
-                    bl_query = bl_query.eq("instagram", insta)
-                
-                bl_res = bl_query.execute()
-                if bl_res.data:
-                    print(f"🚫 BLOCKED: Application from {phone}/{insta} is in Blacklist.")
-                    return jsonify({'status': 'blocked', 'message': 'User is blacklisted'}), 200
-        except Exception as bl_err:
-            print(f"⚠️ Blacklist Check Failed: {bl_err}")
-            # Try to auto-fix the DB if table is missing
-            if "relation \"public.blacklist\" does not exist" in str(bl_err) or "404" in str(bl_err):
-                ensure_blacklist_table()
+        is_blocked, bl_response = _check_blacklist(phone, insta, supabase)
+        if is_blocked:
+            return jsonify(bl_response), 200
 
         # Cast to integers
         try:
@@ -1296,244 +1577,15 @@ def notify_casting():
 
         print(f"DEBUG: notify_casting for project: {target} (phone: {phone}, insta: {insta})")
 
-        # 0. SELF-CLEANUP: If this is an UPDATE to an existing application, 
-        # delete its previous message FIRST.
+        # 0. SELF-CLEANUP: If this is an UPDATE to an existing application, delete its previous message FIRST.
         app_id = data.get('application_id')
-        if app_id:
-            try:
-                # Fetch the CURRENT record to see if it has an old message ID
-                self_res = supabase.table("casting_applications").select("tg_message_id, media_message_ids, photo_urls, video_audition_url").eq("id", app_id).single().execute()
-                if self_res.data:
-                    old_msg_id = self_res.data.get('tg_message_id')
-                    
-                    if old_msg_id:
-                        print(f"🔄 Self-Cleanup: Deleting old message {old_msg_id} for app {app_id}")
-                        try:
-                            old_media_ids = self_res.data.get('media_message_ids') or []
-                            old_photos = self_res.data.get('photo_urls') or []
-                            old_video = self_res.data.get('video_audition_url')
-                            media_count = min(len(old_photos) + (1 if old_video else 0), 10)
-                            all_ids_to_del = [old_msg_id] + old_media_ids if old_media_ids else None
-                            safe_delete_messages(cid, old_msg_id, media_count, all_ids_to_del)
-                        except Exception as e:
-                            print(f"⚠️ Self-Cleanup Failed (msg too old?): {e}")
-            except Exception as e:
-                print(f"⚠️ Self-Cleanup Error: {e}")
+        _cleanup_previous_application(app_id, cid, supabase, bot)
 
         # 1. FIND AND DELETE DUPLICATES (Strictly Different IDs)
-        try:
-            # Search by phone OR instagram for the same project
-            # AND exclude the current application (app_id) we just created
-            query = supabase.table("casting_applications").select("id, tg_message_id, media_message_ids, photo_urls, video_audition_url")
-            
-            # Match by project (target) AND chat context (cid/tid) to be safer
-            # We want to delete ONLY duplicates in THIS specific chat/topic
-            query = query.eq("chat_id", cid)
-            if tid:
-                query = query.eq("thread_id", tid)
-            
-            # Match by phone or instagram
-            conditions = []
-            if phone and len(str(phone)) > 5:
-                conditions.append(f"phone.eq.{phone}")
-            if insta and len(str(insta)) > 2:
-                conditions.append(f"instagram.eq.{insta}")
-            
-            if conditions:
-                query = query.or_(",".join(conditions))
-            else:
-                # Fallback: if no phone/insta, maybe search by name? No, too risky.
-                # Just skip dedup if no identifiers.
-                print("⚠️ Deduplication skipped: No valid phone or instagram to match.")
-                raise Exception("No identifiers for deduplication")
-            
-            # CRITICAL: Exclude the CURRENT application ID (if we have it)
-            # Otherwise we might delete the record we just inserted if logic is flawed
-            app_id = data.get('application_id') or data.get('id')
-            if app_id:
-                query = query.neq("id", app_id)
-
-            # Get OLD records that have a telegram message ID
-            old_res = query.not_.is_("tg_message_id", "null").order("created_at", descending=True).execute()
-            
-            if old_res.data:
-                for old_app in old_res.data:
-                    old_msg_id = old_app.get('tg_message_id')
-                    old_db_id = old_app.get('id')
-                    
-                    print(f"🗑️ Found duplicate: {old_db_id} (msg: {old_msg_id})")
-
-                    # 1.1 Delete from Telegram
-                    if old_msg_id:
-                        try:
-                            old_media_ids = old_app.get('media_message_ids') or []
-                            old_photos = old_app.get('photo_urls') or []
-                            old_video = old_app.get('video_audition_url')
-                            media_count = min(len(old_photos) + (1 if old_video else 0), 10)
-                            all_ids_to_del = [old_msg_id] + old_media_ids if old_media_ids else None
-                            safe_delete_messages(cid, old_msg_id, media_count, all_ids_to_del)
-                            print(f"   Deleted messages for app {old_db_id}")
-                        except Exception as tg_del_e: 
-                            print(f"   TG Delete Err: {tg_del_e}")
-                    
-                    # 1.2 Delete from Supabase
-                    # Only delete duplicates (different IDs), never the current one (self-cleanup handles msg deletion only)
-                    supabase.table("casting_applications").delete().eq("id", old_db_id).execute()
-                    print(f"✅ Deduplicated: Deleted old application {old_db_id}")
-        except Exception as dedup_e:
-            print(f"Deduplication Error: {dedup_e}")
+        _remove_duplicate_applications(data, cid, tid, phone, insta, app_id, supabase, bot)
 
         # 2. Auto-Register Contact
-        try:
-            name, phone = data.get('full_name'), data.get('phone')
-            if name and phone:
-                supabase.table("contacts").upsert({
-                    "name": name, "phone": phone, "thread_id": tid, "chat_id": cid, "category": "casting"
-                }, on_conflict="phone,chat_id,thread_id").execute()
-        except: pass
-
-        # 2. Format Message (HTML for better reliability)
-        def v(k): return str(data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
-        
-        # IMPROVED LAYOUT (Using Helper)
-        full_txt = format_casting_message(data)
-
-        # USE A SIMPLE SAFE CAPTION FOR MEDIA GROUP to avoid 1024 limit and HTML breakage
-        simple_caption = (
-            f"📸 <b>Анкета: {v('full_name')}</b>\n"
-            f"🎯 {v('casting_target')}\n\n"
-            f"Описание придет следующим сообщением... ⬇️"
-        )
-
-        photos = data.get('photo_urls', [])
-        video = data.get('video_audition_url')
-
-        media = []
-        for i, url in enumerate(photos):
-            if i == 0:
-                media.append(types.InputMediaPhoto(url, caption=simple_caption, parse_mode="HTML"))
-            else:
-                media.append(types.InputMediaPhoto(url))
-        
-        if video:
-            if not media:
-                media.append(types.InputMediaVideo(video, caption=simple_caption, parse_mode="HTML"))
-            else:
-                media.append(types.InputMediaVideo(video))
-
-        # 3. Inline Buttons (Select & Delete)
-        markup = types.InlineKeyboardMarkup()
-        app_id = data.get('application_id') or data.get('id') # CHECK 'id' field too!
-
-        # Fallback if ID not provided by frontend (legacy cache)
-        if not app_id:
-            try:
-                # IMPORTANT: Fetch the ID of the record we just updated/inserted
-                # Since we might have just updated a record via update.html, we need to find it
-                app_res = supabase.table("casting_applications").select("id, is_selected").eq("phone", phone).eq("casting_target", target).order("created_at", descending=True).limit(1).execute()
-                if app_res.data:
-                    app_id = app_res.data[0]['id']
-                    # Restore selection state if re-sending
-                    is_selected = app_res.data[0].get('is_selected', False)
-            except: 
-                is_selected = False
-        else:
-            # Check DB for selection state
-            try:
-                sel_res = supabase.table("casting_applications").select("is_selected").eq("id", app_id).single().execute()
-                is_selected = sel_res.data.get('is_selected', False) if sel_res.data else False
-            except:
-                is_selected = False
-
-        if app_id:
-            # Use format_casting_message again to ensure text matches status
-            # But wait, full_txt is already generated above. 
-            # If is_selected is True, we should regenerate full_txt with checkmark
-            if is_selected:
-                full_txt = format_casting_message(data, is_selected=True)
-
-            select_btn_text = "✅ ВЫБРАН" if is_selected else "ВЫБРАТЬ"
-            
-            btns = [
-                types.InlineKeyboardButton(select_btn_text, callback_data=f"app_sel:{app_id}"),
-                types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
-            ]
-            markup.add(*btns)
-        else:
-            print("❌ WARNING: Could not find app_id for buttons!")
-
-        try:
-            sent_msg = None
-            media_message_ids = []
-            if media:
-                print(f"DEBUG: sending media group with {len(media)} items")
-                try:
-                    sent_media = bot.send_media_group(cid, media, message_thread_id=tid)
-                    media_message_ids = [m.message_id for m in sent_media] if sent_media else []
-                except Exception as mg_e:
-                    print(f"❌ Media Group Send Failed: {mg_e}")
-                    full_txt += "\n⚠️ Не удалось загрузить медиа-файлы в виде альбома. Ссылки выше."
-            
-            # 3. Always send full text as a separate message for guaranteed delivery
-            print(f"DEBUG: sending text message")
-            try:
-                sent_msg = bot.send_message(cid, full_txt, message_thread_id=tid, parse_mode="HTML", disable_web_page_preview=True, reply_markup=markup)
-            except Exception as txt_e:
-                print(f"❌ Text Send Failed (HTML): {txt_e}")
-                # Fallback to plain text if HTML parsing fails
-                sent_msg = bot.send_message(cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
-            
-            # 4. CAPTURE MESSAGE ID to DB for future edits
-            if sent_msg:
-                try:
-                    # Find the latest record that was just inserted by the frontend
-                    supabase.table("casting_applications")\
-                        .update({"tg_message_id": sent_msg.message_id, "media_message_ids": media_message_ids})\
-                        .eq("phone", phone)\
-                        .eq("casting_target", target)\
-                        .is_("tg_message_id", "null")\
-                        .execute()
-                except Exception as db_e: print(f"DB Update Error: {db_e}")
-
-            print("✅ SUCCESS: Notification sent to Telegram")
-        except Exception as bot_err:
-            print(f"❌ CRITICAL BOT SEND ERROR: {bot_err}")
-            return jsonify({'error': f'Failed to send message: {str(bot_err)}'}), 500
-
-        res = jsonify({'status': 'ok'})
-        res.headers.add('Access-Control-Allow-Origin', '*')
-        return res
-    except Exception as e:
-        print(f"Casting Notify Error: {e}")
-        r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
-
-@bot.message_handler(commands=['del'])
-def handle_del_app_command(message):
-    try:
-        reply = message.reply_to_message
-        if not reply:
-            bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение с анкетой для удаления.")
-            return
-
-        # 1. FIND THE APPLICATION DATA
-        target_reply = reply
-        if "АНКЕТА:" not in (reply.text or reply.caption or ""):
-            if reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or ""):
-                target_reply = reply.reply_to_message
-            else:
-                bot.reply_to(message, "❌ Пожалуйста, отвечайте именно на сообщение с АНКЕТОЙ.")
-                return
-
-        res = supabase.table("casting_applications").select("id").eq("tg_message_id", target_reply.message_id).execute()
-        if not res.data:
-            bot.reply_to(message, "❌ Анкета не найдена в базе.")
-            return
-        
-        app_id = res.data[0]['id']
-        
-        # Cleanup command
-        try: bot.delete_message(message.chat.id, message.message_id)
-        except: pass
+        _auto_register_contact(data, cid, tid, supabase)
         
         # Reuse callback logic
         handle_app_delete_callback(types.CallbackQuery(id="0", from_user=message.from_user, chat_instance="0", 
@@ -1615,7 +1667,6 @@ def handle_forwarded_message(message):
                 
                 # Auto-delete confirmation message after 10 seconds to keep chat clean
                 import threading
-                from concurrent.futures import ThreadPoolExecutor
                 import time
                 def delayed_delete(chat_id, msg_id):
                     time.sleep(10)
@@ -1855,7 +1906,7 @@ def process_manual_media_update(source_msg, application_msg):
 
         # SEND NEW MESSAGE
         import requests
-        requests.post(f'{BASE_API_URL}/api/casting', json=updated_payload)
+        requests.post('https://media-seven-eta.vercel.app/api/casting', json=updated_payload)
 
     except Exception as e:
         print(f"process_manual_media_update err: {e}")
@@ -1878,6 +1929,12 @@ def handle_reload_batch_callback(call):
     except Exception as e:
         print(f"Reload Batch Err: {e}")
 
+
+def _normalize_phone(p):
+    if not p: return ""
+    p = str(p)
+    return re.sub(r'\D', '', p)
+
 def process_reload_batch(cid, tid, offset=0, status_msg=None):
     try:
         BATCH_SIZE = 10
@@ -1894,12 +1951,16 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                 _tg_retry(bot.edit_message_text, f"⚠️ Анкет не найдено.", cid, status_msg.message_id)
             return
 
-        # Deduplicate
+        # Deduplicate: Group by normalized phone or instagram, take LATEST
         unique_map = {}
         for app in all_apps:
-            phone = app.get('phone')
-            key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
-            unique_map[key] = app
+            phone = _normalize_phone(app.get('phone'))
+            key = phone if phone and len(phone) > 5 else (app.get('instagram') or app.get('id'))
+            if key in unique_map:
+                if app.get('created_at', '') > unique_map[key].get('created_at', ''):
+                    unique_map[key] = app
+            else:
+                unique_map[key] = app
             
         clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
         total_count = len(clean_apps)
@@ -1935,6 +1996,7 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
 
                 # Prepare Media
                 media = []
+                # First up to 3 photos
                 for i, url in enumerate(photos[:3]):
                     opt_url = optimize_url(url, width=1024)
                     if i == 0:
@@ -1942,6 +2004,15 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                         media.append(types.InputMediaPhoto(opt_url, caption=caption, parse_mode="HTML"))
                     else:
                         media.append(types.InputMediaPhoto(opt_url))
+
+                # And one video if present
+                video = safe_app.get('video_audition_url')
+                if video:
+                    if not media:
+                        caption = f"🎬 <b>{safe_app.get('full_name')}</b>\n{safe_app.get('casting_target')}\n⬇️ Описание ниже"
+                        media.append(types.InputMediaVideo(video, caption=caption, parse_mode="HTML"))
+                    else:
+                        media.append(types.InputMediaVideo(video))
 
                 # Send Media Group
                 if media:
@@ -2066,7 +2137,27 @@ def handle_reload_command(message):
             return
         
         # Send immediate acknowledgment
-        status_msg = bot.reply_to(message, "⏳ Поиск анкет...")
+        status_msg = bot.reply_to(message, "⏳ Очистка топика и поиск анкет...")
+
+        # CLEAR CURRENT TOPIC OLD MESSAGES
+        try:
+            # Find all message IDs for this chat & thread
+            old_res = supabase.table("casting_applications").select("tg_message_id, photo_urls, video_audition_url").eq("chat_id", cid).eq("thread_id", tid).not_.is_("tg_message_id", "null").execute()
+            if old_res.data:
+                for old_app in old_res.data:
+                    old_msg_id = old_app.get("tg_message_id")
+                    if old_msg_id:
+                        try: bot.delete_message(cid, old_msg_id)
+                        except: pass
+
+                        media_count = len(old_app.get('photo_urls') or [])
+                        if old_app.get('video_audition_url'): media_count += 1
+                        media_count = min(media_count, 10)
+                        for i in range(1, media_count + 1):
+                            try: bot.delete_message(cid, int(old_msg_id) - i)
+                            except: pass
+        except Exception as cl_err:
+            print(f"Cleanup Err: {cl_err}")
         
         # Start Batch 0
         process_reload_batch(cid, tid, offset=0, status_msg=status_msg)
@@ -2146,43 +2237,6 @@ def reload_casting_endpoint():
     except Exception as e:
         print(f"Reload Error: {e}")
         return jsonify({'error': str(e)}), 500
-
-@bot.message_handler(commands=['del_project'])
-def handle_del_project(message):
-    try:
-        # Only allow if there's a name provided
-        args = message.text.replace('/del_project', '').strip()
-        if not args:
-            bot.reply_to(message, "❌ Укажите точное название проекта для удаления. Пример: `/del_project ТЕСТОВЫЙ`", parse_mode="Markdown")
-            return
-
-        cid = message.chat.id
-
-        # Search for project by name in this chat
-        res = supabase.from_("clients").select("id, name, thread_id").eq("chat_id", cid).ilike("name", args).execute()
-
-        if not res.data:
-            bot.reply_to(message, f"❌ Проект с именем '{args}' не найден.")
-            return
-
-        deleted_count = 0
-        for p in res.data:
-            pid = p['id']
-            tid = p['thread_id']
-            pname = p['name']
-
-            # Delete project
-            supabase.from_("clients").delete().eq("id", pid).execute()
-
-            # Delete related contacts
-            if tid:
-                supabase.from_("contacts").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
-
-            deleted_count += 1
-
-        bot.reply_to(message, f"🗑️ Успешно удалено проектов: {deleted_count}.")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка удаления проекта: {e}")
 
 def ensure_project(chat_id, thread_id, chat_title, content="", message=None, forced_name=None):
     """Ensures a project (topic) exists. Returns (category, is_new)."""
@@ -2347,21 +2401,6 @@ def handle_manual_staff(message):
     except Exception as e: bot.reply_to(message, f"❌ Ошибка: {e}")
 
 # --- HELPERS ---
-
-def safe_delete_messages(chat_id, text_msg_id, media_count, media_ids=None):
-    def _del(m_id):
-        try: bot.delete_message(chat_id, m_id)
-        except: pass
-
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        if media_ids:
-            for m_id in media_ids:
-                executor.submit(_del, m_id)
-        elif text_msg_id:
-            executor.submit(_del, text_msg_id)
-            for i in range(1, media_count + 1):
-                executor.submit(_del, int(text_msg_id) - i)
-
 def auto_delete(msg, delay=20):
     """Automatically deletes a message after N seconds."""
     if not msg: return
@@ -2371,7 +2410,6 @@ def auto_delete(msg, delay=20):
         try: bot.delete_message(msg.chat.id, msg.message_id)
         except: pass
     import threading
-    from concurrent.futures import ThreadPoolExecutor
     threading.Thread(target=do_delete).start()
 
 def register_user(user, chat_id, thread_id=None, silent=False):
@@ -2451,24 +2489,13 @@ def handle_topic_edited(message):
 @bot.message_handler(content_types=['forum_topic_deleted'])
 def handle_topic_deleted(message):
     try:
-        cid = message.chat.id
-        # IMPORTANT: The message_thread_id might not be the same as the deleted topic ID in all cases.
-        # However, for forum_topic_deleted, it IS the thread_id of the topic being deleted.
-        tid = message.message_thread_id
-
+        cid, tid = message.chat.id, message.message_thread_id
         if tid:
-            # Check if it exists before deleting (for logging)
-            p_res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
-            if p_res.data:
-                p_name = p_res.data[0]['name']
-                # Delete project from clients
-                supabase.from_("clients").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
-                print(f"🗑️ DELETED: Project '{p_name}' (Topic {tid}) removed from DB.")
-
-                # We can also clean up contacts related to this project
-                supabase.from_("contacts").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
-            else:
-                print(f"⚠️ DELETED TOPIC: Topic {tid} deleted, but no corresponding project found in DB.")
+            # Delete project from clients
+            supabase.from_("clients").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
+            # Also delete related contacts? (Optional but clean)
+            # supabase.from_("contacts").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
+            print(f"🗑️ DELETED: Project from topic {tid} in chat {cid} removed from DB.")
     except Exception as e: print(f"❌ Topic Deleted Err: {e}")
 
 @bot.message_handler(content_types=['forum_topic_closed'])
