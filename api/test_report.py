@@ -26,7 +26,7 @@ except: pass
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def test_report(shift_id):
+def generate_test_report(shift_id):
     print(f"Testing report for shift: {shift_id}")
     
     # 1. Fetch Data
