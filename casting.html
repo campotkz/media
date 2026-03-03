@@ -1314,6 +1314,10 @@
 
                     console.log(`Submitting to: ${pName}, CID: ${targetCid}, TID: ${targetTid}`);
 
+                    if (!targetCid) {
+                        throw new Error("Не указан ID чата проекта (chat_id). Пожалуйста, откройте ссылку из нужного Telegram-канала или чата.");
+                    }
+
                     const finalData = {
                         ...results,
                         casting_target: pName,
