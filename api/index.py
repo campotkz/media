@@ -29,7 +29,7 @@ SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 APP_URL = "https://campotkz.github.io/media/"
 VERCEL_URL = os.environ.get("VERCEL_URL", "media-seven-eta.vercel.app")
 BASE_API_URL = f"https://{VERCEL_URL}"
-MEDIA_CHANNEL_ID = os.environ.get('MEDIA_CHANNEL_ID', '-1001893557217') # Убедитесь, что ID верный
+MEDIA_CHANNEL_ID = os.environ.get('MEDIA_CHANNEL_ID', '-1003893557217') # Телеграм канал для хранения медиа
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
@@ -89,13 +89,11 @@ def ensure_casting_schema_update():
 
 threading.Thread(target=ensure_casting_schema_update).start()
 # --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
-MEDIA_CHANNEL_ID = os.environ.get('MEDIA_CHANNEL_ID', '-1001893557217')
 
 def optimize_url(url, width=800):
     if not url or "supabase.co" not in url: return url
     sep = '&' if '?' in url else '?'
     return f"{url}{sep}width={width}&quality=80&format=origin"
-MEDIA_CHANNEL_ID = os.environ.get('MEDIA_CHANNEL_ID', '-1003893557217')
 
 # --- Helpers ---
 

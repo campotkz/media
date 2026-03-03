@@ -17,6 +17,9 @@
 @rem
 
 @if "%DEBUG%"=="" @echo off
+@rem Set JAVA_HOME to the Android Studio JBR (Java 21)
+set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
+
 @rem ##########################################################################
 @rem
 @rem  Gradle startup script for Windows
