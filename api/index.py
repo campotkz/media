@@ -87,9 +87,7 @@ def ensure_casting_schema_update():
     except Exception as e:
         print(f"Migration error: {e}")
 
-<<<<<<< HEAD
 threading.Thread(target=ensure_casting_schema_update).start()
-=======
 # --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
 MEDIA_CHANNEL_ID = os.environ.get('MEDIA_CHANNEL_ID', '-1001893557217')
 
@@ -211,23 +209,10 @@ def generate_casting_docx(applications, project_name):
         c_info.add_paragraph(f"Город: {app_data.get('city', '—')}\nВозраст: {app_data.get('dob', '—')}\nПараметры: {app_data.get('height_weight', '—')}")
         c_info.add_paragraph(f"тел: {app_data.get('phone', '—')}\nInst: {app_data.get('instagram', '—')}")
 
-<<<<<<< HEAD
-        # Фото
-        c_pic = row.cells[1]
-        c_pic.width = Cm(6)
-        photos = _normalize_url_list(app_data.get('photo_urls'))
-        if photos:
-            try:
-                # Берем первое фото для документа
-                img_url = photos[0]
-                if img_url.startswith('tg://'):
-                    file_info = bot.get_file(img_url.replace('tg://', ''))
-                    img_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_info.file_path}"
-=======
         # Photos (Visual Optimized)
         c_pic = row.cells[1]
         c_pic.width = Cm(6)
-        photos_all = _normalize_url_list(app.get('photo_urls'))
+        photos_all = _normalize_url_list(app_data.get('photo_urls'))
         if photos_all:
             try:
                 img_url = photos_all[0]
@@ -738,19 +723,14 @@ def handle_delete(message):
                 for url in urls:
                     res = supabase.table("project_resources").delete().eq("chat_id", cid).eq("thread_id", tid).eq("url", url).execute()
                     if res.data: deleted_urls.append(url)
->>>>>>> 018164a (Backport stable CAMPOT2 features: strict media offloading, deduplication, optimized DOCX, and offline sync fixes)
                 
-                resp = requests.get(optimize_url(img_url, width=400), timeout=5)
-                if resp.status_code == 200:
-                    img_stream = io.BytesIO(resp.content)
-                    c_pic.paragraphs[0].add_run().add_picture(img_stream, width=Cm(5.5))
-            except:
-                c_pic.paragraphs[0].add_run("[Ошибка фото]")
-    
-    out = io.BytesIO()
-    doc.save(out)
-    out.seek(0)
-    return out
+                if deleted_urls:
+                    bot.reply_to(message, f"✅ Удалено из базы: {len(deleted_urls)} ссылок")
+                else:
+                    bot.reply_to(message, "ℹ️ Ссылки не найдены в базе проекта.")
+    except Exception as e:
+        print(f"Delete Error: {e}")
+    return False
 
 # --- Webhook Routes ---
 
@@ -768,14 +748,14 @@ def notify_casting():
         # 1. Оффлоад
         data = offload_media_to_telegram(app_id, data)
 
-<<<<<<< HEAD
         # 2. Формирование сообщения
         text = format_casting_message(data)
         markup = types.InlineKeyboardMarkup()
         markup.add(
             types.InlineKeyboardButton("✅ ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
             types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
-=======
+        )
+
         # --- 0. BLACKLIST CHECK ---
         try:
             if phone or insta:
@@ -950,7 +930,6 @@ def notify_casting():
             f"📸 <b>Анкета: {v('full_name')}</b>\n"
             f"🎯 {v('casting_target')}\n\n"
             f"Описание придет следующим сообщением... ⬇️"
->>>>>>> 018164a (Backport stable CAMPOT2 features: strict media offloading, deduplication, optimized DOCX, and offline sync fixes)
         )
 
         # 3. Отправка (сначала альбом, потом текст с кнопками)
@@ -978,9 +957,6 @@ def notify_casting():
 
         return jsonify({'status': 'ok'})
     except Exception as e:
-<<<<<<< HEAD
-        print(f"Casting notify error: {e}")
-=======
         print(f"Casting Notify Error: {e}")
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
 
@@ -1633,7 +1609,6 @@ def reload_casting_endpoint():
 
     except Exception as e:
         print(f"Reload Error: {e}")
->>>>>>> 018164a (Backport stable CAMPOT2 features: strict media offloading, deduplication, optimized DOCX, and offline sync fixes)
         return jsonify({'error': str(e)}), 500
 
 def cors_response():
