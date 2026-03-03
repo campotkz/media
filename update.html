@@ -509,6 +509,10 @@
                     thread_id: finalTid
                 };
 
+                if (!app.chat_id) {
+                    throw new Error("Не указан ID чата проекта. Невозможно отправить уведомление.");
+                }
+
                 await fetch('https://media-seven-eta.vercel.app/api/casting', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

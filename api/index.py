@@ -390,7 +390,7 @@ def submit_report():
     try:
         data = request.json or {}
         chat_id, thread_id = data.get('chat_id'), data.get('thread_id')
-        if not chat_id: return jsonify({'error': 'No chat_id'}), 400
+        if not chat_id: return cors_jsonify({'error': 'No chat_id'}, 400)
         prev = supabase.table('client_feedback').select('leads_count, sales_count').eq('thread_id', thread_id or 0).order('created_at', desc=True).limit(2).execute()
         pl, ps = (prev.data[1]['leads_count'] or 0, prev.data[1]['sales_count'] or 0) if len(prev.data) > 1 else (0, 0)
         cl, cs = int(data.get('leads_count', 0)), int(data.get('sales_count', 0))
@@ -1373,7 +1373,586 @@ def offload_media_to_telegram(app_id, data):
 
     return data
 
+
+def cors_jsonify(data, status=200):
+    response = jsonify(data)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response, status
+
 @app.route('/api/casting', methods=['POST', 'OPTIONS'])
+
+@bot.message_handler(commands=['del'])
+def handle_delete(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id
+
+        # 1. CONTEXTUAL MODE (Reply)
+        if message.reply_to_message:
+            reply = message.reply_to_message
+            txt = (reply.text or reply.caption or "")
+
+            # 1.1 Check for Links
+            urls = re.findall(r'(https?://[^\s]+)', txt)
+            if urls:
+                res = supabase.table("project_resources").delete().eq("chat_id", cid).eq("thread_id", tid).in_("url", urls).execute()
+                deleted_urls = [item['url'] for item in res.data] if res.data else []
+
+                if deleted_urls:
+                    bot.reply_to(message, f"🗑️ Удалено ресурсов: {len(deleted_urls)}")
+                    return
+
+            # 1.2 Check for Bot Confirmations (Contacts)
+            c_match = re.search(r"Контакт \*\*(.*?)\*\* \((.*?)\) сохранен", txt)
+            if c_match:
+                ph = c_match.group(2)
+                supabase.table("contacts").delete().eq("phone", ph).eq("thread_id", tid).execute()
+                bot.reply_to(message, f"🗑️ Контакт **{c_match.group(1)}** удален из проекта.")
+                return
+
+            # 1.3 Check for Bot Confirmations (Locations)
+            l_match = re.search(r"Локация \*\*(.*?)\*\*", txt)
+            if l_match and "сохранена" in txt:
+                loc_name = l_match.group(1)
+                p_res = supabase.from_("clients").select("id").eq("chat_id", cid).eq("thread_id", tid).execute()
+                if p_res.data:
+                    pid = p_res.data[0]['id']
+                    supabase.table("project_locations").delete().eq("project_id", pid).eq("name", loc_name).execute()
+                    bot.reply_to(message, f"🗑️ Локация **{loc_name}** удалена из проекта.")
+                    return
+
+            # If reply but no data found, just fall through to the Menu!
+            # The user might be replying to bot's own instruction or something irrelevant.
+
+        # 2. INTERACTIVE MODE (Menu)
+        if tid is None:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
+            return
+
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            types.InlineKeyboardButton("👥 Актеры", callback_data=f"del_cat:actors:{tid}"),
+            types.InlineKeyboardButton("📍 Локации", callback_data=f"del_cat:locs:{tid}"),
+            types.InlineKeyboardButton("🔗 Ссылки", callback_data=f"del_cat:links:{tid}"),
+            types.InlineKeyboardButton("❌ Отмена", callback_data="del_cancel")
+        )
+        bot.send_message(cid, "🧹 **ОЧИСТКА ДАННЫХ**\nВы можете удалить данные этого проекта:", reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
+
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка удаления: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('add_'))
+def handle_add_callback(call):
+    try:
+        cid = call.message.chat.id
+        tid = call.message.message_thread_id
+        data = call.data.split(':')
+        cmd = data[0]
+
+        if cmd == "add_cancel":
+            bot.delete_message(cid, call.message.message_id)
+            return
+
+        if cmd == "add_cat":
+            cat = data[1]
+            prompts = {
+                "actors": "👤 Отправьте имя актера или карточку контакта:",
+                "crew": "🛠 Отправьте имя сотрудника или карточку контакта:",
+                "clients": "🤝 Отправьте имя клиента или карточку контакта:",
+                "locs": "📍 Отправьте название локации:",
+                "links": "🔗 Отправьте ссылку (URL):"
+            }
+            # Use ForceReply to catch the answer
+            bot.send_message(cid, prompts.get(cat, "Отправьте данные:"),
+                                   reply_markup=types.ForceReply(selective=True),
+                                   message_thread_id=tid)
+            bot.answer_callback_query(call.id)
+
+        elif cmd == "add_back":
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            markup.add(
+                types.InlineKeyboardButton("👥 Актер", callback_data=f"add_cat:actors:{tid}"),
+                types.InlineKeyboardButton("🛠 Сотрудник", callback_data=f"add_cat:crew:{tid}"),
+                types.InlineKeyboardButton("🤝 Клиент", callback_data=f"add_cat:clients:{tid}"),
+                types.InlineKeyboardButton("📍 Локация", callback_data=f"add_cat:locs:{tid}"),
+                types.InlineKeyboardButton("🔗 Ссылка", callback_data=f"add_cat:links:{tid}"),
+                types.InlineKeyboardButton("❌ Отмена", callback_data="add_cancel")
+            )
+            bot.edit_message_text("➕ **ДОБАВЛЕНИЕ ДАННЫХ**\nЧто вы хотите добавить в этот проект?",
+                                 cid, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+
+    except Exception as e:
+        bot.answer_callback_query(call.id, f"❌ Ошибка: {e}")
+
+@bot.message_handler(func=lambda m: m.reply_to_message and m.reply_to_message.from_user.id == bot.get_me().id and not m.text.startswith('/'))
+def handle_reply_input(message):
+    try:
+        cid = message.chat.id
+        tid = message.message_thread_id
+        orig_text = message.reply_to_message.text
+
+        # Identify category from prompt emoji
+        cat = None
+        if "👤" in orig_text: cat = "actors"
+        elif "🛠" in orig_text: cat = "crew"
+        elif "🤝" in orig_text: cat = "clients"
+        elif "📍" in orig_text: cat = "locs"
+        elif "🔗" in orig_text: cat = "links"
+
+        if not cat: return
+
+        if cat in ["actors", "crew", "clients"]:
+            name = ""
+            phone = "—"
+            if message.contact:
+                name = f"{message.contact.first_name} {message.contact.last_name or ''}".strip()
+                phone = message.contact.phone_number
+            else:
+                name = (message.text or "").strip()
+
+            if not name: return
+
+            db_cat = "casting" if cat == "actors" else ("media" if cat == "clients" else "crew")
+
+            supabase.table("contacts").upsert({
+                "name": name, "phone": phone, "thread_id": tid, "chat_id": cid, "category": db_cat
+            }, on_conflict="phone,chat_id,thread_id").execute()
+
+            bot.reply_to(message, f"✅ **{name}** сохранен в разделе категорий.")
+
+        elif cat == "locs":
+            loc_name = (message.text or "").strip()
+            if not loc_name: return
+            p_res = supabase.from_("clients").select("id").eq("chat_id", cid).eq("thread_id", tid).execute()
+            if p_res.data:
+                pid = p_res.data[0]['id']
+                supabase.table("project_locations").upsert({"project_id": pid, "name": loc_name}, on_conflict="project_id, name").execute()
+                bot.reply_to(message, f"✅ Локация **{loc_name}** добавлена в проект.")
+
+        elif cat == "links":
+            url = (message.text or "").strip()
+            if not url: return
+            if not url.startswith('http'): url = 'https://' + url
+            supabase.table("project_resources").upsert({"chat_id": cid, "thread_id": tid, "url": url}, on_conflict="chat_id,thread_id,url").execute()
+            bot.reply_to(message, f"✅ Ссылка сохранена в ресурсах проекта.")
+
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка сохранения: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_sel:'))
+def handle_app_select_callback(call):
+    try:
+        # Extract ID
+        raw_data = call.data.split(':')
+        app_id = raw_data[1]
+        cid = call.message.chat.id
+        mid = call.message.message_id
+
+        # 1. Get current status from DB
+        res = supabase.table("casting_applications").select("*").eq("id", app_id).execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ Анкета не найдена в базе (возможно удалена).")
+            return
+
+        app_data = res.data[0]
+        current_status = app_data.get('is_selected', False)
+        new_status = not current_status
+        actor_name = app_data.get('full_name', 'Актер')
+
+        # 2. Update DB
+        supabase.table("casting_applications").update({"is_selected": new_status}).eq("id", app_id).execute()
+
+        # 3. Update Message Content
+        # We need to rebuild the message EXACTLY as it was, but with/without the "SELECTED" header
+        # The key is that `format_casting_message` must include ALL links
+
+        # Refetch to be 100% sure we have latest media (in case photos were just added)
+        # Actually we already fetched it above in `res`.
+
+        # Re-generate the HTML text
+        new_text = format_casting_message(app_data, is_selected=new_status)
+
+        # Update button text
+        markup = call.message.reply_markup
+        if markup and markup.keyboard:
+            for row in markup.keyboard:
+                for btn in row:
+                    if btn.callback_data == call.data:
+                        btn.text = "✅ ВЫБРАН" if new_status else "ВЫБРАТЬ"
+
+        # Apply changes
+        # Note: If it's a media group, we edit the CAPTION. If text message, edit TEXT.
+        try:
+            bot.edit_message_text(new_text, cid, mid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+        except Exception as e_text:
+            # Maybe it is a caption?
+            try:
+                bot.edit_message_caption(new_text, cid, mid, reply_markup=markup, parse_mode="HTML")
+            except Exception as e_cap:
+                print(f"Failed to edit message: {e_cap}")
+                # Sometimes "message is not modified" error occurs if we spam click. Ignore it.
+
+        status_msg = f"🌟 {actor_name} выбран!" if new_status else f"⚪️ Выбор снят: {actor_name}"
+        bot.answer_callback_query(call.id, status_msg)
+
+    except Exception as e:
+        print(f"App Select Err: {e}")
+        try: bot.answer_callback_query(call.id, "⚠️ Ошибка обновления.")
+        except: pass
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_bl:'))
+def handle_app_blacklist_initial(call):
+    try:
+        app_id = call.data.split(':')[1]
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("🏴 ДА, В ЧЕРНЫЙ СПИСОК", callback_data=f"app_bl_ok:{app_id}"),
+            types.InlineKeyboardButton("❌ ОТМЕНА", callback_data=f"app_bl_no:{app_id}")
+        )
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.answer_callback_query(call.id, "⚠️ Добавить актера в ЧС навсегда?")
+    except Exception as e:
+        print(f"App BL Initial Err: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_bl_no:'))
+def handle_app_blacklist_cancel(call):
+    try:
+        app_id = call.data.split(':')[1]
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("✅ ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
+            types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}"),
+            types.InlineKeyboardButton("🏴 ЧС", callback_data=f"app_bl:{app_id}")
+        )
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.answer_callback_query(call.id, "Отмена ЧС.")
+    except Exception as e:
+        print(f"App BL Cancel Err: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_bl_ok:'))
+def handle_app_blacklist_confirm(call):
+    try:
+        app_id = call.data.split(':')[1]
+        cid = call.message.chat.id
+
+        # 1. Fetch actor data
+        res = supabase.table("casting_applications").select("*").eq("id", app_id).execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ Ошибка: Анкета не найдена.")
+            return
+
+        app_data = res.data[0]
+        phone = app_data.get('phone')
+        insta = app_data.get('instagram')
+
+        # 2. Add to Blacklist table
+        supabase.table("blacklist").upsert({
+            "phone": phone,
+            "instagram": insta,
+            "reason": "Added via Telegram Bot",
+            "full_name": app_data.get('full_name')
+        }, on_conflict="phone").execute()
+
+        # 3. Permanent Delete from everywhere
+        # (Reuse deletion logic manually)
+        handle_app_delete_callback(types.CallbackQuery(id="0", from_user=call.from_user, chat_instance="0",
+                                                      message=call.message, data=f"app_del_ok:{app_id}"))
+
+        bot.answer_callback_query(call.id, "🏴 АКТЕР В ЧЕРНОМ СПИСКЕ. Больше его анкеты не придут.")
+    except Exception as e:
+        print(f"App BL Confirm Err: {e}")
+        bot.answer_callback_query(call.id, f"❌ Ошибка: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_del:'))
+def handle_app_delete_initial(call):
+    try:
+        app_id = call.data.split(':')[1]
+        cid = call.message.chat.id
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("🗑️ УДАЛИТЬ НАВСЕГДА", callback_data=f"app_del_ok:{app_id}"))
+        markup.add(types.InlineKeyboardButton("🏴 В ЧЕРНЫЙ СПИСОК", callback_data=f"app_bl_ok:{app_id}"))
+        markup.add(types.InlineKeyboardButton("❌ ОТМЕНА", callback_data=f"app_del_no:{app_id}"))
+
+        bot.edit_message_reply_markup(cid, call.message.message_id, reply_markup=markup)
+        bot.answer_callback_query(call.id, "Выберите действие")
+    except Exception as e:
+        print(f"App Del Initial Err: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_del_no:'))
+def handle_app_delete_cancel(call):
+    try:
+        parts = call.data.split(':')
+        app_id = parts[1]
+
+        markup = types.InlineKeyboardMarkup()
+
+        btns = [
+            types.InlineKeyboardButton("✅ ВЫБРАТЬ", callback_data=f"app_sel:{app_id}"),
+            types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
+        ]
+        markup.add(*btns)
+
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.answer_callback_query(call.id, "Ок, отмена.")
+    except Exception as e:
+        print(f"App Del Cancel Err: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_del_ok:'))
+def handle_app_delete_callback(call):
+    try:
+        app_id = call.data.split(':')[1]
+        cid = call.message.chat.id
+        tid = call.message.message_thread_id
+
+        # 1. Fetch data
+        res = supabase.table("casting_applications").select("*").eq("id", app_id).execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ Анкета уже удалена.")
+            bot.delete_message(cid, call.message.message_id)
+            return
+
+        app_data = res.data[0]
+        phone = app_data.get('phone')
+        current_target = app_data.get('casting_target')
+
+        # 2. Identify if we are in "Casting: ОБЩИЙ"
+        is_general_topic = "ОБЩИЙ" in (current_target or "").upper()
+
+        if is_general_topic:
+            # 3. PERMANENT DELETE (Only from General)
+            # 3.1 Cleanup Storage
+            photos = app_data.get('photo_urls', [])
+            video = app_data.get('video_audition_url')
+            all_media_urls = list(photos)
+            if video: all_media_urls.append(video)
+
+            for url in all_media_urls:
+                try:
+                    if 'casting_media/' in url:
+                        path = url.split('casting_media/')[-1]
+                        supabase.storage.from_('casting_media').remove([path])
+                except: pass
+
+            # 3.2 Delete from DB and Contacts
+            supabase.table("contacts").delete().eq("phone", phone).eq("thread_id", tid).eq("chat_id", cid).execute()
+            supabase.table("casting_applications").delete().eq("id", app_id).execute()
+
+            bot.answer_callback_query(call.id, "🗑️ Анкета удалена НАВСЕГДА.")
+        else:
+            # 4. TRANSFER TO GENERAL (Archive)
+            # 4.1 Check if already in General
+            gen_res = supabase.table("clients").select("chat_id, thread_id").ilike("name", "%ОБЩИЙ%").limit(1).execute()
+
+            if gen_res.data:
+                g_cid = gen_res.data[0]['chat_id']
+                g_tid = gen_res.data[0]['thread_id']
+
+                # Check if actor already has an application in General
+                exists_in_gen = supabase.table("casting_applications").select("id")\
+                    .eq("phone", phone).ilike("casting_target", "%ОБЩИЙ%").execute()
+
+                if not exists_in_gen.data:
+                    # Move to General: update DB record
+                    supabase.table("casting_applications").update({
+                        "casting_target": "Casting: ОБЩИЙ",
+                        "project_name": "Casting: ОБЩИЙ",
+                        "chat_id": g_cid,
+                        "thread_id": g_tid,
+                        "tg_message_id": None # Reset so it gets a new one in General
+                    }).eq("id", app_id).execute()
+
+                    # Notify General Topic (Repost)
+                    import requests
+                    requests.post(f'{BASE_API_URL}/api/casting', json={
+                        **app_data,
+                        "casting_target": "Casting: ОБЩИЙ",
+                        "chat_id": g_cid,
+                        "thread_id": g_tid
+                    })
+                    bot.answer_callback_query(call.id, "📦 Перенесено в ОБЩИЙ.")
+                else:
+                    # Already in General, just delete from current project
+                    supabase.table("casting_applications").delete().eq("id", app_id).execute()
+                    bot.answer_callback_query(call.id, "✅ Удалено (уже есть в ОБЩЕМ).")
+            else:
+                # No General topic found, just delete
+                supabase.table("casting_applications").delete().eq("id", app_id).execute()
+                bot.answer_callback_query(call.id, "✅ Удалено.")
+
+            # Cleanup contacts for current project only
+            if phone and tid:
+                supabase.table("contacts").delete().eq("phone", phone).eq("thread_id", tid).eq("chat_id", cid).execute()
+
+        # 5. Delete from Telegram (current chat)
+        try:
+            old_media_ids = app_data.get('media_message_ids') or []
+            old_photos = app_data.get('photo_urls') or []
+            old_video = app_data.get('video_audition_url')
+            media_count = min(len(old_photos) + (1 if old_video else 0), 10)
+            all_ids_to_del = [call.message.message_id] + old_media_ids if old_media_ids else None
+            safe_delete_messages(cid, call.message.message_id, media_count, all_ids_to_del)
+        except Exception as e:
+            print(f"TG Delete Err: {e}")
+
+    except Exception as e:
+        print(f"App Delete Err: {e}")
+        bot.answer_callback_query(call.id, f"❌ Ошибка при удалении: {e}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('del_'))
+def handle_del_callback(call):
+    try:
+        cid = call.message.chat.id
+        tid = call.message.message_thread_id
+        data = call.data.split(':')
+        cmd = data[0]
+
+        if cmd == "del_cancel":
+            bot.delete_message(cid, call.message.message_id)
+            return
+
+        if cmd == "del_cat":
+            cat = data[1]
+            markup = types.InlineKeyboardMarkup()
+
+            if cat == "actors":
+                res = supabase.table("contacts").select("id, name, phone").eq("chat_id", cid).eq("thread_id", tid).execute()
+                for item in (res.data or []):
+                    markup.add(types.InlineKeyboardButton(f"🗑 {item['name']} ({item['phone']})", callback_data=f"del_exe:contacts:{item['id']}"))
+            elif cat == "locs":
+                p_res = supabase.from_("clients").select("id").eq("chat_id", cid).eq("thread_id", tid).execute()
+                if p_res.data:
+                    pid = p_res.data[0]['id']
+                    res = supabase.table("project_locations").select("id, name").eq("project_id", pid).execute()
+                    for item in (res.data or []):
+                        markup.add(types.InlineKeyboardButton(f"🗑 {item['name']}", callback_data=f"del_exe:project_locations:{item['id']}"))
+            elif cat == "links":
+                res = supabase.table("project_resources").select("id, url").eq("chat_id", cid).eq("thread_id", tid).execute()
+                for item in (res.data or []):
+                    # Shorten URL for display
+                    short_url = item['url'].replace('https://', '').replace('http://', '')[:25] + '...'
+                    markup.add(types.InlineKeyboardButton(f"🗑 {short_url}", callback_data=f"del_exe:project_resources:{item['id']}"))
+
+            markup.add(types.InlineKeyboardButton("⬅️ Назад", callback_data=f"del_back:{tid}"))
+
+            bot.edit_message_text("Выберите элемент для удаления:", cid, call.message.message_id, reply_markup=markup)
+
+        elif cmd == "del_back":
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            markup.add(
+                types.InlineKeyboardButton("👥 Актеры", callback_data=f"del_cat:actors:{tid}"),
+                types.InlineKeyboardButton("📍 Локации", callback_data=f"del_cat:locs:{tid}"),
+                types.InlineKeyboardButton("🔗 Ссылки", callback_data=f"del_cat:links:{tid}"),
+                types.InlineKeyboardButton("❌ Отмена", callback_data="del_cancel")
+            )
+            bot.edit_message_text("🧹 **ОЧИСТКА ДАННЫХ**\nЧто именно вы хотите удалить?", cid, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+
+        elif cmd == "del_exe":
+            table, item_id = data[1], data[2]
+            res = supabase.table(table).delete().eq("id", item_id).execute()
+            if not res.data:
+                raise Exception("Ничего не удалено. Возможно, запись уже удалена или нет прав.")
+            bot.answer_callback_query(call.id, "✅ Удалено")
+            # Return to categories
+            handle_del_callback(types.CallbackQuery(id=call.id, from_user=call.from_user, chat_instance=call.chat_instance, message=call.message, data=f"del_back:{tid}"))
+
+    except Exception as e:
+        bot.answer_callback_query(call.id, f"❌ Ошибка: {e}")
+
+def offload_media_to_telegram(app_id, data):
+    '''
+    Downloads images/videos from Supabase Storage URLs,
+    sends them to the private MEDIA_CHANNEL_ID,
+    gets the Telegram file_id,
+    and deletes the file from Supabase Storage.
+    Returns the modified data dict with tg://... URIs.
+    '''
+    try:
+        target_channel_id = MEDIA_CHANNEL_ID
+        if not target_channel_id:
+            target_channel_id = '-3893557217'
+            print(f"⚠️ MEDIA_CHANNEL_ID not found in env, using fallback: {target_channel_id}")
+
+        photos = _normalize_url_list(data.get('photo_urls'))
+        video = data.get('video_audition_url')
+
+        new_photos = []
+        new_video = video
+
+        # Process Photos
+        if photos:
+            for url in photos:
+                if url.startswith('http') and 'supabase' in url:
+                    try:
+                        # Extract relative path for deletion
+                        # URL example: https://xxx.supabase.co/storage/v1/object/public/casting_media/photos/123.jpg
+                        if '/casting_media/' in url:
+                            rel_path = url.split('/casting_media/')[1].split('?')[0]
+                        else:
+                            rel_path = None
+
+                        opt_url = optimize_url(url, width=800)
+                        msg = _tg_retry(bot.send_photo, target_channel_id, opt_url, disable_notification=True)
+                        if msg and msg.photo:
+                            file_id = msg.photo[-1].file_id
+                            new_photos.append(f"tg://{file_id}")
+                            print(f"✅ Offloaded photo to TG: {file_id}")
+
+                            # Delete from Supabase
+                            if rel_path:
+                                supabase.storage.from_('casting_media').remove([rel_path])
+                                print(f"🗑️ Deleted from Supabase: {rel_path}")
+                        else:
+                            new_photos.append(url) # fallback
+                    except Exception as e:
+                        print(f"⚠️ Failed to offload photo {url}: {e}")
+                        new_photos.append(url)
+                else:
+                    new_photos.append(url)
+
+        # Process Video
+        if video and video.startswith('http') and 'supabase' in video:
+            try:
+                if '/casting_media/' in video:
+                    rel_path = video.split('/casting_media/')[1].split('?')[0]
+                else:
+                    rel_path = None
+
+                msg = _tg_retry(bot.send_video, target_channel_id, video, disable_notification=True)
+                if msg and msg.video:
+                    file_id = msg.video.file_id
+                    new_video = f"tg://{file_id}"
+                    print(f"✅ Offloaded video to TG: {file_id}")
+
+                    if rel_path:
+                        supabase.storage.from_('casting_media').remove([rel_path])
+                        print(f"🗑️ Deleted from Supabase: {rel_path}")
+            except Exception as e:
+                print(f"⚠️ Failed to offload video {video}: {e}")
+
+        # Update data and DB
+        if new_photos != photos or new_video != video:
+            data['photo_urls'] = ",".join(new_photos) if new_photos else None
+            data['video_audition_url'] = new_video
+            if app_id:
+                supabase.table('casting_applications').update({
+                    'photo_urls': data['photo_urls'],
+                    'video_audition_url': new_video
+                }).eq('id', app_id).execute()
+
+    except Exception as overall_e:
+        print(f"⚠️ Offload media overall error: {overall_e}")
+
+    return data
+
+
+def cors_jsonify(data, status=200):
+    response = jsonify(data)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response, status
+
+@app.route('/api/casting', methods=['POST', 'OPTIONS'])
+
 def notify_casting():
     if request.method == 'OPTIONS':
         r = app.make_response('')
@@ -1393,7 +1972,7 @@ def notify_casting():
 
         if not cid: 
             print("❌ Error: No chat_id provided")
-            return jsonify({'error': 'No chat_id'}), 400
+            return cors_jsonify({'error': 'No chat_id'}, 400)
 
         # --- 0. BLACKLIST CHECK ---
         try:
@@ -1409,7 +1988,7 @@ def notify_casting():
                 bl_res = bl_query.execute()
                 if bl_res.data:
                     print(f"🚫 BLOCKED: Application from {phone}/{insta} is in Blacklist.")
-                    return jsonify({'status': 'blocked', 'message': 'User is blacklisted'}), 200
+                    return cors_jsonify({'status': 'blocked', 'message': 'User is blacklisted'}, 200)
         except Exception as bl_err:
             print(f"⚠️ Blacklist Check Failed: {bl_err}")
             # Try to auto-fix the DB if table is missing
@@ -1423,7 +2002,7 @@ def notify_casting():
             print(f"✅ Parsed Target: CID={cid}, TID={tid}")
         except ValueError:
             print(f"❌ Invalid CID/TID: {cid} / {tid}")
-            return jsonify({'error': 'Invalid chat_id or thread_id format'}), 400
+            return cors_jsonify({'error': 'Invalid chat_id or thread_id format'}, 400)
 
         print(f"DEBUG: notify_casting for project: {target} (phone: {phone}, insta: {insta})")
 
@@ -1670,7 +2249,7 @@ def notify_casting():
             print("✅ SUCCESS: Notification sent to Telegram")
         except Exception as bot_err:
             print(f"❌ CRITICAL BOT SEND ERROR: {bot_err}")
-            return jsonify({'error': f'Failed to send message: {str(bot_err)}'}), 500
+            return cors_jsonify({'error': f'Failed to send message: {str(bot_err)}'}, 500)
 
         res = jsonify({'status': 'ok'})
         res.headers.add('Access-Control-Allow-Origin', '*')
