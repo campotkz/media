@@ -308,9 +308,17 @@ def generate_casting_docx(applications, project_name):
             run = p_p.add_run()
             for i, url in enumerate(embedded_photos):
                 try:
-                    # Request the optimized image
-                    opt_url = optimize_url(url, width=800)
-                    response = requests.get(opt_url, timeout=5)
+                    if url.startswith('tg://'):
+                        # Download from Telegram
+                        file_id = url.replace('tg://', '')
+                        file_info = bot.get_file(file_id)
+                        file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_info.file_path}"
+                        response = requests.get(file_url, timeout=5)
+                    else:
+                        # Request the optimized image from Supabase
+                        opt_url = optimize_url(url, width=800)
+                        response = requests.get(opt_url, timeout=5)
+
                     if response.status_code == 200:
                         image_stream = io.BytesIO(response.content)
                         # Add image to the cell, set width to exactly 6.82 cm
@@ -1279,6 +1287,92 @@ def handle_del_callback(call):
     except Exception as e:
         bot.answer_callback_query(call.id, f"❌ Ошибка: {e}")
 
+def offload_media_to_telegram(app_id, data):
+    '''
+    Downloads images/videos from Supabase Storage URLs,
+    sends them to the private MEDIA_CHANNEL_ID,
+    gets the Telegram file_id,
+    and deletes the file from Supabase Storage.
+    Returns the modified data dict with tg://... URIs.
+    '''
+    try:
+        target_channel_id = MEDIA_CHANNEL_ID
+        if not target_channel_id:
+            target_channel_id = '-3893557217'
+            print(f"⚠️ MEDIA_CHANNEL_ID not found in env, using fallback: {target_channel_id}")
+
+        photos = _normalize_url_list(data.get('photo_urls'))
+        video = data.get('video_audition_url')
+
+        new_photos = []
+        new_video = video
+
+        # Process Photos
+        if photos:
+            for url in photos:
+                if url.startswith('http') and 'supabase' in url:
+                    try:
+                        # Extract relative path for deletion
+                        # URL example: https://xxx.supabase.co/storage/v1/object/public/casting_media/photos/123.jpg
+                        if '/casting_media/' in url:
+                            rel_path = url.split('/casting_media/')[1].split('?')[0]
+                        else:
+                            rel_path = None
+
+                        opt_url = optimize_url(url, width=800)
+                        msg = _tg_retry(bot.send_photo, target_channel_id, opt_url, disable_notification=True)
+                        if msg and msg.photo:
+                            file_id = msg.photo[-1].file_id
+                            new_photos.append(f"tg://{file_id}")
+                            print(f"✅ Offloaded photo to TG: {file_id}")
+
+                            # Delete from Supabase
+                            if rel_path:
+                                supabase.storage.from_('casting_media').remove([rel_path])
+                                print(f"🗑️ Deleted from Supabase: {rel_path}")
+                        else:
+                            new_photos.append(url) # fallback
+                    except Exception as e:
+                        print(f"⚠️ Failed to offload photo {url}: {e}")
+                        new_photos.append(url)
+                else:
+                    new_photos.append(url)
+
+        # Process Video
+        if video and video.startswith('http') and 'supabase' in video:
+            try:
+                if '/casting_media/' in video:
+                    rel_path = video.split('/casting_media/')[1].split('?')[0]
+                else:
+                    rel_path = None
+
+                msg = _tg_retry(bot.send_video, target_channel_id, video, disable_notification=True)
+                if msg and msg.video:
+                    file_id = msg.video.file_id
+                    new_video = f"tg://{file_id}"
+                    print(f"✅ Offloaded video to TG: {file_id}")
+
+                    if rel_path:
+                        supabase.storage.from_('casting_media').remove([rel_path])
+                        print(f"🗑️ Deleted from Supabase: {rel_path}")
+            except Exception as e:
+                print(f"⚠️ Failed to offload video {video}: {e}")
+
+        # Update data and DB
+        if new_photos != photos or new_video != video:
+            data['photo_urls'] = ",".join(new_photos) if new_photos else None
+            data['video_audition_url'] = new_video
+            if app_id:
+                supabase.table('casting_applications').update({
+                    'photo_urls': data['photo_urls'],
+                    'video_audition_url': new_video
+                }).eq('id', app_id).execute()
+
+    except Exception as overall_e:
+        print(f"⚠️ Offload media overall error: {overall_e}")
+
+    return data
+
 @app.route('/api/casting', methods=['POST', 'OPTIONS'])
 def notify_casting():
     if request.method == 'OPTIONS':
@@ -1356,6 +1450,11 @@ def notify_casting():
                             print(f"⚠️ Self-Cleanup Failed (msg too old?): {e}")
             except Exception as e:
                 print(f"⚠️ Self-Cleanup Error: {e}")
+
+        # 0.5 OFFLOAD MEDIA TO TELEGRAM STORAGE
+        app_id = data.get('application_id') or data.get('id')
+        if app_id:
+            data = offload_media_to_telegram(app_id, data)
 
         # 1. FIND AND DELETE DUPLICATES (Strictly Different IDs)
         try:
@@ -1961,31 +2060,48 @@ def send_casting_application_message(cid, tid, app_data):
         app_id = app_data.get('id')
         safe_app = dict(app_data)
         photos = _normalize_url_list(safe_app.get("photo_urls"))
+        video_url = safe_app.get("video_audition_url")
         safe_app["photo_urls"] = photos
 
-        # Prepare Media
+        # Prepare Media (Max 3 photos, 1 video)
         media = []
+        media_message_ids = []
+
+        # Add up to 3 photos
         for i, url in enumerate(photos[:3]):
-            opt_url = optimize_url(url, width=800)
+            if url.startswith('tg://'):
+                opt_url = url.replace('tg://', '') # telegram file_id
+            else:
+                opt_url = optimize_url(url, width=800)
+
             if i == 0:
                 caption = f"📸 <b>{safe_app.get('full_name')}</b>\n{safe_app.get('casting_target')}\n⬇️ Описание ниже"
-
-
                 media.append(types.InputMediaPhoto(opt_url, caption=caption, parse_mode="HTML"))
             else:
                 media.append(types.InputMediaPhoto(opt_url))
 
+        # Add 1 video if available
+        if video_url:
+            if video_url.startswith('tg://'):
+                video_url = video_url.replace('tg://', '')
+            media.append(types.InputMediaVideo(video_url))
+
         # Send Media Group
         if media:
             try:
-                _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                media_msgs = _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                if media_msgs:
+                    media_message_ids = [m.message_id for m in media_msgs]
             except Exception as e:
                 print(f"Send Media Group Fail: {e}")
+                # Fallback to single photo if group fails
                 if photos:
                     try:
-                        _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=800), message_thread_id=tid)
+                        m = _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=800), message_thread_id=tid)
+                        if m: media_message_ids = [m.message_id]
                     except: pass
 
+        # Send Text Profile
         full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
 
         markup = types.InlineKeyboardMarkup()
@@ -2002,7 +2118,10 @@ def send_casting_application_message(cid, tid, app_data):
             sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
 
         if sent_msg:
-            supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
+            update_data = {"tg_message_id": sent_msg.message_id}
+            if media_message_ids:
+                update_data["media_message_ids"] = media_message_ids
+            supabase.table("casting_applications").update(update_data).eq("id", app_id).execute()
     except Exception as e:
         print(f"Send Item Error: {e}")
 
@@ -2010,26 +2129,102 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
     try:
         BATCH_SIZE = 10
         
-        # 1. Fetch ALL apps (cached or fresh)
-        # Note: Fetching ALL every time is inefficient but safest for consistency.
-        # Optimization: fetch_casting_applications could take offset/limit, 
-        # but we need to DEDUPLICATE first, so we must fetch all (or enough) to dedupe correctly.
-        # Given user has ~60 apps, fetching all is fine.
-        
+        # 1. Fetch ALL apps for this chat/thread
         all_apps = fetch_casting_applications(cid, tid)
         if not all_apps:
             if status_msg:
                 _tg_retry(bot.edit_message_text, f"⚠️ Анкет не найдено.", cid, status_msg.message_id)
             return
 
-        # Deduplicate
-        unique_map = {}
-        for app in all_apps:
-            phone = app.get('phone')
-            key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
-            unique_map[key] = app
+        # 2. Aggressive deduplication and Cleanup (Only on offset 0)
+        if offset == 0:
+            if status_msg:
+                _tg_retry(bot.edit_message_text, "🧹 Очистка старых сообщений и дублей в этом топике...", cid, status_msg.message_id)
+
+            unique_map = {}
+            for app in all_apps:
+                phone = app.get('phone')
+                key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
+
+                # Try to delete old messages from Telegram to clear the topic
+                old_msg_id = app.get('tg_message_id')
+                if old_msg_id:
+                    try:
+                        media_ids = app.get('media_message_ids') or []
+                        photos = _normalize_url_list(app.get('photo_urls'))
+                        video = app.get('video_audition_url')
+                        mc = min(len(photos) + (1 if video else 0), 10)
+                        all_ids_to_del = [old_msg_id] + media_ids if media_ids else None
+                        safe_delete_messages(cid, old_msg_id, mc, all_ids_to_del)
+                    except Exception as e:
+                        print(f"Cleanup TG error: {e}")
+
+                if key in unique_map:
+                    # Merge media into the newest record (the one we keep)
+                    existing = unique_map[key]
+
+                    # Determine which is newer
+                    current_is_newer = app.get('created_at', '') > existing.get('created_at', '')
+
+                    newer_app = app if current_is_newer else existing
+                    older_app = existing if current_is_newer else app
+
+                    # Merge
+                    n_photos = _normalize_url_list(newer_app.get('photo_urls'))
+                    o_photos = _normalize_url_list(older_app.get('photo_urls'))
+                    merged_photos = list(dict.fromkeys(n_photos + o_photos))
+
+                    newer_app['photo_urls'] = ",".join(merged_photos) if merged_photos else None
+                    if not newer_app.get('video_audition_url'):
+                        newer_app['video_audition_url'] = older_app.get('video_audition_url')
+                    if not newer_app.get('portfolio_url'):
+                        newer_app['portfolio_url'] = older_app.get('portfolio_url')
+
+                    # Delete the older record from DB
+                    try:
+                        supabase.table("casting_applications").delete().eq("id", older_app.get('id')).execute()
+                    except: pass
+
+                    # Update the newer record in DB with merged media
+                    try:
+                        supabase.table("casting_applications").update({
+                            "photo_urls": newer_app['photo_urls'],
+                            "video_audition_url": newer_app['video_audition_url'],
+                            "portfolio_url": newer_app['portfolio_url'],
+                            "tg_message_id": None, # Reset msg ID since we deleted it
+                            "media_message_ids": None
+                        }).eq("id", newer_app.get('id')).execute()
+                    except: pass
+
+                    unique_map[key] = newer_app
+                else:
+                    # Update DB to clear msg IDs just in case
+                    try:
+                        supabase.table("casting_applications").update({
+                            "tg_message_id": None,
+                            "media_message_ids": None
+                        }).eq("id", app.get('id')).execute()
+                    except: pass
+                    unique_map[key] = app
+
+            # Refresh list after deduplication
+            clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at') or '')
+        else:
+            # For offsets > 0, just use the fetched list assuming it was already deduplicated
+            # Wait, fetch_casting_applications will still fetch everything. We need to dedupe in memory
+            # without triggering deletes again.
+            unique_map = {}
+            for app in all_apps:
+                phone = app.get('phone')
+                key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
+                # Just keep the newest in memory for pagination
+                if key in unique_map:
+                    if app.get('created_at', '') > unique_map[key].get('created_at', ''):
+                        unique_map[key] = app
+                else:
+                    unique_map[key] = app
+            clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at') or '')
             
-        clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
         total_count = len(clean_apps)
         
         # Slice Batch
