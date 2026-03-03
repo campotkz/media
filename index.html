@@ -2327,7 +2327,7 @@
         exportBtn.innerHTML = "⌛...";
       }
 
-      fetch('/api/send_excel', {
+      fetch('https://sijicbonds-projects.vercel.app/api/send_excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

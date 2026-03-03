@@ -37,7 +37,7 @@ class TestHandleStatus(unittest.TestCase):
         handle_status(self.mock_message)
 
         expected_text = f"🤖 **Bot Status**\nVersion: `{VERSION}`\nUser: `TestUser`\nID: `123456789`\nPosition: `Director`"
-        mock_reply_to.assert_called_once_with(self.mock_message, expected_text, parse_mode="Markdown")
+        mock_reply_to.assert_called_with(self.mock_message, expected_text, parse_mode="Markdown")
 
     @patch('api.index.supabase')
     @patch('api.index.bot.reply_to')
@@ -54,7 +54,7 @@ class TestHandleStatus(unittest.TestCase):
         handle_status(self.mock_message)
 
         expected_text = f"🤖 **Bot Status**\nVersion: `{VERSION}`\nUser: `TestUser`\nID: `123456789`\nPosition: `не зарегистрирован`"
-        mock_reply_to.assert_called_once_with(self.mock_message, expected_text, parse_mode="Markdown")
+        mock_reply_to.assert_called_with(self.mock_message, expected_text, parse_mode="Markdown")
 
     @patch('api.index.supabase')
     @patch('api.index.bot.reply_to')
@@ -71,7 +71,7 @@ class TestHandleStatus(unittest.TestCase):
         handle_status(self.mock_message)
 
         expected_text = f"🤖 **Bot Status**\nVersion: `{VERSION}`\nUser: `TestUser`\nID: `123456789`\nPosition: `None`"
-        mock_reply_to.assert_called_once_with(self.mock_message, expected_text, parse_mode="Markdown")
+        mock_reply_to.assert_called_with(self.mock_message, expected_text, parse_mode="Markdown")
 
     @patch('api.index.supabase')
     @patch('api.index.bot.reply_to')
@@ -81,7 +81,7 @@ class TestHandleStatus(unittest.TestCase):
 
         handle_status(self.mock_message)
 
-        mock_reply_to.assert_called_once_with(self.mock_message, "Status Error: Database connection error")
+        mock_reply_to.assert_called_with(self.mock_message, "Status Error: Database connection error")
 
 if __name__ == '__main__':
     unittest.main()

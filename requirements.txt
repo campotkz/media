@@ -4,3 +4,4 @@ supabase
 openpyxl
 pandas
 python-docx
+Pillow==10.3.0
