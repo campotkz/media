@@ -3,5 +3,6 @@ flask
 supabase
 openpyxl
 pandas
+Pillow
 python-docx
 Pillow==10.3.0

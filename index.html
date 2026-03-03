@@ -1279,6 +1279,53 @@
     const monthName = d => d.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
     const niceDateShort = d => d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }); // New helper
 
+    // --- OFFLINE SYNC CONFIG ---
+    const CACHE_KEYS = { EVENTS: 'campot_events', TASKS: 'campot_tasks', SYNC: 'campot_sync_queue' };
+
+    function getCache(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; } }
+    function setCache(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+
+    function addToSyncQueue(type, payload) {
+      let queue = getCache(CACHE_KEYS.SYNC);
+      // Remove previous pending update for same ID to avoid duplicates
+      queue = queue.filter(item => item.payload.id !== payload.id);
+      queue.push({ type, payload, timestamp: Date.now() });
+      setCache(CACHE_KEYS.SYNC, queue);
+      console.log(`Added to sync queue: ${type} ${payload.id}`);
+    }
+
+    async function processSyncQueue() {
+      if (!navigator.onLine) return;
+      let queue = getCache(CACHE_KEYS.SYNC);
+      if (queue.length === 0) return;
+
+      console.log(`Processing sync queue (${queue.length} items)...`);
+      const remaining = [];
+
+      for (const item of queue) {
+        try {
+          let res;
+          if (item.type === 'delete_shoots') {
+            res = await supabaseClient.from('shoots').delete().eq('id', item.payload.id);
+          } else if (item.type === 'delete_tasks') {
+            res = await supabaseClient.from('tasks').delete().eq('id', item.payload.id);
+          } else {
+            res = await supabaseClient.from(item.type).upsert(item.payload);
+          }
+          if (res.error) throw res.error;
+        } catch (err) {
+          console.error(`Sync error for ${item.payload.id}:`, err);
+          remaining.push(item);
+        }
+      }
+
+      setCache(CACHE_KEYS.SYNC, remaining);
+      if (remaining.length === 0) console.log("Sync complete!");
+    }
+
+    window.addEventListener('online', processSyncQueue);
+    setInterval(processSyncQueue, 30000); // Heartbeat sync
+
     // Helpers for Status
     const todayISO = toISO(new Date());
     const getStatus = (e) => {
@@ -1312,20 +1359,33 @@
 
 
     async function toggleTaskStatus(id, status) {
-      // Optimistic
+      // 1. Optimistic
       const t = allTasks.find(x => x.id === id);
       if (t) t.status = status;
-      render(); // Refresh calendar view
+      setCache(CACHE_KEYS.TASKS, allTasks);
+      render();
 
-      await supabaseClient.from('tasks').update({ status }).eq('id', id);
+      // 2. Cloud or Queue
+      if (navigator.onLine) {
+        const { error } = await supabaseClient.from('tasks').update({ status }).eq('id', id);
+        if (!error) return;
+      }
+      addToSyncQueue('tasks', t);
     }
 
     async function deleteTask(id) {
       if (!confirm('Удалить задачу?')) return;
-      // Optimistic
+      // 1. Optimistic
       allTasks = allTasks.filter(x => x.id !== id);
+      setCache(CACHE_KEYS.TASKS, allTasks);
       render();
-      await supabaseClient.from('tasks').delete().eq('id', id);
+
+      // 2. Cloud or Queue
+      if (navigator.onLine) {
+        const { error } = await supabaseClient.from('tasks').delete().eq('id', id);
+        if (!error) return;
+      }
+      addToSyncQueue('delete_tasks', { id });
     }
 
     function openTaskForm(task) {
@@ -1458,26 +1518,31 @@
         payload.created_at = new Date(selectedDate).toISOString();
       }
 
-      const { data, error } = await supabaseClient.from('tasks').upsert(payload).select();
+      // 1. Optimistic Local
+      const idx = allTasks.findIndex(t => t.id === payload.id);
+      if (idx !== -1) allTasks[idx] = payload; else allTasks.push(payload);
+      setCache(CACHE_KEYS.TASKS, allTasks);
+      render();
 
-      if (!error && data && data.length > 0) {
-        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-        document.getElementById('taskForm').style.display = 'none';
+      const btn = document.getElementById('taskSubmitBtn');
+      if (btn) btn.innerHTML = '⌛...';
 
-        // Update Local State
-        const newTask = data[0];
-        if (selectedTaskId) {
-          const idx = allTasks.findIndex(t => t.id === selectedTaskId);
-          if (idx !== -1) allTasks[idx] = newTask;
-        } else {
-          allTasks.push(newTask);
+      // 2. Cloud or Queue
+      if (navigator.onLine) {
+        const { data, error } = await supabaseClient.from('tasks').upsert(payload).select();
+        if (!error && data && data.length > 0) {
+          if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+          document.getElementById('taskForm').style.display = 'none';
+          selectedTaskId = null;
+          if (btn) btn.innerHTML = 'Сохранить';
+          return;
         }
-
-        selectedTaskId = null; // Clean up
-        render(); // Refresh Unified View
-      } else {
-        alert('Error: ' + (error ? error.message : 'Unknown error'));
       }
+
+      addToSyncQueue('tasks', payload);
+      document.getElementById('taskForm').style.display = 'none';
+      selectedTaskId = null;
+      if (btn) btn.innerHTML = 'Сохранить';
     };
 
     // --- PROJECT LOGIC ---
@@ -2129,24 +2194,43 @@
       const syncBtn = document.getElementById("syncBtn");
       if (syncBtn) syncBtn.textContent = "⌛";
 
+      // 1. Start with Cache (Instant UI)
+      allEvents = getCache(CACHE_KEYS.EVENTS);
+      allTasks = getCache(CACHE_KEYS.TASKS);
+      render();
+
       await fetchAutocompleteData();
+
+      if (!navigator.onLine) {
+        if (syncBtn) { syncBtn.textContent = "📡"; setTimeout(() => syncBtn.textContent = "☁️", 2000); }
+        return;
+      }
+
       try {
         // Fetch Shoots
         const shoots = await supabaseClient.from('shoots').select('*');
-        if (shoots.data) allEvents = shoots.data;
+        if (shoots.data) {
+          allEvents = shoots.data;
+          setCache(CACHE_KEYS.EVENTS, allEvents);
+        }
 
-        // Fetch Tasks (New)
+        // Fetch Tasks
         const tasks = await supabaseClient.from('tasks').select('*');
-        if (tasks.data) allTasks = tasks.data;
+        if (tasks.data) {
+          allTasks = tasks.data;
+          setCache(CACHE_KEYS.TASKS, allTasks);
+        }
 
         render();
+        processSyncQueue(); // Sync any local changes now that we know we're online
+
         if (syncBtn) {
           syncBtn.textContent = "✅";
           setTimeout(() => syncBtn.textContent = "☁️", 1500);
         }
       } catch (err) {
         console.error("Network/Other Error:", err);
-        if (syncBtn) syncBtn.textContent = "❌";
+        if (syncBtn) syncBtn.textContent = "⚠️";
       }
     }
 
@@ -2656,30 +2740,37 @@
         if (existing) payload.status = existing.status;
       }
 
-      const saveBtn = document.querySelector('#form button[type="submit"]');
-      if (saveBtn) saveBtn.innerHTML = '⏳...';
+      // 1. Optimistic Local Save
+      const idx = allEvents.findIndex(e => e.id === payload.id);
+      if (idx >= 0) allEvents[idx] = payload; else allEvents.push(payload);
+      setCache(CACHE_KEYS.EVENTS, allEvents);
+      render();
 
-      const { error } = await supabaseClient.from('shoots').upsert(payload);
-      if (!error) {
-        if (!selectedId) selectedId = payload.id;
-        if (tg && tg.HapticFeedback && !isAutoSave) tg.HapticFeedback.notificationOccurred('success');
-        if (saveBtn) {
-          saveBtn.innerHTML = '✅';
-          setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
+      const saveBtn = document.querySelector('#form button[type="submit"]');
+      if (saveBtn) saveBtn.innerHTML = '⌛...';
+
+      // 2. Cloud Save (or Queue)
+      if (navigator.onLine) {
+        const { error } = await supabaseClient.from('shoots').upsert(payload);
+        if (!error) {
+          if (!selectedId) selectedId = payload.id;
+          if (tg && tg.HapticFeedback && !isAutoSave) tg.HapticFeedback.notificationOccurred('success');
+          if (saveBtn) {
+            saveBtn.innerHTML = '✅';
+            setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
+          }
+          if (!isAutoSave) toggleForm(false);
+          return;
         }
-        if (!isAutoSave) {
-          toggleForm(false);
-          await loadFromCloud();
-        } else {
-          // Silently update local cache
-          const idx = allEvents.findIndex(e => e.id === payload.id);
-          if (idx >= 0) Object.assign(allEvents[idx], payload);
-          else allEvents.push(payload);
-          render();
-        }
-      } else {
-        if (saveBtn) { saveBtn.innerHTML = '❌'; setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 2000); }
       }
+
+      // Offline or error -> Add to queue
+      addToSyncQueue('shoots', payload);
+      if (saveBtn) {
+        saveBtn.innerHTML = '💾'; // Saved locally
+        setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
+      }
+      if (!isAutoSave) toggleForm(false);
     }
 
     // --- AUTOSAVE ---
@@ -2697,11 +2788,19 @@
     // 4. УДАЛЕНИЕ
     document.getElementById("deleteBtn").onclick = async () => {
       if (!selectedId || !confirm("Удалить съемку?")) return;
-      const { error } = await supabaseClient.from('shoots').delete().eq('id', selectedId);
-      if (!error) {
-        toggleForm(false);
-        await loadFromCloud();
+
+      // 1. Optimistic
+      allEvents = allEvents.filter(e => e.id !== selectedId);
+      setCache(CACHE_KEYS.EVENTS, allEvents);
+      render();
+      toggleForm(false);
+
+      // 2. Cloud or Queue
+      if (navigator.onLine) {
+        const { error } = await supabaseClient.from('shoots').delete().eq('id', selectedId);
+        if (!error) return;
       }
+      addToSyncQueue('delete_shoots', { id: selectedId });
     };
 
     // STATUS TOGGLE & RESCHEDULE
@@ -3117,24 +3216,7 @@
     // Init
     document.getElementById("form").style.display = "none";
     render();
-    // 2. ЗАГРУЗКА ИЗ ОБЛАКА
-    async function loadFromCloud() {
-      await fetchAutocompleteData();
-      try {
-        // Fetch Shoots
-        const shoots = await supabaseClient.from('shoots').select('*');
-        if (shoots.data) allEvents = shoots.data;
-
-        // Fetch Tasks
-        const tasks = await supabaseClient.from('tasks').select('*');
-        if (tasks.data) allTasks = tasks.data;
-
-        render();
-        updateContactPool();
-
-      } catch (err) { console.error("Network/Other Error:", err); }
-    }
-
+    // Cleaned up duplicate loadFromCloud
     loadFromCloud();
   </script>
 </body>

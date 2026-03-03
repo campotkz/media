@@ -10,11 +10,15 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
 
   <style>
     /* ПОЛНОСТЬЮ ТВОИ ОРИГИНАЛЬНЫЕ СТИЛИ */
     :root {
-      --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+      --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
       --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
       --fs-title: 17px;
       --fs-subtitle: 15px;
@@ -35,26 +39,26 @@
       --s-5: 24px;
       --s-6: 32px;
       --hit: 44px;
-      --r-1: 12px;
-      --r-2: 16px;
+      --r-1: 8px;
+      --r-2: 12px;
       --r-3: 20px;
       --r-pill: 999px;
       --text: rgba(255, 255, 255, .92);
       --muted: rgba(255, 255, 255, .68);
       --muted2: rgba(255, 255, 255, .52);
-      --accent: rgba(122, 162, 255, 1);
-      --accent-fill: rgba(122, 162, 255, .20);
-      --accent-stroke: rgba(122, 162, 255, .62);
+      --accent: #f45925;
+      --accent-fill: rgba(244, 89, 37, .15);
+      --accent-stroke: rgba(244, 89, 37, .4);
       --warn-stroke: rgba(255, 204, 102, .55);
-      --bg-0: #070812;
-      --bg-1: #0a0b10;
-      --glass: rgba(20, 22, 30, .38);
-      --glass2: rgba(20, 22, 30, .26);
-      --stroke: rgba(255, 255, 255, .12);
-      --stroke2: rgba(255, 255, 255, .09);
-      --sep: rgba(255, 255, 255, .08);
-      --shadow: 0 18px 60px rgba(0, 0, 0, .45);
-      --inset: inset 0 1px 0 rgba(255, 255, 255, .07);
+      --bg-0: #000000;
+      --bg-1: #161616;
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass2: rgba(255, 255, 255, 0.02);
+      --stroke: rgba(255, 255, 255, 0.1);
+      --stroke2: rgba(255, 255, 255, 0.15);
+      --sep: rgba(255, 255, 255, .05);
+      --shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+      --inset: inset 0 0.5px 0 rgba(255, 255, 255, .08);
       --ease: cubic-bezier(.2, .8, .2, 1);
     }
 
@@ -72,9 +76,28 @@
     body {
       margin: 0;
       color: var(--text);
-      background: #101116;
+      background: black;
+      background-image: radial-gradient(circle at 50% -20%, #1a1a2e 0%, #000 70%);
       font-family: var(--font-sans);
       overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: repeating-linear-gradient(0deg,
+          rgba(255, 255, 255, 0.015) 0px,
+          rgba(255, 255, 255, 0.015) 1px,
+          transparent 1px,
+          transparent 2px);
+      background-size: 100% 2px;
+      pointer-events: none;
+      z-index: 0;
     }
 
     .wrap {
@@ -102,7 +125,19 @@
       background: var(--glass);
       box-shadow: var(--shadow), var(--inset);
       transform: translateZ(0);
-      backdrop-filter: blur(18px) saturate(1.1);
+      backdrop-filter: blur(25px) saturate(1.2);
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.03);
     }
 
     .head {
@@ -1244,6 +1279,53 @@
     const monthName = d => d.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
     const niceDateShort = d => d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }); // New helper
 
+    // --- OFFLINE SYNC CONFIG ---
+    const CACHE_KEYS = { EVENTS: 'campot_events', TASKS: 'campot_tasks', SYNC: 'campot_sync_queue' };
+
+    function getCache(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; } }
+    function setCache(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+
+    function addToSyncQueue(type, payload) {
+      let queue = getCache(CACHE_KEYS.SYNC);
+      // Remove previous pending update for same ID to avoid duplicates
+      queue = queue.filter(item => item.payload.id !== payload.id);
+      queue.push({ type, payload, timestamp: Date.now() });
+      setCache(CACHE_KEYS.SYNC, queue);
+      console.log(`Added to sync queue: ${type} ${payload.id}`);
+    }
+
+    async function processSyncQueue() {
+      if (!navigator.onLine) return;
+      let queue = getCache(CACHE_KEYS.SYNC);
+      if (queue.length === 0) return;
+
+      console.log(`Processing sync queue (${queue.length} items)...`);
+      const remaining = [];
+
+      for (const item of queue) {
+        try {
+          let res;
+          if (item.type === 'delete_shoots') {
+            res = await supabaseClient.from('shoots').delete().eq('id', item.payload.id);
+          } else if (item.type === 'delete_tasks') {
+            res = await supabaseClient.from('tasks').delete().eq('id', item.payload.id);
+          } else {
+            res = await supabaseClient.from(item.type).upsert(item.payload);
+          }
+          if (res.error) throw res.error;
+        } catch (err) {
+          console.error(`Sync error for ${item.payload.id}:`, err);
+          remaining.push(item);
+        }
+      }
+
+      setCache(CACHE_KEYS.SYNC, remaining);
+      if (remaining.length === 0) console.log("Sync complete!");
+    }
+
+    window.addEventListener('online', processSyncQueue);
+    setInterval(processSyncQueue, 30000); // Heartbeat sync
+
     // Helpers for Status
     const todayISO = toISO(new Date());
     const getStatus = (e) => {
@@ -1277,20 +1359,33 @@
 
 
     async function toggleTaskStatus(id, status) {
-      // Optimistic
+      // 1. Optimistic
       const t = allTasks.find(x => x.id === id);
       if (t) t.status = status;
-      render(); // Refresh calendar view
+      setCache(CACHE_KEYS.TASKS, allTasks);
+      render();
 
-      await supabaseClient.from('tasks').update({ status }).eq('id', id);
+      // 2. Cloud or Queue
+      if (navigator.onLine) {
+        const { error } = await supabaseClient.from('tasks').update({ status }).eq('id', id);
+        if (!error) return;
+      }
+      addToSyncQueue('tasks', t);
     }
 
     async function deleteTask(id) {
       if (!confirm('Удалить задачу?')) return;
-      // Optimistic
+      // 1. Optimistic
       allTasks = allTasks.filter(x => x.id !== id);
+      setCache(CACHE_KEYS.TASKS, allTasks);
       render();
-      await supabaseClient.from('tasks').delete().eq('id', id);
+
+      // 2. Cloud or Queue
+      if (navigator.onLine) {
+        const { error } = await supabaseClient.from('tasks').delete().eq('id', id);
+        if (!error) return;
+      }
+      addToSyncQueue('delete_tasks', { id });
     }
 
     function openTaskForm(task) {
@@ -1423,26 +1518,31 @@
         payload.created_at = new Date(selectedDate).toISOString();
       }
 
-      const { data, error } = await supabaseClient.from('tasks').upsert(payload).select();
+      // 1. Optimistic Local
+      const idx = allTasks.findIndex(t => t.id === payload.id);
+      if (idx !== -1) allTasks[idx] = payload; else allTasks.push(payload);
+      setCache(CACHE_KEYS.TASKS, allTasks);
+      render();
 
-      if (!error && data && data.length > 0) {
-        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-        document.getElementById('taskForm').style.display = 'none';
+      const btn = document.getElementById('taskSubmitBtn');
+      if (btn) btn.innerHTML = '⌛...';
 
-        // Update Local State
-        const newTask = data[0];
-        if (selectedTaskId) {
-          const idx = allTasks.findIndex(t => t.id === selectedTaskId);
-          if (idx !== -1) allTasks[idx] = newTask;
-        } else {
-          allTasks.push(newTask);
+      // 2. Cloud or Queue
+      if (navigator.onLine) {
+        const { data, error } = await supabaseClient.from('tasks').upsert(payload).select();
+        if (!error && data && data.length > 0) {
+          if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+          document.getElementById('taskForm').style.display = 'none';
+          selectedTaskId = null;
+          if (btn) btn.innerHTML = 'Сохранить';
+          return;
         }
-
-        selectedTaskId = null; // Clean up
-        render(); // Refresh Unified View
-      } else {
-        alert('Error: ' + (error ? error.message : 'Unknown error'));
       }
+
+      addToSyncQueue('tasks', payload);
+      document.getElementById('taskForm').style.display = 'none';
+      selectedTaskId = null;
+      if (btn) btn.innerHTML = 'Сохранить';
     };
 
     // --- PROJECT LOGIC ---
@@ -1452,9 +1552,10 @@
     function renderTaskProjects() {
       const val = tProjInput.value.toLowerCase();
       tProjDropdown.innerHTML = '';
+      // Show ONLY ACTIVE projects (even if hidden from form)
       const matches = clientsData.filter(c =>
         (c.category || 'media') === 'media' &&
-        !c.is_hidden &&
+        c.is_active &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
 
@@ -1463,7 +1564,7 @@
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.textContent = c.name;
+        div.innerHTML = c.name + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => { tProjInput.value = c.name; tProjDropdown.style.display = 'none'; };
         tProjDropdown.appendChild(div);
       });
@@ -1476,8 +1577,10 @@
     function renderTaskCastingProjects() {
       const val = tCastProjInput.value.toLowerCase();
       tCastProjDropdown.innerHTML = '';
+      // Show ONLY ACTIVE projects (even if hidden from form)
       const matches = clientsData.filter(c =>
-        c.category === 'casting' && !c.is_hidden &&
+        c.category === 'casting' &&
+        c.is_active &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
 
@@ -1486,7 +1589,7 @@
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.textContent = c.name;
+        div.innerHTML = c.name + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => { tCastProjInput.value = c.name; tCastProjDropdown.style.display = 'none'; };
         tCastProjDropdown.appendChild(div);
       });
@@ -1542,16 +1645,17 @@
     const renderProjects = () => {
       const val = projInput.value.toLowerCase();
       projDropdown.innerHTML = '';
+      // Show ONLY ACTIVE projects (even if hidden from form)
       const matches = clientsData.filter(c =>
         (c.category || 'media') === 'media' &&
-        !c.is_hidden &&
+        c.is_active &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
       if (!matches.length) { projDropdown.style.display = 'none'; return; }
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = `<span>${c.name}</span> <small style="background:#4cd96433; color:#4cd964; padding:2px 6px; border-radius:4px; font-size:9px">MEDIA</small>`;
+        div.innerHTML = `<span>${c.name}</span> <small style="background:#4cd96433; color:#4cd964; padding:2px 6px; border-radius:4px; font-size:9px">MEDIA</small>` + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => {
           projInput.value = c.name;
           projDropdown.style.display = 'none';
@@ -1568,16 +1672,17 @@
     const renderCastingProjects = () => {
       const val = castInput.value.toLowerCase();
       castDropdown.innerHTML = '';
+      // Show ONLY ACTIVE projects (even if hidden from form)
       const matches = clientsData.filter(c =>
         c.category === 'casting' &&
-        !c.is_hidden &&
+        c.is_active &&
         (val ? c.name.toLowerCase().includes(val) : true)
       );
       if (!matches.length) { castDropdown.style.display = 'none'; return; }
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = `<span>${c.name}</span> <small style="background:#7aa2ff33; color:#7aa2ff; padding:2px 6px; border-radius:4px; font-size:9px">CASTING</small>`;
+        div.innerHTML = `<span>${c.name}</span> <small style="background:#7aa2ff33; color:#7aa2ff; padding:2px 6px; border-radius:4px; font-size:9px">CASTING</small>` + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => {
           castInput.value = c.name;
           castDropdown.style.display = 'none';
@@ -2084,6 +2189,1035 @@
 
 
 
+    // 2. ЗАГРУЗКА ИЗ ОБЛАКА
+    async function loadFromCloud() {
+      const syncBtn = document.getElementById("syncBtn");
+      if (syncBtn) syncBtn.textContent = "⌛";
+
+      // 1. Start with Cache (Instant UI)
+      allEvents = getCache(CACHE_KEYS.EVENTS);
+      allTasks = getCache(CACHE_KEYS.TASKS);
+      render();
+
+      await fetchAutocompleteData();
+
+      if (!navigator.onLine) {
+        if (syncBtn) { syncBtn.textContent = "📡"; setTimeout(() => syncBtn.textContent = "☁️", 2000); }
+        return;
+      }
+
+      try {
+        // Fetch Shoots
+        const shoots = await supabaseClient.from('shoots').select('*');
+        if (shoots.data) {
+          allEvents = shoots.data;
+          setCache(CACHE_KEYS.EVENTS, allEvents);
+        }
+
+        // Fetch Tasks
+        const tasks = await supabaseClient.from('tasks').select('*');
+        if (tasks.data) {
+          allTasks = tasks.data;
+          setCache(CACHE_KEYS.TASKS, allTasks);
+        }
+
+        render();
+        processSyncQueue(); // Sync any local changes now that we know we're online
+
+        if (syncBtn) {
+          syncBtn.textContent = "✅";
+          setTimeout(() => syncBtn.textContent = "☁️", 1500);
+        }
+      } catch (err) {
+        console.error("Network/Other Error:", err);
+        if (syncBtn) syncBtn.textContent = "⚠️";
+      }
+    }
+
+    // --- TIMING GRID LOGIC ---
+    function addTimingRow(data = {}, event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const container = document.getElementById('timingRows');
+      const rowId = data.id || Date.now() + Math.random().toString(36).substr(2, 5);
+      const row = document.createElement('div');
+      row.className = 'timing-row';
+      row.dataset.id = rowId;
+      row.innerHTML = `
+        <div class="timing-cell drag-handle">
+          ${data.num ? `<span style="color:#ffcc00; font-weight:800; font-size:10px;">№${data.num}</span>` : '⋮⋮'}
+        </div>
+        <div class="timing-cell"><input type="time" class="t-start" value="${data.start || ''}"></div>
+        <div class="timing-cell"><input type="time" class="t-end" value="${data.end || ''}"></div>
+        <div class="timing-cell">
+          <input type="text" class="t-loc" value="${data.loc || ''}" placeholder="..." autocomplete="off">
+        </div>
+        <div class="timing-cell">
+          <input type="text" class="t-task" value="${data.task || ''}" placeholder="..." autocomplete="off">
+        </div>
+        <div class="timing-cell">
+          <input type="text" class="t-act" value="${data.act || ''}" placeholder="..." onclick="openActorChecklist('grid', '${rowId}')" readonly style="cursor:pointer;">
+        </div>
+        <div class="timing-cell">
+          <input type="text" class="t-notes" value="${data.notes || ''}" placeholder="...">
+        </div>
+        <div class="timing-cell">
+          <input type="text" class="t-link" value="${data.link || ''}" placeholder="..." autocomplete="off">
+        </div>
+        <div class="timing-cell" style="justify-content:center">
+          <button type="button" class="timing-del-btn" onclick="removeTimingRow(this, event)">×</button>
+        </div>
+      `;
+      container.appendChild(row);
+
+      // Attach custom dropdown logic to new row's inputs
+      setupTimingInput(row.querySelector('.t-loc'), 'loc');
+      setupTimingInput(row.querySelector('.t-task'), 'task');
+      setupTimingInput(row.querySelector('.t-link'), 'link');
+
+      setTimeout(initTimingSortable, 10);
+    }
+
+    // --- GEAR GRID LOGIC ---
+    function addGearRow(data = {}, event) {
+      if (event) event.preventDefault();
+      const row = document.createElement('div');
+      row.className = 'gear-row';
+      row.innerHTML = `
+        <div class="timing-cell">
+          <select class="g-cat">
+            <option value="Камера" ${data.cat === 'Камера' ? 'selected' : ''}>Камера</option>
+            <option value="Оптика" ${data.cat === 'Оптика' ? 'selected' : ''}>Оптика</option>
+            <option value="Свет" ${data.cat === 'Свет' ? 'selected' : ''}>Свет</option>
+            <option value="Звук" ${data.cat === 'Звук' ? 'selected' : ''}>Звук</option>
+            <option value="Другое" ${data.cat === 'Другое' ? 'selected' : ''}>Другое</option>
+          </select>
+        </div>
+        <div class="timing-cell"><input type="text" class="g-model" value="${data.model || ''}" placeholder="Модель..."></div>
+        <div class="timing-cell"><input type="number" class="g-qty" value="${data.qty || 1}" style="text-align:center;"></div>
+        <div class="timing-cell"><input type="text" class="g-note" value="${data.note || ''}" placeholder="..."></div>
+        <div class="timing-cell" style="text-align:center;">
+          <button type="button" class="timing-del-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+      `;
+      document.getElementById('gearRows').appendChild(row);
+    }
+
+    // --- EXCEL LOGIC ---
+    function exportShootToExcel(event) {
+      const e = {
+        project: document.getElementById("project").value,
+        location: document.getElementById("location").value,
+        date: document.getElementById("selectedLabel").textContent,
+        callTime: document.getElementById("callTime").value,
+        wrapTime: document.getElementById("wrapTime").value,
+        address: document.getElementById("address").value,
+        contact: document.getElementById("contact").value,
+        deliverables: document.getElementById("deliverables").value,
+        notes: document.getElementById("notes").value,
+        crew: document.getElementById("crew").value,
+        actors: document.getElementById("actors").value,
+      };
+
+      const timing = [];
+      document.querySelectorAll("#timingRows .timing-row").forEach(row => {
+        timing.push({
+          START: row.querySelector(".t-start").value,
+          END: row.querySelector(".t-end").value,
+          LOC: row.querySelector(".t-loc").value,
+          TASK: row.querySelector(".t-task").value,
+          ACTORS: row.querySelector(".t-act").value,
+          NOTES: row.querySelector(".t-notes").value,
+          LINK: row.querySelector(".t-link") ? row.querySelector(".t-link").value : ''
+        });
+      });
+
+      const gear = [];
+      document.querySelectorAll("#gearRows .gear-row").forEach(row => {
+        gear.push({
+          CAT: row.querySelector(".g-cat").value,
+          MODEL: row.querySelector(".g-model").value,
+          QTY: row.querySelector(".g-qty").value,
+          NOTES: row.querySelector(".g-note").value
+        });
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      // --- Helper: add borders + col widths to a sheet ---
+      function formatSheet(ws, colWidths) {
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+        const border = {
+          top: { style: 'thin', color: { rgb: '999999' } },
+          bottom: { style: 'thin', color: { rgb: '999999' } },
+          left: { style: 'thin', color: { rgb: '999999' } },
+          right: { style: 'thin', color: { rgb: '999999' } }
+        };
+        for (let R = range.s.r; R <= range.e.r; R++) {
+          for (let C = range.s.c; C <= range.e.c; C++) {
+            const addr = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+            if (!ws[addr].s) ws[addr].s = {};
+            ws[addr].s.border = border;
+            // Bold header row
+            if (R === 0) {
+              ws[addr].s.font = { bold: true, sz: 12 };
+              ws[addr].s.fill = { fgColor: { rgb: 'E8E8E8' } };
+            }
+            ws[addr].s.alignment = { vertical: 'center', wrapText: true };
+          }
+        }
+        if (colWidths) ws['!cols'] = colWidths.map(w => ({ wch: w }));
+      }
+
+      // ИНФО sheet
+      const infoData = [
+        ["ПОЛЕ", "ЗНАЧЕНИЕ"],
+        ["ПРОЕКТ", e.project], ["ДАТА", e.date], ["ЛОКАЦИЯ", e.location],
+        ["АДРЕС", e.address], ["КОНТАКТ", e.contact], ["CALL", e.callTime], ["WRAP", e.wrapTime],
+        [""], ["ТЗ", e.deliverables], ["ПРИМЕЧАНИЯ", e.notes], ["КОМАНДА", e.crew], ["АКТЕРЫ", e.actors]
+      ];
+      const wsInfo = XLSX.utils.aoa_to_sheet(infoData);
+      formatSheet(wsInfo, [16, 50]);
+      XLSX.utils.book_append_sheet(wb, wsInfo, "ИНФО");
+
+      // ТАЙМИНГ sheet
+      if (timing.length) {
+        const wsTiming = XLSX.utils.json_to_sheet(timing);
+        formatSheet(wsTiming, [10, 10, 18, 22, 18, 22, 30]);
+        XLSX.utils.book_append_sheet(wb, wsTiming, "ТАЙМИНГ");
+      }
+
+      // ТЕХНИКА sheet
+      if (gear.length) {
+        const wsGear = XLSX.utils.json_to_sheet(gear);
+        formatSheet(wsGear, [14, 30, 8, 25]);
+        XLSX.utils.book_append_sheet(wb, wsGear, "ТЕХНИКА");
+      }
+
+      const fileName = `Shoot_${e.project.replace(/\s+/g, '_')}_${e.date.replace(/[^\d.]/g, '')}.xlsx`;
+
+      // 1. Try local download (might be blocked in TG browser)
+      try { XLSX.writeFile(wb, fileName); } catch (ex) { console.warn("Local DL failed", ex); }
+
+      // 2. Telegram Send (Reliable)
+      const base64Data = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+      const exportBtn = (event && event.target) ? (event.target.tagName === 'BUTTON' ? event.target : event.target.closest('button')) : null;
+
+      if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = "⌛...";
+      }
+
+      fetch('https://media-seven-eta.vercel.app/api/send_excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_name: e.project,
+          filename: fileName,
+          base64_data: base64Data
+        })
+      })
+        .then(res => res.json())
+        .then(res => {
+          if (res.status === 'ok') {
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            if (exportBtn) {
+              exportBtn.innerHTML = "✅ В ТГ";
+              setTimeout(() => { exportBtn.innerHTML = "📊 Excel"; exportBtn.disabled = false; }, 2000);
+            }
+          } else {
+            alert("Ошибка TG: " + res.error);
+            if (exportBtn) { exportBtn.innerHTML = "❌"; exportBtn.disabled = false; }
+          }
+        })
+        .catch(err => {
+          console.error("Fetch Error:", err);
+          if (exportBtn) { exportBtn.innerHTML = "⚠️"; exportBtn.disabled = false; }
+        });
+    }
+
+    function triggerExcelImport() { document.getElementById('excelFileInput').click(); }
+
+    function openTimer() {
+      const project = document.getElementById('project').value.trim() || 'Проект';
+
+      // Try to get IDs from URL params (fallback if TG data is hidden)
+      const urlParams = new URL(window.location.href).searchParams;
+      const urlCid = urlParams.get('cid');
+      const urlTid = urlParams.get('tid');
+
+      // Get from Telegram initData
+      const tgCid = tg?.initDataUnsafe?.chat?.id;
+      const tgTid = tg?.initDataUnsafe?.chat?.thread_id;
+
+      const chatId = tgCid || urlCid || '';
+      const threadId = tgTid || urlTid || '';
+
+      // Determine the project-based ID (fallback PID)
+      // If we have a selectedId, we might be able to pull more stable info, 
+      // but for now project name + chat info is our best bet.
+      const pid = chatId ? `${chatId}_${threadId || '0'}` : project.replace(/\s/g, '_');
+
+      const params = new URLSearchParams({
+        pid: pid,
+        proj: project,
+        cid: String(chatId),
+        tid: String(threadId)
+      });
+
+      const timerUrl = `timer.html?${params.toString()}`;
+      window.location.href = timerUrl;
+    }
+
+    function handleExcelImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        const data = new Uint8Array(re.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+
+        const wsInfo = wb.Sheets["ИНФО"];
+        if (wsInfo) {
+          const info = XLSX.utils.sheet_to_json(wsInfo, { header: 1 });
+          info.forEach(r => {
+            if (!r[0]) return;
+            const k = r[0].toString().toUpperCase(); const v = r[1] || "";
+            if (k === "ПРОЕКТ") document.getElementById("project").value = v;
+            if (k === "ЛОКАЦИЯ") document.getElementById("location").value = v;
+            if (k === "АДРЕС") document.getElementById("address").value = v;
+            if (k === "КОНТАКТ") document.getElementById("contact").value = v;
+            if (k === "CALL") document.getElementById("callTime").value = v;
+            if (k === "WRAP") document.getElementById("wrapTime").value = v;
+            if (k === "ТЗ") document.getElementById("deliverables").value = v;
+            if (k === "ПРИМЕЧАНИЯ") document.getElementById("notes").value = v;
+            if (k === "КОМАНДА") { document.getElementById("crew").value = v; renderCrewTags(); }
+            if (k === "АКТЕРЫ") { document.getElementById("actors").value = v; renderActorsTags(); }
+          });
+        }
+        const wsTiming = wb.Sheets["ТАЙМИНГ"];
+        if (wsTiming) {
+          const rows = XLSX.utils.sheet_to_json(wsTiming);
+          document.getElementById('timingRows').innerHTML = '';
+          rows.forEach(r => addTimingRow({ start: r.START || '', end: r.END || '', loc: r.LOC || '', task: r.TASK || '', act: r.ACTORS || '', notes: r.NOTES || '', link: r.LINK || '' }));
+        }
+        const wsGear = wb.Sheets["ТЕХНИКА"];
+        if (wsGear) {
+          const rows = XLSX.utils.sheet_to_json(wsGear);
+          document.getElementById('gearRows').innerHTML = '';
+          rows.forEach(r => addGearRow({ cat: r.CAT, model: r.MODEL, qty: r.QTY, note: r.NOTES }));
+        }
+        alert("Excel импортирован!");
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function setupTimingInput(input, type) {
+      const dropdown = document.getElementById('timingDropdown');
+
+      const render = () => {
+        const val = input.value.toLowerCase();
+        let options = [];
+
+        if (type === 'loc') {
+          // Parse data from locationOptions datalist
+          options = Array.from(document.querySelectorAll('#locationOptions option')).map(o => o.value);
+        } else if (type === 'task') {
+          options = Array.from(document.querySelectorAll('#taskOptions option')).map(o => o.value);
+        } else if (type === 'link') {
+          options = Array.from(document.querySelectorAll('#linkOptions option')).map(o => o.value);
+        }
+
+        const matches = val ? options.filter(o => o.toLowerCase().includes(val)) : options;
+
+        if (!matches.length) { dropdown.style.display = 'none'; return; }
+
+        dropdown.innerHTML = '';
+        matches.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'dropdown-item';
+          div.style.fontSize = '11px';
+          div.style.padding = '8px 10px';
+          div.textContent = m;
+          div.onclick = (e) => {
+            e.stopPropagation();
+            input.value = m;
+            dropdown.style.display = 'none';
+            // Trigger preview update
+            const preview = document.getElementById('preview');
+            if (preview) preview.innerHTML = buildExportText(true);
+          };
+          dropdown.appendChild(div);
+        });
+
+        // Position dropdown (it's fixed, so use viewport coords)
+        const rect = input.getBoundingClientRect();
+        dropdown.style.left = rect.left + 'px';
+        dropdown.style.top = rect.bottom + 'px';
+        dropdown.style.width = rect.width + 'px';
+        dropdown.style.display = 'block';
+      };
+
+      input.onfocus = render;
+      input.oninput = render;
+      input.onclick = (e) => { e.stopPropagation(); render(); };
+    }
+
+    // Close timing dropdown on body click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.t-loc, .t-task, .t-link, #timingDropdown')) {
+        document.getElementById('timingDropdown').style.display = 'none';
+      }
+    });
+
+    let timingSortable = null;
+    let originalTimeSlots = [];
+
+    function initTimingSortable() {
+      const container = document.getElementById('timingRows');
+      if (!container) return;
+      if (timingSortable) timingSortable.destroy();
+
+      timingSortable = Sortable.create(container, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        dragClass: 'sortable-drag',
+        onStart: () => {
+          // Capture current times at their fixed indices
+          const rows = Array.from(container.querySelectorAll('.timing-row'));
+          originalTimeSlots = rows.map(r => ({
+            start: r.querySelector('.t-start').value,
+            end: r.querySelector('.t-end').value
+          }));
+        },
+        onEnd: () => {
+          const rows = Array.from(container.querySelectorAll('.timing-row'));
+          // Re-apply original times to the rows based on their NEW index
+          // so that the 1st row always has the 1st time slot, etc.
+          rows.forEach((row, i) => {
+            if (originalTimeSlots[i]) {
+              row.querySelector('.t-start').value = originalTimeSlots[i].start;
+              row.querySelector('.t-end').value = originalTimeSlots[i].end;
+            }
+          });
+          // Update preview immediately
+          const preview = document.getElementById('preview');
+          if (preview) preview.innerHTML = buildExportText(true);
+        }
+      });
+    }
+
+    function getTimingData() {
+      const rows = document.querySelectorAll('#timingRows .timing-row');
+      const data = [];
+      let taskCounter = 0;
+      const techTasks = ['подготовка', 'перестановка', 'перерыв', 'обед', 'тех. перерыв', 'переезд'];
+
+      rows.forEach(row => {
+        const start = row.querySelector('.t-start').value;
+        const end = row.querySelector('.t-end').value;
+        const loc = row.querySelector('.t-loc').value;
+        const task = row.querySelector('.t-task').value;
+        const act = row.querySelector('.t-act').value;
+        const notes = row.querySelector('.t-notes').value;
+        const link = row.querySelector('.t-link').value;
+
+        if (start || end || loc || task || act || notes || link) {
+          let num = null;
+          const taskLower = (task || '').trim().toLowerCase();
+
+          if (taskLower && !techTasks.includes(taskLower)) {
+            taskCounter++;
+            num = taskCounter;
+          }
+
+          data.push({ start, end, loc, task, act, notes, link, num });
+        }
+      });
+      return data;
+    }
+
+    function getGearData() {
+      const rows = document.querySelectorAll('#gearRows .gear-row');
+      const data = [];
+      rows.forEach(row => {
+        const cat = row.querySelector('.g-cat').value;
+        const model = row.querySelector('.g-model').value.trim();
+        const qty = row.querySelector('.g-qty').value;
+        const note = row.querySelector('.g-note').value.trim();
+        if (model) {
+          data.push({ cat, model, qty, note });
+        }
+      });
+      return data;
+    }
+
+    function removeTimingRow(btn, event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      btn.closest('.timing-row').remove();
+      const preview = document.getElementById('preview');
+      if (preview) preview.innerHTML = buildExportText(true);
+    }
+
+    function setTimingData(raw) {
+      const container = document.getElementById('timingRows');
+      container.innerHTML = '';
+      try {
+        const data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          data.forEach(d => addTimingRow(d));
+        }
+      } catch (e) {
+        // Fallback for old text-based schedule
+        if (raw) addTimingRow({ task: raw });
+      }
+      // Ensure at least 4 rows for new or empty
+      while (container.children.length < 4) {
+        addTimingRow();
+      }
+    }
+
+    function setGearData(raw) {
+      const container = document.getElementById('gearRows');
+      container.innerHTML = '';
+      if (!raw) {
+        addGearRow(); return;
+      }
+      try {
+        const data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          data.forEach(d => addGearRow(d));
+        } else if (raw.trim()) {
+          // Migration for old plain text
+          addGearRow({ cat: 'Другое', model: raw.trim(), qty: 1 });
+        }
+      } catch (e) {
+        // Fallback or migration
+        if (raw.trim()) addGearRow({ cat: 'Другое', model: raw.trim(), qty: 1 });
+      }
+      if (container.children.length === 0) addGearRow();
+    }
+
+    // 3. СОХРАНЕНИЕ В ОБЛАКО
+    document.getElementById("form").onsubmit = async (ev) => {
+      ev.preventDefault();
+      await saveShootData();
+    };
+
+    async function saveShootData(isAutoSave = false) {
+      const scheduleData = getTimingData();
+      const gearData = getGearData();
+      const payload = {
+        id: selectedId || Math.random().toString(36).substring(2, 15),
+        date: toISO(selectedDate),
+        project: f.project.value.trim(),
+        location: f.location.value.trim(),
+        callTime: f.callTime.value,
+        wrapTime: f.wrapTime.value,
+        address: f.address.dataset.full || f.address.value.trim(),
+        contact: f.contact.value.trim(),
+        deliverables: f.deliverables.value.trim(),
+        crew: f.crew.value.trim(),
+        post_production: f.post_production.value.trim(),
+        casting_project: f.casting_project.value.trim(),
+        actors: f.actors.value.trim(),
+        schedule: JSON.stringify(scheduleData),
+        gear: JSON.stringify(gearData),
+        notes: f.notes.value.trim(),
+        report_link: f.report_link.value.trim(),
+        status: 'pending'
+      };
+
+      if (selectedId) {
+        const existing = allEvents.find(e => e.id === selectedId);
+        if (existing) payload.status = existing.status;
+      }
+
+      // 1. Optimistic Local Save
+      const idx = allEvents.findIndex(e => e.id === payload.id);
+      if (idx >= 0) allEvents[idx] = payload; else allEvents.push(payload);
+      setCache(CACHE_KEYS.EVENTS, allEvents);
+      render();
+
+      const saveBtn = document.querySelector('#form button[type="submit"]');
+      if (saveBtn) saveBtn.innerHTML = '⌛...';
+
+      // 2. Cloud Save (or Queue)
+      if (navigator.onLine) {
+        const { error } = await supabaseClient.from('shoots').upsert(payload);
+        if (!error) {
+          if (!selectedId) selectedId = payload.id;
+          if (tg && tg.HapticFeedback && !isAutoSave) tg.HapticFeedback.notificationOccurred('success');
+          if (saveBtn) {
+            saveBtn.innerHTML = '✅';
+            setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
+          }
+          if (!isAutoSave) toggleForm(false);
+          return;
+        }
+      }
+
+      // Offline or error -> Add to queue
+      addToSyncQueue('shoots', payload);
+      if (saveBtn) {
+        saveBtn.innerHTML = '💾'; // Saved locally
+        setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
+      }
+      if (!isAutoSave) toggleForm(false);
+    }
+
+    // --- AUTOSAVE ---
+    let autoSaveTimer = null;
+    function triggerAutoSave() {
+      if (!selectedId) return; // Only autosave existing shoots
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => saveShootData(true), 1500);
+    }
+
+    // Attach autosave to all form fields
+    document.getElementById('form').addEventListener('input', triggerAutoSave);
+    document.getElementById('form').addEventListener('change', triggerAutoSave);
+
+    // 4. УДАЛЕНИЕ
+    document.getElementById("deleteBtn").onclick = async () => {
+      if (!selectedId || !confirm("Удалить съемку?")) return;
+
+      // 1. Optimistic
+      allEvents = allEvents.filter(e => e.id !== selectedId);
+      setCache(CACHE_KEYS.EVENTS, allEvents);
+      render();
+      toggleForm(false);
+
+      // 2. Cloud or Queue
+      if (navigator.onLine) {
+        const { error } = await supabaseClient.from('shoots').delete().eq('id', selectedId);
+        if (!error) return;
+      }
+      addToSyncQueue('delete_shoots', { id: selectedId });
+    };
+
+    // STATUS TOGGLE & RESCHEDULE
+    async function toggleStatus(id, newStatus) {
+      // Optimistic update
+      const ev = allEvents.find(e => e.id === id);
+      if (ev) ev.status = newStatus;
+      render();
+
+      const { error } = await supabaseClient.from('shoots').update({ status: newStatus }).eq('id', id);
+      if (error) await loadFromCloud(); // Revert on error
+    }
+
+    async function rescheduleTask(id) {
+      const reason = prompt("Причина переноса?");
+      if (!reason) return;
+
+      // Simple prompt for new date (mockup flow, ideally a date picker)
+      // For now, just open the form and let user pick date, but pre-fill note
+      const ev = allEvents.find(e => e.id === id);
+      if (!ev) return;
+
+      selectedId = id;
+      // Populate form
+      f.project.value = ev.project; f.location.value = ev.location;
+      f.callTime.value = ev.callTime; f.wrapTime.value = ev.wrapTime;
+      f.address.value = ev.address; f.contact.value = ev.contact;
+      f.deliverables.value = ev.deliverables; f.crew.value = ev.crew;
+      f.schedule.value = ev.schedule; f.gear.value = ev.gear;
+      // Append reason to notes
+      f.notes.value = (ev.notes ? ev.notes + "\n" : "") + `[Перенос с ${ev.date}: ${reason}]`;
+
+      document.getElementById("deleteBtn").style.display = "block";
+      toggleForm(true);
+      // User manually changes date and saves
+      alert("Выберите новую дату и нажмите Сохранить");
+    }
+
+    // 5. ЛОГИКА КАЛЕНДАРЯ
+    function render() {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+      const today = new Date();
+
+      document.getElementById("monthLabel").textContent = monthName(currentMonth);
+      document.getElementById("selectedLabel").textContent = `${niceDate(selectedDate)} (${weekday(selectedDate)})`;
+
+      const monEvents = allEvents.filter(e => {
+        const d = new Date(e.date);
+
+        // Filter by ACTIVE projects
+        const proj = clientsData.find(c => c.name === e.project);
+        if (proj && !proj.is_active) return false;
+
+        return d.getFullYear() === currentMonth.getFullYear() && d.getMonth() === currentMonth.getMonth();
+      });
+
+      // Calculate Stats
+      const done = monEvents.filter(e => e.status === 'done').length;
+      const pending = monEvents.filter(e => e.status === 'pending').length;
+      const overdue = monEvents.filter(e => e.status === 'overdue').length;
+
+      // Update Header with Icons
+      const statHtml = `
+        <span style="color:#4cd964">✅ ${done}</span>
+        <span style="color:#ffcc00; margin-left:8px">🟡 ${pending}</span>
+        <span style="color:#ff3b30; margin-left:8px">🔥 ${overdue}</span>
+      `;
+      document.getElementById("monthStat").innerHTML = statHtml;
+
+      const first = startMonth(currentMonth);
+      const offset = (first.getDay() + 6) % 7;
+      const start = new Date(first);
+      start.setDate(first.getDate() - offset);
+
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const iso = toISO(d);
+
+        // Dot Logic (Shoots)
+        const dayEvents = allEvents.filter(e => e.date === iso);
+        let dotsHtml = "";
+        dayEvents.forEach(e => {
+          const st = getStatus(e);
+          dotsHtml += `<div class="dot ${st}"></div>`;
+        });
+
+        // Line Logic (Tasks)
+        const dayTasks = allTasks.filter(t => {
+          if (t.status === 'done') return false;
+          if (!t.deadline) return false;
+
+          // Hide tasks for INACTIVE projects
+          const p = clientsData.find(c => c.name === t.project_id);
+          const cp = clientsData.find(c => c.name === t.casting_project);
+          if (p && !p.is_active) return false;
+          if (cp && !cp.is_active) return false;
+
+          // Startdate: created_at or fallback to deadline if missing
+          // We want to show line from start to deadline
+          // If created_at is missing, we assume it's a single day task (deadline)
+          let start = t.created_at ? t.created_at.split('T')[0] : t.deadline;
+          if (start > t.deadline) start = t.deadline; // Safety
+
+          return iso >= start && iso <= t.deadline;
+        });
+
+        let linesHtml = "";
+        if (dayTasks.length > 0) {
+          linesHtml += `<div class="task-lines">`;
+          dayTasks.forEach(t => {
+            const start = t.created_at ? t.created_at.split('T')[0] : t.deadline;
+            const isStart = (start === iso);
+            const isEnd = (t.deadline === iso);
+
+            // Style for rounded ends
+            let style = '';
+
+            // GRADIENT COLOR CALCULATION
+            const startDate = new Date(start);
+            const endDate = new Date(t.deadline);
+            const currDate = new Date(iso);
+
+            // Total duration in ms
+            const total = endDate - startDate;
+            // Elapsed in ms
+            const elapsed = currDate - startDate;
+
+            // Ratio (0 to 1)
+            let ratio = 0;
+            if (total > 0) ratio = Math.max(0, Math.min(1, elapsed / total));
+
+            // Interpolate color from #FFCC00 (Yellow) to #FF3B30 (Red)
+            // Yellow: 255, 204, 0
+            // Red:    255, 59,  48
+            const r = Math.round(255 + ratio * (255 - 255));
+            const g = Math.round(204 + ratio * (59 - 204));
+            const b = Math.round(0 + ratio * (48 - 0));
+            const color = `rgb(${r}, ${g}, ${b})`;
+
+            // Apply styles
+            if (isStart && isEnd) { style = 'border-radius: 2px; margin: 0 2px;'; }
+            else if (isStart) { style = 'border-radius: 2px 0 0 2px; margin-right:-4px;'; }
+            else if (isEnd) { style = 'border-radius: 0 2px 2px 0; margin-left:-4px;'; }
+            else { style = 'border-radius: 0; margin: 0 -4px;'; }
+
+            const stClass = (t.deadline < todayISO) ? 'overdue' : 'pending';
+
+            // Override background color if pending/overdue (completed is green usually, but let's stick to gradient for active)
+            if (t.status !== 'done') {
+              style += ` background-color: ${color} !important;`;
+            }
+
+            linesHtml += `<div class="task-line ${stClass}" style="${style}"></div>`;
+          });
+          linesHtml += `</div>`;
+        }
+
+        // Highlight Logic
+        const isPast = iso < todayISO;
+        const hasPendingShoot = dayEvents.some(e => getStatus(e) === 'pending');
+
+        const cell = document.createElement("div");
+        let cellClasses = "day" + (d.getMonth() !== currentMonth.getMonth() ? " out" : "") + (iso === toISO(selectedDate) ? " sel" : "") + (iso === toISO(today) ? " today" : "");
+        if (hasPendingShoot) cellClasses += " has-pending";
+
+        cell.className = cellClasses;
+
+        // Gray out past days numbers
+        const numStyle = isPast ? 'style="color:#444;"' : '';
+
+        cell.innerHTML = `<div class="num" ${numStyle}><span>${d.getDate()}</span></div><div class="dots">${dotsHtml}</div>${linesHtml}`;
+        cell.onclick = () => {
+          selectedDate = d;
+          selectedId = null;
+          selectedTaskId = null; // Clear Task editing state too
+          toggleForm(false);
+          document.getElementById('taskForm').style.display = 'none';
+          render();
+        };
+        grid.appendChild(cell);
+      }
+
+      // Список проектов дня (Shoots + Tasks)
+      const listDiv = document.getElementById("eventList");
+      const dayShoots = allEvents.filter(e => {
+        const proj = clientsData.find(c => c.name === e.project);
+        if (proj && !proj.is_active) return false;
+        return e.date === toISO(selectedDate);
+      }).sort((a, b) => a.callTime.localeCompare(b.callTime));
+
+      const dayTasksList = allTasks.filter(t => {
+        const p = clientsData.find(c => c.name === t.project_id);
+        const cp = clientsData.find(c => c.name === t.casting_project);
+        if (p && !p.is_active) return false;
+        if (cp && !cp.is_active) return false;
+        return t.deadline === toISO(selectedDate);
+      });
+
+      let html = "";
+      if (!dayShoots.length && !dayTasksList.length) html = '<div class="item" style="color:gray">Нет событий</div>';
+
+      // Render Shoots
+      dayShoots.forEach(e => {
+        const st = getStatus(e);
+        // ... (Buttons logic same as before)
+        let buttons = "";
+        if (st === 'pending' || st === 'overdue') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'done')">✅</button>`;
+        if (st === 'done') buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'pending')">↩️</button>`;
+        if (st === 'overdue') buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); rescheduleTask('${e.id}')">📅</button>`;
+
+        html += `
+            <div class="item ${st}" onclick="editShoot('${e.id}')">
+                <div class="item-content">
+                    <b>${e.project || "Без названия"}</b><br>
+                    <small>🎥 ${e.callTime || "--:--"}—${e.wrapTime || "--:--"} • ${e.location || ""}</small><br>
+                    ${e.crew ? `<small style="opacity:0.7">👥 ${e.crew}</small><br>` : ''}
+                    ${e.post_production ? `<small style="color:var(--accent)">✂️ ${e.post_production}</small>` : ''}
+                </div>
+                <div class="item-actions">${buttons}</div>
+            </div>
+        `;
+      });
+
+      // Render Tasks
+      dayTasksList.forEach(t => {
+        const st = t.status === 'done' ? 'done' : (t.deadline < todayISO ? 'overdue' : 'pending');
+        // Task Buttons
+        let buttons = "";
+        if (t.status !== 'done') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'done')">✅</button>`;
+        else buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'pending')">↩️</button>`;
+        buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); deleteTask('${t.id}')">🗑</button>`;
+
+        html += `
+            <div class="item ${st}" style="border-left: 2px solid ${st === 'done' ? '#4cd964' : '#ffcc00'};" onclick="editTask('${t.id}')">
+                <div class="item-content">
+                    <b>${t.title}</b><br>
+                    <small>📌 ${t.project ? t.project + ' • ' : ''}${t.type}</small>
+                </div>
+                <div class="item-actions">${buttons}</div>
+            </div>
+         `;
+      });
+
+      listDiv.innerHTML = html;
+      document.getElementById("preview").innerHTML = buildExportText(true);
+    }
+
+    // Helper to edit shoot (since we construct HTML string)
+    function editShoot(id) {
+      const e = allEvents.find(x => x.id === id);
+      if (!e) return;
+      selectedId = e.id;
+      f.project.value = e.project || '';
+      f.location.value = e.location || '';
+      f.callTime.value = e.callTime || '';
+      f.wrapTime.value = e.wrapTime || '';
+      f.address.value = e.address && e.address.includes(' | ') ? e.address.split(' | ')[0] : (e.address || '');
+      f.address.dataset.full = e.address || '';
+      f.contact.value = e.contact || '';
+      f.deliverables.value = e.deliverables || '';
+      f.crew.value = e.crew || '';
+      f.post_production.value = e.post_production || '';
+      f.casting_project.value = e.casting_project || '';
+      f.actors.value = e.actors || '';
+      f.schedule.value = e.schedule || '';
+      setTimingData(e.schedule || '');
+      f.gear.value = e.gear || '';
+      setGearData(e.gear || '');
+      f.notes.value = e.notes || '';
+      f.report_link.value = e.report_link || '';
+      updateDatalists(); // Refresh autocomplete for timing grid
+      renderCrewTags();
+      renderPostTags();
+      renderActorsTags();
+      document.getElementById("deleteBtn").style.display = "block";
+      toggleForm(true);
+    }
+
+    // ... (rest of helper functions: buildExportText, toggleForm, etc.) ...
+
+    // STARTUP
+    function buildSingleShootExport(e, i = null, isHtml = false, fullDetails = true) {
+      const hlL = (txt, html) => html ? `<span class="hl-label">${txt}</span>` : txt;
+      const hlT = (txt, html) => html ? `<span class="hl-time">${txt}</span>` : txt;
+
+      const stat = getStatus(e) === 'done' ? '✅ ' : '';
+      const studioAddress = "Comfort Residencies, Улица Иванилова, 63з";
+      const studioLink = "https://go.2gis.com/bd4n9";
+      let displayAddr = e.address || '';
+
+      if (displayAddr.includes(' | ')) {
+        const parts = displayAddr.split(' | ');
+        displayAddr = (parts[0] === studioAddress) ? `[${studioAddress}](${studioLink})` : `[${parts[0]}](${parts[1]})`;
+      } else if (displayAddr.includes("Иванилова, 63з") || displayAddr === studioAddress) {
+        displayAddr = `[${studioAddress}](${studioLink})`;
+      }
+
+      const shiftTime = `${e.callTime || '--:--'}—${e.wrapTime || '--:--'}`;
+      let lines = [];
+      const header = i !== null ? `🎥 ${hlL(`ПРОЕКТ #${i + 1}`, isHtml)}` : `🎥 ${hlL(e.project || 'ПРОЕКТ', isHtml)}`;
+
+      lines.push(`${stat}${header}`);
+      if (i !== null) lines.push(`${hlL('ПРОЕКТ:', isHtml)} ${e.project}`);
+      lines.push(`${hlL('СМЕНА:', isHtml)} ${hlT(shiftTime, isHtml)}`);
+      lines.push(`${hlL('ЛОКАЦИЯ:', isHtml)} ${e.location}`);
+      lines.push(`${hlL('АДРЕС:', isHtml)} ${displayAddr}`);
+      lines.push(`${hlL('КОМАНДА:', isHtml)} ${e.crew}`);
+
+      if (e.post_production) lines.push(`${hlL('ПОСТ/МОНТАЖ:', isHtml)} ${e.post_production}`);
+      if (e.casting_project || e.actors) {
+        lines.push(`${hlL('КАСТИНГ:', isHtml)} ${e.casting_project || '—'}`);
+        if (e.actors) lines.push(`${hlL('🎬 АКТЕРЫ:', isHtml)} ${e.actors}`);
+      }
+
+      if (fullDetails && e.schedule) {
+        try {
+          const sch = JSON.parse(e.schedule);
+          if (Array.isArray(sch) && sch.some(r => r.start || r.task || r.loc || r.act || r.link)) {
+            lines.push(`\n${hlL('🕒 ТАЙМИНГ:', isHtml)}`);
+            sch.forEach(row => {
+              const timeStr = row.start ? (row.end ? `${row.start}—${row.end}` : row.start) : '';
+              const task = row.task || '';
+              const obj = row.loc ? ` (${row.loc})` : '';
+              const acts = row.act ? ` — 👤 ${row.act}` : '';
+              const link = row.link ? ` [🔗](${row.link})` : '';
+              const num = row.num ? `№${row.num} ` : '';
+              if (timeStr || task || obj || row.act || row.link) {
+                lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${num}${task}${obj}${acts}${link}`);
+              }
+            });
+          }
+        } catch (ex) { }
+      }
+
+      if (fullDetails && e.deliverables) lines.push(`\n${hlL('📝 ЗАДАЧИ:', isHtml)}\n${e.deliverables}`);
+      if (e.gear) {
+        try {
+          const gd = JSON.parse(e.gear);
+          if (Array.isArray(gd) && gd.length > 0) {
+            lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}`);
+            gd.forEach(g => {
+              lines.push(`  • ${g.cat}: ${g.model}${g.qty > 1 ? ` (x${g.qty})` : ''}${g.note ? ` — ${g.note}` : ''}`);
+            });
+          } else if (typeof e.gear === 'string' && e.gear.trim()) {
+            lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}\n${e.gear}`);
+          }
+        } catch (ex) {
+          if (e.gear && e.gear.trim()) lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}\n${e.gear}`);
+        }
+      }
+      if (e.notes) lines.push(`\n${hlL('⚠️ ИНФО:', isHtml)}\n${e.notes}`);
+      if (e.contact) lines.push(`${hlL('📞 КОНТАКТ:', isHtml)} ${e.contact}`);
+      if (e.report_link) lines.push(`${hlL('📊 ОТЧЕТ:', isHtml)} ${e.report_link}`);
+
+      return lines.join("\n");
+    }
+
+    function buildExportText(isHtml = false) {
+      const list = allEvents.filter(e => e.date === toISO(selectedDate));
+      if (!list.length) return "Смен нет.";
+
+      let lines = [`📅 **СЪЁМОЧНЫЙ ДЕНЬ — ${niceDate(selectedDate)}**`];
+      list.forEach((e, i) => {
+        lines.push(`\n— — — — — — — — —\n`);
+        lines.push(buildSingleShootExport(e, i, isHtml, false)); // No details in daily export
+      });
+      return lines.join("\n");
+    }
+
+    function toggleForm(show) {
+      const form = document.getElementById("form");
+      const btn = document.getElementById("newBtn");
+
+      if (show === undefined) show = (form.style.display === "none");
+
+      form.style.display = show ? "grid" : "none";
+      btn.textContent = show ? "Свернуть" : "Новая";
+
+      if (show) {
+        if (selectedId === null) {
+          form.reset();
+          f.address.dataset.full = '';
+          setTimingData('');
+          setGearData('');
+          renderCrewTags();
+          renderPostTags();
+          renderActorsTags();
+          document.getElementById("deleteBtn").style.display = "none";
+        }
+        form.scrollIntoView({ behavior: "smooth" });
+      } else {
+        selectedId = null;
+        form.reset();
+        f.address.dataset.full = '';
+        setTimingData('');
+        setGearData('');
+        renderCrewTags();
+        renderPostTags();
+        renderActorsTags();
+      }
+      updateDatalists();
+    }
+
+    function moveMonth(n) { currentMonth.setMonth(currentMonth.getMonth() + n); render(); }
+    document.getElementById("prevBtn").onclick = () => moveMonth(-1);
+    document.getElementById("nextBtn").onclick = () => moveMonth(1);
+    document.getElementById("todayBtn").onclick = () => { selectedDate = new Date(); currentMonth = startMonth(selectedDate); render(); };
+    document.getElementById("newBtn").onclick = () => toggleForm();
+    document.getElementById("copyDayBtn").onclick = () => { navigator.clipboard.writeText(buildExportText(false)); alert("Скопировано!"); };
+
+    // Init
+    document.getElementById("form").style.display = "none";
+    render();
+    // Cleaned up duplicate loadFromCloud
+>>>>>>> 018164a (Backport stable CAMPOT2 features: strict media offloading, deduplication, optimized DOCX, and offline sync fixes)
     loadFromCloud();
   </script>
 </body>
