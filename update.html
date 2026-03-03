@@ -4,8 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ОБНОВЛЕНИЕ АНКЕТЫ</title>
-    <!-- Version: 1.0.0 -->
+    <title>ОБНОВЛЕНИЕ АНКЕТЫ | GULYWOOD</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -22,263 +21,66 @@
             --radius: 20px;
         }
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             background: var(--bg);
             background-image: radial-gradient(circle at 50% -20%, #0d1117 0%, #000 70%);
             color: var(--text);
             font-family: 'Inter', sans-serif;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            position: relative;
+            display: flex; justify-content: center; min-height: 100vh;
         }
 
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: repeating-linear-gradient(0deg,
-                    rgba(255, 255, 255, 0.015) 0px,
-                    rgba(255, 255, 255, 0.015) 1px,
-                    transparent 1px,
-                    transparent 2px);
-            background-size: 100% 2px;
-            pointer-events: none;
-            z-index: 0;
-        }
+        .container { width: 100%; max-width: 500px; padding: 20px; z-index: 10; position: relative; }
 
-        .container {
-            position: relative;
-            z-index: 10;
-            width: 100%;
-            max-width: 500px;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-
-        .header h1 {
-            font-size: 20px;
-            font-weight: 700;
-            margin: 0 0 8px;
-            text-transform: uppercase;
-            color: var(--accent);
-            text-shadow: 0 0 20px rgba(122, 162, 255, 0.4);
-        }
-
-        .header p {
-            font-size: 14px;
-            color: var(--muted);
-            margin: 0;
-        }
+        .header { text-align: center; margin-bottom: 32px; }
+        .header h1 { font-size: 20px; font-weight: 700; color: var(--accent); text-transform: uppercase; text-shadow: 0 0 20px rgba(122, 162, 255, 0.4); }
 
         .card {
             background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--stroke);
             border-radius: var(--radius);
             padding: 24px;
-            backdrop-filter: blur(25px) saturate(1.2);
-            margin-bottom: 20px;
+            backdrop-filter: blur(25px);
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            position: relative;
-        }
-        
-        .card::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.02);
-            pointer-events: none;
         }
 
-        .user-info {
-            font-size: 14px;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            color: var(--muted);
-        }
+        .user-info { font-size: 14px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--stroke); color: var(--muted); }
+        .user-info b { color: var(--text); }
 
-        .user-info b {
-            color: var(--text);
-        }
-
-        .instruction {
-            background: rgba(122, 162, 255, 0.08);
-            border-radius: 12px;
-            padding: 16px;
-            font-size: 13px;
-            margin-bottom: 24px;
-            line-height: 1.5;
-            border: 1px solid rgba(122, 162, 255, 0.2);
-            color: #d0e1ff;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+        .instruction { background: rgba(122, 162, 255, 0.08); padding: 16px; border-radius: 12px; font-size: 13px; margin-bottom: 24px; color: #d0e1ff; border: 1px solid rgba(122, 162, 255, 0.2); }
 
         .upload-area {
-            border: 2px dashed rgba(255, 255, 255, 0.15);
-            border-radius: 16px;
-            padding: 30px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: rgba(255, 255, 255, 0.02);
-            position: relative;
-            overflow: hidden;
+            border: 2px dashed var(--stroke); border-radius: 16px; padding: 30px;
+            text-align: center; cursor: pointer; transition: 0.2s; background: rgba(255, 255, 255, 0.02);
         }
+        .upload-area:hover { border-color: var(--accent); background: rgba(122, 162, 255, 0.05); }
 
-        .upload-area:hover {
-            border-color: var(--accent);
-            background: rgba(122, 162, 255, 0.05);
-            transform: translateY(-2px);
-        }
-
-        .upload-area.active {
-            border-color: var(--success);
-            background: rgba(76, 217, 100, 0.05);
-        }
-
-        .upload-area i {
-            font-size: 24px;
-            display: block;
-            margin-bottom: 10px;
-            opacity: 0.8;
-            color: var(--accent);
-        }
-
-        .upload-area span {
-            font-size: 13px;
-            color: var(--muted);
-        }
-
-        .preview-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .preview-item {
-            aspect-ratio: 3/4;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            overflow: hidden;
-            position: relative;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-
-        .preview-item img,
-        .preview-item video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+        .preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .preview-item { aspect-ratio: 3/4; background: rgba(255, 255, 255, 0.1); border-radius: 12px; overflow: hidden; border: 1px solid var(--stroke); }
+        .preview-item img, .preview-item video { width: 100%; height: 100%; object-fit: cover; }
 
         .btn {
-            width: 100%;
-            padding: 18px;
-            border-radius: 16px;
-            border: none;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: var(--accent);
-            color: #fff;
-            margin-top: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            box-shadow: 0 10px 30px rgba(122, 162, 255, 0.3);
+            width: 100%; padding: 18px; border-radius: 16px; border: none; font-weight: 700;
+            cursor: pointer; background: var(--accent); color: #fff; text-transform: uppercase;
+            box-shadow: 0 10px 30px rgba(122, 162, 255, 0.3); transition: 0.2s;
         }
-        
-        .btn:active {
-            transform: scale(0.98);
-            opacity: 0.9;
-        }
+        .btn:disabled { opacity: 0.5; background: #333; box-shadow: none; }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background: #333;
-            box-shadow: none;
-        }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(10px); }
+        .spinner { width: 40px; height: 40px; border: 3px solid rgba(122, 162, 255, 0.1); border-top: 3px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        #successScreen {
-            display: none;
-            text-align: center;
-            padding: 40px 20px;
-        }
-
-        .success-icon {
-            font-size: 60px;
-            color: var(--success);
-            margin-bottom: 20px;
-        }
-
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(122, 162, 255, 0.1);
-            border-top: 3px solid var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 15px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
+        #successScreen { display: none; text-align: center; padding: 60px 20px; }
     </style>
 </head>
 
 <body>
-    <div class="container" id="mainContainer">
+    <div class="container">
         <div class="header">
             <h1>Обновление медиа</h1>
-            <p>Sklad Productions • Casting</p>
+            <p>Sklad Productions Casting</p>
         </div>
 
         <div class="card" id="formCard">
@@ -287,46 +89,40 @@
             </div>
 
             <div class="instruction" id="instructionBox">
-                Пожалуйста, загрузите дополнительные материалы, о которых вам сообщил менеджер.
+                Загрузка данных участника...
             </div>
 
             <div id="photoSection" style="display:none;">
-                <div class="form-group">
-                    <label>Дополнительные фотографии</label>
-                    <div class="upload-area" onclick="document.getElementById('photoInput').click()">
-                        <i>📸</i>
-                        <span>Нажмите для выбора фото</span>
-                        <input type="file" id="photoInput" multiple accept="image/*" style="display:none">
-                    </div>
-                    <div class="preview-grid" id="photoPreview"></div>
+                <div class="upload-area" onclick="document.getElementById('photoInput').click()">
+                    <i style="font-style: normal; font-size: 24px;">📸</i><br>
+                    <span>Выбрать фотографии</span>
+                    <input type="file" id="photoInput" multiple accept="image/*" style="display:none">
                 </div>
+                <div class="preview-grid" id="photoPreview"></div>
             </div>
 
             <div id="videoSection" style="display:none;">
-                <div class="form-group">
-                    <label>Дополнительное видео</label>
-                    <div class="upload-area" onclick="document.getElementById('videoInput').click()">
-                        <i>🎥</i>
-                        <span>Нажмите для выбора видео</span>
-                        <input type="file" id="videoInput" accept="video/*" style="display:none">
-                    </div>
-                    <div id="videoPreview" style="margin-top:10px;"></div>
+                <div class="upload-area" onclick="document.getElementById('videoInput').click()">
+                    <i style="font-style: normal; font-size: 24px;">🎬</i><br>
+                    <span>Выбрать видео-визитку</span>
+                    <input type="file" id="videoInput" accept="video/*" style="display:none">
                 </div>
+                <div id="videoPreview" style="margin-top:15px;"></div>
             </div>
 
-            <button class="btn" id="submitBtn" disabled>ОТПРАВИТЬ ОБНОВЛЕНИЕ</button>
+            <button class="btn" id="submitBtn" disabled style="margin-top: 24px;">ОТПРАВИТЬ МЕНЕДЖЕРУ</button>
         </div>
 
         <div id="successScreen">
-            <div class="success-icon">✅</div>
-            <h2>Готово!</h2>
-            <p style="color:var(--muted)">Ваши материалы успешно добавлены к анкете и отправлены менеджеру.</p>
+            <div style="font-size: 60px; margin-bottom: 20px;">✅</div>
+            <h2>Материалы загружены!</h2>
+            <p style="color:var(--muted)">Менеджер получит уведомление об обновлении вашей анкеты.</p>
         </div>
     </div>
 
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
-        <div id="loadingText" style="font-size:14px;">Загрузка...</div>
+        <div id="loadingText" style="margin-top: 15px;">Обработка файлов...</div>
     </div>
 
     <script>
@@ -336,195 +132,139 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const appId = urlParams.get('id');
-        const type = urlParams.get('type'); // 'photo' or 'video'
-        
-        // Context params (optional, but preferred for reliable return)
+        const type = urlParams.get('type') || 'photo';
         const ctxCid = urlParams.get('cid');
         const ctxTid = urlParams.get('tid');
 
         let actorData = null;
-        let uploadedPhotos = [];
-        let uploadedVideo = null;
-        let pendingUploads = 0;
+        let newMediaUrls = [];
+        let pendingCount = 0;
 
-        async function init() {
-            console.log("Init started. AppID:", appId);
-            
+        async function loadActor() {
             if (!appId) {
-                console.error("No App ID provided in URL");
-                document.getElementById('userInfo').innerHTML = "<span style='color:var(--error)'>Ошибка: Некорректная ссылка (нет ID).</span>";
+                document.getElementById('userInfo').innerHTML = "❌ Ошибка: ID не найден";
                 return;
             }
 
-            try {
-                const { data, error } = await sb.from('casting_applications').select('*').eq('id', appId).single();
-                
-                if (error) {
-                    console.error("Supabase Error:", error);
-                    document.getElementById('userInfo').innerHTML = `<span style='color:var(--error)'>❌ Ошибка базы данных: ${error.message}</span>`;
-                    return;
-                }
-                
-                if (!data) {
-                    console.error("No data found for ID:", appId);
-                    document.getElementById('userInfo').innerHTML = "<span style='color:var(--error)'>❌ Анкета не найдена (возможно, удалена).</span>";
-                    return;
-                }
-
-                console.log("Data loaded:", data);
-                actorData = data;
-                
-                // Safe display of data
-                const name = data.full_name || "Неизвестный";
-                const project = data.casting_target || "Кастинг";
-                const phone = data.phone || "—";
-                
-                document.getElementById('userInfo').innerHTML = `
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <div>👤 Актер: <b style="color:#fff">${name}</b></div>
-                        <div>📱 Телефон: <b>${phone}</b></div>
-                        <div>🎬 Проект: <b>${project}</b></div>
-                    </div>
-                `;
-                
-                // Show upload sections
-                if (type === 'photo') {
-                    document.getElementById('photoSection').style.display = 'block';
-                    document.getElementById('instructionBox').textContent = "Пожалуйста, загрузите дополнительные фотографии.";
-                } else {
-                    document.getElementById('videoSection').style.display = 'block';
-                    document.getElementById('instructionBox').textContent = "Пожалуйста, загрузите видео-визитку.";
-                }
-
-            } catch (err) {
-                console.error("Unexpected Init Error:", err);
-                document.getElementById('userInfo').innerHTML = `<span style='color:var(--error)'>❌ Системная ошибка: ${err.message}</span>`;
+            const { data, error } = await sb.from('casting_applications').select('*').eq('id', appId).single();
+            
+            if (error || !data) {
+                document.getElementById('userInfo').innerHTML = "❌ Анкета не найдена";
+                return;
             }
+
+            actorData = data;
+            document.getElementById('userInfo').innerHTML = `👤 Актер: <b>${data.full_name}</b><br>🎬 Проект: <b>${data.casting_target}</b>`;
+            document.getElementById('instructionBox').textContent = type === 'photo' ? "Загрузите новые фотографии для вашей анкеты." : "Загрузите актуальную видео-визитку.";
+            
+            document.getElementById(type === 'photo' ? 'photoSection' : 'videoSection').style.display = 'block';
         }
 
-        init();
+        loadActor();
 
-        // Photo Upload Logic
+        // Обработка фото
         document.getElementById('photoInput').onchange = async (e) => {
             const files = Array.from(e.target.files);
-            if (!files.length) return;
-
+            const preview = document.getElementById('photoPreview');
+            
             for (const file of files) {
-                const previewItem = document.createElement('div');
-                previewItem.className = 'preview-item';
-                previewItem.innerHTML = '<div class="spinner" style="width:20px;height:20px;margin:auto"></div>';
-                document.getElementById('photoPreview').appendChild(previewItem);
+                const item = document.createElement('div');
+                item.className = 'preview-item';
+                item.innerHTML = '<div class="spinner" style="width:20px;height:20px;margin:30px auto"></div>';
+                preview.appendChild(item);
 
-                pendingUploads++;
-                updateSubmitBtn();
+                pendingCount++;
+                updateBtn();
 
                 try {
-                    const ext = file.name.split('.').pop();
-                    const path = `photos/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${ext}`;
-                    const { error } = await sb.storage.from('casting_media').upload(path, file);
+                    const path = `photos/upd_${Date.now()}_${Math.random().toString(36).substr(2,5)}.jpg`;
+                    const { data, error } = await sb.storage.from('casting_media').upload(path, file);
                     if (error) throw error;
 
                     const url = `${SUPABASE_URL}/storage/v1/object/public/casting_media/${path}`;
-                    uploadedPhotos.push(url);
-
-                    previewItem.innerHTML = `<img src="${url}">`;
+                    newMediaUrls.push(url);
+                    item.innerHTML = `<img src="${url}">`;
                 } catch (err) {
-                    console.error(err);
-                    previewItem.remove();
+                    item.remove();
+                    alert("Ошибка загрузки");
                 } finally {
-                    pendingUploads--;
-                    updateSubmitBtn();
+                    pendingCount--;
+                    updateBtn();
                 }
             }
         };
 
-        // Video Upload Logic
+        // Обработка видео
         document.getElementById('videoInput').onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
             const preview = document.getElementById('videoPreview');
-            preview.innerHTML = '<div class="spinner" style="width:20px;height:20px;margin:10px auto"></div><span>Загрузка видео...</span>';
+            preview.innerHTML = '<div class="spinner" style="width:20px;height:20px;margin:auto"></div><p style="text-align:center;font-size:12px">Загрузка видео...</p>';
 
-            pendingUploads++;
-            updateSubmitBtn();
+            pendingCount++;
+            updateBtn();
 
             try {
-                const ext = file.name.split('.').pop();
-                const path = `videos/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${ext}`;
+                const path = `videos/upd_${Date.now()}_${Math.random().toString(36).substr(2,5)}.mp4`;
                 const { error } = await sb.storage.from('casting_media').upload(path, file);
                 if (error) throw error;
 
-                uploadedVideo = `${SUPABASE_URL}/storage/v1/object/public/casting_media/${path}`;
-                preview.innerHTML = `<video src="${uploadedVideo}" controls style="width:100%; border-radius:8px;"></video>`;
+                const url = `${SUPABASE_URL}/storage/v1/object/public/casting_media/${path}`;
+                newMediaUrls = [url]; // Видео только одно
+                preview.innerHTML = `<video src="${url}" controls style="width:100%; border-radius:12px;"></video>`;
             } catch (err) {
-                console.error(err);
-                preview.innerHTML = '<span style="color:var(--error)">Ошибка загрузки видео</span>';
+                preview.innerHTML = "❌ Ошибка загрузки видео";
             } finally {
-                pendingUploads--;
-                updateSubmitBtn();
+                pendingCount--;
+                updateBtn();
             }
         };
 
-        function updateSubmitBtn() {
-            const hasData = (type === 'photo' && uploadedPhotos.length > 0) || (type === 'video' && uploadedVideo);
-            document.getElementById('submitBtn').disabled = pendingUploads > 0 || !hasData;
+        function updateBtn() {
+            document.getElementById('submitBtn').disabled = pendingCount > 0 || newMediaUrls.length === 0;
         }
 
         document.getElementById('submitBtn').onclick = async () => {
-            document.getElementById('loadingOverlay').style.display = 'flex';
-            document.getElementById('loadingText').textContent = "Обновление анкеты...";
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = 'flex';
 
             try {
-                const newPhotos = [...(actorData.photo_urls || [])];
-                if (type === 'photo') newPhotos.push(...uploadedPhotos);
+                let updatePayload = {};
+                if (type === 'photo') {
+                    // Объединяем старые фото с новыми
+                    const oldPhotos = actorData.photo_urls || [];
+                    updatePayload.photo_urls = [...oldPhotos, ...newMediaUrls];
+                } else {
+                    updatePayload.video_audition_url = newMediaUrls[0];
+                }
 
-                const finalVideo = type === 'video' ? uploadedVideo : actorData.video_audition_url;
-
-                // 1. Update DB
-                const { error } = await sb.from('casting_applications').update({
-                    photo_urls: newPhotos,
-                    video_audition_url: finalVideo
-                }).eq('id', appId);
+                // 1. Сохраняем в БД
+                const { error } = await sb.from('casting_applications').update(updatePayload).eq('id', appId);
                 if (error) throw error;
 
-                // 2. Notify Bot (Repost)
-                document.getElementById('loadingText').textContent = "Отправка менеджеру...";
-                
-                // Use context IDs if available, otherwise fallback to DB IDs
-                // Ensure we parse correctly and don't send NaN if ctx is invalid
-                let finalCid = ctxCid ? parseInt(ctxCid) : (actorData.chat_id || null);
-                let finalTid = ctxTid ? parseInt(ctxTid) : (actorData.thread_id || null);
-                
-                // If context is still missing, alert user but try anyway
-                if (!finalCid) {
-                    console.warn("No chat_id context found");
-                }
-
-                const payload = {
+                // 2. Уведомляем бота (Репост)
+                const botPayload = {
                     ...actorData,
-                    photo_urls: newPhotos,
-                    video_audition_url: finalVideo,
-                    chat_id: finalCid,
-                    thread_id: finalTid
+                    ...updatePayload,
+                    chat_id: ctxCid ? parseInt(ctxCid) : actorData.chat_id,
+                    thread_id: ctxTid ? parseInt(ctxTid) : actorData.thread_id,
+                    application_id: appId
                 };
-
-                if (!app.chat_id) {
-                    throw new Error("Не указан ID чата проекта. Невозможно отправить уведомление.");
-                }
 
                 await fetch('https://media-seven-eta.vercel.app/api/casting', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(botPayload)
                 });
 
                 document.getElementById('formCard').style.display = 'none';
                 document.getElementById('successScreen').style.display = 'block';
+
             } catch (err) {
                 alert("Ошибка: " + err.message);
             } finally {
-                document.getElementById('loadingOverlay').style.display = 'none';
+                overlay.style.display = 'none';
             }
         };
     </script>

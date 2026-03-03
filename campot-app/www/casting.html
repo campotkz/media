@@ -1,17 +1,12 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>АНКЕТА УЧАСТНИКА КАСТИНГА</title>
-    <!-- Version: 2.2.2 (Glass UI) -->
+    <title>АНКЕТА УЧАСТНИКА КАСТИНГА | Sklad Productions</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com" rel="preconnect" />
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #000;
@@ -25,819 +20,151 @@
             --radius: 20px;
         }
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             background: var(--bg);
             background-image: radial-gradient(circle at 50% -20%, #1a1a2e 0%, #000 70%);
             color: var(--text);
             font-family: 'Space Grotesk', sans-serif;
-            line-height: 1.5;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            position: relative;
+            display: flex; justify-content: center; min-height: 100vh;
         }
 
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: repeating-linear-gradient(0deg,
-                    rgba(255, 255, 255, 0.015) 0px,
-                    rgba(255, 255, 255, 0.015) 1px,
-                    transparent 1px,
-                    transparent 2px);
-            background-size: 100% 2px;
-            pointer-events: none;
-            z-index: 0;
-        }
+        .container { width: 100%; max-width: 500px; padding: 20px; z-index: 10; }
+        
+        .header { text-align: center; margin-bottom: 32px; }
+        .header h1 { font-size: 22px; font-weight: 700; margin: 0; text-transform: uppercase; color: #fff; }
+        .header p { font-size: 13px; color: var(--muted); margin-top: 5px; }
 
-        .container {
-            position: relative;
-            z-index: 10;
-            width: 100%;
-            max-width: 500px;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 32px;
-            padding: 0 10px;
-        }
-
-        .header h1 {
-            font-size: 22px;
-            font-weight: 700;
-            margin: 0 0 8px;
-            letter-spacing: -0.5px;
-            text-transform: uppercase;
-            text-shadow: 0 0 20px rgba(244, 89, 37, 0.4);
-        }
-
-        .header p {
-            font-size: 13px;
-            color: var(--muted);
-            margin: 0;
-        }
-
-        .welcome-screen {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .welcome-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: var(--radius);
-            padding: 24px;
-            backdrop-filter: blur(25px) saturate(1.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            position: relative;
-        }
-
-        .welcome-card::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.02);
-            pointer-events: none;
-        }
-
-        .welcome-text {
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
-
-        .welcome-instruction {
-            background: rgba(122, 162, 255, 0.08);
-            border-left: 3px solid var(--accent);
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 24px;
-        }
-
-        .option-btn {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 16px;
-            text-align: left;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-            margin-bottom: 12px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .option-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .option-btn:active {
-            transform: scale(0.98);
-        }
-
-        .option-btn i {
-            font-size: 20px;
-            opacity: 0.8;
-        }
-
-        .option-btn .label {
-            font-weight: 600;
-            font-size: 15px;
-        }
-
-        /* Form Blocks */
         .block {
             background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--stroke);
             border-radius: var(--radius);
-            padding: 24px;
-            margin-bottom: 16px;
-            backdrop-filter: blur(25px) saturate(1.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            padding: 24px; margin-bottom: 16px;
+            backdrop-filter: blur(25px);
         }
 
         .block-title {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            font-size: 11px; font-weight: 700; color: var(--accent);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 8px;
         }
+        .block-title::after { content: ''; height: 1px; background: linear-gradient(to right, var(--accent), transparent); flex: 1; }
 
-        .block-title::after {
-            content: '';
-            height: 1px;
-            background: linear-gradient(to right, var(--accent), transparent);
-            flex: 1;
-            opacity: 0.5;
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; }
+        label span { color: var(--error); }
+
+        input, textarea, select {
+            width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--stroke);
+            border-radius: 12px; padding: 14px; color: #fff; outline: none; transition: 0.2s;
         }
+        input:focus { border-color: var(--accent); background: rgba(255, 255, 255, 0.05); }
 
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        label span {
-            color: var(--error);
-            margin-left: 2px;
-        }
-
-        input[type="text"],
-        input[type="date"],
-        input[type="tel"],
-        input[type="number"],
-        textarea,
-        select {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 14px 16px;
-            color: #fff;
-            font-size: 15px;
-            outline: none;
-            transition: all 0.2s;
-            backdrop-filter: blur(10px);
-        }
-
-        input:focus,
-        textarea:focus,
-        select:focus {
-            border-color: var(--accent);
-            background: rgba(255, 255, 255, 0.05);
-            box-shadow: 0 0 0 4px rgba(244, 89, 37, 0.1);
-        }
-
-        .radio-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .radio-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            background: rgba(255, 255, 255, 0.03);
-            padding: 14px;
-            border-radius: 12px;
-            border: 1px solid transparent;
-            transition: all 0.2s;
-        }
-
-        .radio-item input {
-            display: none;
-        }
-
-        .radio-item:has(input:checked) {
-            background: rgba(244, 89, 37, 0.1);
-            border-color: var(--accent);
-        }
-
-        .radio-mark {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            position: relative;
-            transition: all 0.2s;
-        }
-
-        input:checked+.radio-mark {
-            border-color: var(--accent);
-            background: var(--accent);
-        }
-
-        input:checked+.radio-mark::after {
-            content: '';
-            width: 8px;
-            height: 8px;
-            background: #fff;
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        /* Upload Area */
         .upload-area {
-            border: 2px dashed rgba(255, 255, 255, 0.15);
-            border-radius: 16px;
-            padding: 30px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-            overflow: hidden;
-            background: rgba(255, 255, 255, 0.02);
+            border: 2px dashed var(--stroke); border-radius: 16px; padding: 30px;
+            text-align: center; cursor: pointer; transition: 0.2s;
         }
+        .upload-area:hover { border-color: var(--accent); background: rgba(244, 89, 37, 0.05); }
 
-        .upload-area:hover {
-            border-color: var(--accent);
-            background: rgba(244, 89, 37, 0.05);
-        }
-
-        .upload-area i {
-            display: block;
-            font-size: 24px;
-            margin-bottom: 8px;
-            opacity: 0.5;
-            color: var(--accent);
-        }
-
-        .upload-area span {
-            font-size: 12px;
-            color: var(--muted);
-        }
-
-        .file-list {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .file-item {
-            aspect-ratio: 1;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.1);
-            position: relative;
-            background-size: cover;
-            background-position: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-        }
-
-        .file-item.video::before {
-            content: '🎥';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 20px;
-        }
-
-        .file-item .remove {
-            position: absolute;
-            top: -6px;
-            right: -6px;
-            background: var(--error);
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: white;
-            cursor: pointer;
-            z-index: 2;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-        }
-
-        .progress-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 4px;
-            background: var(--accent);
-            width: 0%;
-            transition: width 0.3s;
-        }
+        .file-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+        .file-item { aspect-ratio: 1; border-radius: 12px; background-size: cover; position: relative; border: 1px solid var(--stroke); }
+        .file-item .remove { position: absolute; top: -5px; right: -5px; background: var(--error); color: #fff; width: 20px; height: 20px; border-radius: 50%; text-align: center; cursor: pointer; }
+        
+        .progress-bar { position: absolute; bottom: 0; left: 0; height: 4px; background: var(--accent); width: 0; transition: 0.3s; }
 
         .submit-btn {
-            width: 100%;
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            border-radius: 16px;
-            padding: 18px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            margin-top: 20px;
-            transition: all 0.2s;
-            box-shadow: 0 10px 30px rgba(244, 89, 37, 0.3);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            width: 100%; background: var(--accent); color: #fff; border: none;
+            border-radius: 16px; padding: 18px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 10px 30px rgba(244, 89, 37, 0.3); transition: 0.2s;
         }
-
-        .submit-btn:active {
-            transform: scale(0.98);
-            opacity: 0.9;
-        }
-
-        .submit-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background: #333;
-            box-shadow: none;
-        }
-
-        .fetch-status {
-            font-size: 11px;
-            margin-top: 8px;
-            display: none;
-        }
-
-        .fetch-status.loading {
-            color: var(--accent);
-            display: block;
-        }
-
-        .fetch-status.error {
-            color: var(--error);
-            display: block;
-        }
-
-        .fetch-status.success {
-            color: var(--success);
-            display: block;
-        }
-
-        .checklist-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: 250px;
-            overflow-y: auto;
-            background: rgba(255, 255, 255, 0.03);
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid var(--stroke);
-        }
+        .submit-btn:disabled { background: #333; opacity: 0.6; cursor: not-allowed; }
 
         .check-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 14px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid var(--stroke);
-            color: #fff;
-            font-size: 14px;
+            display: flex; align-items: center; gap: 12px; padding: 12px;
+            background: rgba(255,255,255,0.05); border-radius: 12px; margin-bottom: 8px; cursor: pointer;
         }
-
-        .check-item:hover {
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        .check-item input {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--accent);
-            cursor: pointer;
-            filter: grayscale(0);
-        }
-
-        .check-item.active {
-            background: rgba(122, 162, 255, 0.2);
-            border-color: var(--accent);
-            color: #fff;
-        }
-
-        .multi-warning {
-            display: none;
-            background: rgba(255, 59, 48, 0.1);
-            border: 1px solid var(--error);
-            color: var(--error);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 11px;
-            margin-top: 8px;
-            animation: fadeIn 0.3s ease;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(10px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            padding: 20px;
-        }
-
-        .modal-card {
-            background: #15171f;
-            border: 1px solid var(--accent);
-            border-radius: 20px;
-            padding: 24px;
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-card h3 {
-            color: #ff3b30;
-            margin: 0 0 16px;
-        }
-
-        .modal-card p {
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 24px;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .modal-btns {
-            display: flex;
-            gap: 12px;
-        }
-
-        .modal-btn {
-            flex: 1;
-            padding: 14px;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: opacity 0.2s;
-        }
-
-        .btn-confirm {
-            background: var(--accent);
-            color: #000;
-        }
-
-        .btn-back {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-        }
-
-        .modal-btn:hover {
-            opacity: 0.8;
-        }
-
+        .check-item.active { border: 1px solid var(--accent); background: rgba(244, 89, 37, 0.1); }
+        
         .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+            display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
         }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 16px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .success-screen {
-            display: none;
-            text-align: center;
-            padding: 60px 20px;
-            position: relative;
-            z-index: 10;
-        }
-
-        .success-screen p {
-            color: var(--muted);
-            margin-bottom: 32px;
-        }
+        .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
-
 <body>
-    <!-- Welcome Container -->
+
     <div class="container" id="welcomeContainer">
         <div class="header">
-            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span
-                    style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.2.2</span></h1>
-            <p>Sklad Productions • Casting Management</p>
+            <h1>АНКЕТА КАСТИНГА v.2.2.3</h1>
+            <p>Sklad Productions Management</p>
         </div>
-
-        <div class="welcome-screen">
-            <div class="welcome-card">
-                <div class="welcome-text">
-                    Вы заполняете анкету на кастинг.
-                </div>
-                <div class="welcome-instruction">
-                    ⚡️ <b>Важно:</b> Ваши шансы значительно увеличатся, если вы загрузите актуальные фото (сделайте их
-                    прямо сейчас на телефон) и видеовизитку (до 1 минуты) с отыгрышем персонажа, на которого вы
-                    претендуете.
-                </div>
-                <div class="welcome-text" style="color: var(--error); font-weight: 600;">
-                    ⚠️ Анкеты с неактуальными фото или снимками, не имеющими отношения к кастингу, рассматриваться не
-                    будут.
-                </div>
-            </div>
-
-            <div class="welcome-card">
-                <div class="option-btn" id="startNewBtn">
-                    <i>📝</i>
-                    <div class="label">Я заполняю первый раз</div>
-                </div>
-
-                <div class="option-btn" id="reentryStartBtn">
-                    <i>🔄</i>
-                    <div class="label">Я уже заполнял(а) анкету ранее</div>
-                </div>
-
-                <div id="reentryInputGroup"
-                    style="display:none; margin-top: 16px; border-top: 1px solid var(--stroke); padding-top: 16px;">
-                    <label style="font-size: 12px; margin-bottom: 8px;">Введите номер телефона (который указывали
-                        ранее):</label>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="tel" id="reentryPhone" placeholder="+7 777 000 00 00"
-                            style="flex: 1; padding: 12px;">
-                        <button type="button" id="reentryFetchBtn"
-                            style="min-height: auto; padding: 0 16px; font-size: 12px; background: var(--accent); color: #000; border-radius: 10px; border: none; font-weight: 700;">НАЙТИ</button>
-                    </div>
-                    <div id="fetchStatus" class="fetch-status"></div>
-                </div>
+        <div class="block" style="text-align: center;">
+            <p style="font-size: 14px; line-height: 1.6;">Для подачи заявки заполните форму. <br>Актуальные фото — залог успеха.</p>
+            <button class="submit-btn" id="startNewBtn">ЗАПОЛНИТЬ ВПЕРВЫЕ</button>
+            <button class="submit-btn" style="margin-top: 12px; background: rgba(255,255,255,0.1);" id="reentryStartBtn">Я ЗАПОЛНЯЛ(А) РАНЕЕ</button>
+            
+            <div id="reentryGroup" style="display: none; margin-top: 20px;">
+                <input type="tel" id="reentryPhone" placeholder="Номер телефона">
+                <button class="submit-btn" style="margin-top: 8px; padding: 12px;" id="fetchBtn">НАЙТИ МЕНЯ</button>
+                <div id="fetchStatus" style="font-size: 11px; margin-top: 8px; color: var(--accent);"></div>
             </div>
         </div>
     </div>
 
-    <!-- Form Container (Hidden by default) -->
     <div class="container" id="formContainer" style="display: none;">
-        <div class="header">
-            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА</h1>
-            <p>Sklad Productions • Casting Management</p>
-        </div>
-
         <form id="castingForm">
-            <!-- Блок 1 -->
             <div class="block">
                 <div class="block-title">Проект и Роль</div>
                 <div class="form-group">
-                    <label>На какой кастинг вы подаетесь?<span>*</span></label>
-                    <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.3;">
-                        Выбирайте точно тот проект, на который видели объявление. Анкеты, отправленные без соответствия
-                        кастингу, будут удалены.
-                    </div>
-                    <div class="checklist-group" id="castingChecklist">
-                        <!-- Сюда будут грузиться чекбоксы -->
-                        <div style="padding: 10px; font-size: 12px; color: var(--muted);">Загрузка проектов...</div>
-                    </div>
-                    <div class="multi-warning" id="multiWarning">
-                        ⚠️ Вы выбрали несколько кастингов. Убедитесь, что вы подходите под критерии всех выбранных
-                        проектов!
+                    <label>Выберите проект(ы)<span>*</span></label>
+                    <div id="projectsList" style="max-height: 200px; overflow-y: auto; padding-right: 5px;">
+                        <p style="font-size: 12px; color: var(--muted);">Загрузка проектов...</p>
                     </div>
                     <input type="hidden" name="casting_target" id="casting_target_hidden" required>
                 </div>
                 <div class="form-group">
-                    <label>На какого персонажа вы подаетесь?<span>*</span></label>
-                    <input type="text" name="character_name" required
-                        placeholder="например: «Главный герой», «Отец», «Прохожий»">
+                    <label>На какого персонажа?<span>*</span></label>
+                    <input type="text" name="character_name" required placeholder="Напр: Главный герой">
                 </div>
                 <div class="form-group">
-                    <label>Ваше полное имя (Фамилия Имя)<span>*</span></label>
-                    <input type="text" name="full_name" required placeholder="Иванов Иван">
-                </div>
-                <div class="form-group">
-                    <label>Ваш гендер<span>*</span></label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" name="gender" value="Мужчина" required>
-                            <div class="radio-mark"></div>
-                            <span>Мужчина</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="gender" value="Женщина">
-                            <div class="radio-mark"></div>
-                            <span>Женщина</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="gender" value="Другое">
-                            <div class="radio-mark"></div>
-                            <span>Другое</span>
-                        </label>
-                    </div>
+                    <label>ФИО<span>*</span></label>
+                    <input type="text" name="full_name" required placeholder="Имя Фамилия">
                 </div>
             </div>
 
-            <!-- Блок 2 -->
             <div class="block">
-                <div class="block-title">Контакты</div>
+                <div class="block-title">Данные и Контакты</div>
                 <div class="form-group">
-                    <label>Город проживания<span>*</span></label>
-                    <input type="text" name="city" required placeholder="Алматы">
+                    <label>Возраст / Город<span>*</span></label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" name="dob" placeholder="Лет" required style="width: 80px;">
+                        <input type="text" name="city" placeholder="Город" required>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Возраст (лет)<span>*</span></label>
-                    <input type="number" name="dob" required placeholder="например: 25" min="0" max="120">
-                </div>
-                <div class="form-group">
-                    <label>Внешность (Типаж)<span>*</span></label>
-                    <input type="text" name="nationality" required
-                        placeholder="азиат, европеец, глаза карие, стройный...">
-                </div>
-                <div class="form-group">
-                    <label>Номер телефона (WhatsApp)<span>*</span></label>
-                    <input type="tel" name="phone" required placeholder="+7 777 000 00 00" inputmode="numeric">
-                </div>
-                <div class="form-group">
-                    <label>Ссылка на Instagram<span>*</span></label>
+                    <label>WhatsApp / Instagram<span>*</span></label>
+                    <input type="tel" name="phone" required placeholder="+7 777..." style="margin-bottom: 10px;">
                     <input type="text" name="instagram" required placeholder="@username">
                 </div>
             </div>
 
-            <!-- Блок 3 -->
             <div class="block">
-                <div class="block-title">Параметры и Опыт</div>
+                <div class="block-title">Медиа-файлы</div>
                 <div class="form-group">
-                    <label>Рост / Вес<span>*</span></label>
-                    <input type="text" name="height_weight" required placeholder="180 см / 75 кг">
-                </div>
-                <div class="form-group">
-                    <label>Размер одежды / Обуви<span>*</span></label>
-                    <input type="text" name="sizes" required placeholder="L / 43">
-                </div>
-                <div class="form-group">
-                    <label>Опыт в кино / Образование<span>*</span></label>
-                    <textarea name="experience" rows="3" required
-                        placeholder="Кратко опишите работы или укажите «нет»"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Навыки и таланты<span>*</span></label>
-                    <textarea name="skills" rows="3" required
-                        placeholder="вокал, танцы, владение инструментами и т.д."></textarea>
-                </div>
-            </div>
-
-            <!-- Блок 4 -->
-            <div class="block">
-                <div class="block-title">Бюджет</div>
-                <div class="form-group">
-                    <label>Ваш гонорар (Вилка «ОТ» и «ДО» за смену)<span>*</span></label>
-                    <input type="text" name="fee_range" required placeholder="например: 50.000 - 150.000">
-                </div>
-                <div class="form-group">
-                    <label>Готовы к съемкам в белье / купальниках?<span>*</span></label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" name="underwear_ok" value="Да" required>
-                            <div class="radio-mark"></div>
-                            <span>Да</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="underwear_ok" value="Нет">
-                            <div class="radio-mark"></div>
-                            <span>Нет</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="underwear_ok" value="Зависит от гонорара">
-                            <div class="radio-mark"></div>
-                            <span>Зависит от суммы</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Готовы участвовать в массовке / эпизодах?<span>*</span></label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" name="extras_ok" value="Да" required>
-                            <div class="radio-mark"></div>
-                            <span>Да</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="extras_ok" value="Нет">
-                            <div class="radio-mark"></div>
-                            <span>Нет</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Блок 5 -->
-            <div class="block">
-                <div class="block-title">Медиа-материалы</div>
-
-                <div class="form-group">
-                    <label>Фотографии (минимум 3 шт)<span>*</span></label>
-                    <p style="font-size:11px; color:var(--muted); margin-bottom:10px">Анфас, профиль, в полный рост. Без
-                        фильтров. <b>Max 50MB/файл.</b></p>
-                    <div class="upload-area" id="photoUpload">
-                        <i>📸</i>
-                        <span>Нажмите для выбора фото (JPG, PNG)</span>
+                    <label>Фотографии (минимум 3)<span>*</span></label>
+                    <div class="upload-area" id="photoArea">
+                        <span>Нажмите для выбора фото</span>
                         <input type="file" id="photoInput" multiple accept="image/*" style="display:none">
                     </div>
                     <div class="file-list" id="photoList"></div>
                 </div>
-
                 <div class="form-group">
-                    <label>Видео-визитка (Актерский этюд)<span>*</span></label>
-                    <p style="font-size:11px; color:var(--muted); margin-bottom:10px">
-                        До 1 минуты. Эмоции и подача в кадре. <b>Лимит 50MB.</b><br>
-                        <i>Если прикрепить новое видео до минуты с визиткой именно по персонажу, на которого подаетесь,
-                            шансов больше или можете добавить ссылку на портфолио ниже.</i>
-                    </p>
-                    <div class="upload-area" id="videoUpload">
-                        <i>🎬</i>
-                        <span>Нажмите для выбора видео (MP4, MOV)</span>
-                        <input type="file" id="videoInput" accept="video/*" style="display:none">
-                    </div>
-                    <div class="file-list" id="videoList"></div>
-                </div>
-
-                <div class="form-group">
-                    <label>Ссылка на видео-визитку / портфолио</label>
-                    <input type="text" name="portfolio_url" placeholder="YouTube, Vimeo или Google Диск">
+                    <label>Ссылка на видеовизитку</label>
+                    <input type="text" name="portfolio_url" placeholder="YouTube / Google Drive">
                 </div>
             </div>
 
@@ -845,521 +172,167 @@
         </form>
     </div>
 
-    <!-- Success Screen -->
-    <div class="container success-screen" id="successScreen">
-        <div style="font-size:60px; margin-bottom:20px">✅</div>
-        <h2>ВАША АНКЕТА ПРИНЯТА!</h2>
-        <p>Благодарим за внимание к нашим проектам.<br>За новыми кастингами следите в Instagram:</p>
-        <a href="https://instagram.com/Sklad.productions" target="_blank"
-            style="color:var(--accent); font-weight:700; text-decoration:none; font-size:18px">@Sklad.productions</a>
-    </div>
-
-    <!-- Modals -->
-    <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-overlay" id="loader">
         <div class="spinner"></div>
-        <div id="loadingText" style="font-size:14px; color:white">Загрузка данных...</div>
+        <p id="loaderText" style="margin-top: 15px;">Загрузка...</p>
     </div>
 
-    <div class="modal-overlay" id="confirmModal">
-        <div class="modal-card">
-            <h3>⚠️ ВНИМАНИЕ</h3>
-            <p>Вы выбрали несколько кастингов. Вы подтверждаете, что подходите под критерии <b>всех</b> выбранных
-                проектов? <br><br> Если вы просто решили отправлять анкету на все подряд кастинги без разбору — ваша
-                анкета будет удалена.</p>
-            <div class="modal-btns">
-                <button class="modal-btn btn-back" id="modalBack">НАЗАД</button>
-                <button class="modal-btn btn-confirm" id="modalConfirm">ПОДТВЕРЖДАЮ</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Logic Script -->
     <script>
-        // --- Initialization ---
         const SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
         const SUPABASE_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const params = new URLSearchParams(window.location.search);
-        const cid = params.get('cid');
-        const tid = params.get('tid');
-        const proj = params.get('proj');
-        const lock = params.get('lock');
+        const urlProj = params.get('proj');
+        const urlCid = params.get('cid');
+        const urlTid = params.get('tid');
+        const isLocked = params.get('lock') === '1';
 
         let uploadedPhotos = [];
-        let uploadedVideo = null;
-        let pendingUploads = 0;
+        let isUploading = false;
 
-        // --- DOM Elements ---
-        const welcomeContainer = document.getElementById('welcomeContainer');
-        const formContainer = document.getElementById('formContainer');
-        const successScreen = document.getElementById('successScreen');
-        const startNewBtn = document.getElementById('startNewBtn');
-        const reentryStartBtn = document.getElementById('reentryStartBtn');
-        const reentryInputGroup = document.getElementById('reentryInputGroup');
-        const reentryPhone = document.getElementById('reentryPhone');
-        const reentryFetchBtn = document.getElementById('reentryFetchBtn');
-        const fetchStatus = document.getElementById('fetchStatus');
-
-        // --- Navigation / Mode Switching ---
-        startNewBtn.onclick = () => {
-            welcomeContainer.style.display = 'none';
-            formContainer.style.display = 'block';
-            window.scrollTo(0, 0);
+        // --- Навигация ---
+        document.getElementById('startNewBtn').onclick = () => {
+            document.getElementById('welcomeContainer').style.display = 'none';
+            document.getElementById('formContainer').style.display = 'block';
+            loadProjects();
         };
 
-        reentryStartBtn.onclick = () => {
-            reentryInputGroup.style.display = 'block';
-            reentryPhone.focus();
+        document.getElementById('reentryStartBtn').onclick = () => {
+            document.getElementById('reentryGroup').style.display = 'block';
         };
 
-        // --- Fetch Projects ---
-        async function loadCastingProjects() {
-            const container = document.getElementById('castingChecklist');
-            const hiddenInput = document.getElementById('casting_target_hidden');
+        // --- Загрузка проектов ---
+        async function loadProjects() {
+            const container = document.getElementById('projectsList');
+            const { data, error } = await sb.from('clients').select('name, chat_id, thread_id').eq('category', 'casting').eq('is_hidden', false);
+            
+            if (error) return container.innerHTML = "Ошибка загрузки";
+            container.innerHTML = "";
 
-            try {
-                const { data, error } = await sb.from('clients')
-                    .select('name, chat_id, thread_id')
-                    .eq('category', 'casting')
-                    .eq('is_hidden', false)
-                    .order('name');
+            data.forEach(p => {
+                if (isLocked && urlProj && p.name !== urlProj) return;
 
-                if (error) throw error;
-
-                container.innerHTML = '';
-                const projects = data || [];
-
-                // --- CRITICAL FIX ---
-                // Find the actual DB object for 'proj' if it exists.
-                // Do NOT create a dummy {name: proj} because it lacks chat_id/thread_id!
-                let targetProj = proj ? projects.find(p => p.name === proj) : null;
-
-                // If not found by name, try finding by chat_id and thread_id if available
-                if (!targetProj && cid && tid) {
-                    targetProj = projects.find(p => p.chat_id == cid && p.thread_id == tid);
-                }
-
-                const otherProjects = projects.filter(p => p !== targetProj);
-
-                // If target found in DB, put it first. If not found (renamed?), just list others.
-                // If proj was passed but not found, we can't force-select it correctly without ID.
-                // Fallback: If proj not found, maybe add it as a "custom" option using URL cid/tid?
-                let sortedProjects = otherProjects;
-
-                if (targetProj) {
-                    if (lock) {
-                        sortedProjects = [targetProj];
-                    } else {
-                        sortedProjects = [targetProj, ...otherProjects];
-                    }
-                } else if (proj && cid && tid) {
-                    // Fallback for renamed project where we have IDs in URL
-                    if (lock) {
-                        sortedProjects = [{ name: proj, chat_id: cid, thread_id: tid }];
-                    } else {
-                        sortedProjects = [{ name: proj, chat_id: cid, thread_id: tid }, ...otherProjects];
-                    }
-                }
-
-                const activeProjName = targetProj ? targetProj.name : proj;
-
-                sortedProjects.forEach(p => {
-                    const label = document.createElement('label');
-                    label.className = 'check-item';
-                    if (p.name === activeProjName) label.classList.add('active');
-
-                    const isChecked = p.name === activeProjName ? 'checked' : '';
-
-                    // Store IDs directly in data attributes
-                    const cidAttr = p.chat_id ? `data-cid="${p.chat_id}"` : '';
-                    const tidAttr = p.thread_id ? `data-tid="${p.thread_id}"` : '';
-
-                    label.innerHTML = `
-                        <input type="checkbox" value="${p.name}" ${isChecked} ${cidAttr} ${tidAttr}>
-                        <span>${p.name}</span>
-                    `;
-
-                    label.querySelector('input').onchange = (e) => {
-                        const checkedCount = container.querySelectorAll('input:checked').length;
-                        if (e.target.checked && checkedCount > 1) {
-                            const modal = document.getElementById('confirmModal');
-                            modal.style.display = 'flex';
-                            document.getElementById('modalBack').onclick = () => {
-                                modal.style.display = 'none';
-                                e.target.checked = false;
-                                label.classList.remove('active');
-                                updateHiddenInput();
-                            };
-                            document.getElementById('modalConfirm').onclick = () => {
-                                modal.style.display = 'none';
-                                label.classList.add('active');
-                                updateHiddenInput();
-                            };
-                        } else {
-                            if (e.target.checked) label.classList.add('active');
-                            else label.classList.remove('active');
-                            updateHiddenInput();
-                        }
-                    };
-                    container.appendChild(label);
-                });
-
-                function updateHiddenInput() {
-                    const checked = Array.from(container.querySelectorAll('input:checked')).map(i => i.value);
-                    hiddenInput.value = checked.join(', ');
-                    const warning = document.getElementById('multiWarning');
-                    warning.style.display = checked.length > 1 ? 'block' : 'none';
-                }
-
-                if (proj) hiddenInput.value = proj;
-
-            } catch (err) {
-                console.error("Error loading projects:", err);
-                container.innerHTML = '<div style="color:var(--error)">Ошибка загрузки проектов</div>';
-            }
-        }
-        loadCastingProjects();
-
-        // --- Re-entry Logic (Find User) ---
-        reentryFetchBtn.onclick = async () => {
-            const rawPhone = reentryPhone.value.trim();
-            const digits = rawPhone.replace(/\D/g, '');
-
-            if (digits.length < 10) return alert("Введите минимум 10 цифр номера телефона");
-
-            const last10 = digits.slice(-10);
-            const fuzzyPattern = '%' + last10.split('').join('%') + '%';
-
-            fetchStatus.textContent = "🔍 Ищем анкету...";
-            fetchStatus.className = "fetch-status loading";
-            reentryFetchBtn.disabled = true;
-
-            try {
-                const { data, error } = await sb.from('casting_applications')
-                    .select('*')
-                    .or(`phone.ilike.${fuzzyPattern}`)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-
-                if (error) throw error;
-
-                if (!data || data.length === 0) {
-                    fetchStatus.textContent = "❌ Номер не найден. Пожалуйста, проверьте ввод или нажмите 'Я заполняю первый раз'";
-                    fetchStatus.className = "fetch-status error";
-                    return;
-                }
-
-                const app = data[0];
-                const form = document.getElementById('castingForm');
-
-                // Fill fields
-                const fields = [
-                    'full_name', 'gender', 'city', 'dob', 'nationality', 'phone',
-                    'instagram', 'height_weight', 'sizes', 'experience', 'skills',
-                    'fee_range', 'underwear_ok', 'extras_ok', 'portfolio_url'
-                ];
-
-                fields.forEach(f => {
-                    const input = form.querySelector(`[name="${f}"]`);
-                    if (input) {
-                        if (input.type === 'radio') {
-                            const radio = form.querySelector(`[name="${f}"][value="${app[f]}"]`);
-                            if (radio) radio.checked = true;
-                        } else {
-                            input.value = app[f] || '';
-                        }
-                    }
-                });
-
-                // Fill media
-                if (app.photo_urls && Array.from(app.photo_urls).length > 0) {
-                    uploadedPhotos = app.photo_urls.map((url, index) => {
-                        const id = Math.random().toString(36).substr(2, 9);
-                        const fileItem = createMediaItem(id, { name: `Old_Photo_${index}` });
-                        document.getElementById('photoList').appendChild(fileItem);
-                        fileItem.style.backgroundImage = `url(${url})`;
-                        fileItem.querySelector('.progress-bar').style.width = '100%';
-                        return { id, url };
-                    });
-                }
-
-                if (app.video_audition_url) {
-                    const id = Math.random().toString(36).substr(2, 9);
-                    const fileItem = createMediaItem(id, { name: 'Old_Video' }, true);
-                    document.getElementById('videoList').innerHTML = '';
-                    document.getElementById('videoList').appendChild(fileItem);
-                    fileItem.querySelector('.progress-bar').style.width = '100%';
-                    uploadedVideo = app.video_audition_url;
-                }
-
-                fetchStatus.textContent = "✅ Данные найдены! Вы можете обновить фото и видео для этого проекта";
-                fetchStatus.className = "fetch-status success";
-
-                setTimeout(() => {
-                    welcomeContainer.style.display = 'none';
-                    formContainer.style.display = 'block';
-                    window.scrollTo(0, 0);
-                }, 1500);
-
-            } catch (err) {
-                console.error(err);
-                fetchStatus.textContent = "❌ Ошибка при поиске: " + err.message;
-                fetchStatus.className = "fetch-status error";
-            } finally {
-                reentryFetchBtn.disabled = false;
-            }
-        };
-
-        // --- Helper: Submit Button State ---
-        function updateSubmitButton() {
-            const btn = document.getElementById('submitBtn');
-            if (pendingUploads > 0) {
-                btn.disabled = true;
-                btn.textContent = "⏳ ЗАГРУЗКА МЕДИА (" + pendingUploads + ")...";
-                btn.style.background = "var(--muted)";
-            } else {
-                btn.disabled = false;
-                btn.textContent = "ОТПРАВИТЬ АНКЕТУ";
-                btn.style.background = "var(--accent)";
-            }
-        }
-
-        // --- Media Upload Logic ---
-        function createMediaItem(id, file, isVideo = false) {
-            const div = document.createElement('div');
-            div.className = 'file-item' + (isVideo ? ' video' : '');
-            div.id = 'media-' + id;
-            div.innerHTML = `<div class="remove">×</div><div class="progress-bar"></div>`;
-            div.querySelector('.remove').onclick = (e) => {
-                e.stopPropagation();
-                div.remove();
-                if (isVideo) uploadedVideo = null;
-                else uploadedPhotos = uploadedPhotos.filter(p => p.id !== id);
-            };
-            return div;
-        }
-
-        // Client-Side Compression
-        async function compressImage(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.src = event.target.result;
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800;
-                        const MAX_HEIGHT = 800;
-                        let width = img.width;
-                        let height = img.height;
-
-                        if (width > height) {
-                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                        } else {
-                            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
-                        }
-
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-
-                        // Compress to JPEG 0.6
-                        canvas.toBlob((blob) => {
-                            resolve(new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' }));
-                        }, 'image/jpeg', 0.5);
-                    };
+                const div = document.createElement('div');
+                div.className = 'check-item' + (p.name === urlProj ? ' active' : '');
+                div.innerHTML = `<input type="checkbox" value="${p.name}" data-cid="${p.chat_id}" data-tid="${p.thread_id}" ${p.name === urlProj ? 'checked' : ''} style="display:none"> <span>${p.name}</span>`;
+                
+                div.onclick = () => {
+                    const chk = div.querySelector('input');
+                    chk.checked = !chk.checked;
+                    div.classList.toggle('active', chk.checked);
+                    updateTargets();
                 };
+                container.appendChild(div);
             });
+            updateTargets();
         }
 
-        // Photo Upload Handler
+        function updateTargets() {
+            const checked = Array.from(document.querySelectorAll('#projectsList input:checked')).map(i => i.value);
+            document.getElementById('casting_target_hidden').value = checked.join(', ');
+        }
+
+        // --- Загрузка фото ---
+        document.getElementById('photoArea').onclick = () => document.getElementById('photoInput').click();
         document.getElementById('photoInput').onchange = async (e) => {
             const files = Array.from(e.target.files);
-            document.getElementById('photoUpload').value = ''; // Reset input
-
+            const list = document.getElementById('photoList');
+            
             for (const file of files) {
-                pendingUploads++;
-                updateSubmitButton();
-
                 const id = Math.random().toString(36).substr(2, 9);
-                const fileItem = createMediaItem(id, file);
-                document.getElementById('photoList').appendChild(fileItem);
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `<div class="progress-bar"></div>`;
+                list.appendChild(item);
+
+                isUploading = true;
+                updateSubmitBtn();
 
                 try {
-                    let uploadFile = file;
-                    if (file.type.match(/image.*/)) {
-                        uploadFile = await compressImage(file);
-                    }
-
-                    const ext = uploadFile.name.split('.').pop();
-                    const path = `photos/${Date.now()}_${id}.${ext}`;
-
-                    const { error } = await sb.storage.from('casting_media').upload(path, uploadFile, {
-                        onUploadProgress: (progress) => {
-                            const percent = (progress.loaded / progress.total) * 100;
-                            fileItem.querySelector('.progress-bar').style.width = percent + '%';
-                        }
-                    });
-
+                    const path = `photos/${Date.now()}_${id}.jpg`;
+                    const { data, error } = await sb.storage.from('casting_media').upload(path, file);
                     if (error) throw error;
 
                     const { data: { publicUrl } } = sb.storage.from('casting_media').getPublicUrl(path);
-                    uploadedPhotos.push({ id, url: publicUrl });
-                    fileItem.style.backgroundImage = `url(${publicUrl})`;
+                    uploadedPhotos.push(publicUrl);
+                    item.style.backgroundImage = `url(${publicUrl})`;
+                    item.querySelector('.progress-bar').style.width = '100%';
                 } catch (err) {
-                    console.error(err);
-                    fileItem.remove();
-                    alert(`Ошибка загрузки ${file.name}: ${err.message}`);
-                } finally {
-                    pendingUploads--;
-                    updateSubmitButton();
+                    item.remove();
+                    alert("Ошибка загрузки");
                 }
             }
+            isUploading = false;
+            updateSubmitBtn();
         };
 
-        // Video Upload Handler
-        document.getElementById('videoUpload').onclick = () => document.getElementById('videoInput').click();
-        document.getElementById('videoInput').onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+        function updateSubmitBtn() {
+            document.getElementById('submitBtn').disabled = isUploading;
+        }
 
-            const MAX_SIZE = 50 * 1024 * 1024; // 50MB
-            if (file.size > MAX_SIZE) {
-                alert(`Видео слишком тяжелое (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимум — 50MB.`);
-                e.target.value = '';
-                return;
-            }
-
-            pendingUploads++;
-            updateSubmitButton();
-
-            const id = Math.random().toString(36).substr(2, 9);
-            const fileItem = createMediaItem(id, file, true);
-            document.getElementById('videoList').innerHTML = '';
-            document.getElementById('videoList').appendChild(fileItem);
-
-            try {
-                const ext = file.name.split('.').pop();
-                const path = `videos/${id}.${ext}`;
-                const { error } = await sb.storage.from('casting_media').upload(path, file, {
-                    onUploadProgress: (p) => {
-                        const pct = (p.loaded / p.total) * 100;
-                        fileItem.querySelector('.progress-bar').style.width = pct + '%';
-                    }
-                });
-                if (error) throw error;
-                const { data: { publicUrl } } = sb.storage.from('casting_media').getPublicUrl(path);
-                uploadedVideo = publicUrl;
-            } catch (err) {
-                console.error(err);
-                fileItem.remove();
-                alert("Ошибка загрузки видео: " + err.message);
-            } finally {
-                pendingUploads--;
-                updateSubmitButton();
-            }
-        };
-
-        document.getElementById('photoUpload').onclick = () => document.getElementById('photoInput').click();
-
-        // --- Form Submission ---
+        // --- Отправка ---
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
+            const loader = document.getElementById('loader');
+            loader.style.display = 'flex';
 
-            // Collect selected projects with their IDs
-            const selectedItems = Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => ({
-                name: i.value,
-                chat_id: i.getAttribute('data-cid'),
-                thread_id: i.getAttribute('data-tid')
-            }));
-
-            if (selectedItems.length === 0) {
-                return alert("Пожалуйста, выберите хотя бы один кастинг.");
-            }
-
-            if (pendingUploads > 0) {
-                return alert("Пожалуйста, дождитесь завершения загрузки всех медиа-файлов.");
-            }
-
-            processSubmit(e.target, selectedItems);
-        };
-
-        async function processSubmit(formElement, selectedProjects) {
-            const formData = new FormData(formElement);
-            const results = Object.fromEntries(formData.entries());
-
-            if (uploadedPhotos.length < 3) return alert("Пожалуйста, загрузите минимум 3 фотографии.");
-            if (!uploadedVideo && !results.portfolio_url) {
-                return alert("Пожалуйста, загрузите видео-пробу ИЛИ укажите ссылку на ваше портфолио/видео ниже.");
-            }
-
-            const overlay = document.getElementById('loadingOverlay');
-            const submitBtn = document.getElementById('submitBtn');
-            overlay.style.display = 'flex';
-            submitBtn.disabled = true;
+            const formData = new FormData(e.target);
+            const baseData = Object.fromEntries(formData.entries());
+            const selectedNodes = Array.from(document.querySelectorAll('#projectsList input:checked'));
 
             try {
-                document.getElementById('loadingText').textContent = "Сохранение данных...";
-
-                for (const p of selectedProjects) {
-                    const pName = p.name;
-
-                    // Use IDs from the checkbox if available, otherwise fallback to URL params
-                    // This fixes issues where project name lookup might fail or return wrong record
-                    const targetCid = p.chat_id ? parseInt(p.chat_id) : (cid ? parseInt(cid) : null);
-                    const targetTid = p.thread_id ? parseInt(p.thread_id) : (tid ? parseInt(tid) : null);
-
-                    console.log(`Submitting to: ${pName}, CID: ${targetCid}, TID: ${targetTid}`);
-
-                    if (!targetCid) {
-                        throw new Error("Не указан ID чата проекта (chat_id). Пожалуйста, откройте ссылку из нужного Telegram-канала или чата.");
-                    }
-
-                    const finalData = {
-                        ...results,
-                        casting_target: pName,
-                        project_name: pName,
-                        chat_id: targetCid,
-                        thread_id: targetTid,
-                        photo_urls: uploadedPhotos.map(p => p.url),
-                        video_audition_url: uploadedVideo
+                for (const node of selectedNodes) {
+                    const finalRecord = {
+                        ...baseData,
+                        casting_target: node.value,
+                        project_name: node.value,
+                        chat_id: node.dataset.cid || urlCid,
+                        thread_id: node.dataset.tid || urlTid,
+                        photo_urls: uploadedPhotos,
+                        created_at: new Date()
                     };
 
-                    // Save to DB
-                    const { data: insertedData, error } = await sb.from('casting_applications').insert([finalData]).select();
+                    const { data: ins, error } = await sb.from('casting_applications').insert([finalRecord]).select();
                     if (error) throw error;
 
-                    const newAppId = insertedData && insertedData[0] ? insertedData[0].id : null;
-
-                    // Notify Bot
-                    const resp = await fetch('https://media-seven-eta.vercel.app/api/casting', {
+                    // Уведомление бота
+                    await fetch('https://media-seven-eta.vercel.app/api/casting', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...finalData, application_id: newAppId })
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({...finalRecord, application_id: ins[0].id})
                     });
-
-                    if (!resp.ok) {
-                        const errJson = await resp.json().catch(() => ({}));
-                        throw new Error(errJson.error || `Server Error: ${resp.status}`);
-                    }
                 }
 
-                formContainer.style.display = 'none';
-                successScreen.style.display = 'block';
-                window.scrollTo(0, 0);
+                document.body.innerHTML = `<div class="container" style="text-align:center; padding-top:100px;"><h1>✅ ПРИНЯТО!</h1><p>Ваша анкета успешно отправлена.</p></div>`;
             } catch (err) {
-                console.error(err);
-                alert("Ошибка при сохранении: " + err.message);
-            } finally {
-                overlay.style.display = 'none';
-                submitBtn.disabled = false;
-                updateSubmitButton();
+                alert("Ошибка: " + err.message);
+                loader.style.display = 'none';
             }
-        }
+        };
+
+        // --- Re-entry Поиск ---
+        document.getElementById('fetchBtn').onclick = async () => {
+            const phone = document.getElementById('reentryPhone').value;
+            const status = document.getElementById('fetchStatus');
+            status.innerText = "Поиск...";
+
+            const { data, error } = await sb.from('casting_applications').select('*').ilike('phone', `%${phone.slice(-10)}%`).order('created_at', {ascending: false}).limit(1);
+
+            if (data && data[0]) {
+                const app = data[0];
+                const form = document.getElementById('castingForm');
+                ['full_name', 'city', 'dob', 'phone', 'instagram', 'portfolio_url'].forEach(f => {
+                    if (form[f]) form[f].value = app[f] || '';
+                });
+                status.innerText = "✅ Нашли! Теперь выберите проект ниже.";
+                document.getElementById('welcomeContainer').style.display = 'none';
+                document.getElementById('formContainer').style.display = 'block';
+                loadProjects();
+            } else {
+                status.innerText = "❌ Не нашли. Заполните заново.";
+            }
+        };
     </script>
 </body>
-
 </html>
