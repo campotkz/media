@@ -3,8 +3,6 @@ import telebot
 import re
 from telebot import types
 from telebot.apihelper import ApiTelegramException
-
-MEDIA_CHANNEL_ID = os.environ.get("MEDIA_CHANNEL_ID", "-3893557217") # default ID for media
 from flask import Flask, request, jsonify
 from supabase import create_client, Client
 import base64
@@ -27,7 +25,7 @@ TOKEN = os.environ.get('BOT_KEY')
 SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co"
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY') 
 APP_URL = "https://campotkz.github.io/media/"
-VERCEL_URL = os.environ.get("VERCEL_URL", "sijicbonds-projects.vercel.app")
+VERCEL_URL = os.environ.get("VERCEL_URL", "media-seven-eta.vercel.app")
 BASE_API_URL = f"https://{VERCEL_URL}"
 
 # Max Base64 length equivalent to 50MB
@@ -1298,7 +1296,10 @@ def offload_media_to_telegram(app_id, data):
     Returns the modified data dict with tg://... URIs.
     '''
     try:
-        if not MEDIA_CHANNEL_ID: return data
+        target_channel_id = MEDIA_CHANNEL_ID
+        if not target_channel_id:
+            target_channel_id = '-3893557217'
+            print(f"⚠️ MEDIA_CHANNEL_ID not found in env, using fallback: {target_channel_id}")
 
         photos = _normalize_url_list(data.get('photo_urls'))
         video = data.get('video_audition_url')
@@ -1319,7 +1320,7 @@ def offload_media_to_telegram(app_id, data):
                             rel_path = None
 
                         opt_url = optimize_url(url, width=800)
-                        msg = _tg_retry(bot.send_photo, MEDIA_CHANNEL_ID, opt_url, disable_notification=True)
+                        msg = _tg_retry(bot.send_photo, target_channel_id, opt_url, disable_notification=True)
                         if msg and msg.photo:
                             file_id = msg.photo[-1].file_id
                             new_photos.append(f"tg://{file_id}")
@@ -1345,7 +1346,7 @@ def offload_media_to_telegram(app_id, data):
                 else:
                     rel_path = None
 
-                msg = _tg_retry(bot.send_video, MEDIA_CHANNEL_ID, video, disable_notification=True)
+                msg = _tg_retry(bot.send_video, target_channel_id, video, disable_notification=True)
                 if msg and msg.video:
                     file_id = msg.video.file_id
                     new_video = f"tg://{file_id}"
