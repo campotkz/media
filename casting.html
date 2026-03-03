@@ -1331,7 +1331,7 @@
                     const newAppId = insertedData && insertedData[0] ? insertedData[0].id : null;
 
                     // Notify Bot
-                    const resp = await fetch('https://sijicbonds-projects.vercel.app/api/casting', {
+                    const resp = await fetch('https://media-seven-eta.vercel.app/api/casting', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ ...finalData, application_id: newAppId })
