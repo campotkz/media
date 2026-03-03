@@ -4,7 +4,7 @@ import re
 from telebot import types
 from telebot.apihelper import ApiTelegramException
 
-MEDIA_CHANNEL_ID = os.environ.get("MEDIA_CHANNEL_ID", "-3893557217") # default ID for campotkz/media
+MEDIA_CHANNEL_ID = os.environ.get("MEDIA_CHANNEL_ID", "-3893557217") # default ID for media
 from flask import Flask, request, jsonify
 from supabase import create_client, Client
 import base64
