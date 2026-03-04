@@ -1549,21 +1549,21 @@ def handle_doc_command(message):
 @bot.message_handler(commands=['reload'])
 def handle_reload_command(message):
     try:
+        # 1. Immediate acknowledgment so user knows bot isn't "hanging"
+        init_msg = bot.reply_to(message, "⏳ Подключаюсь к базе данных...")
+        
         cid = message.chat.id
         tid = message.message_thread_id
         
-        # DEBUG: Verify we are here
-        print(f"🔥 RELOAD COMMAND CAUGHT! Chat: {cid}, Thread: {tid}")
-
-        if not tid:
-            bot.reply_to(message, "⚠️ /reload работает только внутри топика.")
-            return
-            
-        # Check existing offset in DB
-        res = supabase.from_("clients").select("reload_offset").eq("chat_id", cid).eq("thread_id", tid).execute()
+        # 2. Check existing offset in DB with safety
         offset = 0
-        if res.data and res.data[0].get("reload_offset"):
-            offset = res.data[0].get("reload_offset")
+        try:
+            res = supabase.from_("clients").select("reload_offset").eq("chat_id", cid).eq("thread_id", tid).execute()
+            if res.data and res.data[0].get("reload_offset"):
+                offset = res.data[0].get("reload_offset")
+        except Exception as db_e:
+            print(f"DB Offset Check Error: {db_e}")
+            # Fallback to 0 if DB check fails
 
         if offset > 0:
             markup = types.InlineKeyboardMarkup()
@@ -1571,13 +1571,14 @@ def handle_reload_command(message):
                 types.InlineKeyboardButton("▶️ Продолжить", callback_data=f"reload_resume:{offset}"),
                 types.InlineKeyboardButton("🔄 Начать заново", callback_data="reload_resume:0")
             )
-            bot.reply_to(message, f"⚠️ У вас есть прерванная загрузка (остановлено на {offset} анкете).\nВыберите действие:", reply_markup=markup)
+            bot.edit_message_text(f"⚠️ У вас есть прерванная загрузка (остановлено на {offset} анкете).\nВыберите действие:", cid, init_msg.message_id, reply_markup=markup)
             return
         
-        # Send immediate acknowledgment
-        status_msg = bot.reply_to(message, "⏳ Поиск анкет...")
+        # 3. Update init message
+        bot.edit_message_text("⏳ Поиск анкет...", cid, init_msg.message_id)
+        status_msg = init_msg
         
-        # Start Batch 0 in a background thread to prevent webhook timeouts
+        # Start Batch 0 in a background thread
         threading.Thread(target=process_reload_batch, args=(cid, tid, 0, status_msg)).start()
         
     except Exception as e:
@@ -1710,22 +1711,7 @@ def handle_select(call):
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
         bot.answer_callback_query(call.id, "Статус обновлен")
 
-@bot.message_handler(commands=['doc'])
-def handle_doc(message):
-    cid, tid = message.chat.id, message.message_thread_id
-    if not tid: return
-    
-    status = bot.reply_to(message, "⏳ Собираю выбранных актеров...")
-    res = supabase.table("casting_applications").select("*").eq("thread_id", tid).eq("is_selected", True).execute()
-    
-    if not res.data:
-        bot.edit_message_text("Нет выбранных (зеленых) анкет.", cid, status.message_id)
-        return
-        
-    doc_io = generate_casting_docx(res.data, "Project")
-    doc_io.name = f"Casting_{tid}.docx"
-    bot.send_document(cid, doc_io, message_thread_id=tid)
-    bot.delete_message(cid, status.message_id)
+
 
 # --- Webhook Setup ---
 @app.route('/api', methods=['POST'])
