@@ -747,11 +747,11 @@ def notify_casting():
         
         if not cid: return jsonify({'error': 'no chat_id'}), 400
 
-        # Basic identification for blacklist
+        # Identifiers for deduplication/blacklist
         phone = data.get('phone')
         insta = data.get('instagram')
 
-        # --- QUICK BLACKLIST CHECK ---
+        # 1. QUICK BLACKLIST CHECK
         try:
             if phone or insta:
                 bl_query = supabase.table("blacklist").select("id")
@@ -765,59 +765,28 @@ def notify_casting():
         except Exception as bl_err:
             print(f"⚠️ Blacklist Check Failed: {bl_err}")
 
-        # START BACKGROUND PROCESSING
-        # We start a separate thread to handle heavy Telegram + Media Group + Dedup tasks
-        # This allows the API to return 200 OK immediately and avoid Vercel timeout (10s)
-        threading.Thread(target=async_background_notification, args=(cid, tid, app_id, data)).start()
-
-        return jsonify({'status': 'ok', 'info': 'Processing in background'})
-
-    except Exception as e:
-        print(f"Casting API FATAL: {e}")
-        return jsonify({'error': str(e)}), 500
-
-def async_background_notification(cid, tid, app_id, data):
-    """Heavy lifted operations for Casting: Media, Dedup, TG Notify"""
-    try:
-        phone = data.get('phone')
-        insta = data.get('instagram')
-        target = data.get('casting_target')
-
-        print(f"🚀 BACKGROUND: Processing casting for {app_id} in {cid}/{tid}")
-
-        # 1. Deduplication (Cleanup OLD duplicates BEFORE sending new message)
+        # 2. DEDUPLICATION (Synchronous but fast)
         try:
             if phone or insta:
-                # Search by phone OR instagram for the same project in THIS chat
                 query = supabase.table("casting_applications").select("id, tg_message_id").eq("chat_id", cid)
                 if tid: query = query.eq("thread_id", tid)
-                
                 conds = []
                 if phone and len(str(phone)) > 5: conds.append(f"phone.eq.{phone}")
                 if insta and len(str(insta)) > 2: conds.append(f"instagram.eq.{insta}")
-                
                 if conds:
                     query = query.or_(",".join(conds))
                     if app_id: query = query.neq("id", app_id)
-                    
                     old_res = query.execute()
                     if old_res.data:
                         for old_app in old_res.data:
                             old_msg_id = old_app.get('tg_message_id')
-                            old_db_id = old_app.get('id')
-                            print(f"🗑️ Background Dedup: Removing {old_db_id}")
-                            
                             if old_msg_id:
                                 try: bot.delete_message(cid, old_msg_id)
                                 except: pass
-                            
-                            supabase.table("casting_applications").delete().eq("id", old_db_id).execute()
-        except Exception as de: print(f"Dedup Background Err: {de}")
+                            supabase.table("casting_applications").delete().eq("id", old_app.get('id')).execute()
+        except Exception as de: print(f"Dedup Err: {de}")
 
-        # 2. Media Offloading
-        data = offload_media_to_telegram(app_id, data)
-
-        # 3. Format & Send Telegram Message
+        # 3. FORMAT & SEND CORE TELEGRAM MESSAGE (Synchronous)
         text = format_casting_message(data)
         markup = types.InlineKeyboardMarkup()
         markup.add(
@@ -828,19 +797,18 @@ def async_background_notification(cid, tid, app_id, data):
         photos = _normalize_url_list(data.get('photo_urls'))
         media_ids = []
         
-        # Send Media Group first (shorter list for mobile readability)
+        # Send up to 3 photos immediately (Sync)
         if photos:
             media = []
-            for i, p_url in enumerate(photos[:3]): # Max 3 photos
+            for i, p_url in enumerate(photos[:3]):
                 url = p_url.replace('tg://', '') if p_url.startswith('tg://') else p_url
                 media.append(types.InputMediaPhoto(url, caption=f"📸 {data.get('full_name')}" if i == 0 else ""))
-            
             try:
                 sent_group = _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
                 if sent_group: media_ids = [m.message_id for m in sent_group]
             except Exception as me: print(f"Media Group Err: {me}")
 
-        # Send Main message
+        # Main message (Sync)
         sent_msg = _tg_retry(bot.send_message, cid, text, message_thread_id=tid, reply_markup=markup, parse_mode="HTML")
         
         if sent_msg:
@@ -848,10 +816,20 @@ def async_background_notification(cid, tid, app_id, data):
                 "tg_message_id": sent_msg.message_id,
                 "media_message_ids": media_ids
             }).eq("id", app_id).execute()
-            print(f"✅ Background Notify COMPLETE for {app_id}")
+
+        # 4. BACKGROUND SLOW TASKS (Media offloading to storage)
+        if app_id:
+            threading.Thread(target=offload_media_to_telegram, args=(app_id, data)).start()
+
+        return jsonify({'status': 'ok', 'message': 'Casting notified successfully'})
 
     except Exception as e:
-        print(f"❌ Background Process Error: {e}")
+        print(f"Casting API FATAL: {e}")
+        return jsonify({'error': str(e)}), 500
+
+def async_background_notification(cid, tid, app_id, data):
+    """DEPRECATED: Logic moved back to notify_casting to prevent Vercel process death."""
+    pass
 
 @bot.message_handler(commands=['del'])
 def handle_del_app_command(message):
