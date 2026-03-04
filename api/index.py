@@ -1379,10 +1379,19 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
         # Send Batch
         for app_data in batch:
             try:
+                # CHECK FOR STOP COMMAND EARLY
+                if tid:
+                    cl_check = supabase.from_("clients").select("is_active").eq("chat_id", cid).eq("thread_id", tid).execute()
+                    if cl_check.data and cl_check.data[0].get("is_active") is False:
+                        if status_msg:
+                            try: bot.edit_message_text(f"🛑 Загрузка прервана командой /stop.", cid, status_msg.message_id)
+                            except: pass
+                        return 
+
                 # MIGRATE MEDIA IF NEEDED (User Request)
                 app_data = offload_media_to_telegram(app_data['id'], app_data)
 
-                # CHECK FOR STOP COMMAND
+                # CHECK FOR STOP COMMAND AGAIN (in case offload took a long time)
                 if tid:
                     cl_check = supabase.from_("clients").select("is_active").eq("chat_id", cid).eq("thread_id", tid).execute()
                     if cl_check.data and cl_check.data[0].get("is_active") is False:
