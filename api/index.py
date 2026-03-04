@@ -140,21 +140,6 @@ def _tg_retry(fn, *args, **kwargs):
             time.sleep(1)
     return None
 
-def format_casting_message(data, is_selected=False):
-    def v(k): return str(data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
-    header = "🟢 SELECTED: " if is_selected else ""
-    return (
-        f"{header}🌟 <b>АНКЕТА: {v('full_name')}</b>\n"
-        f"🎯 Проект: <b>{v('casting_target')}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"👤 <b>Данные:</b> {v('city')} | {v('gender')} | {v('dob')}\n"
-        f"📏 <b>Параметры:</b> {v('height_weight')} | {v('sizes')}\n"
-        f"📱 <b>Inst:</b> {v('instagram')}\n"
-        f"📞 <b>WhatsApp:</b> <code>{v('phone')}</code>\n\n"
-        f"💡 <b>Опыт:</b> {v('experience')}\n"
-        f"🎭 <b>Навыки:</b> {v('skills')}\n"
-        f"💰 <b>Бюджет:</b> {v('fee_range')}\n"
-    )
 
 # --- Media Offloading ---
 
@@ -1399,22 +1384,7 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                 media = []
                 for i, url in enumerate(photos[:3]):
                     opt_url = optimize_url(url, width=1024)
-                    if i == 0:
-                        caption = f"📸 <b>{safe_app.get('full_name')}</b>\n{safe_app.get('casting_target')}\n⬇️ Описание ниже"
-                        media.append(types.InputMediaPhoto(opt_url, caption=caption, parse_mode="HTML"))
-                    else:
-                        media.append(types.InputMediaPhoto(opt_url))
-
-                # Send Media Group
-                if media:
-                    try:
-                        _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-                    except Exception as e:
-                        print(f"Reload Media Group Fail: {e}")
-                        if photos:
-                            try:
-                                _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
-                            except: pass
+                    media.append(types.InputMediaPhoto(opt_url))
 
                 full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
 
@@ -1424,8 +1394,23 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                     types.InlineKeyboardButton(sel_txt, callback_data=f"app_sel:{app_id}"),
                     types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
                 )
-                
+
                 sent_msg = None
+                
+                # Send Media Group first, but without caption on the photos
+                if media:
+                    try:
+                        # Clear caption from first photo so the text message isn't duplicated
+                        media[0].caption = None
+                        _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                    except Exception as e:
+                        print(f"Reload Media Group Fail: {e}")
+                        if photos:
+                            try:
+                                _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
+                            except: pass
+
+                # Then send the full text message immediately after
                 try:
                     sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
                 except Exception as e:
@@ -1628,29 +1613,6 @@ def handle_start(message):
     )
     bot.send_message(cid, f"🦾 <b>GULYWOOD ERP v{VERSION}</b>", reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
 
-@bot.message_handler(commands=['reload'])
-def handle_reload(message):
-    cid, tid = message.chat.id, message.message_thread_id
-    if not tid: return bot.reply_to(message, "Только в топиках!")
-    
-    status = bot.reply_to(message, "⏳ Загружаю анкеты проекта...")
-    try:
-        res = supabase.table("casting_applications").select("*").eq("thread_id", tid).order("created_at").execute()
-        apps = res.data or []
-        if not apps:
-            bot.edit_message_text("Анкет пока нет.", cid, status.message_id)
-            return
-
-        bot.edit_message_text(f"Найдено {len(apps)} анкет. Начинаю вывод...", cid, status.message_id)
-        
-        for app_data in apps[:20]: # Ограничение для безопасности
-            # Эмуляция входящего уведомления
-            requests.post(f"{BASE_API_URL}/api/casting", json={**app_data, "chat_id": cid, "thread_id": tid})
-            time.sleep(1)
-            
-        bot.delete_message(cid, status.message_id)
-    except Exception as e:
-        bot.edit_message_text(f"Ошибка: {e}", cid, status.message_id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_sel:'))
 def handle_select(call):
