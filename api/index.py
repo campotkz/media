@@ -78,8 +78,10 @@ def format_casting_message(data, is_selected=False):
     if data.get('portfolio_url'):
         full_txt += f"\n🔗 <a href='{data.get('portfolio_url')}'>Портфолио / Ссылка</a>\n"
         
-    if data.get('video_url'):
-        full_txt += f"🎥 <a href='{data.get('video_url')}'>Видеовизитка</a>\n"
+    # Standardize video field (handle video_url and video_audition_url)
+    v_url = data.get('video_url') or data.get('video_audition_url')
+    if v_url:
+        full_txt += f"🎥 <a href='{v_url}'>Видеовизитка</a>\n"
         
     # Get photos (handle string or list)
     photos = data.get('photo_urls', [])
@@ -809,23 +811,34 @@ def notify_casting():
             except Exception as me: print(f"Media Group Err: {me}")
 
         # Main message (Sync)
-        sent_msg = _tg_retry(bot.send_message, cid, text, message_thread_id=tid, reply_markup=markup, parse_mode="HTML")
+        # Use direct call to raise errors and catch them in the outer try-except
+        try:
+            sent_msg = bot.send_message(cid, text, message_thread_id=tid, reply_markup=markup, parse_mode="HTML")
+        except Exception as te:
+            # Fallback for hidden/deleted topics
+            if "thread not found" in str(te).lower() and tid is not None:
+                print(f"⚠️ Topic {tid} not found, falling back to main chat")
+                sent_msg = bot.send_message(cid, text, reply_markup=markup, parse_mode="HTML")
+            else:
+                raise Exception(f"Telegram Send Error: {str(te)}")
         
         if sent_msg:
+            # Update DB with message ID
             supabase.table("casting_applications").update({
                 "tg_message_id": sent_msg.message_id,
                 "media_message_ids": media_ids
             }).eq("id", app_id).execute()
 
-        # 4. BACKGROUND SLOW TASKS (Media offloading to storage)
+        # 4. BACKGROUND SLOW TASKS (Media offloading)
         if app_id:
             threading.Thread(target=offload_media_to_telegram, args=(app_id, data)).start()
 
-        return jsonify({'status': 'ok', 'message': 'Casting notified successfully'})
+        return jsonify({'status': 'ok', 'message': 'Casting notified successfully', 'msg_id': sent_msg.message_id if sent_msg else None})
 
     except Exception as e:
         print(f"Casting API FATAL: {e}")
-        return jsonify({'error': str(e)}), 500
+        # Return full error to help user debug the "Bot Notify warning" in console
+        return jsonify({'error': f"CRITICAL: {str(e)}"}), 500
 
 def async_background_notification(cid, tid, app_id, data):
     """DEPRECATED: Logic moved back to notify_casting to prevent Vercel process death."""

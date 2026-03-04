@@ -1334,7 +1334,7 @@
 
                     const newAppId = insertedData && insertedData[0] ? insertedData[0].id : null;
 
-                    // Notify Bot (Soft-fail to avoid blocking user if Supabase succeeded)
+                    // Notify Bot
                     try {
                         const resp = await fetch('https://media-seven-eta.vercel.app/api/casting', {
                             method: 'POST',
@@ -1344,10 +1344,13 @@
 
                         if (!resp.ok) {
                             const errJson = await resp.json().catch(() => ({}));
-                            console.warn("Bot Notify warning:", errJson);
+                            console.error("Bot Notify Failed:", errJson);
+                            // Show alert but continue to Success Screen since data is IN Supabase
+                            alert("⚠️ ВНИМАНИЕ: Анкета сохранена в базу, но бот не смог отправить уведомление в Telegram.\n\nОшибка: " + (errJson.error || "Неизвестная ошибка сервера"));
                         }
                     } catch (botErr) {
-                        console.warn("Bot Notify connection error (timeout?):", botErr);
+                        console.error("Bot Notify connection error:", botErr);
+                        alert("⚠️ Ошибка связи с ботом. Данные в базе, но уведомление может задержаться.");
                     }
                 }
 
