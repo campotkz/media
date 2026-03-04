@@ -684,6 +684,11 @@
     <div class="viewport">
         <!-- START OVERLAY -->
         <div id="startOverlay" class="overlay">
+            <div style="position: absolute; top: 30px; left: 20px;">
+                <button class="btn-sm"
+                    style="background:var(--accent-red); opacity:1; pointer-events:auto; font-size: 13px; padding: 10px 14px;"
+                    onclick="window.location.href='index.html'">🔙 МЕНЮ</button>
+            </div>
             <span class="project-tag">FILM TIMER PRO</span>
             <h1 style="margin: 10px 0 0; font-size: 26px; font-weight: 800;">СМЕНА НЕ НАЧАТА</h1>
             <p id="startOverlayDesc"
@@ -717,7 +722,8 @@
                 style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
                 <button class="btn-sm c-blue" onclick="toggleDrawer()">📋 ПЛАН</button>
                 <span class="project-tag" id="elProjName">PROJECT_NAME</span>
-                <button class="btn-sm" style="opacity:0; pointer-events:none">X</button>
+                <button class="btn-sm" style="background:var(--accent-red); opacity:1; pointer-events:auto;"
+                    onclick="window.location.href='index.html'">🔙 МЕНЮ</button>
             </div>
             <div id="elShiftTimer" class="main-timer">00:00:00</div>
             <div id="elLocation" class="location-tag">📍 <span id="valLocation">ЛОКАЦИЯ: КВАРТИРА</span> ⚙️</div>

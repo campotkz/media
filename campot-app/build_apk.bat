@@ -4,12 +4,12 @@ copy ..\index.html www\index.html /y
 copy ..\timer.html www\timer.html /y
 copy ..\favicon.png www\favicon.png /y
 
-echo [2/6] Generating App Icons from campot.jpg...
-if exist "..\campot.jpg" (
-    echo [INFO] Found campot.jpg, updating icons...
-    call npx -y @capacitor/assets generate --icon ..\campot.jpg --android
+echo [2/6] Generating App Icons...
+if exist "assets\icon.png" (
+    echo [INFO] Updating icons from assets folder...
+    call npx @capacitor/assets generate --android
 ) else (
-    echo [WARN] campot.jpg not found in root, skipping icon update.
+    echo [WARN] assets folder not configured, skipping icon update.
 )
 
 echo [3/6] Capacitor Sync...
@@ -17,12 +17,21 @@ call npx cap sync android
 
 echo [4/6] Building APK (Gradle) using Java 21...
 set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
 cd android
-call gradlew.bat clean assembleDebug
+echo [INFO] Stopping old Gradle daemons...
+call gradlew.bat --stop
+echo [INFO] Starting build...
+call gradlew.bat clean assembleDebug --stacktrace
 cd ..
 
 echo [5/6] Exporting APK to root folder...
-copy android\app\build\outputs\apk\debug\campot-debug.apk ..\Campot_v1.apk /y
+if exist "android\app\build\outputs\apk\debug\campot-debug.apk" (
+    copy android\app\build\outputs\apk\debug\campot-debug.apk ..\Campot_v1.apk /y
+    echo [SUCCESS] APK exported to e:\Campot\Campot_v1.apk
+) else (
+    echo [ERROR] APK not found! Build probably failed. Check logs above.
+)
 
-echo [6/6] Done! APK is available at e:\Campot\Campot_v1.apk
+echo [6/6] Done!
 pause
