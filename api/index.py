@@ -143,7 +143,7 @@ def _normalize_url_list(value):
     return []
 
 def _tg_retry(fn, *args, **kwargs):
-    for i in range(3):
+    for i in range(100):
         try:
             return fn(*args, **kwargs)
         except ApiTelegramException as e:
@@ -151,9 +151,9 @@ def _tg_retry(fn, *args, **kwargs):
                 time.sleep(e.result_json.get('parameters', {}).get('retry_after', 1) + 1)
             else: raise
         except Exception as e:
-            print(f"⚠️ TG Retry Attempt {i+1} Failed: {e}")
-            if i == 2: raise
-            time.sleep(1)
+            print(f"⚠️ TG Retry Network Drop {i+1}/100: {e}")
+            if i == 99: raise
+            time.sleep(5)
     return None
 
 
@@ -1311,6 +1311,23 @@ def process_manual_media_update(source_msg, application_msg):
     except Exception as e:
         print(f"process_manual_media_update err: {e}")
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('reload_resume:'))
+def handle_reload_resume(call):
+    try:
+        _, offset_str = call.data.split(':')
+        offset = int(offset_str)
+        cid, tid = call.message.chat.id, call.message.message_thread_id
+        
+        bot.edit_message_text(f"⏳ Загрузка с {offset} анкеты...", cid, call.message.message_id)
+        
+        if offset == 0:
+            supabase.from_("clients").update({"reload_offset": 0}).eq("chat_id", cid).eq("thread_id", tid).execute()
+
+        threading.Thread(target=process_reload_batch, args=(cid, tid, offset, call.message)).start()
+        
+    except Exception as e:
+        print(f"Reload Resume Err: {e}")
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('reload_batch:'))
 def handle_reload_batch_callback(call):
     try:
@@ -1377,7 +1394,7 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
             _tg_retry(bot.edit_message_text, f"⏳ Загрузка {offset+1}-{min(offset+BATCH_SIZE, total_count)} из {total_count}...\n(Миграция медиа в Telegram)", cid, status_msg.message_id)
         
         # Send Batch
-        for app_data in batch:
+        for i, app_data in enumerate(batch):
             try:
                 # CHECK FOR STOP COMMAND EARLY
                 if tid:
@@ -1442,6 +1459,11 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                 if sent_msg:
                     supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
                 
+                # DB Cursor Tracking Update
+                current_offset = offset + i + 1
+                if tid:
+                    supabase.from_("clients").update({"reload_offset": current_offset}).eq("chat_id", cid).eq("thread_id", tid).execute()
+                
             except Exception as e:
                 print(f"Reload Item Error: {e}")
 
@@ -1457,6 +1479,8 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
             
             bot.send_message(cid, f"✅ Загружено {min(next_offset, total_count)} из {total_count}. Продолжить?", message_thread_id=tid, reply_markup=markup)
         else:
+            if tid:
+                supabase.from_("clients").update({"reload_offset": 0}).eq("chat_id", cid).eq("thread_id", tid).execute()
             if status_msg:
                 _tg_retry(bot.delete_message, cid, status_msg.message_id)
             final_msg = bot.send_message(cid, f"✅ Все {total_count} анкет загружены.", message_thread_id=tid)
@@ -1533,6 +1557,21 @@ def handle_reload_command(message):
 
         if not tid:
             bot.reply_to(message, "⚠️ /reload работает только внутри топика.")
+            return
+            
+        # Check existing offset in DB
+        res = supabase.from_("clients").select("reload_offset").eq("chat_id", cid).eq("thread_id", tid).execute()
+        offset = 0
+        if res.data and res.data[0].get("reload_offset"):
+            offset = res.data[0].get("reload_offset")
+
+        if offset > 0:
+            markup = types.InlineKeyboardMarkup()
+            markup.add(
+                types.InlineKeyboardButton("▶️ Продолжить", callback_data=f"reload_resume:{offset}"),
+                types.InlineKeyboardButton("🔄 Начать заново", callback_data="reload_resume:0")
+            )
+            bot.reply_to(message, f"⚠️ У вас есть прерванная загрузка (остановлено на {offset} анкете).\nВыберите действие:", reply_markup=markup)
             return
         
         # Send immediate acknowledgment
