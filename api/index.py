@@ -162,6 +162,7 @@ def _tg_retry(fn, *args, **kwargs):
 def offload_media_to_telegram(app_id, data):
     """Переносит фото из Supabase в TG канал для экономии места"""
     try:
+        print(f"🚀 Starting background offload for App ID: {app_id}")
         photos = _normalize_url_list(data.get('photo_urls'))
         video = data.get('video_audition_url')
         new_photos, new_video = [], video
@@ -169,22 +170,30 @@ def offload_media_to_telegram(app_id, data):
         if photos:
             for url in photos:
                 if 'supabase' in url:
+                    # Use _tg_retry to ensure delivery to storage channel
                     msg = _tg_retry(bot.send_photo, MEDIA_CHANNEL_ID, optimize_url(url), disable_notification=True)
-                    if msg: new_photos.append(f"tg://{msg.photo[-1].file_id}")
-                else: new_photos.append(url)
+                    if msg: 
+                        new_photos.append(f"tg://{msg.photo[-1].file_id}")
+                        print(f"✅ Photo offloaded: {url} -> {msg.photo[-1].file_id}")
+                else: 
+                    new_photos.append(url)
         
         if video and 'supabase' in video:
             msg = _tg_retry(bot.send_video, MEDIA_CHANNEL_ID, video, disable_notification=True)
-            if msg: new_video = f"tg://{msg.video.file_id}"
+            if msg: 
+                new_video = f"tg://{msg.video.file_id}"
+                print(f"✅ Video offloaded: {video}")
 
+        # IMPORTANT: Supabase ARRAY column expects a list, not a joined string
         update_payload = {
-            "photo_urls": ",".join(new_photos) if new_photos else None,
+            "photo_urls": new_photos, 
             "video_audition_url": new_video
         }
-        supabase.table('casting_applications').update(update_payload).eq('id', app_id).execute()
+        res = supabase.table('casting_applications').update(update_payload).eq('id', app_id).execute()
+        print(f"✅ App {app_id} updated with TG media IDs. Status: {res.data is not None}")
         data.update(update_payload)
     except Exception as e:
-        print(f"Offload error: {e}")
+        print(f"❌ Offload FATAL Error for App {app_id}: {e}")
     return data
 
 # --- Docx Generation ---
@@ -847,7 +856,7 @@ def notify_casting():
         # Return full error to help user debug the "Bot Notify warning" in console
         return jsonify({'error': f"CRITICAL: {str(e)}"}), 500
 
-def async_background_notification(cid, tid, app_id, data):
+# --- DEPRECATED (Kept for reference or cleanup later) ---
     """DEPRECATED: Logic moved back to notify_casting to prevent Vercel process death."""
     pass
 
