@@ -744,6 +744,11 @@ def notify_casting():
         
         if not cid: return jsonify({'error': 'no chat_id'}), 400
 
+        # Define variables for blacklist and dedup logic
+        phone = data.get('phone')
+        insta = data.get('instagram')
+        target = data.get('casting_target')
+
         # 1. Оффлоад
         data = offload_media_to_telegram(app_id, data)
 

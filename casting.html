@@ -847,9 +847,9 @@
 
     <!-- Success Screen -->
     <div class="container success-screen" id="successScreen">
-        <div style="font-size:60px; margin-bottom:20px">✅</div>
-        <h2>ВАША АНКЕТА ПРИНЯТА!</h2>
-        <p>Благодарим за внимание к нашим проектам.<br>За новыми кастингами следите в Instagram:</p>
+        <div style="font-size:60px; margin-bottom:20px">✨</div>
+        <h2>СПАСИБО ЗА ВАШУ АНКЕТУ!</h2>
+        <p>Ваши данные успешно отправлены и скоро будут рассмотрены.<br>За новыми кастингами следите в нашем Instagram:</p>
         <a href="https://instagram.com/Sklad.productions" target="_blank"
             style="color:var(--accent); font-weight:700; text-decoration:none; font-size:18px">@Sklad.productions</a>
     </div>
@@ -1343,7 +1343,8 @@
 
                     if (!resp.ok) {
                         const errJson = await resp.json().catch(() => ({}));
-                        throw new Error(errJson.error || `Server Error: ${resp.status}`);
+                        console.error("Bot Notify Error:", errJson);
+                        throw new Error(errJson.error || `Ошибка уведомления бота (Status: ${resp.status})`);
                     }
                 }
 
