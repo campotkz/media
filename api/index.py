@@ -810,27 +810,31 @@ def notify_casting():
 
         photos = _normalize_url_list(data.get('photo_urls'))
         media_ids = []
+        reply_to = None
         
         # Send up to 3 photos immediately (Sync)
         if photos:
             media = []
             for i, p_url in enumerate(photos[:3]):
                 url = p_url.replace('tg://', '') if p_url.startswith('tg://') else p_url
-                media.append(types.InputMediaPhoto(url, caption=f"📸 {data.get('full_name')}" if i == 0 else ""))
+                # No long caption here, just name
+                media.append(types.InputMediaPhoto(url, caption=f"📸 {data.get('full_name')}"))
             try:
                 sent_group = _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-                if sent_group: media_ids = [m.message_id for m in sent_group]
+                if sent_group: 
+                    media_ids = [m.message_id for m in sent_group]
+                    reply_to = sent_group[0].message_id
             except Exception as me: print(f"Media Group Err: {me}")
+            time.sleep(0.5)
 
         # Main message (Sync)
         try:
-            sent_msg = bot.send_message(cid, text, message_thread_id=tid, reply_markup=markup, parse_mode="HTML")
+            sent_msg = _tg_retry(bot.send_message, cid, text, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", reply_to_message_id=reply_to)
         except Exception as te:
             # Fallback for hidden/deleted topics
             if "thread not found" in str(te).lower() and tid is not None:
-                sent_msg = bot.send_message(cid, text, reply_markup=markup, parse_mode="HTML")
+                sent_msg = _tg_retry(bot.send_message, cid, text, reply_markup=markup, parse_mode="HTML", reply_to_message_id=reply_to)
             else:
-                # IMPORTANT: Raise to be caught by outer try-except for 500 error reporting
                 raise te
         
         if sent_msg and app_id:
@@ -840,9 +844,9 @@ def notify_casting():
                 "media_message_ids": media_ids
             }).eq("id", app_id).execute()
 
-        # 4. BACKGROUND TASKS (Media offloading)
+        # 4. MEDIA OFFLOADING (Synchronous for Vercel stability)
         if app_id:
-            threading.Thread(target=offload_media_to_telegram, args=(app_id, data)).start()
+            offload_media_to_telegram(app_id, data)
 
         return jsonify({
             'status': 'ok', 
@@ -1224,7 +1228,7 @@ def handle_reload_resume(call):
         if offset == 0:
             supabase.from_("clients").update({"reload_offset": 0}).eq("chat_id", cid).eq("thread_id", tid).execute()
 
-        threading.Thread(target=process_reload_batch, args=(cid, tid, offset, call.message)).start()
+        process_reload_batch(cid, tid, offset, call.message)
         
     except Exception as e:
         print(f"Reload Resume Err: {e}")
@@ -1236,31 +1240,18 @@ def handle_reload_batch_callback(call):
         offset = int(offset_str)
         cid, tid = call.message.chat.id, call.message.message_thread_id
         
-        # Reuse logic by calling handle_reload_command with offset
-        # But handle_reload_command expects a Message object. 
-        # We can construct a fake message or refactor.
-        # Better: Refactor the core logic into a separate function.
-        
         bot.answer_callback_query(call.id, "Загружаю следующую партию...")
-        threading.Thread(target=process_reload_batch, args=(cid, tid, offset, call.message)).start()
+        process_reload_batch(cid, tid, offset, call.message)
         
     except Exception as e:
         print(f"Reload Batch Err: {e}")
 
 def process_reload_batch(cid, tid, offset=0, status_msg=None):
     try:
-        BATCH_SIZE = 10
-        
-        # 1. Fetch ALL apps (cached or fresh)
-        # Note: Fetching ALL every time is inefficient but safest for consistency.
-        # Optimization: fetch_casting_applications could take offset/limit, 
-        # but we need to DEDUPLICATE first, so we must fetch all (or enough) to dedupe correctly.
-        # Given user has ~60 apps, fetching all is fine.
-        
+        BATCH_SIZE = 5
         all_apps = fetch_casting_applications(cid, tid)
         if not all_apps:
-            if status_msg:
-                _tg_retry(bot.edit_message_text, f"⚠️ Анкет не найдено.", cid, status_msg.message_id)
+            if status_msg: _tg_retry(bot.edit_message_text, "⚠️ Анкет не найдено.", cid, status_msg.message_id)
             return
 
         # 2. Deduplicate
@@ -1273,117 +1264,83 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                 to_delete.append(unique_map[key]['id'])
             unique_map[key] = app
             
-        # Cleanup DB duplicates
+        # Bulk Cleanup (Much faster)
         if to_delete:
-            print(f"🗑️ Deleting {len(to_delete)} duplicates from Supabase")
-            for d_id in to_delete:
-                supabase.table("casting_applications").delete().eq("id", d_id).execute()
+            supabase.table("casting_applications").delete().in_("id", to_delete).execute()
 
         clean_apps = sorted(unique_map.values(), key=lambda x: x.get('created_at'))
         total_count = len(clean_apps)
-        
-        # Slice Batch
         batch = clean_apps[offset : offset + BATCH_SIZE]
         
         if not batch:
-            if status_msg:
-                _tg_retry(bot.edit_message_text, f"✅ Все анкеты загружены ({total_count}). Удалено дублей: {len(to_delete)}", cid, status_msg.message_id)
+            if status_msg: _tg_retry(bot.edit_message_text, f"✅ Все анкеты загружены ({total_count}).", cid, status_msg.message_id)
             return
 
-        # Notify Start of Batch
         if status_msg:
-            _tg_retry(bot.edit_message_text, f"⏳ Загрузка {offset+1}-{min(offset+BATCH_SIZE, total_count)} из {total_count}...\n(Миграция медиа в Telegram)", cid, status_msg.message_id)
+            _tg_retry(bot.edit_message_text, f"⏳ Загрузка {offset+1}-{min(offset+BATCH_SIZE, total_count)} из {total_count}...", cid, status_msg.message_id)
         
-        # Send Batch
+        # Check active state once per batch
+        is_active = True
+        if tid:
+            cl_chk = supabase.from_("clients").select("is_active").eq("chat_id", cid).eq("thread_id", tid).execute()
+            if cl_chk.data and cl_chk.data[0].get("is_active") is False: is_active = False
+
+        if not is_active:
+            if status_msg: bot.edit_message_text("🛑 Загрузка прервана.", cid, status_msg.message_id)
+            return
+
         for i, app_data in enumerate(batch):
             try:
-                # CHECK FOR STOP COMMAND EARLY
-                if tid:
-                    cl_check = supabase.from_("clients").select("is_active").eq("chat_id", cid).eq("thread_id", tid).execute()
-                    if cl_check.data and cl_check.data[0].get("is_active") is False:
-                        if status_msg:
-                            try: bot.edit_message_text(f"🛑 Загрузка прервана командой /stop.", cid, status_msg.message_id)
-                            except: pass
-                        return 
-
-                # MIGRATE MEDIA IF NEEDED (User Request)
+                # Media migration (Background/Sync)
                 app_data = offload_media_to_telegram(app_data['id'], app_data)
-
-                # CHECK FOR STOP COMMAND AGAIN (in case offload took a long time)
-                if tid:
-                    cl_check = supabase.from_("clients").select("is_active").eq("chat_id", cid).eq("thread_id", tid).execute()
-                    if cl_check.data and cl_check.data[0].get("is_active") is False:
-                        if status_msg:
-                            try: bot.edit_message_text(f"🛑 Загрузка прервана командой /stop.", cid, status_msg.message_id)
-                            except: pass
-                        return 
-
+                
                 app_id = app_data.get('id')
-                safe_app = dict(app_data)
-                photos = _normalize_url_list(safe_app.get("photo_urls"))
-                safe_app["photo_urls"] = photos
-
-                # Prepare Media
-                media = []
-                for i, url in enumerate(photos[:3]):
-                    opt_url = optimize_url(url, width=1024)
-                    media.append(types.InputMediaPhoto(opt_url))
-
-                full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
+                photos = _normalize_url_list(app_data.get("photo_urls"))
+                media = [types.InputMediaPhoto(optimize_url(u, width=1024)) for u in photos[:3]]
+                full_txt = format_casting_message(app_data, is_selected=app_data.get('is_selected', False))
 
                 markup = types.InlineKeyboardMarkup()
-                sel_txt = "✅ ВЫБРАН" if safe_app.get('is_selected') else "ВЫБРАТЬ"
+                sel_t = "✅ ВЫБРАН" if app_data.get('is_selected') else "ВЫБРАТЬ"
                 markup.add(
-                    types.InlineKeyboardButton(sel_txt, callback_data=f"app_sel:{app_id}"),
+                    types.InlineKeyboardButton(sel_t, callback_data=f"app_sel:{app_id}"),
                     types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
                 )
 
-                sent_msg = None
-                
+                reply_to = None
                 if media:
-                    try:
-                        _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-                    except Exception as e:
-                        print(f"Reload Media Group Fail: {e}")
-                        if photos:
-                            try:
-                                _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
-                            except: pass
-                    time.sleep(1.5) # SLEEP TO ENSURE MEDIA IS SENT BEFORE TEXT
+                    try: 
+                        sent_grp = _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                        if sent_grp: reply_to = sent_grp[0].message_id
+                    except: pass
+                    time.sleep(0.5) 
                 
-                try:
-                    sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-                except Exception as e:
-                    sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+                try: 
+                    sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True, reply_to_message_id=reply_to)
+                except: 
+                    sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<","").replace(">",""), message_thread_id=tid, reply_markup=markup, reply_to_message_id=reply_to)
                 
-                time.sleep(1.5) # SLEEP TO ENSURE NEXT APPLICATION DOES NOT OVERLAP
+                time.sleep(0.5)
                 if sent_msg:
                     supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
-                
-                # DB Cursor Tracking Update
-                current_offset = offset + i + 1
-                if tid:
-                    supabase.from_("clients").update({"reload_offset": current_offset}).eq("chat_id", cid).eq("thread_id", tid).execute()
-                
-            except Exception as e:
-                print(f"Reload Item Error: {e}")
+            except Exception as item_e:
+                print(f"Reload Item Error: {item_e}")
+                continue
 
         # Check if more remain
         next_offset = offset + BATCH_SIZE
         if next_offset < total_count:
-            # Send "Load More" button
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton(f"🔄 Загрузить еще ({next_offset+1}-{min(next_offset+BATCH_SIZE, total_count)})", callback_data=f"reload_batch:{next_offset}"))
             
-            if status_msg:
-                _tg_retry(bot.delete_message, cid, status_msg.message_id)
+            if tid:
+                supabase.from_("clients").update({"reload_offset": next_offset}).eq("chat_id", cid).eq("thread_id", tid).execute()
             
+            if status_msg: _tg_retry(bot.delete_message, cid, status_msg.message_id)
             bot.send_message(cid, f"✅ Загружено {min(next_offset, total_count)} из {total_count}. Продолжить?", message_thread_id=tid, reply_markup=markup)
         else:
             if tid:
                 supabase.from_("clients").update({"reload_offset": 0}).eq("chat_id", cid).eq("thread_id", tid).execute()
-            if status_msg:
-                _tg_retry(bot.delete_message, cid, status_msg.message_id)
+            if status_msg: _tg_retry(bot.delete_message, cid, status_msg.message_id)
             final_msg = bot.send_message(cid, f"✅ Все {total_count} анкет загружены.", message_thread_id=tid)
             auto_delete(final_msg, 5)
 
@@ -1479,8 +1436,8 @@ def handle_reload_command(message):
         bot.edit_message_text("⏳ Поиск анкет...", cid, init_msg.message_id)
         status_msg = init_msg
         
-        # Start Batch 0 in a background thread
-        threading.Thread(target=process_reload_batch, args=(cid, tid, 0, status_msg)).start()
+        # Start Batch 0 synchronously for Vercel stability
+        process_reload_batch(cid, tid, 0, status_msg)
         
     except Exception as e:
         print(f"RELOAD FATAL: {e}")
@@ -1515,60 +1472,15 @@ def reload_casting_endpoint():
         except:
             return jsonify({'error': 'Invalid chat_id or thread_id'}), 400
             
-        print(f"🔄 RELOAD REQUEST for CID={cid}, TID={tid}")
+        print(f"🔄 RELOAD API for CID={cid}, TID={tid}")
         
-        apps = fetch_casting_applications(cid, tid)
-        if not apps:
-            return jsonify({'status': 'empty', 'message': 'No applications found'}), 200
-            
-        found_count = len(apps)
-        sent_count = 0
+        # Process synchronously for Vercel stability
+        process_reload_batch(cid, tid, 0)
         
-        for app_data in apps:
-            try:
-                app_id = app_data.get('id')
-                safe_app = dict(app_data)
-                photos = _normalize_url_list(safe_app.get("photo_urls"))
-                safe_app["photo_urls"] = photos[:5]
-
-                # Prepare Media
-                media = []
-                for i, url in enumerate(photos[:3]):
-                    opt_url = optimize_url(url, width=1024)
-                    media.append(types.InputMediaPhoto(opt_url))
-
-                full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
-
-                markup = types.InlineKeyboardMarkup()
-                select_btn_text = "✅ ВЫБРАН" if safe_app.get('is_selected', False) else "ВЫБРАТЬ"
-                markup.add(
-                    types.InlineKeyboardButton(select_btn_text, callback_data=f"app_sel:{app_id}"),
-                    types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
-                )
-
-                sent_msg = None
-                
-                if media:
-                    try:
-                        _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-                    except Exception as e:
-                        if photos:
-                            try: _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
-                            except: pass
-                    time.sleep(1.5)
-                
-                try: sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-                except Exception: sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
-                
-                time.sleep(1.5)
-                if sent_msg:
-                    supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
-                    sent_count += 1
-                
-            except Exception as e:
-                print(f"Failed to reload app {app_data.get('id')}: {e}")
-                
-        return jsonify({'status': 'ok', 'found_count': found_count, 'reloaded_count': sent_count}), 200
+        return jsonify({
+            'status': 'ok', 
+            'message': 'Reload started in background'
+        }), 200
 
     except Exception as e:
         print(f"Reload Error: {e}")
