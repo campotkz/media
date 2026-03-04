@@ -1324,7 +1324,7 @@ def handle_reload_batch_callback(call):
         # Better: Refactor the core logic into a separate function.
         
         bot.answer_callback_query(call.id, "Загружаю следующую партию...")
-        process_reload_batch(cid, tid, offset, status_msg=call.message)
+        threading.Thread(target=process_reload_batch, args=(cid, tid, offset, call.message)).start()
         
     except Exception as e:
         print(f"Reload Batch Err: {e}")
@@ -1538,8 +1538,8 @@ def handle_reload_command(message):
         # Send immediate acknowledgment
         status_msg = bot.reply_to(message, "⏳ Поиск анкет...")
         
-        # Start Batch 0
-        process_reload_batch(cid, tid, offset=0, status_msg=status_msg)
+        # Start Batch 0 in a background thread to prevent webhook timeouts
+        threading.Thread(target=process_reload_batch, args=(cid, tid, 0, status_msg)).start()
         
     except Exception as e:
         print(f"RELOAD FATAL: {e}")
