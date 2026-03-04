@@ -103,14 +103,9 @@ def format_casting_message(data, is_selected=False):
     return full_txt# --- Database & Migration ---
 # --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
 
-def optimize_url(url, width=800):
-    if not url or "supabase.co" not in url: return url
-    sep = '&' if '?' in url else '?'
-    return f"{url}{sep}width={width}&quality=80&format=origin"
-
 # --- Helpers ---
 
-def optimize_url(url, width=1280):
+def optimize_url(url, width=800):
     """
     If URL is from Supabase Storage, append transformation params.
     """
