@@ -40,9 +40,10 @@ VERSION = "1.7.1 (Backported & Merged)"
 
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    # Use assignment instead of add to avoid duplicate headers which block CORS
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
     return response
 
 def format_casting_message(data, is_selected=False):
@@ -100,15 +101,6 @@ def format_casting_message(data, is_selected=False):
             full_txt += f"• <a href='{url}'>Фото {i+3}</a>\n"
             
     return full_txt# --- Database & Migration ---
-def ensure_casting_schema_update():
-    sql = "ALTER TABLE public.casting_applications ADD COLUMN IF NOT EXISTS media_message_ids jsonb;"
-    try:
-        # Это упрощенный вызов, в идеале делать через SQL редактор Supabase
-        pass 
-    except Exception as e:
-        print(f"Migration error: {e}")
-
-threading.Thread(target=ensure_casting_schema_update).start()
 # --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
 
 def optimize_url(url, width=800):
@@ -743,7 +735,7 @@ def handle_delete(message):
 
 @app.route('/api/casting', methods=['POST', 'OPTIONS'])
 def notify_casting():
-    if request.method == 'OPTIONS': return cors_response()
+    if request.method == 'OPTIONS': return ('', 204)
     try:
         data = request.json or {}
         cid = int(data.get('chat_id', 0))
@@ -1574,11 +1566,8 @@ def reload_casting_endpoint():
         return jsonify({'error': str(e)}), 500
 
 def cors_response():
-    r = app.make_response('')
-    r.headers.add('Access-Control-Allow-Origin', '*')
-    r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    r.headers.add('Access-Control-Allow-Methods', 'POST')
-    return r
+    # Helper for legacy routes, though after_request handles most things now
+    return ('', 204)
 
 # --- Bot Handlers ---
 
