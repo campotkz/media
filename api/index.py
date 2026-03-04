@@ -85,10 +85,13 @@ def format_casting_message(data, is_selected=False):
         
     # Get photos (handle string or list)
     photos = data.get('photo_urls', [])
-    if isinstance(photos, str):
-        import json
-        try: photos = json.loads(photos)
-        except: photos = []
+    if isinstance(photos, str) and photos.strip():
+        if photos.startswith('[') and photos.endswith(']'):
+            import json
+            try: photos = json.loads(photos)
+            except: photos = photos.split(',')
+        else:
+            photos = [p.strip() for p in photos.split(',') if p.strip()]
         
     # If there are more than 3 photos, add links to the rest
     if isinstance(photos, list) and len(photos) > 3:
@@ -745,9 +748,17 @@ def notify_casting():
         data = request.json or {}
         cid = int(data.get('chat_id', 0))
         tid = int(data.get('thread_id', 0)) if data.get('thread_id') else None
-        app_id = data.get('id') or data.get('application_id')
         
-        if not cid: return jsonify({'error': 'no chat_id'}), 400
+        # Normalize application ID
+        app_id = data.get('id') or data.get('application_id')
+        if not app_id:
+            # Try to find by phone if missing
+            phone = data.get('phone')
+            if phone:
+                res = supabase.table("casting_applications").select("id").eq("phone", phone).order("created_at", desc=True).limit(1).execute()
+                if res.data: app_id = res.data[0]['id']
+        
+        if not cid: return jsonify({'error': 'no chat_id provided'}), 400
 
         # Identifiers for deduplication/blacklist
         phone = data.get('phone')
@@ -811,29 +822,33 @@ def notify_casting():
             except Exception as me: print(f"Media Group Err: {me}")
 
         # Main message (Sync)
-        # Use direct call to raise errors and catch them in the outer try-except
         try:
             sent_msg = bot.send_message(cid, text, message_thread_id=tid, reply_markup=markup, parse_mode="HTML")
         except Exception as te:
             # Fallback for hidden/deleted topics
             if "thread not found" in str(te).lower() and tid is not None:
-                print(f"⚠️ Topic {tid} not found, falling back to main chat")
                 sent_msg = bot.send_message(cid, text, reply_markup=markup, parse_mode="HTML")
             else:
-                raise Exception(f"Telegram Send Error: {str(te)}")
+                # IMPORTANT: Raise to be caught by outer try-except for 500 error reporting
+                raise te
         
-        if sent_msg:
+        if sent_msg and app_id:
             # Update DB with message ID
             supabase.table("casting_applications").update({
                 "tg_message_id": sent_msg.message_id,
                 "media_message_ids": media_ids
             }).eq("id", app_id).execute()
 
-        # 4. BACKGROUND SLOW TASKS (Media offloading)
+        # 4. BACKGROUND TASKS (Media offloading)
         if app_id:
             threading.Thread(target=offload_media_to_telegram, args=(app_id, data)).start()
 
-        return jsonify({'status': 'ok', 'message': 'Casting notified successfully', 'msg_id': sent_msg.message_id if sent_msg else None})
+        return jsonify({
+            'status': 'ok', 
+            'message': 'Casting notified successfully', 
+            'msg_id': sent_msg.message_id if sent_msg else None,
+            'app_id': app_id
+        })
 
     except Exception as e:
         print(f"Casting API FATAL: {e}")
