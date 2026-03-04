@@ -1423,39 +1423,22 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                 sent_msg = None
                 
                 if media:
-                    if len(full_txt) <= 1000:
-                        media[0].caption = full_txt
-                        media[0].parse_mode = "HTML"
-                        try:
-                            _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-                        except Exception as e:
-                            print(f"Reload Media Group Fail: {e}")
-                            if photos:
-                                try:
-                                    _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), caption=full_txt, parse_mode="HTML", message_thread_id=tid)
-                                except: pass
-                        
-                        # Send buttons immediately after
-                        try:
-                            sent_msg = _tg_retry(bot.send_message, cid, f"Действия по анкете ⬆️", message_thread_id=tid, reply_markup=markup)
-                        except: pass
-                    else:
-                        # Fallback if text is too long for Telegram caption limit
-                        media[0].caption = None
-                        try:
-                            _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-                        except: pass
-                        try:
-                            sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-                        except Exception as e:
-                            sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
-                else:
                     try:
-                        sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                        _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
                     except Exception as e:
-                        sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+                        print(f"Reload Media Group Fail: {e}")
+                        if photos:
+                            try:
+                                _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
+                            except: pass
+                    time.sleep(1.5) # SLEEP TO ENSURE MEDIA IS SENT BEFORE TEXT
                 
-                time.sleep(1.5) # SLEEP TO ENSURE ORDER
+                try:
+                    sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                except Exception as e:
+                    sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+                
+                time.sleep(1.5) # SLEEP TO ENSURE NEXT APPLICATION DOES NOT OVERLAP
                 if sent_msg:
                     supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
                 
@@ -1625,27 +1608,16 @@ def reload_casting_endpoint():
                 sent_msg = None
                 
                 if media:
-                    if len(full_txt) <= 1000:
-                        media[0].caption = full_txt
-                        media[0].parse_mode = "HTML"
-                        try:
-                            _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-                        except Exception as e:
-                            if photos:
-                                try: _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), caption=full_txt, parse_mode="HTML", message_thread_id=tid)
-                                except: pass
-                        
-                        try: sent_msg = _tg_retry(bot.send_message, cid, f"Действия по анкете ⬆️", message_thread_id=tid, reply_markup=markup)
-                        except: pass
-                    else:
-                        media[0].caption = None
-                        try: _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-                        except: pass
-                        try: sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-                        except Exception: sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
-                else:
-                    try: sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-                    except Exception: sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+                    try:
+                        _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                    except Exception as e:
+                        if photos:
+                            try: _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
+                            except: pass
+                    time.sleep(1.5)
+                
+                try: sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                except Exception: sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
                 
                 time.sleep(1.5)
                 if sent_msg:
