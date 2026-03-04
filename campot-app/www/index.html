@@ -111,7 +111,11 @@
       gap: var(--s-4);
     }
 
-    /* @media (max-width: 980px) removed to keep horizontal layout on mobile */
+    @media (max-width: 980px) {
+      .wrap {
+        grid-template-columns: 1fr;
+      }
+    }
 
     .card {
       position: relative;
