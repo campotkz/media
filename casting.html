@@ -849,7 +849,8 @@
     <div class="container success-screen" id="successScreen">
         <div style="font-size:60px; margin-bottom:20px">✨</div>
         <h2>СПАСИБО ЗА ВАШУ АНКЕТУ!</h2>
-        <p>Ваши данные успешно отправлены и скоро будут рассмотрены.<br>За новыми кастингами следите в нашем Instagram:</p>
+        <p>Ваши данные успешно отправлены и скоро будут рассмотрены.<br>За новыми кастингами следите в нашем Instagram:
+        </p>
         <a href="https://instagram.com/Sklad.productions" target="_blank"
             style="color:var(--accent); font-weight:700; text-decoration:none; font-size:18px">@Sklad.productions</a>
     </div>
@@ -1211,7 +1212,6 @@
                     fileItem.style.backgroundImage = `url(${publicUrl})`;
                 } catch (err) {
                     console.error(err);
-                    fileItem.remove();
                     alert(`Ошибка загрузки ${file.name}: ${err.message}`);
                 } finally {
                     pendingUploads--;
@@ -1334,17 +1334,20 @@
 
                     const newAppId = insertedData && insertedData[0] ? insertedData[0].id : null;
 
-                    // Notify Bot
-                    const resp = await fetch('https://media-seven-eta.vercel.app/api/casting', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...finalData, application_id: newAppId })
-                    });
+                    // Notify Bot (Soft-fail to avoid blocking user if Supabase succeeded)
+                    try {
+                        const resp = await fetch('https://media-seven-eta.vercel.app/api/casting', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ...finalData, application_id: newAppId })
+                        });
 
-                    if (!resp.ok) {
-                        const errJson = await resp.json().catch(() => ({}));
-                        console.error("Bot Notify Error:", errJson);
-                        throw new Error(errJson.error || `Ошибка уведомления бота (Status: ${resp.status})`);
+                        if (!resp.ok) {
+                            const errJson = await resp.json().catch(() => ({}));
+                            console.warn("Bot Notify warning:", errJson);
+                        }
+                    } catch (botErr) {
+                        console.warn("Bot Notify connection error (timeout?):", botErr);
                     }
                 }
 

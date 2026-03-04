@@ -143,17 +143,20 @@ def _normalize_url_list(value):
     return []
 
 def _tg_retry(fn, *args, **kwargs):
-    for i in range(100):
+    for i in range(3): # Reduce from 100 to 3 for serverless safety
         try:
             return fn(*args, **kwargs)
         except ApiTelegramException as e:
             if e.error_code == 429:
-                time.sleep(e.result_json.get('parameters', {}).get('retry_after', 1) + 1)
+                # Use retry_after if provided, otherwise 1s
+                wait = e.result_json.get('parameters', {}).get('retry_after', 1) + 1
+                if wait > 5: wait = 5 # Cap it to keep it within Vercel limits
+                time.sleep(wait)
             else: raise
         except Exception as e:
-            print(f"⚠️ TG Retry Network Drop {i+1}/100: {e}")
-            if i == 99: raise
-            time.sleep(5)
+            print(f"⚠️ TG Retry Drop {i+1}/3: {e}")
+            if i == 2: raise
+            time.sleep(1) # Faster retry
     return None
 
 
@@ -744,15 +747,77 @@ def notify_casting():
         
         if not cid: return jsonify({'error': 'no chat_id'}), 400
 
-        # Define variables for blacklist and dedup logic
+        # Basic identification for blacklist
+        phone = data.get('phone')
+        insta = data.get('instagram')
+
+        # --- QUICK BLACKLIST CHECK ---
+        try:
+            if phone or insta:
+                bl_query = supabase.table("blacklist").select("id")
+                if phone and insta: bl_query = bl_query.or_(f"phone.eq.{phone},instagram.eq.{insta}")
+                elif phone: bl_query = bl_query.eq("phone", phone)
+                elif insta: bl_query = bl_query.eq("instagram", insta)
+                
+                bl_res = bl_query.execute()
+                if bl_res.data:
+                    return jsonify({'status': 'blocked', 'message': 'User is blacklisted'}), 200
+        except Exception as bl_err:
+            print(f"⚠️ Blacklist Check Failed: {bl_err}")
+
+        # START BACKGROUND PROCESSING
+        # We start a separate thread to handle heavy Telegram + Media Group + Dedup tasks
+        # This allows the API to return 200 OK immediately and avoid Vercel timeout (10s)
+        threading.Thread(target=async_background_notification, args=(cid, tid, app_id, data)).start()
+
+        return jsonify({'status': 'ok', 'info': 'Processing in background'})
+
+    except Exception as e:
+        print(f"Casting API FATAL: {e}")
+        return jsonify({'error': str(e)}), 500
+
+def async_background_notification(cid, tid, app_id, data):
+    """Heavy lifted operations for Casting: Media, Dedup, TG Notify"""
+    try:
         phone = data.get('phone')
         insta = data.get('instagram')
         target = data.get('casting_target')
 
-        # 1. Оффлоад
+        print(f"🚀 BACKGROUND: Processing casting for {app_id} in {cid}/{tid}")
+
+        # 1. Deduplication (Cleanup OLD duplicates BEFORE sending new message)
+        try:
+            if phone or insta:
+                # Search by phone OR instagram for the same project in THIS chat
+                query = supabase.table("casting_applications").select("id, tg_message_id").eq("chat_id", cid)
+                if tid: query = query.eq("thread_id", tid)
+                
+                conds = []
+                if phone and len(str(phone)) > 5: conds.append(f"phone.eq.{phone}")
+                if insta and len(str(insta)) > 2: conds.append(f"instagram.eq.{insta}")
+                
+                if conds:
+                    query = query.or_(",".join(conds))
+                    if app_id: query = query.neq("id", app_id)
+                    
+                    old_res = query.execute()
+                    if old_res.data:
+                        for old_app in old_res.data:
+                            old_msg_id = old_app.get('tg_message_id')
+                            old_db_id = old_app.get('id')
+                            print(f"🗑️ Background Dedup: Removing {old_db_id}")
+                            
+                            if old_msg_id:
+                                try: bot.delete_message(cid, old_msg_id)
+                                except: pass
+                            
+                            supabase.table("casting_applications").delete().eq("id", old_db_id).execute()
+        except Exception as de: print(f"Dedup Background Err: {de}")
+
+        # 2. Media Offloading
         data = offload_media_to_telegram(app_id, data)
 
-        # 2. Формирование сообщения
+        # 3. Format & Send Telegram Message
         text = format_casting_message(data)
         markup = types.InlineKeyboardMarkup()
         markup.add(
@@ -760,197 +825,22 @@ def notify_casting():
             types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
         )
 
-        # --- 0. BLACKLIST CHECK ---
-        try:
-            if phone or insta:
-                bl_query = supabase.table("blacklist").select("id")
-                if phone and insta:
-                    bl_query = bl_query.or_(f"phone.eq.{phone},instagram.eq.{insta}")
-                elif phone:
-                    bl_query = bl_query.eq("phone", phone)
-                elif insta:
-                    bl_query = bl_query.eq("instagram", insta)
-                
-                bl_res = bl_query.execute()
-                if bl_res.data:
-                    print(f"🚫 BLOCKED: Application from {phone}/{insta} is in Blacklist.")
-                    return jsonify({'status': 'blocked', 'message': 'User is blacklisted'}), 200
-        except Exception as bl_err:
-            print(f"⚠️ Blacklist Check Failed: {bl_err}")
-            # Try to auto-fix the DB if table is missing
-            if "relation \"public.blacklist\" does not exist" in str(bl_err) or "404" in str(bl_err):
-                ensure_blacklist_table()
-
-        # Cast to integers
-        try:
-            cid = int(cid)
-            tid = int(tid) if tid and str(tid).isdigit() and int(tid) > 0 else None
-            print(f"✅ Parsed Target: CID={cid}, TID={tid}")
-        except ValueError:
-            print(f"❌ Invalid CID/TID: {cid} / {tid}")
-            return jsonify({'error': 'Invalid chat_id or thread_id format'}), 400
-
-        print(f"DEBUG: notify_casting for project: {target} (phone: {phone}, insta: {insta})")
-
-        # --- NEW: STRICT MEDIA OFFLOADING ---
-        app_id_for_offload = data.get('application_id') or data.get('id')
-        if app_id_for_offload:
-            data = offload_media_to_telegram(app_id_for_offload, data)
-
-        # 0. SELF-CLEANUP: If this is an UPDATE to an existing application, 
-        # delete its previous message FIRST.
-        app_id = data.get('application_id')
-        if app_id:
-            try:
-                # Fetch the CURRENT record to see if it has an old message ID
-                self_res = supabase.table("casting_applications").select("tg_message_id, photo_urls, video_audition_url").eq("id", app_id).single().execute()
-                if self_res.data:
-                    old_msg_id = self_res.data.get('tg_message_id')
-                    
-                    if old_msg_id:
-                        print(f"🔄 Self-Cleanup: Deleting old message {old_msg_id} for app {app_id}")
-                        try:
-                            # Delete main text message
-                            bot.delete_message(cid, old_msg_id)
-                            
-                            # Delete associated media
-                            media_count = 0
-                            old_photos = self_res.data.get('photo_urls') or []
-                            old_video = self_res.data.get('video_audition_url')
-                            media_count = len(old_photos)
-                            if old_video: media_count += 1
-                            media_count = min(media_count, 10) # Safety
-                            
-                            for i in range(1, media_count + 1):
-                                try: bot.delete_message(cid, int(old_msg_id) - i)
-                                except: pass
-                        except Exception as e:
-                            print(f"⚠️ Self-Cleanup Failed (msg too old?): {e}")
-            except Exception as e:
-                print(f"⚠️ Self-Cleanup Error: {e}")
-
-        # 1. FIND AND DELETE DUPLICATES (Strictly Different IDs)
-        try:
-            # Search by phone OR instagram for the same project
-            # AND exclude the current application (app_id) we just created
-            query = supabase.table("casting_applications").select("id, tg_message_id, photo_urls, video_audition_url")
-            
-            # Match by project (target) AND chat context (cid/tid) to be safer
-            # We want to delete ONLY duplicates in THIS specific chat/topic
-            query = query.eq("chat_id", cid)
-            if tid:
-                query = query.eq("thread_id", tid)
-            
-            # Match by phone or instagram
-            conditions = []
-            if phone and len(str(phone)) > 5:
-                conditions.append(f"phone.eq.{phone}")
-            if insta and len(str(insta)) > 2:
-                conditions.append(f"instagram.eq.{insta}")
-            
-            if conditions:
-                query = query.or_(",".join(conditions))
-            else:
-                # Fallback: if no phone/insta, maybe search by name? No, too risky.
-                # Just skip dedup if no identifiers.
-                print("⚠️ Deduplication skipped: No valid phone or instagram to match.")
-                raise Exception("No identifiers for deduplication")
-            
-            # CRITICAL: Exclude the CURRENT application ID (if we have it)
-            # Otherwise we might delete the record we just inserted if logic is flawed
-            app_id = data.get('application_id') or data.get('id')
-            if app_id:
-                query = query.neq("id", app_id)
-
-            # Get OLD records that have a telegram message ID
-            old_res = query.not_.is_("tg_message_id", "null").order("created_at", descending=True).execute()
-            
-            if old_res.data:
-                for old_app in old_res.data:
-                    old_msg_id = old_app.get('tg_message_id')
-                    old_db_id = old_app.get('id')
-                    
-                    print(f"🗑️ Found duplicate: {old_db_id} (msg: {old_msg_id})")
-
-                    # 1.1 Delete from Telegram
-                    if old_msg_id:
-                        try:
-                            # Try to delete the main text message
-                            bot.delete_message(cid, old_msg_id)
-                            print(f"   Deleted text msg {old_msg_id}")
-                            
-                            # SMART MEDIA DELETION:
-                            media_count = 0
-                            try:
-                                old_photos = old_app.get('photo_urls') or []
-                                old_video = old_app.get('video_audition_url')
-                                
-                                media_count = len(old_photos)
-                                if old_video: media_count += 1
-                                
-                                # Safety limit: don't delete more than 10 messages blindly
-                                media_count = min(media_count, 10)
-                            except: 
-                                media_count = 3 # Fallback default
-                                
-                            print(f"   Attempting to delete {media_count} media messages for app {old_db_id}")
-
-                            # The text message (old_msg_id) was sent LAST.
-                            for i in range(1, media_count + 1):
-                                try: 
-                                    target_id = int(old_msg_id) - i
-                                    bot.delete_message(cid, target_id)
-                                    print(f"   Deleted media msg {target_id}")
-                                except Exception as e:
-                                    print(f"   Failed to delete media {target_id}: {e}")
-                                    pass
-                        except Exception as tg_del_e: 
-                            print(f"   TG Delete Err: {tg_del_e}")
-                    
-                    # 1.2 Delete from Supabase
-                    # Only delete duplicates (different IDs), never the current one (self-cleanup handles msg deletion only)
-                    supabase.table("casting_applications").delete().eq("id", old_db_id).execute()
-                    print(f"✅ Deduplicated: Deleted old application {old_db_id}")
-        except Exception as dedup_e:
-            print(f"Deduplication Error: {dedup_e}")
-
-        # 2. Auto-Register Contact
-        try:
-            name, phone = data.get('full_name'), data.get('phone')
-            if name and phone:
-                supabase.table("contacts").upsert({
-                    "name": name, "phone": phone, "thread_id": tid, "chat_id": cid, "category": "casting"
-                }, on_conflict="phone,chat_id,thread_id").execute()
-        except: pass
-
-        # 2. Format Message (HTML for better reliability)
-        def v(k): return str(data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
-        
-        # IMPROVED LAYOUT (Using Helper)
-        full_txt = format_casting_message(data)
-
-        # USE A SIMPLE SAFE CAPTION FOR MEDIA GROUP to avoid 1024 limit and HTML breakage
-        simple_caption = (
-            f"📸 <b>Анкета: {v('full_name')}</b>\n"
-            f"🎯 {v('casting_target')}\n\n"
-            f"Описание придет следующим сообщением... ⬇️"
-        )
-
-        # 3. Отправка (сначала альбом, потом текст с кнопками)
         photos = _normalize_url_list(data.get('photo_urls'))
-        media = []
-        for i, p_url in enumerate(photos[:3]): # Лимит 3 фото для компактности
-            url = p_url.replace('tg://', '') if p_url.startswith('tg://') else p_url
-            if i == 0:
-                media.append(types.InputMediaPhoto(url, caption=f"📸 {data.get('full_name')}"))
-            else:
-                media.append(types.InputMediaPhoto(url))
-
         media_ids = []
-        if media:
-            sent_group = _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-            if sent_group: media_ids = [m.message_id for m in sent_group]
+        
+        # Send Media Group first (shorter list for mobile readability)
+        if photos:
+            media = []
+            for i, p_url in enumerate(photos[:3]): # Max 3 photos
+                url = p_url.replace('tg://', '') if p_url.startswith('tg://') else p_url
+                media.append(types.InputMediaPhoto(url, caption=f"📸 {data.get('full_name')}" if i == 0 else ""))
+            
+            try:
+                sent_group = _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                if sent_group: media_ids = [m.message_id for m in sent_group]
+            except Exception as me: print(f"Media Group Err: {me}")
 
+        # Send Main message
         sent_msg = _tg_retry(bot.send_message, cid, text, message_thread_id=tid, reply_markup=markup, parse_mode="HTML")
         
         if sent_msg:
@@ -958,11 +848,10 @@ def notify_casting():
                 "tg_message_id": sent_msg.message_id,
                 "media_message_ids": media_ids
             }).eq("id", app_id).execute()
+            print(f"✅ Background Notify COMPLETE for {app_id}")
 
-        return jsonify({'status': 'ok'})
     except Exception as e:
-        print(f"Casting Notify Error: {e}")
-        r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
+        print(f"❌ Background Process Error: {e}")
 
 @bot.message_handler(commands=['del'])
 def handle_del_app_command(message):
