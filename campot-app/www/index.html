@@ -975,6 +975,173 @@
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
       display: none;
     }
+
+    /* --- CASTING HUB SPECIFIC --- */
+    #castingView .side {
+      padding: 12px;
+    }
+
+    #projectsList {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 2px 12px 2px;
+      margin-bottom: 8px;
+      -webkit-overflow-scrolling: touch;
+      border-bottom: 1px solid var(--sep);
+    }
+
+    #projectsList::-webkit-scrollbar {
+      display: none;
+    }
+
+    .project-tag {
+      padding: 8px 16px;
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r-pill);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .project-tag.active {
+      background: var(--accent-fill);
+      border-color: var(--accent);
+      color: white;
+      box-shadow: 0 0 15px rgba(244, 89, 37, 0.2);
+    }
+
+    .actor-card {
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r-2);
+      padding: 12px;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      position: relative;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .actor-card.selected {
+      border-color: var(--success);
+      background: rgba(76, 217, 100, 0.05);
+      box-shadow: inset 0 0 20px rgba(76, 217, 100, 0.05);
+    }
+
+    .actor-photo {
+      width: 85px;
+      height: 115px;
+      border-radius: var(--r-1);
+      background-color: #111;
+      background-size: cover;
+      background-position: center;
+      flex-shrink: 0;
+      border: 1px solid var(--stroke);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .actor-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-width: 0;
+    }
+
+    .actor-header {
+      margin-bottom: 4px;
+    }
+
+    .actor-name {
+      font-weight: 700;
+      font-size: 15px;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .actor-role {
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .actor-details {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .actor-detail-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .actor-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .act-btn {
+      flex: 1;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .btn-sel {
+      background: rgba(76, 217, 100, 0.1);
+      color: #4cd964;
+      border-color: rgba(76, 217, 100, 0.2);
+    }
+
+    .btn-sel.active {
+      background: #4cd964;
+      color: #000;
+      border-color: #4cd964;
+    }
+
+    .btn-del {
+      background: rgba(255, 59, 48, 0.1);
+      color: #ff3b30;
+      border-color: rgba(255, 59, 48, 0.2);
+    }
+
+    .btn-del:active {
+      background: #ff3b30;
+      color: #fff;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
 
@@ -994,7 +1161,13 @@
   <div id="timingDropdown" class="dropdown"></div>
 
 
-  <div class="wrap">
+  <div class="wrap" style="padding-top: 8px;">
+    <!-- NAVIGATION TABS -->
+    <div class="nav-tabs" style="grid-column: 1 / -1; margin-bottom: 8px;">
+      <button class="nav-btn active" id="tabCalendar" onclick="switchTab('calendar')">📅 Календарь</button>
+      <button class="nav-btn" id="tabCasting" onclick="switchTab('casting')">🎭 Кастинг</button>
+    </div>
+
     <!-- CALENDAR VIEW -->
     <div class="card" id="calendarView">
       <div class="head">
@@ -1024,6 +1197,26 @@
       <div class="footer">
         <button class="primary" id="copyDayBtn">Скопировать выгрузку дня</button>
         <button id="cloudSyncBtn" onclick="loadFromCloud()" title="Обновить из облака">☁️ Обновить</button>
+      </div>
+    </div>
+
+    <!-- CASTING HUB VIEW (Hidden by default) -->
+    <div class="card" id="castingView" style="display: none; grid-column: 1 / -1;">
+      <div class="head">
+        <div class="title">🎭 CASTING HUB</div>
+        <div class="header-actions">
+          <button class="mini-btn" id="refreshCastingBtn" onclick="fetchCastingApplications()">🔄 Обновить</button>
+        </div>
+      </div>
+      <div class="side">
+        <div id="projectsList">
+          <!-- Project tags will be here -->
+        </div>
+        <div id="castingApplicationsList">
+          <div style="text-align:center; padding: 40px; color: var(--muted); font-size: 13px;">
+            🎭 Выберите проект выше или нажмите обновить
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1352,8 +1545,165 @@
       report_link: document.getElementById("report_link"),
     };
 
-    // --- TABS LOGIC REMOVED (Unified View) ---
-    // function switchTab(tab) { ... }
+    // --- TABS & CASTING LOGIC ---
+    let castingApps = [];
+    let selectedCastingProject = null;
+
+    function switchTab(tab) {
+      currentTab = tab;
+
+      // Update UI buttons
+      document.getElementById('tabCalendar').classList.toggle('active', tab === 'calendar');
+      document.getElementById('tabCasting').classList.toggle('active', tab === 'casting');
+
+      // Update view visibility
+      document.getElementById('calendarView').style.display = (tab === 'calendar') ? 'block' : 'none';
+      if (document.getElementById('dayCard')) {
+        document.getElementById('dayCard').style.display = (tab === 'calendar') ? 'block' : 'none';
+      }
+      document.getElementById('castingView').style.display = (tab === 'casting') ? 'block' : 'none';
+
+      if (tab === 'casting') {
+        fetchCastingApplications();
+      }
+    }
+
+    async function fetchCastingApplications() {
+      const btn = document.getElementById('refreshCastingBtn');
+      if (btn) btn.textContent = '⌛...';
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('casting_applications')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        castingApps = data || [];
+        renderCastingHub();
+      } catch (err) {
+        console.error('Error fetching casting:', err);
+        alert('Ошибка загрузки кастинга');
+      } finally {
+        if (btn) btn.textContent = '🔄 Обновить';
+      }
+    }
+
+    function renderCastingHub() {
+      const projectsDiv = document.getElementById('projectsList');
+      const appsDiv = document.getElementById('castingApplicationsList');
+
+      // 1. Get unique projects
+      const projects = [...new Set(castingApps.map(a => a.project_name))].sort();
+
+      // 2. Render project tags
+      let projectsHtml = `<div class="project-tag ${!selectedCastingProject ? 'active' : ''}" onclick="filterCastingByProject(null)">Все</div>`;
+      projects.forEach(p => {
+        if (!p) return;
+        projectsHtml += `<div class="project-tag ${selectedCastingProject === p ? 'active' : ''}" onclick="filterCastingByProject('${p.replace(/'/g, "\\'")}')">${p}</div>`;
+      });
+      projectsDiv.innerHTML = projectsHtml;
+
+      // 3. Render applications
+      let filteredApps = selectedCastingProject
+        ? castingApps.filter(a => a.project_name === selectedCastingProject)
+        : castingApps;
+
+      if (filteredApps.length === 0) {
+        appsDiv.innerHTML = '<div style="text-align:center; padding: 40px; color: var(--muted); font-size: 13px;">🎭 Нет анкет в этом проекте</div>';
+        return;
+      }
+
+      let appsHtml = '';
+      filteredApps.forEach(a => {
+        const isSelected = !!a.is_selected;
+        // Mock photo logic: using public URL if available, else placeholder
+        // In a real scenario, we might want to use a proxy for Telegram IDs
+        const photoUrl = `https://waekzofajzqcpoeldhkt.supabase.co/storage/v1/object/public/casting_media/${a.id}_photo.jpg`;
+
+        appsHtml += `
+                <div class="actor-card ${isSelected ? 'selected' : ''}" id="app-${a.id}">
+                    <div class="actor-photo" style="background-image: url('${photoUrl}'), url('https://via.placeholder.com/85x115?text=No+Photo')"></div>
+                    <div class="actor-info">
+                        <div class="actor-header">
+                            <span class="actor-role">${a.casting_target || 'Актер'}</span>
+                            <span class="actor-name">${a.full_name || 'Без имени'}</span>
+                        </div>
+                        <div class="actor-details">
+                            <div class="actor-detail-item">📞 ${a.phone || '--'}</div>
+                            <div class="actor-detail-item">📏 ${a.height_weight || '--'} | 📱 ${a.instagram || '--'}</div>
+                            <div class="actor-detail-item">🏠 ${a.city || 'Не указан'}</div>
+                        </div>
+                        <div class="actor-actions">
+                            <div class="act-btn btn-sel ${isSelected ? 'active' : ''}" onclick="toggleActorSelection('${a.id}', ${isSelected})">
+                                ${isSelected ? '✅ Отобран' : '➕ Выбрать'}
+                            </div>
+                            <div class="act-btn btn-del" onclick="deleteActorApplication('${a.id}')">🗑 Удалить</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+      });
+      appsDiv.innerHTML = appsHtml;
+    }
+
+    function filterCastingByProject(p) {
+      selectedCastingProject = p;
+      renderCastingHub();
+    }
+
+    async function toggleActorSelection(id, currentStatus) {
+      const newStatus = !currentStatus;
+      // Optimistic
+      const card = document.getElementById(`app-${id}`);
+      if (card) {
+        card.classList.toggle('selected', newStatus);
+        const btn = card.querySelector('.btn-sel');
+        btn.classList.toggle('active', newStatus);
+        btn.innerHTML = newStatus ? '✅ Отобран' : '➕ Выбрать';
+        // Important: update onclick to avoid closure issues if clicked again before redraw
+        btn.onclick = () => toggleActorSelection(id, newStatus);
+      }
+
+      const { error } = await supabaseClient
+        .from('casting_applications')
+        .update({ is_selected: newStatus })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Update error:', error);
+        alert('Ошибка обновления');
+        fetchCastingApplications(); // Rollback
+      } else {
+        // Update local state
+        const app = castingApps.find(a => a.id === id);
+        if (app) app.is_selected = newStatus;
+      }
+    }
+
+    async function deleteActorApplication(id) {
+      if (!confirm('Удалить анкету навсегда?')) return;
+
+      // Optimistic
+      const card = document.getElementById(`app-${id}`);
+      if (card) card.style.opacity = '0.3';
+
+      const { error } = await supabaseClient
+        .from('casting_applications')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Delete error:', error);
+        alert('Ошибка удаления');
+        fetchCastingApplications();
+      } else {
+        castingApps = castingApps.filter(a => a.id !== id);
+        renderCastingHub();
+      }
+    }
+
+    // --- EXISTING LOGIC ---
 
     // --- TASK LOGIC ---
 
@@ -3215,6 +3565,7 @@
 
     // Init
     document.getElementById("form").style.display = "none";
+    switchTab(currentTab);
     render();
     // Cleaned up duplicate loadFromCloud
     loadFromCloud();
