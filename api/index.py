@@ -139,6 +139,19 @@ def _normalize_url_list(value):
         return [v.strip() for v in value.split(',') if v.strip().startswith("http") or v.strip().startswith("tg://")]
     return []
 
+def normalize_phone(p):
+    if not p: return None
+    p = "".join(filter(str.isdigit, str(p)))
+    if len(p) == 11 and p.startswith('8'): p = '7' + p[1:]
+    return p
+
+def normalize_insta(i):
+    if not i: return None
+    i = str(i).lower().strip()
+    if i.startswith('@'): i = i[1:]
+    if 'instagram.com/' in i: i = i.split('instagram.com/')[-1].strip('/')
+    return i
+
 def _tg_retry(fn, *args, **kwargs):
     for i in range(3): # Reduce from 100 to 3 for serverless safety
         try:
@@ -781,22 +794,31 @@ def notify_casting():
 
         # 2. DEDUPLICATION (Synchronous but fast)
         try:
-            if phone or insta:
-                query = supabase.table("casting_applications").select("id, tg_message_id").eq("chat_id", cid)
+            n_phone = normalize_phone(phone)
+            n_insta = normalize_insta(insta)
+            if n_phone or n_insta:
+                query = supabase.table("casting_applications").select("id, tg_message_id, media_message_ids").eq("chat_id", cid)
                 if tid: query = query.eq("thread_id", tid)
                 conds = []
-                if phone and len(str(phone)) > 5: conds.append(f"phone.eq.{phone}")
-                if insta and len(str(insta)) > 2: conds.append(f"instagram.eq.{insta}")
+                if n_phone and len(n_phone) > 5: conds.append(f"phone.eq.{n_phone}")
+                if n_insta and len(n_insta) > 2: conds.append(f"instagram.eq.{n_insta}")
                 if conds:
                     query = query.or_(",".join(conds))
                     if app_id: query = query.neq("id", app_id)
                     old_res = query.execute()
                     if old_res.data:
                         for old_app in old_res.data:
+                            # Delete old text message
                             old_msg_id = old_app.get('tg_message_id')
                             if old_msg_id:
                                 try: bot.delete_message(cid, old_msg_id)
                                 except: pass
+                            # Delete old media group
+                            old_media_ids = old_app.get('media_message_ids') or []
+                            for mid in old_media_ids:
+                                try: bot.delete_message(cid, mid)
+                                except: pass
+                            # Delete from DB
                             supabase.table("casting_applications").delete().eq("id", old_app.get('id')).execute()
         except Exception as de: print(f"Dedup Err: {de}")
 
@@ -1258,8 +1280,9 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
         unique_map = {}
         to_delete = []
         for app in sorted(all_apps, key=lambda x: x.get('created_at')):
-            phone = app.get('phone')
-            key = phone if (phone and len(str(phone)) > 5) else (app.get('instagram') or app.get('id'))
+            phone = normalize_phone(app.get('phone'))
+            insta = normalize_insta(app.get('instagram'))
+            key = phone if (phone and len(phone) > 5) else (insta or app.get('id'))
             if key in unique_map:
                 to_delete.append(unique_map[key]['id'])
             unique_map[key] = app
@@ -1306,11 +1329,14 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                     types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
                 )
 
+                media_ids = []
                 reply_to = None
                 if media:
                     try: 
                         sent_grp = _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
-                        if sent_grp: reply_to = sent_grp[0].message_id
+                        if sent_grp: 
+                            media_ids = [m.message_id for m in sent_grp]
+                            reply_to = sent_grp[0].message_id
                     except: pass
                     time.sleep(0.5) 
                 
@@ -1321,7 +1347,10 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                 
                 time.sleep(0.5)
                 if sent_msg:
-                    supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
+                    supabase.table("casting_applications").update({
+                        "tg_message_id": sent_msg.message_id,
+                        "media_message_ids": media_ids
+                    }).eq("id", app_id).execute()
             except Exception as item_e:
                 print(f"Reload Item Error: {item_e}")
                 continue
@@ -1520,6 +1549,49 @@ def handle_select(call):
         
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
         bot.answer_callback_query(call.id, "Статус обновлен")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('app_del:'))
+def handle_app_delete_callback(call):
+    try:
+        app_id = call.data.split(':')[1]
+        cid, tid = call.message.chat.id, call.message.message_thread_id
+        
+        # 1. Fetch data for deletion
+        res = supabase.table("casting_applications").select("*").eq("id", app_id).execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ Анкета уже удалена")
+            try: bot.delete_message(cid, call.message.message_id)
+            except: pass
+            return
+
+        app_data = res.data[0]
+        msg_id = app_data.get('tg_message_id')
+        media_group = app_data.get('media_message_ids') or []
+
+        # 2. Delete from DB first
+        supabase.table("casting_applications").delete().eq("id", app_id).execute()
+        
+        # 3. Delete Telegram messages
+        # Delete text application
+        if msg_id:
+            try: bot.delete_message(cid, msg_id)
+            except: pass
+            
+        # Delete media group
+        for mid in media_group:
+            try: bot.delete_message(cid, mid)
+            except: pass
+
+        # Delete the button message itself if it's different (e.g. confirmation message in forward sync)
+        if call.message.message_id != msg_id:
+            try: bot.delete_message(cid, call.message.message_id)
+            except: pass
+
+        bot.answer_callback_query(call.id, "✅ Анкета удалена")
+
+    except Exception as e:
+        print(f"Delete Error: {e}")
+        bot.answer_callback_query(call.id, f"❌ Ошибка удаления: {e}", show_alert=True)
 
 
 
