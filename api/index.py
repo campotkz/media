@@ -77,8 +77,24 @@ def format_casting_message(data, is_selected=False):
     
     if data.get('portfolio_url'):
         full_txt += f"\n🔗 <a href='{data.get('portfolio_url')}'>Портфолио / Ссылка</a>\n"
-
-# --- Database & Migration ---
+        
+    if data.get('video_url'):
+        full_txt += f"🎥 <a href='{data.get('video_url')}'>Видеовизитка</a>\n"
+        
+    # Get photos (handle string or list)
+    photos = data.get('photo_urls', [])
+    if isinstance(photos, str):
+        import json
+        try: photos = json.loads(photos)
+        except: photos = []
+        
+    # If there are more than 3 photos, add links to the rest
+    if isinstance(photos, list) and len(photos) > 3:
+        full_txt += "\n🖼 <b>Дополнительные фото:</b>\n"
+        for i, url in enumerate(photos[3:], 1):
+            full_txt += f"• <a href='{url}'>Фото {i+3}</a>\n"
+            
+    return full_txt# --- Database & Migration ---
 def ensure_casting_schema_update():
     sql = "ALTER TABLE public.casting_applications ADD COLUMN IF NOT EXISTS media_message_ids jsonb;"
     try:
@@ -1397,25 +1413,40 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
 
                 sent_msg = None
                 
-                # Send Media Group first, but without caption on the photos
                 if media:
-                    try:
-                        # Clear caption from first photo so the text message isn't duplicated
+                    if len(full_txt) <= 1000:
+                        media[0].caption = full_txt
+                        media[0].parse_mode = "HTML"
+                        try:
+                            _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                        except Exception as e:
+                            print(f"Reload Media Group Fail: {e}")
+                            if photos:
+                                try:
+                                    _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), caption=full_txt, parse_mode="HTML", message_thread_id=tid)
+                                except: pass
+                        
+                        # Send buttons immediately after
+                        try:
+                            sent_msg = _tg_retry(bot.send_message, cid, f"Действия по анкете ⬆️", message_thread_id=tid, reply_markup=markup)
+                        except: pass
+                    else:
+                        # Fallback if text is too long for Telegram caption limit
                         media[0].caption = None
-                        _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                        try:
+                            _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                        except: pass
+                        try:
+                            sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                        except Exception as e:
+                            sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+                else:
+                    try:
+                        sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
                     except Exception as e:
-                        print(f"Reload Media Group Fail: {e}")
-                        if photos:
-                            try:
-                                _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), message_thread_id=tid)
-                            except: pass
-
-                # Then send the full text message immediately after
-                try:
-                    sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-                except Exception as e:
-                    sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+                        sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
                 
+                time.sleep(1.5) # SLEEP TO ENSURE ORDER
                 if sent_msg:
                     supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
                 
@@ -1567,6 +1598,12 @@ def reload_casting_endpoint():
                 photos = _normalize_url_list(safe_app.get("photo_urls"))
                 safe_app["photo_urls"] = photos[:5]
 
+                # Prepare Media
+                media = []
+                for i, url in enumerate(photos[:3]):
+                    opt_url = optimize_url(url, width=1024)
+                    media.append(types.InputMediaPhoto(opt_url))
+
                 full_txt = format_casting_message(safe_app, is_selected=safe_app.get('is_selected', False))
 
                 markup = types.InlineKeyboardMarkup()
@@ -1576,11 +1613,32 @@ def reload_casting_endpoint():
                     types.InlineKeyboardButton("🗑️ УДАЛИТЬ", callback_data=f"app_del:{app_id}")
                 )
 
-                try:
-                    sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
-                except Exception:
-                    sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+                sent_msg = None
                 
+                if media:
+                    if len(full_txt) <= 1000:
+                        media[0].caption = full_txt
+                        media[0].parse_mode = "HTML"
+                        try:
+                            _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                        except Exception as e:
+                            if photos:
+                                try: _tg_retry(bot.send_photo, cid, optimize_url(photos[0], width=1024), caption=full_txt, parse_mode="HTML", message_thread_id=tid)
+                                except: pass
+                        
+                        try: sent_msg = _tg_retry(bot.send_message, cid, f"Действия по анкете ⬆️", message_thread_id=tid, reply_markup=markup)
+                        except: pass
+                    else:
+                        media[0].caption = None
+                        try: _tg_retry(bot.send_media_group, cid, media, message_thread_id=tid)
+                        except: pass
+                        try: sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                        except Exception: sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+                else:
+                    try: sent_msg = _tg_retry(bot.send_message, cid, full_txt, message_thread_id=tid, reply_markup=markup, parse_mode="HTML", disable_web_page_preview=True)
+                    except Exception: sent_msg = _tg_retry(bot.send_message, cid, full_txt.replace("<", "").replace(">", ""), message_thread_id=tid, reply_markup=markup)
+                
+                time.sleep(1.5)
                 if sent_msg:
                     supabase.table("casting_applications").update({"tg_message_id": sent_msg.message_id}).eq("id", app_id).execute()
                     sent_count += 1
