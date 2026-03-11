@@ -7,6 +7,7 @@ import requests
 import threading
 import time
 import urllib.parse
+import base64
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
@@ -101,12 +102,35 @@ def format_casting_message(data, is_selected=False):
             full_txt += f"• <a href='{url}'>Фото {i+3}</a>\n"
             
     return full_txt# --- Database & Migration ---
-# --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
 
-def optimize_url(url, width=800):
-    if not url or "supabase.co" not in url: return url
-    sep = '&' if '?' in url else '?'
-    return f"{url}{sep}width={width}&quality=80&format=origin"
+def auto_delete(message, delay=5):
+    """Schedules message deletion after delay seconds."""
+    if not message: return
+    def _del():
+        try: bot.delete_message(message.chat.id, message.message_id)
+        except: pass
+    t = threading.Timer(delay, _del)
+    t.start()
+
+def ensure_project(cid, tid, chat_title, forced_name=None):
+    """Ensures a project exists in the database for the given chat/thread."""
+    if not tid: return
+    try:
+        # Check if project exists
+        res = supabase.from_("clients").select("id").eq("chat_id", cid).eq("thread_id", tid).execute()
+        if not res.data:
+            # Create a new one
+            name = forced_name or chat_title or "Новый проект"
+            category = 'casting' if 'КАСТИНГ' in (chat_title or "").upper() else 'media'
+            supabase.from_("clients").insert({
+                "chat_id": cid,
+                "thread_id": tid,
+                "name": name,
+                "category": category,
+                "is_active": True
+            }).execute()
+    except Exception as e:
+        print(f"ensure_project Error: {e}")
 
 # --- Helpers ---
 
@@ -279,18 +303,6 @@ def fetch_casting_applications(chat_id, thread_id=None, page_size=500):
         offset += page_size
     return all_rows
 
-@app.route('/api', methods=['POST'])
-def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        try:
-            json_string = request.get_data().decode('utf-8')
-            update = telebot.types.Update.de_json(json_string)
-            bot.process_new_updates([update])
-        except Exception as e:
-            print(f"Webhook Error: {e}")
-        return ''
-    return 'Forbidden', 403
-
 @app.route('/api/drop', methods=['GET'])
 def drop_updates():
     try:
@@ -452,33 +464,6 @@ def handle_feedback(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton(text="📊 ЗАПОЛНИТЬ МЕТРИКИ", url=f"{APP_URL}feedback.html?cid={cid}&tid={tid}"))
     bot.send_message(cid, f"📉 **СВЕРКА МЕТРИК**\n\n`{APP_URL}feedback.html?cid={cid}&tid={tid}`", reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
-
-@bot.message_handler(commands=['rename'])
-def handle_rename(message):
-    try:
-        cid = message.chat.id
-        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
-        
-        new_name = (message.text or "").replace('/rename', '').strip()
-        if not new_name:
-            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`", parse_mode="Markdown")
-            return
-        
-        # Determine category from chat title (group name)
-        chat_title = message.chat.title or ""
-        category = 'casting' if 'КАСТИНГ' in chat_title.upper() else 'media'
-        
-        # 1. Update existing
-        res = supabase.from_("clients").update({"name": new_name, "category": category}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        
-        # 2. If no rows updated, create it with the correct name and category
-        if not res.data:
-            ensure_project(cid, tid, chat_title, forced_name=new_name)
-            bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
-        else:
-            bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
 @bot.message_handler(commands=['on'])
 def handle_on_command(message):
@@ -716,13 +701,22 @@ def handle_rename(message):
             bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Проект А` (Бот должен быть админом)", parse_mode="Markdown")
             return
 
+        # Determine category from chat title (group name)
+        chat_title = message.chat.title or ""
+        category = 'casting' if 'КАСТИНГ' in chat_title.upper() else 'media'
+
         # Attempt to rename topic
         bot.edit_forum_topic(cid, tid, name=new_name)
         
-        # Also update in DB
-        supabase.table("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        # 1. Update existing in DB
+        res = supabase.from_("clients").update({"name": new_name, "category": category}).eq("chat_id", cid).eq("thread_id", tid).execute()
         
-        bot.reply_to(message, f"✅ Топик переименован в **{new_name}** и обновлен в базе.")
+        # 2. If no rows updated, create it with the correct name and category
+        if not res.data:
+            ensure_project(cid, tid, chat_title, forced_name=new_name)
+            bot.reply_to(message, f"✅ Проект создан и топик назван: **{new_name}**")
+        else:
+            bot.reply_to(message, f"✅ Топик переименован в **{new_name}** и обновлен в базе.")
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}\n(Проверьте, является ли бот администратором с правом управления темами)")
 

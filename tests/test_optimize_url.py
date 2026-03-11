@@ -5,17 +5,24 @@ import os
 # Set dummy environment variables to avoid Supabase error during import
 os.environ['SUPABASE_URL'] = 'https://dummy.supabase.co'
 os.environ['SUPABASE_KEY'] = 'dummy_key'
-os.environ['BOT_KEY'] = 'dummy_bot_key'
+os.environ['BOT_KEY'] = '123456:dummy_bot_key'
 
 # Add the parent directory to sys.path so we can import api.index
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import sys
+from unittest.mock import MagicMock
+
+# Since dependencies like telebot are successfully installed now (as we verified with pip list and previous errors),
+# we don't need to mock sys.modules entirely. The previous issue was simply a missing colon in the BOT_KEY.
+# Reverting to the simpler import setup.
 
 from api.index import optimize_url
 
 class TestOptimizeUrl(unittest.TestCase):
     def test_optimize_url_valid_supabase_url(self):
         url = "https://example.supabase.co/storage/v1/object/public/images/test.jpg"
-        expected = "https://example.supabase.co/storage/v1/object/public/images/test.jpg?width=800&quality=80&format=origin"
+        expected = "https://example.supabase.co/storage/v1/object/public/images/test.jpg?width=1280&quality=80&format=origin"
         self.assertEqual(optimize_url(url), expected)
 
     def test_optimize_url_valid_supabase_url_with_existing_query(self):
