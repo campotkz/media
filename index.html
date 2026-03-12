@@ -1674,11 +1674,12 @@
       const assignees = document.getElementById('t_assignees').value.split(',').map(s => s.trim()).filter(s => s);
       const casting_project = document.getElementById('t_casting_project').value.trim() || null;
       const actors = document.getElementById('t_actors').value.trim() || null;
+      const project_val = document.getElementById('t_project').value.trim() || null;
 
       const payload = {
         title, description: desc, deadline, type,
         assignee_ids: assignees,
-        project_id: project,
+        project_id: project_val,
         casting_project,
         actors,
         status: 'pending'
@@ -3441,14 +3442,6 @@
         castingApps = data || [];
       }
 
-      if (castingApps.length === 0) {
-        castingApps = [
-          { id: 'mock1', project_name: 'Реклама Сока', full_name: 'Анна Смирнова', dob: 25, city: 'Москва', photo_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200', is_selected: false },
-          { id: 'mock2', project_name: 'Реклама Сока', full_name: 'Михаил Иванов', dob: 31, city: 'Санкт-Петербург', photo_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200&h=200', is_selected: true },
-          { id: 'mock3', project_name: 'Фильм "Лето"', full_name: 'София Ким', dob: 22, city: 'Казань', photo_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200', is_selected: false },
-          { id: 'mock4', project_name: 'Фильм "Лето"', full_name: 'Алексей Петров', dob: 28, city: 'Екатеринбург', photo_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=200&h=200', is_selected: false }
-        ];
-      }
       renderCastingHub();
     }
 
