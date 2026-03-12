@@ -19,12 +19,10 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from PIL import Image
-import urllib.parse
-from concurrent.futures import ThreadPoolExecutor
 
 # --- Config ---
 TOKEN = os.environ.get('BOT_KEY')
-SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co"
+SUPABASE_URL = os.environ.get('SUPABASE_URL', "https://waekzofajzqcpoeldhkt.supabase.co")
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 APP_URL = "https://campotkz.github.io/media/"
 VERCEL_URL = os.environ.get("VERCEL_URL", "media-seven-eta.vercel.app")
@@ -100,13 +98,7 @@ def format_casting_message(data, is_selected=False):
         for i, url in enumerate(photos[3:], 1):
             full_txt += f"• <a href='{url}'>Фото {i+3}</a>\n"
             
-    return full_txt# --- Database & Migration ---
-# --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
-
-def optimize_url(url, width=800):
-    if not url or "supabase.co" not in url: return url
-    sep = '&' if '?' in url else '?'
-    return f"{url}{sep}width={width}&quality=80&format=origin"
+    return full_txt
 
 # --- Helpers ---
 
@@ -881,10 +873,6 @@ def notify_casting():
         print(f"Casting API FATAL: {e}")
         # Return full error to help user debug the "Bot Notify warning" in console
         return jsonify({'error': f"CRITICAL: {str(e)}"}), 500
-
-# --- DEPRECATED (Kept for reference or cleanup later) ---
-    """DEPRECATED: Logic moved back to notify_casting to prevent Vercel process death."""
-    pass
 
 @bot.message_handler(commands=['del'])
 def handle_del_app_command(message):
