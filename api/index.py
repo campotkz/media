@@ -7,6 +7,7 @@ import requests
 import threading
 import time
 import urllib.parse
+import base64
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
@@ -37,6 +38,37 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Version indicator for debugging
 VERSION = "1.7.1 (Backported & Merged)"
+
+def ensure_project(chat_id, thread_id, chat_title, forced_name=None):
+    """
+    Ensures a project (topic) exists in the 'clients' table.
+    """
+    if not thread_id: return
+    try:
+        # Check if exists
+        res = supabase.from_("clients").select("id").eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
+        if not res.data:
+            name = forced_name or chat_title or f"Topic {thread_id}"
+            category = 'casting' if 'КАСТИНГ' in (chat_title or "").upper() else 'media'
+            supabase.from_("clients").insert({
+                "name": name,
+                "chat_id": chat_id,
+                "thread_id": thread_id,
+                "category": category,
+                "is_active": True,
+                "is_hidden": False
+            }).execute()
+        elif forced_name:
+            supabase.from_("clients").update({"name": forced_name}).eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
+    except Exception as e:
+        print(f"ensure_project error: {e}")
+
+def auto_delete(msg, delay=10):
+    """
+    Dummy auto_delete for Vercel (serverless doesn't support background threads well).
+    We skip deletion to avoid hanging the process or throwing errors.
+    """
+    pass
 
 @app.after_request
 def after_request(response):
@@ -101,13 +133,6 @@ def format_casting_message(data, is_selected=False):
             full_txt += f"• <a href='{url}'>Фото {i+3}</a>\n"
             
     return full_txt# --- Database & Migration ---
-# --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
-
-def optimize_url(url, width=800):
-    if not url or "supabase.co" not in url: return url
-    sep = '&' if '?' in url else '?'
-    return f"{url}{sep}width={width}&quality=80&format=origin"
-
 # --- Helpers ---
 
 def optimize_url(url, width=1280):
@@ -304,12 +329,7 @@ def drop_updates():
 
 @app.route('/api/report', methods=['POST', 'OPTIONS'])
 def submit_report():
-    if request.method == 'OPTIONS':
-        r = app.make_response('')
-        r.headers.add('Access-Control-Allow-Origin', '*')
-        r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        r.headers.add('Access-Control-Allow-Methods', 'POST')
-        return r
+    if request.method == 'OPTIONS': return ('', 204)
     try:
         data = request.json or {}
         chat_id, thread_id = data.get('chat_id'), data.get('thread_id')
@@ -320,20 +340,13 @@ def submit_report():
         def v(k): return str(data.get(k)) if data.get(k) else "-"
         msg = f"📊 **ОТЧЕТ ЗА МЕСЯЦ**\n\n👤 Имя: {v('client_name')}\nInst: {v('instagram')}\n\n🔥 Лиды: {cl} ({cl-pl:+})\nПродажи: {cs} ({cs-ps:+})"
         bot.send_message(chat_id, msg, message_thread_id=thread_id, parse_mode="Markdown")
-        r = jsonify({'status': 'ok'})
-        r.headers.add('Access-Control-Allow-Origin', '*')
-        return r
+        return jsonify({'status': 'ok'})
     except Exception as e:
-        r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/send_excel', methods=['POST', 'OPTIONS'])
 def send_excel():
-    if request.method == 'OPTIONS':
-        r = app.make_response('')
-        r.headers.add('Access-Control-Allow-Origin', '*')
-        r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        r.headers.add('Access-Control-Allow-Methods', 'POST')
-        return r
+    if request.method == 'OPTIONS': return ('', 204)
     try:
         data = request.json or {}
         project_name = data.get('project_name')
@@ -363,13 +376,9 @@ def send_excel():
         # Send to Telegram
         bot.send_document(chat_id, file_io, message_thread_id=thread_id)
 
-        r = jsonify({'status': 'ok', 'message': f'File sent to {project_name}'})
-        r.headers.add('Access-Control-Allow-Origin', '*')
-        return r
+        return jsonify({'status': 'ok', 'message': f'File sent to {project_name}'})
     except Exception as e:
-        r = jsonify({'error': str(e)})
-        r.headers.add('Access-Control-Allow-Origin', '*')
-        return r, 500
+        return jsonify({'error': str(e)}), 500
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
@@ -452,33 +461,6 @@ def handle_feedback(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton(text="📊 ЗАПОЛНИТЬ МЕТРИКИ", url=f"{APP_URL}feedback.html?cid={cid}&tid={tid}"))
     bot.send_message(cid, f"📉 **СВЕРКА МЕТРИК**\n\n`{APP_URL}feedback.html?cid={cid}&tid={tid}`", reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
-
-@bot.message_handler(commands=['rename'])
-def handle_rename(message):
-    try:
-        cid = message.chat.id
-        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
-        
-        new_name = (message.text or "").replace('/rename', '').strip()
-        if not new_name:
-            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`", parse_mode="Markdown")
-            return
-        
-        # Determine category from chat title (group name)
-        chat_title = message.chat.title or ""
-        category = 'casting' if 'КАСТИНГ' in chat_title.upper() else 'media'
-        
-        # 1. Update existing
-        res = supabase.from_("clients").update({"name": new_name, "category": category}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        
-        # 2. If no rows updated, create it with the correct name and category
-        if not res.data:
-            ensure_project(cid, tid, chat_title, forced_name=new_name)
-            bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
-        else:
-            bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
 @bot.message_handler(commands=['on'])
 def handle_on_command(message):
@@ -705,7 +687,7 @@ def handle_add(message):
 def handle_rename(message):
     try:
         cid = message.chat.id
-        tid = message.message_thread_id
+        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
         
         if tid is None:
             bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
@@ -716,15 +698,24 @@ def handle_rename(message):
             bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Проект А` (Бот должен быть админом)", parse_mode="Markdown")
             return
 
-        # Attempt to rename topic
-        bot.edit_forum_topic(cid, tid, name=new_name)
-        
+        # Attempt to rename topic in Telegram
+        try:
+            bot.edit_forum_topic(cid, tid, name=new_name)
+        except Exception as tg_err:
+            print(f"Edit forum topic error: {tg_err}")
+            # Ignore if not admin, still update DB
+
         # Also update in DB
-        supabase.table("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        res = supabase.table("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
         
-        bot.reply_to(message, f"✅ Топик переименован в **{new_name}** и обновлен в базе.")
+        # If no rows updated, create it with the correct name
+        if not res.data:
+            ensure_project(cid, tid, message.chat.title, forced_name=new_name)
+            bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
+        else:
+            bot.reply_to(message, f"✅ Топик переименован в **{new_name}** и обновлен в базе.")
     except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка переименования: {e}\n(Проверьте, является ли бот администратором с правом управления темами)")
+        bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
 @bot.message_handler(commands=['del'])
 def handle_delete(message):
@@ -747,10 +738,40 @@ def handle_delete(message):
                 
                 if deleted_urls:
                     bot.reply_to(message, f"✅ Удалено из базы: {len(deleted_urls)} ссылок")
-                else:
-                    bot.reply_to(message, "ℹ️ Ссылки не найдены в базе проекта.")
+                    return True
+
+            # 1.2 Check for Casting Application
+            target_reply = reply
+            is_casting = False
+            if "АНКЕТА:" in txt:
+                is_casting = True
+            elif reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or ""):
+                target_reply = reply.reply_to_message
+                is_casting = True
+
+            if is_casting:
+                res = supabase.table("casting_applications").select("id").eq("tg_message_id", target_reply.message_id).execute()
+                if not res.data:
+                    bot.reply_to(message, "❌ Анкета не найдена в базе.")
+                    return True
+
+                app_id = res.data[0]['id']
+
+                # Cleanup command
+                try: bot.delete_message(cid, message.message_id)
+                except: pass
+
+                # Reuse callback logic
+                handle_app_delete_callback(types.CallbackQuery(id="0", from_user=message.from_user, chat_instance="0",
+                                                            message=target_reply, data=f"app_del:{app_id}"))
+                return True
+
+            bot.reply_to(message, "❌ Не найдено ссылок или анкет в сообщении.")
+            return True
+
     except Exception as e:
         print(f"Delete Error: {e}")
+        bot.reply_to(message, f"❌ Ошибка удаления: {e}")
     return False
 
 # --- Webhook Routes ---
@@ -886,42 +907,6 @@ def notify_casting():
     """DEPRECATED: Logic moved back to notify_casting to prevent Vercel process death."""
     pass
 
-@bot.message_handler(commands=['del'])
-def handle_del_app_command(message):
-    try:
-        reply = message.reply_to_message
-        if not reply:
-            bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение с анкетой для удаления.")
-            return
-
-        # 1. FIND THE APPLICATION DATA
-        target_reply = reply
-        if "АНКЕТА:" not in (reply.text or reply.caption or ""):
-            if reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or ""):
-                target_reply = reply.reply_to_message
-            else:
-                bot.reply_to(message, "❌ Пожалуйста, отвечайте именно на сообщение с АНКЕТОЙ.")
-                return
-
-        res = supabase.table("casting_applications").select("id").eq("tg_message_id", target_reply.message_id).execute()
-        if not res.data:
-            bot.reply_to(message, "❌ Анкета не найдена в базе.")
-            return
-        
-        app_id = res.data[0]['id']
-        
-        # Cleanup command
-        try: bot.delete_message(message.chat.id, message.message_id)
-        except: pass
-        
-        # Reuse callback logic
-        handle_app_delete_callback(types.CallbackQuery(id="0", from_user=message.from_user, chat_instance="0", 
-                                                      message=target_reply, data=f"app_del:{app_id}"))
-
-    except Exception as e:
-        print(f"Manual Del Error: {e}")
-        bot.reply_to(message, f"❌ Ошибка: {e}")
-
 @bot.message_handler(func=lambda m: m.forward_from_chat or m.forward_from)
 def handle_forwarded_message(message):
     try:
@@ -993,14 +978,7 @@ def handle_forwarded_message(message):
                 conf_msg = bot.reply_to(message, f"✅ Актер **{found_name}** добавлен в проект **{new_project_name}**.", reply_markup=markup)
                 
                 # Auto-delete confirmation message after 10 seconds to keep chat clean
-                import threading
-                import time
-                def delayed_delete(chat_id, msg_id):
-                    time.sleep(10)
-                    try: bot.delete_message(chat_id, msg_id)
-                    except: pass
-                
-                threading.Thread(target=delayed_delete, args=(cid, conf_msg.message_id)).start()
+                auto_delete(conf_msg, delay=10)
             
             print(f"🔄 FORWARD SYNC: Actor {found_name} synced to new project {new_project_name}")
 
@@ -1483,12 +1461,7 @@ def reload_casting_endpoint():
     Force reload of ALL applications for a specific chat/thread.
     Useful if bot failed to send messages or if chat history was cleared manually.
     """
-    if request.method == 'OPTIONS':
-        r = app.make_response('')
-        r.headers.add('Access-Control-Allow-Origin', '*')
-        r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        r.headers.add('Access-Control-Allow-Methods', 'POST')
-        return r
+    if request.method == 'OPTIONS': return ('', 204)
     try:
         data = request.json or {}
         cid = data.get('chat_id')
@@ -1520,17 +1493,6 @@ def cors_response():
     return ('', 204)
 
 # --- Bot Handlers ---
-
-@bot.message_handler(commands=['start'])
-def handle_start(message):
-    cid, tid = message.chat.id, message.message_thread_id
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("📅 КАЛЕНДАРЬ", url=f"{APP_URL}index.html?cid={cid}&tid={tid or ''}"),
-        types.InlineKeyboardButton("🎭 КАСТИНГ", url=f"{APP_URL}casting.html?cid={cid}&tid={tid or ''}")
-    )
-    bot.send_message(cid, f"🦾 <b>GULYWOOD ERP v{VERSION}</b>", reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
-
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_sel:'))
 def handle_select(call):
@@ -1596,14 +1558,5 @@ def handle_app_delete_callback(call):
 
 
 # --- Webhook Setup ---
-@app.route('/api', methods=['POST'])
-def tg_webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return ''
-    return 'Forbidden', 403
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
