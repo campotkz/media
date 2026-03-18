@@ -19,8 +19,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from PIL import Image
+import base64
 import urllib.parse
-from concurrent.futures import ThreadPoolExecutor
 
 # --- Config ---
 TOKEN = os.environ.get('BOT_KEY')
@@ -30,6 +30,7 @@ APP_URL = "https://campotkz.github.io/media/"
 VERCEL_URL = os.environ.get("VERCEL_URL", "media-seven-eta.vercel.app")
 BASE_API_URL = f"https://{VERCEL_URL}"
 MEDIA_CHANNEL_ID = os.environ.get('MEDIA_CHANNEL_ID', '-1003893557217') # Телеграм канал для хранения медиа
+MAX_BASE64_LENGTH = 15 * 1024 * 1024 # 15MB
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
@@ -101,29 +102,56 @@ def format_casting_message(data, is_selected=False):
             full_txt += f"• <a href='{url}'>Фото {i+3}</a>\n"
             
     return full_txt# --- Database & Migration ---
-# --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
-
-def optimize_url(url, width=800):
-    if not url or "supabase.co" not in url: return url
-    sep = '&' if '?' in url else '?'
-    return f"{url}{sep}width={width}&quality=80&format=origin"
-
 # --- Helpers ---
 
-def optimize_url(url, width=1280):
+def ensure_project(cid, tid, chat_title, forced_name=None):
+    """Ensures a project exists in the database. Creates it if missing."""
+    category = 'casting' if 'КАСТИНГ' in (chat_title or "").upper() else 'media'
+
+    # Check if exists
+    res = supabase.from_("clients").select("id").eq("chat_id", cid).eq("thread_id", tid).execute()
+    if res.data:
+        # Update name if forced
+        if forced_name:
+            supabase.from_("clients").update({"name": forced_name, "category": category}).eq("chat_id", cid).eq("thread_id", tid).execute()
+        return res.data[0]['id']
+
+    # Create new
+    name = forced_name or chat_title or f"Project {tid}"
+    ins = supabase.from_("clients").insert({
+        "chat_id": cid,
+        "thread_id": tid,
+        "name": name,
+        "category": category,
+        "is_active": True,
+        "is_hidden": False
+    }).execute()
+
+    if ins.data:
+        return ins.data[0]['id']
+    return None
+
+def optimize_url(url, width=800):
     """
     If URL is from Supabase Storage, append transformation params.
     """
     if not url: return url
     try:
         if "supabase.co" in url and "storage/v1/object/public" in url:
-            # Check for image extensions
-            ext = url.lower().split('.')[-1]
+            # Check for image extensions, safely ignoring query params
+            parsed_url = urllib.parse.urlparse(url)
+            ext = parsed_url.path.lower().split('.')[-1]
             if ext in ['jpg', 'jpeg', 'png', 'webp', 'tiff']:
-                if '?' in url:
-                    return f"{url}&width={width}&quality=80&format=origin"
-                else:
-                    return f"{url}?width={width}&quality=80&format=origin"
+                # Ensure we don't duplicate parameters or mess up query string
+                query_dict = urllib.parse.parse_qs(parsed_url.query)
+                query_dict['width'] = [str(width)]
+                query_dict['quality'] = ['80']
+                query_dict['format'] = ['origin']
+
+                new_query = urllib.parse.urlencode(query_dict, doseq=True)
+                new_url_parts = list(parsed_url)
+                new_url_parts[4] = new_query
+                return urllib.parse.urlunparse(new_url_parts)
     except: pass
     return url
 
@@ -152,6 +180,34 @@ def normalize_insta(i):
     if 'instagram.com/' in i: i = i.split('instagram.com/')[-1].strip('/')
     return i
 
+def _get_retry_after_seconds(e):
+    if e is None:
+        return None
+
+    if hasattr(e, 'error_code') and getattr(e, 'error_code', None) != 429:
+        return None
+
+    try:
+        if hasattr(e, 'result_json') and isinstance(e.result_json, dict):
+            parameters = e.result_json.get('parameters', {})
+            if 'retry_after' in parameters:
+                try:
+                    return int(parameters['retry_after'])
+                except (ValueError, TypeError):
+                    return None
+    except Exception:
+        pass
+
+    # Fallback to regex checking the exception message
+    import re
+    match = re.search(r'retry\s*after\s*(\d+)', str(e), re.IGNORECASE)
+    if match:
+        try:
+            return int(match.group(1))
+        except ValueError:
+            pass
+    return None
+
 def _tg_retry(fn, *args, **kwargs):
     for i in range(3): # Reduce from 100 to 3 for serverless safety
         try:
@@ -159,10 +215,15 @@ def _tg_retry(fn, *args, **kwargs):
         except ApiTelegramException as e:
             if e.error_code == 429:
                 # Use retry_after if provided, otherwise 1s
-                wait = e.result_json.get('parameters', {}).get('retry_after', 1) + 1
+                wait = _get_retry_after_seconds(e)
+                if wait is None: wait = 1
+                wait += 1
                 if wait > 5: wait = 5 # Cap it to keep it within Vercel limits
                 time.sleep(wait)
-            else: raise
+            else:
+                # If it's a Telegram error but not 429, we still let it be caught by the general block
+                # but if we are doing this strictly:
+                raise
         except Exception as e:
             print(f"⚠️ TG Retry Drop {i+1}/3: {e}")
             if i == 2: raise
@@ -343,6 +404,9 @@ def send_excel():
         if not project_name or not base64_data:
             return jsonify({'error': 'Missing project_name or base64_data'}), 400
 
+        if len(base64_data) > MAX_BASE64_LENGTH:
+            return jsonify({'error': 'Payload too large'}), 413
+
         # Find target chat/thread from database
         res = supabase.from_("clients").select("chat_id, thread_id").eq("name", project_name).execute()
         if not res.data:
@@ -356,7 +420,11 @@ def send_excel():
             return jsonify({'error': f'Project "{project_name}" has no linked chat_id'}), 400
 
         # Decode base64 file
-        file_bytes = base64.b64decode(base64_data)
+        try:
+            file_bytes = base64.b64decode(base64_data, validate=True)
+        except Exception:
+            return jsonify({'error': 'Invalid base64 data'}), 400
+
         file_io = io.BytesIO(file_bytes)
         file_io.name = filename
 
@@ -457,26 +525,33 @@ def handle_feedback(message):
 def handle_rename(message):
     try:
         cid = message.chat.id
-        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
+        tid = message.message_thread_id
         
+        if tid is None:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
+            return
+
         new_name = (message.text or "").replace('/rename', '').strip()
         if not new_name:
-            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`", parse_mode="Markdown")
+            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Проект А` (Бот должен быть админом)", parse_mode="Markdown")
             return
-        
-        # Determine category from chat title (group name)
+
         chat_title = message.chat.title or ""
-        category = 'casting' if 'КАСТИНГ' in chat_title.upper() else 'media'
+
+        # Attempt to rename topic
+        try:
+            bot.edit_forum_topic(cid, tid, name=new_name)
+        except Exception as topic_e:
+            bot.reply_to(message, f"⚠️ Не удалось переименовать топик в Telegram (возможно нет прав), но в базе обновим.\nОшибка: {topic_e}")
+
+        # Also update in DB
+        res = supabase.from_("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
         
-        # 1. Update existing
-        res = supabase.from_("clients").update({"name": new_name, "category": category}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        
-        # 2. If no rows updated, create it with the correct name and category
         if not res.data:
             ensure_project(cid, tid, chat_title, forced_name=new_name)
             bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
         else:
-            bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
+            bot.reply_to(message, f"✅ Топик переименован в **{new_name}** и обновлен в базе.")
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
@@ -568,7 +643,6 @@ def handle_general_casting(message):
             f"🔗 <code>{link}</code>"
         )
         m = bot.send_message(cid, msg, reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
-        auto_delete(m, delay=60)
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка генерации ссылки: {e}")
 
@@ -700,31 +774,6 @@ def handle_add(message):
         
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка добавления: {e}")
-
-@bot.message_handler(commands=['rename'])
-def handle_rename(message):
-    try:
-        cid = message.chat.id
-        tid = message.message_thread_id
-        
-        if tid is None:
-            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
-            return
-
-        new_name = (message.text or "").replace('/rename', '').strip()
-        if not new_name:
-            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Проект А` (Бот должен быть админом)", parse_mode="Markdown")
-            return
-
-        # Attempt to rename topic
-        bot.edit_forum_topic(cid, tid, name=new_name)
-        
-        # Also update in DB
-        supabase.table("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        
-        bot.reply_to(message, f"✅ Топик переименован в **{new_name}** и обновлен в базе.")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка переименования: {e}\n(Проверьте, является ли бот администратором с правом управления темами)")
 
 @bot.message_handler(commands=['del'])
 def handle_delete(message):
@@ -991,16 +1040,6 @@ def handle_forwarded_message(message):
             if fresh_res.data:
                 markup.add(types.InlineKeyboardButton("🗑️ УДАЛИТЬ ИЗ ЭТОГО ТОПИКА", callback_data=f"app_del:{fresh_res.data[0]['id']}"))
                 conf_msg = bot.reply_to(message, f"✅ Актер **{found_name}** добавлен в проект **{new_project_name}**.", reply_markup=markup)
-                
-                # Auto-delete confirmation message after 10 seconds to keep chat clean
-                import threading
-                import time
-                def delayed_delete(chat_id, msg_id):
-                    time.sleep(10)
-                    try: bot.delete_message(chat_id, msg_id)
-                    except: pass
-                
-                threading.Thread(target=delayed_delete, args=(cid, conf_msg.message_id)).start()
             
             print(f"🔄 FORWARD SYNC: Actor {found_name} synced to new project {new_project_name}")
 
@@ -1371,7 +1410,6 @@ def process_reload_batch(cid, tid, offset=0, status_msg=None):
                 supabase.from_("clients").update({"reload_offset": 0}).eq("chat_id", cid).eq("thread_id", tid).execute()
             if status_msg: _tg_retry(bot.delete_message, cid, status_msg.message_id)
             final_msg = bot.send_message(cid, f"✅ Все {total_count} анкет загружены.", message_thread_id=tid)
-            auto_delete(final_msg, 5)
 
     except Exception as e:
         print(f"Process Batch Err: {e}")
@@ -1521,17 +1559,6 @@ def cors_response():
 
 # --- Bot Handlers ---
 
-@bot.message_handler(commands=['start'])
-def handle_start(message):
-    cid, tid = message.chat.id, message.message_thread_id
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("📅 КАЛЕНДАРЬ", url=f"{APP_URL}index.html?cid={cid}&tid={tid or ''}"),
-        types.InlineKeyboardButton("🎭 КАСТИНГ", url=f"{APP_URL}casting.html?cid={cid}&tid={tid or ''}")
-    )
-    bot.send_message(cid, f"🦾 <b>GULYWOOD ERP v{VERSION}</b>", reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
-
-
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_sel:'))
 def handle_select(call):
     app_id = call.data.split(':')[1]
@@ -1594,16 +1621,6 @@ def handle_app_delete_callback(call):
         bot.answer_callback_query(call.id, f"❌ Ошибка удаления: {e}", show_alert=True)
 
 
-
-# --- Webhook Setup ---
-@app.route('/api', methods=['POST'])
-def tg_webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return ''
-    return 'Forbidden', 403
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
