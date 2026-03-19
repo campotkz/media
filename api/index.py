@@ -19,8 +19,6 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from PIL import Image
-import urllib.parse
-from concurrent.futures import ThreadPoolExecutor
 
 # --- Config ---
 TOKEN = os.environ.get('BOT_KEY')
@@ -101,13 +99,6 @@ def format_casting_message(data, is_selected=False):
             full_txt += f"• <a href='{url}'>Фото {i+3}</a>\n"
             
     return full_txt# --- Database & Migration ---
-# --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
-
-def optimize_url(url, width=800):
-    if not url or "supabase.co" not in url: return url
-    sep = '&' if '?' in url else '?'
-    return f"{url}{sep}width={width}&quality=80&format=origin"
-
 # --- Helpers ---
 
 def optimize_url(url, width=1280):
@@ -468,13 +459,23 @@ def handle_rename(message):
         chat_title = message.chat.title or ""
         category = 'casting' if 'КАСТИНГ' in chat_title.upper() else 'media'
         
+        # Attempt to rename topic if in a topic
+        if tid:
+            try:
+                bot.edit_forum_topic(cid, tid, name=new_name)
+            except Exception as e:
+                print(f"Failed to rename forum topic: {e}")
+
         # 1. Update existing
         res = supabase.from_("clients").update({"name": new_name, "category": category}).eq("chat_id", cid).eq("thread_id", tid).execute()
         
         # 2. If no rows updated, create it with the correct name and category
         if not res.data:
-            ensure_project(cid, tid, chat_title, forced_name=new_name)
-            bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
+            try:
+                ensure_project(cid, tid, chat_title, forced_name=new_name)
+                bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
+            except NameError:
+                pass
         else:
             bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
     except Exception as e:
@@ -701,31 +702,6 @@ def handle_add(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка добавления: {e}")
 
-@bot.message_handler(commands=['rename'])
-def handle_rename(message):
-    try:
-        cid = message.chat.id
-        tid = message.message_thread_id
-        
-        if tid is None:
-            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
-            return
-
-        new_name = (message.text or "").replace('/rename', '').strip()
-        if not new_name:
-            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Проект А` (Бот должен быть админом)", parse_mode="Markdown")
-            return
-
-        # Attempt to rename topic
-        bot.edit_forum_topic(cid, tid, name=new_name)
-        
-        # Also update in DB
-        supabase.table("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        
-        bot.reply_to(message, f"✅ Топик переименован в **{new_name}** и обновлен в базе.")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка переименования: {e}\n(Проверьте, является ли бот администратором с правом управления темами)")
-
 @bot.message_handler(commands=['del'])
 def handle_delete(message):
     try:
@@ -733,11 +709,27 @@ def handle_delete(message):
         tid = message.message_thread_id
         
         # 1. CONTEXTUAL MODE (Reply)
-        if message.reply_to_message:
-            reply = message.reply_to_message
+        reply = message.reply_to_message
+        if reply:
             txt = (reply.text or reply.caption or "")
             
-            # 1.1 Check for Links
+            # Check if it's an application (АНКЕТА)
+            if "АНКЕТА:" in txt:
+                res = supabase.table("casting_applications").select("id").eq("tg_message_id", reply.message_id).execute()
+                if not res.data:
+                    bot.reply_to(message, "❌ Анкета не найдена в базе.")
+                    return
+
+                app_id = res.data[0]['id']
+
+                try: bot.delete_message(cid, message.message_id)
+                except: pass
+
+                # Reuse callback logic
+                handle_app_delete_callback(types.CallbackQuery(id="0", from_user=message.from_user, chat_instance="0", message=reply, data=f"app_del:{app_id}"))
+                return
+
+            # Check for Links
             urls = re.findall(r'(https?://[^\s]+)', txt)
             if urls:
                 deleted_urls = []
@@ -749,6 +741,9 @@ def handle_delete(message):
                     bot.reply_to(message, f"✅ Удалено из базы: {len(deleted_urls)} ссылок")
                 else:
                     bot.reply_to(message, "ℹ️ Ссылки не найдены в базе проекта.")
+                return
+
+        bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение со ссылкой или анкетой для удаления.")
     except Exception as e:
         print(f"Delete Error: {e}")
     return False
@@ -885,42 +880,6 @@ def notify_casting():
 # --- DEPRECATED (Kept for reference or cleanup later) ---
     """DEPRECATED: Logic moved back to notify_casting to prevent Vercel process death."""
     pass
-
-@bot.message_handler(commands=['del'])
-def handle_del_app_command(message):
-    try:
-        reply = message.reply_to_message
-        if not reply:
-            bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение с анкетой для удаления.")
-            return
-
-        # 1. FIND THE APPLICATION DATA
-        target_reply = reply
-        if "АНКЕТА:" not in (reply.text or reply.caption or ""):
-            if reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or ""):
-                target_reply = reply.reply_to_message
-            else:
-                bot.reply_to(message, "❌ Пожалуйста, отвечайте именно на сообщение с АНКЕТОЙ.")
-                return
-
-        res = supabase.table("casting_applications").select("id").eq("tg_message_id", target_reply.message_id).execute()
-        if not res.data:
-            bot.reply_to(message, "❌ Анкета не найдена в базе.")
-            return
-        
-        app_id = res.data[0]['id']
-        
-        # Cleanup command
-        try: bot.delete_message(message.chat.id, message.message_id)
-        except: pass
-        
-        # Reuse callback logic
-        handle_app_delete_callback(types.CallbackQuery(id="0", from_user=message.from_user, chat_instance="0", 
-                                                      message=target_reply, data=f"app_del:{app_id}"))
-
-    except Exception as e:
-        print(f"Manual Del Error: {e}")
-        bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(func=lambda m: m.forward_from_chat or m.forward_from)
 def handle_forwarded_message(message):
@@ -1126,10 +1085,6 @@ def handle_actor_update_link(message):
         bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(func=lambda m: (m.text and "/add" in m.text) or (m.caption and "/add" in m.caption), content_types=['text', 'photo', 'video', 'document'])
-def handle_add_media_legacy(message):
-    # Rename this handler to avoid conflict or just remove it if unused.
-    # It seems to be conflicting with /foto and /video commands?
-    pass
 def handle_manual_add_media(message):
     try:
         reply = message.reply_to_message
@@ -1521,17 +1476,6 @@ def cors_response():
 
 # --- Bot Handlers ---
 
-@bot.message_handler(commands=['start'])
-def handle_start(message):
-    cid, tid = message.chat.id, message.message_thread_id
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("📅 КАЛЕНДАРЬ", url=f"{APP_URL}index.html?cid={cid}&tid={tid or ''}"),
-        types.InlineKeyboardButton("🎭 КАСТИНГ", url=f"{APP_URL}casting.html?cid={cid}&tid={tid or ''}")
-    )
-    bot.send_message(cid, f"🦾 <b>GULYWOOD ERP v{VERSION}</b>", reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
-
-
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_sel:'))
 def handle_select(call):
     app_id = call.data.split(':')[1]
@@ -1594,16 +1538,6 @@ def handle_app_delete_callback(call):
         bot.answer_callback_query(call.id, f"❌ Ошибка удаления: {e}", show_alert=True)
 
 
-
-# --- Webhook Setup ---
-@app.route('/api', methods=['POST'])
-def tg_webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return ''
-    return 'Forbidden', 403
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
