@@ -6,6 +6,7 @@ import io
 import requests
 import threading
 import time
+import base64
 import urllib.parse
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
@@ -24,6 +25,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 # --- Config ---
 TOKEN = os.environ.get('BOT_KEY')
+MAX_BASE64_LENGTH = 15 * 1024 * 1024 # 15 MB
 SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co"
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 APP_URL = "https://campotkz.github.io/media/"
@@ -103,14 +105,9 @@ def format_casting_message(data, is_selected=False):
     return full_txt# --- Database & Migration ---
 # --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
 
-def optimize_url(url, width=800):
-    if not url or "supabase.co" not in url: return url
-    sep = '&' if '?' in url else '?'
-    return f"{url}{sep}width={width}&quality=80&format=origin"
-
 # --- Helpers ---
 
-def optimize_url(url, width=1280):
+def optimize_url(url, width=800):
     """
     If URL is from Supabase Storage, append transformation params.
     """
@@ -152,6 +149,21 @@ def normalize_insta(i):
     if 'instagram.com/' in i: i = i.split('instagram.com/')[-1].strip('/')
     return i
 
+def _get_retry_after_seconds(e):
+    if not e: return None
+    try:
+        if isinstance(e, ApiTelegramException) and e.error_code == 429 and getattr(e, 'result_json', None):
+            val = e.result_json.get('parameters', {}).get('retry_after')
+            if val is not None:
+                return int(val)
+        # Fallback to regex matching
+        match = re.search(r'retry after (\d+)', str(e).lower())
+        if match:
+            return int(match.group(1))
+    except Exception:
+        pass
+    return None
+
 def _tg_retry(fn, *args, **kwargs):
     for i in range(3): # Reduce from 100 to 3 for serverless safety
         try:
@@ -159,7 +171,7 @@ def _tg_retry(fn, *args, **kwargs):
         except ApiTelegramException as e:
             if e.error_code == 429:
                 # Use retry_after if provided, otherwise 1s
-                wait = e.result_json.get('parameters', {}).get('retry_after', 1) + 1
+                wait = (_get_retry_after_seconds(e) or 1) + 1
                 if wait > 5: wait = 5 # Cap it to keep it within Vercel limits
                 time.sleep(wait)
             else: raise
@@ -343,6 +355,21 @@ def send_excel():
         if not project_name or not base64_data:
             return jsonify({'error': 'Missing project_name or base64_data'}), 400
 
+        if len(base64_data) > MAX_BASE64_LENGTH:
+            return jsonify({'error': 'Payload too large'}), 413
+
+        # Decode base64 file
+        try:
+            # Add padding if missing, required for Python's base64 decode if string length not mod 4
+            padding = len(base64_data) % 4
+            if padding:
+                base64_data += '=' * (4 - padding)
+            file_bytes = base64.b64decode(base64_data, validate=True)
+        except Exception:
+            return jsonify({'error': 'Invalid base64 data'}), 400
+
+        file_io = io.BytesIO(file_bytes)
+
         # Find target chat/thread from database
         res = supabase.from_("clients").select("chat_id, thread_id").eq("name", project_name).execute()
         if not res.data:
@@ -355,9 +382,6 @@ def send_excel():
         if not chat_id:
             return jsonify({'error': f'Project "{project_name}" has no linked chat_id'}), 400
 
-        # Decode base64 file
-        file_bytes = base64.b64decode(base64_data)
-        file_io = io.BytesIO(file_bytes)
         file_io.name = filename
 
         # Send to Telegram
@@ -452,33 +476,6 @@ def handle_feedback(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton(text="📊 ЗАПОЛНИТЬ МЕТРИКИ", url=f"{APP_URL}feedback.html?cid={cid}&tid={tid}"))
     bot.send_message(cid, f"📉 **СВЕРКА МЕТРИК**\n\n`{APP_URL}feedback.html?cid={cid}&tid={tid}`", reply_markup=markup, message_thread_id=tid, parse_mode="Markdown")
-
-@bot.message_handler(commands=['rename'])
-def handle_rename(message):
-    try:
-        cid = message.chat.id
-        tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
-        
-        new_name = (message.text or "").replace('/rename', '').strip()
-        if not new_name:
-            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`", parse_mode="Markdown")
-            return
-        
-        # Determine category from chat title (group name)
-        chat_title = message.chat.title or ""
-        category = 'casting' if 'КАСТИНГ' in chat_title.upper() else 'media'
-        
-        # 1. Update existing
-        res = supabase.from_("clients").update({"name": new_name, "category": category}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        
-        # 2. If no rows updated, create it with the correct name and category
-        if not res.data:
-            ensure_project(cid, tid, chat_title, forced_name=new_name)
-            bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
-        else:
-            bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
 @bot.message_handler(commands=['on'])
 def handle_on_command(message):
@@ -732,12 +729,29 @@ def handle_delete(message):
         cid = message.chat.id
         tid = message.message_thread_id
         
-        # 1. CONTEXTUAL MODE (Reply)
         if message.reply_to_message:
             reply = message.reply_to_message
             txt = (reply.text or reply.caption or "")
             
-            # 1.1 Check for Links
+            # Check if it's an application deletion
+            if "АНКЕТА:" in txt or (reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or "")):
+                target_reply = reply
+                if "АНКЕТА:" not in txt:
+                    target_reply = reply.reply_to_message
+
+                res = supabase.table("casting_applications").select("id").eq("tg_message_id", target_reply.message_id).execute()
+                if res.data:
+                    app_id = res.data[0]['id']
+                    try: bot.delete_message(cid, message.message_id)
+                    except: pass
+                    handle_app_delete_callback(types.CallbackQuery(id="0", from_user=message.from_user, chat_instance="0",
+                                                                  message=target_reply, data=f"app_del:{app_id}"))
+                    return
+                else:
+                    bot.reply_to(message, "❌ Анкета не найдена в базе.")
+                    return
+
+            # Check for Links deletion
             urls = re.findall(r'(https?://[^\s]+)', txt)
             if urls:
                 deleted_urls = []
@@ -885,42 +899,6 @@ def notify_casting():
 # --- DEPRECATED (Kept for reference or cleanup later) ---
     """DEPRECATED: Logic moved back to notify_casting to prevent Vercel process death."""
     pass
-
-@bot.message_handler(commands=['del'])
-def handle_del_app_command(message):
-    try:
-        reply = message.reply_to_message
-        if not reply:
-            bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение с анкетой для удаления.")
-            return
-
-        # 1. FIND THE APPLICATION DATA
-        target_reply = reply
-        if "АНКЕТА:" not in (reply.text or reply.caption or ""):
-            if reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or ""):
-                target_reply = reply.reply_to_message
-            else:
-                bot.reply_to(message, "❌ Пожалуйста, отвечайте именно на сообщение с АНКЕТОЙ.")
-                return
-
-        res = supabase.table("casting_applications").select("id").eq("tg_message_id", target_reply.message_id).execute()
-        if not res.data:
-            bot.reply_to(message, "❌ Анкета не найдена в базе.")
-            return
-        
-        app_id = res.data[0]['id']
-        
-        # Cleanup command
-        try: bot.delete_message(message.chat.id, message.message_id)
-        except: pass
-        
-        # Reuse callback logic
-        handle_app_delete_callback(types.CallbackQuery(id="0", from_user=message.from_user, chat_instance="0", 
-                                                      message=target_reply, data=f"app_del:{app_id}"))
-
-    except Exception as e:
-        print(f"Manual Del Error: {e}")
-        bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(func=lambda m: m.forward_from_chat or m.forward_from)
 def handle_forwarded_message(message):
@@ -1521,17 +1499,6 @@ def cors_response():
 
 # --- Bot Handlers ---
 
-@bot.message_handler(commands=['start'])
-def handle_start(message):
-    cid, tid = message.chat.id, message.message_thread_id
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("📅 КАЛЕНДАРЬ", url=f"{APP_URL}index.html?cid={cid}&tid={tid or ''}"),
-        types.InlineKeyboardButton("🎭 КАСТИНГ", url=f"{APP_URL}casting.html?cid={cid}&tid={tid or ''}")
-    )
-    bot.send_message(cid, f"🦾 <b>GULYWOOD ERP v{VERSION}</b>", reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
-
-
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_sel:'))
 def handle_select(call):
     app_id = call.data.split(':')[1]
@@ -1596,14 +1563,6 @@ def handle_app_delete_callback(call):
 
 
 # --- Webhook Setup ---
-@app.route('/api', methods=['POST'])
-def tg_webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return ''
-    return 'Forbidden', 403
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
