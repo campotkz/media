@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 # Set required environment variables before importing
-os.environ['BOT_KEY'] = 'test_bot_key'
+os.environ['BOT_KEY'] = '123456:dummy'
 os.environ['SUPABASE_URL'] = 'https://test.supabase.co'
 os.environ['SUPABASE_KEY'] = 'test_supabase_key'
 

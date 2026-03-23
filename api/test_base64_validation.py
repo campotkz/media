@@ -5,13 +5,14 @@ import os
 import sys
 
 # Mock environment variables before importing index.py
-os.environ['BOT_KEY'] = 'test_bot_key'
+os.environ['BOT_KEY'] = '123456:dummy'
 os.environ['SUPABASE_KEY'] = 'test_supabase_key'
 
 # Add api directory to path so index.py can be imported
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from index import app, MAX_BASE64_LENGTH
+from index import app
+MAX_BASE64_LENGTH = 15 * 1024 * 1024
 
 class TestBase64Validation(unittest.TestCase):
     def setUp(self):
