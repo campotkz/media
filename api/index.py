@@ -101,30 +101,48 @@ def format_casting_message(data, is_selected=False):
             full_txt += f"• <a href='{url}'>Фото {i+3}</a>\n"
             
     return full_txt# --- Database & Migration ---
-# --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
-
-def optimize_url(url, width=800):
-    if not url or "supabase.co" not in url: return url
-    sep = '&' if '?' in url else '?'
-    return f"{url}{sep}width={width}&quality=80&format=origin"
-
 # --- Helpers ---
 
-def optimize_url(url, width=1280):
+def ensure_project(chat_id, thread_id, chat_title="", forced_name=None):
+    if not thread_id:
+        return
+    name = forced_name or chat_title or "Unknown Project"
+    category = 'casting' if 'КАСТИНГ' in chat_title.upper() else 'media'
+
+    try:
+        res = supabase.from_("clients").select("id").eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
+        if not res.data:
+            supabase.from_("clients").insert([{
+                "name": name,
+                "category": category,
+                "chat_id": chat_id,
+                "thread_id": thread_id,
+                "is_active": True
+            }]).execute()
+    except Exception as e:
+        print(f"ensure_project error: {e}")
+
+def optimize_url(url, width=800):
     """
-    If URL is from Supabase Storage, append transformation params.
+    If URL is from Supabase Storage, append transformation params safely.
+    Preserves existing query parameters.
     """
-    if not url: return url
+    if not url or not isinstance(url, str): return url
     try:
         if "supabase.co" in url and "storage/v1/object/public" in url:
-            # Check for image extensions
-            ext = url.lower().split('.')[-1]
+            parsed = urllib.parse.urlparse(url)
+            # Check for image extensions in the path, ignoring query params
+            ext = parsed.path.lower().split('.')[-1]
             if ext in ['jpg', 'jpeg', 'png', 'webp', 'tiff']:
-                if '?' in url:
-                    return f"{url}&width={width}&quality=80&format=origin"
-                else:
-                    return f"{url}?width={width}&quality=80&format=origin"
-    except: pass
+                query = urllib.parse.parse_qs(parsed.query)
+                query['width'] = [str(width)]
+                query['quality'] = ['80']
+                query['format'] = ['origin']
+                # Reconstruct the URL with updated query params
+                new_query = urllib.parse.urlencode(query, doseq=True)
+                return urllib.parse.urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+    except Exception as e:
+        print(f"Optimize URL Error: {e}")
     return url
 
 def _normalize_url_list(value):
@@ -461,22 +479,37 @@ def handle_rename(message):
         
         new_name = (message.text or "").replace('/rename', '').strip()
         if not new_name:
-            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`", parse_mode="Markdown")
+            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`\nЭту команду можно использовать только внутри топика проекта.", parse_mode="Markdown")
+            return
+
+        if tid is None:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
             return
         
         # Determine category from chat title (group name)
         chat_title = message.chat.title or ""
         category = 'casting' if 'КАСТИНГ' in chat_title.upper() else 'media'
+
+        # Attempt to rename topic (only works if bot is an admin)
+        topic_renamed = False
+        try:
+            bot.edit_forum_topic(cid, tid, name=new_name)
+            topic_renamed = True
+        except Exception as err:
+            print(f"Topic rename error: {err}")
+            pass
         
         # 1. Update existing
         res = supabase.from_("clients").update({"name": new_name, "category": category}).eq("chat_id", cid).eq("thread_id", tid).execute()
         
+        topic_msg = " и топик переименован" if topic_renamed else " (топик не переименован - проверьте права бота)"
+
         # 2. If no rows updated, create it with the correct name and category
         if not res.data:
             ensure_project(cid, tid, chat_title, forced_name=new_name)
-            bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
+            bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**{topic_msg}")
         else:
-            bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
+            bot.reply_to(message, f"✅ Проект переименован: **{new_name}**{topic_msg}")
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
@@ -701,30 +734,6 @@ def handle_add(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка добавления: {e}")
 
-@bot.message_handler(commands=['rename'])
-def handle_rename(message):
-    try:
-        cid = message.chat.id
-        tid = message.message_thread_id
-        
-        if tid is None:
-            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
-            return
-
-        new_name = (message.text or "").replace('/rename', '').strip()
-        if not new_name:
-            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Проект А` (Бот должен быть админом)", parse_mode="Markdown")
-            return
-
-        # Attempt to rename topic
-        bot.edit_forum_topic(cid, tid, name=new_name)
-        
-        # Also update in DB
-        supabase.table("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        
-        bot.reply_to(message, f"✅ Топик переименован в **{new_name}** и обновлен в базе.")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка переименования: {e}\n(Проверьте, является ли бот администратором с правом управления темами)")
 
 @bot.message_handler(commands=['del'])
 def handle_delete(message):
