@@ -7,6 +7,7 @@ import requests
 import threading
 import time
 import urllib.parse
+import base64
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
@@ -19,8 +20,6 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from PIL import Image
-import urllib.parse
-from concurrent.futures import ThreadPoolExecutor
 
 # --- Config ---
 TOKEN = os.environ.get('BOT_KEY')
@@ -101,14 +100,33 @@ def format_casting_message(data, is_selected=False):
             full_txt += f"• <a href='{url}'>Фото {i+3}</a>\n"
             
     return full_txt# --- Database & Migration ---
-# --- MEDIA OFFLOADING (CAMPOT2 Logic) ---
-
-def optimize_url(url, width=800):
-    if not url or "supabase.co" not in url: return url
-    sep = '&' if '?' in url else '?'
-    return f"{url}{sep}width={width}&quality=80&format=origin"
-
 # --- Helpers ---
+
+def ensure_project(chat_id, thread_id, chat_title, forced_name=None):
+    """
+    Ensures a project (client) exists in the database for the given chat and thread.
+    Creates it if it doesn't exist.
+    """
+    if not thread_id:
+        return
+
+    try:
+        # Check if exists
+        res = supabase.from_("clients").select("id").eq("chat_id", chat_id).eq("thread_id", thread_id).execute()
+        if not res.data:
+            # Create new
+            category = 'casting' if 'КАСТИНГ' in (chat_title or "").upper() else 'media'
+            name = forced_name or chat_title or f"Project {thread_id}"
+            supabase.from_("clients").insert({
+                "chat_id": chat_id,
+                "thread_id": thread_id,
+                "name": name,
+                "category": category,
+                "is_active": True,
+                "is_hidden": False
+            }).execute()
+    except Exception as e:
+        print(f"ensure_project Error: {e}")
 
 def optimize_url(url, width=1280):
     """
@@ -152,6 +170,29 @@ def normalize_insta(i):
     if 'instagram.com/' in i: i = i.split('instagram.com/')[-1].strip('/')
     return i
 
+# Global executor to prevent thread leaking during warm starts in Vercel
+_bg_executor = ThreadPoolExecutor(max_workers=3)
+
+def auto_delete(msg, delay=10):
+    """
+    Schedules a message for deletion. In Vercel serverless, Threading may fail.
+    We will use a short time.sleep in a global ThreadPoolExecutor as best-effort.
+    """
+    if not msg:
+        return
+
+    def _delete():
+        time.sleep(min(delay, 5)) # Cap delay to 5 seconds to reduce risk of Vercel kill
+        try:
+            bot.delete_message(msg.chat.id, msg.message_id)
+        except:
+            pass
+
+    try:
+        _bg_executor.submit(_delete)
+    except Exception as e:
+        print(f"auto_delete err: {e}")
+
 def _tg_retry(fn, *args, **kwargs):
     for i in range(3): # Reduce from 100 to 3 for serverless safety
         try:
@@ -173,7 +214,8 @@ def _tg_retry(fn, *args, **kwargs):
 # --- Media Offloading ---
 
 def offload_media_to_telegram(app_id, data):
-    """Переносит фото из Supabase в TG канал для экономии места"""
+    """Переносит фото из Supabase в TG канал для экономии места.
+    Использует батчинг через send_media_group для ускорения."""
     try:
         print(f"🚀 Starting background offload for App ID: {app_id}")
         photos = _normalize_url_list(data.get('photo_urls'))
@@ -181,15 +223,34 @@ def offload_media_to_telegram(app_id, data):
         new_photos, new_video = [], video
 
         if photos:
-            for url in photos:
-                if 'supabase' in url:
-                    # Use _tg_retry to ensure delivery to storage channel
-                    msg = _tg_retry(bot.send_photo, MEDIA_CHANNEL_ID, optimize_url(url), disable_notification=True)
-                    if msg: 
+            # Separate supabase URLs from others
+            supa_photos = [url for url in photos if 'supabase' in url]
+            other_photos = [url for url in photos if 'supabase' not in url]
+            new_photos.extend(other_photos)
+
+            # Batch upload Supabase photos in chunks of up to 10
+            for i in range(0, len(supa_photos), 10):
+                batch = supa_photos[i:i+10]
+                if len(batch) == 1:
+                    # Single photo fallback
+                    msg = _tg_retry(bot.send_photo, MEDIA_CHANNEL_ID, optimize_url(batch[0]), disable_notification=True)
+                    if msg:
                         new_photos.append(f"tg://{msg.photo[-1].file_id}")
-                        print(f"✅ Photo offloaded: {url} -> {msg.photo[-1].file_id}")
-                else: 
-                    new_photos.append(url)
+                        print(f"✅ Photo offloaded (single): {batch[0]}")
+                elif len(batch) > 1:
+                    # Media group (2-10 photos)
+                    media_group = [types.InputMediaPhoto(optimize_url(url)) for url in batch]
+                    try:
+                        msgs = _tg_retry(bot.send_media_group, MEDIA_CHANNEL_ID, media_group, disable_notification=True)
+                        if msgs:
+                            for msg, orig_url in zip(msgs, batch):
+                                new_photos.append(f"tg://{msg.photo[-1].file_id}")
+                                print(f"✅ Photo offloaded (batch): {orig_url}")
+                    except Exception as me:
+                        print(f"⚠️ Batch offload failed: {me}. Falling back to single uploads.")
+                        for url in batch:
+                            msg = _tg_retry(bot.send_photo, MEDIA_CHANNEL_ID, optimize_url(url), disable_notification=True)
+                            if msg: new_photos.append(f"tg://{msg.photo[-1].file_id}")
         
         if video and 'supabase' in video:
             msg = _tg_retry(bot.send_video, MEDIA_CHANNEL_ID, video, disable_notification=True)
@@ -197,7 +258,7 @@ def offload_media_to_telegram(app_id, data):
                 new_video = f"tg://{msg.video.file_id}"
                 print(f"✅ Video offloaded: {video}")
 
-        # IMPORTANT: Supabase ARRAY column expects a list, not a joined string
+        # Preserve the original order if needed, but since we separated them, it's ok as long as all are saved
         update_payload = {
             "photo_urls": new_photos, 
             "video_audition_url": new_video
@@ -326,6 +387,8 @@ def submit_report():
     except Exception as e:
         r = jsonify({'error': str(e)}); r.headers.add('Access-Control-Allow-Origin', '*'); return r, 500
 
+MAX_BASE64_LENGTH = 15 * 1024 * 1024 # 15MB
+
 @app.route('/api/send_excel', methods=['POST', 'OPTIONS'])
 def send_excel():
     if request.method == 'OPTIONS':
@@ -343,6 +406,9 @@ def send_excel():
         if not project_name or not base64_data:
             return jsonify({'error': 'Missing project_name or base64_data'}), 400
 
+        if len(base64_data) > MAX_BASE64_LENGTH:
+            return jsonify({'error': 'Payload too large'}), 413
+
         # Find target chat/thread from database
         res = supabase.from_("clients").select("chat_id, thread_id").eq("name", project_name).execute()
         if not res.data:
@@ -355,7 +421,12 @@ def send_excel():
         if not chat_id:
             return jsonify({'error': f'Project "{project_name}" has no linked chat_id'}), 400
 
-        # Decode base64 file
+        # Decode base64 file with padding fix
+        # Ensure proper padding to avoid binascii.Error
+        padding_needed = len(base64_data) % 4
+        if padding_needed:
+            base64_data += '=' * (4 - padding_needed)
+
         file_bytes = base64.b64decode(base64_data)
         file_io = io.BytesIO(file_bytes)
         file_io.name = filename
@@ -459,15 +530,25 @@ def handle_rename(message):
         cid = message.chat.id
         tid = message.message_thread_id if getattr(message, 'is_topic_message', False) else None
         
+        if tid is None:
+            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
+            return
+
         new_name = (message.text or "").replace('/rename', '').strip()
         if not new_name:
-            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Goldy | Luxury`", parse_mode="Markdown")
+            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Проект А`", parse_mode="Markdown")
             return
         
         # Determine category from chat title (group name)
         chat_title = message.chat.title or ""
         category = 'casting' if 'КАСТИНГ' in chat_title.upper() else 'media'
         
+        # Attempt to rename topic (bot must be admin)
+        try:
+            bot.edit_forum_topic(cid, tid, name=new_name)
+        except Exception as e:
+            print(f"Failed to rename forum topic (bot might not be admin): {e}")
+
         # 1. Update existing
         res = supabase.from_("clients").update({"name": new_name, "category": category}).eq("chat_id", cid).eq("thread_id", tid).execute()
         
@@ -476,7 +557,7 @@ def handle_rename(message):
             ensure_project(cid, tid, chat_title, forced_name=new_name)
             bot.reply_to(message, f"✅ Проект создан и назван: **{new_name}**")
         else:
-            bot.reply_to(message, f"✅ Проект переименован: **{new_name}**")
+            bot.reply_to(message, f"✅ Топик переименован: **{new_name}** и обновлен в базе.")
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка переименования: {e}")
 
@@ -701,31 +782,6 @@ def handle_add(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка добавления: {e}")
 
-@bot.message_handler(commands=['rename'])
-def handle_rename(message):
-    try:
-        cid = message.chat.id
-        tid = message.message_thread_id
-        
-        if tid is None:
-            bot.reply_to(message, "❌ Эту команду можно использовать только внутри топика проекта.")
-            return
-
-        new_name = (message.text or "").replace('/rename', '').strip()
-        if not new_name:
-            bot.reply_to(message, "📝 Напишите новое название после команды. Пример: `/rename Проект А` (Бот должен быть админом)", parse_mode="Markdown")
-            return
-
-        # Attempt to rename topic
-        bot.edit_forum_topic(cid, tid, name=new_name)
-        
-        # Also update in DB
-        supabase.table("clients").update({"name": new_name}).eq("chat_id", cid).eq("thread_id", tid).execute()
-        
-        bot.reply_to(message, f"✅ Топик переименован в **{new_name}** и обновлен в базе.")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка переименования: {e}\n(Проверьте, является ли бот администратором с правом управления темами)")
-
 @bot.message_handler(commands=['del'])
 def handle_delete(message):
     try:
@@ -737,6 +793,22 @@ def handle_delete(message):
             reply = message.reply_to_message
             txt = (reply.text or reply.caption or "")
             
+            # Check if it's an Application
+            if "АНКЕТА:" in txt or (reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or "")):
+                target_reply = reply
+                if "АНКЕТА:" not in txt:
+                    target_reply = reply.reply_to_message
+
+                res = supabase.table("casting_applications").select("id").eq("tg_message_id", target_reply.message_id).execute()
+                if res.data:
+                    app_id = res.data[0]['id']
+                    try: bot.delete_message(message.chat.id, message.message_id)
+                    except: pass
+                    # Reuse callback logic
+                    handle_app_delete_callback(types.CallbackQuery(id="0", from_user=message.from_user, chat_instance="0",
+                                                                  message=target_reply, data=f"app_del:{app_id}"))
+                    return
+
             # 1.1 Check for Links
             urls = re.findall(r'(https?://[^\s]+)', txt)
             if urls:
@@ -749,6 +821,10 @@ def handle_delete(message):
                     bot.reply_to(message, f"✅ Удалено из базы: {len(deleted_urls)} ссылок")
                 else:
                     bot.reply_to(message, "ℹ️ Ссылки не найдены в базе проекта.")
+            else:
+                bot.reply_to(message, "❌ Пожалуйста, отвечайте именно на сообщение с АНКЕТОЙ или ссылками.")
+        else:
+            bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение для удаления.")
     except Exception as e:
         print(f"Delete Error: {e}")
     return False
@@ -886,41 +962,6 @@ def notify_casting():
     """DEPRECATED: Logic moved back to notify_casting to prevent Vercel process death."""
     pass
 
-@bot.message_handler(commands=['del'])
-def handle_del_app_command(message):
-    try:
-        reply = message.reply_to_message
-        if not reply:
-            bot.reply_to(message, "❌ Пожалуйста, используйте **ОТВЕТ** на сообщение с анкетой для удаления.")
-            return
-
-        # 1. FIND THE APPLICATION DATA
-        target_reply = reply
-        if "АНКЕТА:" not in (reply.text or reply.caption or ""):
-            if reply.reply_to_message and "АНКЕТА:" in (reply.reply_to_message.text or reply.reply_to_message.caption or ""):
-                target_reply = reply.reply_to_message
-            else:
-                bot.reply_to(message, "❌ Пожалуйста, отвечайте именно на сообщение с АНКЕТОЙ.")
-                return
-
-        res = supabase.table("casting_applications").select("id").eq("tg_message_id", target_reply.message_id).execute()
-        if not res.data:
-            bot.reply_to(message, "❌ Анкета не найдена в базе.")
-            return
-        
-        app_id = res.data[0]['id']
-        
-        # Cleanup command
-        try: bot.delete_message(message.chat.id, message.message_id)
-        except: pass
-        
-        # Reuse callback logic
-        handle_app_delete_callback(types.CallbackQuery(id="0", from_user=message.from_user, chat_instance="0", 
-                                                      message=target_reply, data=f"app_del:{app_id}"))
-
-    except Exception as e:
-        print(f"Manual Del Error: {e}")
-        bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(func=lambda m: m.forward_from_chat or m.forward_from)
 def handle_forwarded_message(message):
@@ -1521,16 +1562,6 @@ def cors_response():
 
 # --- Bot Handlers ---
 
-@bot.message_handler(commands=['start'])
-def handle_start(message):
-    cid, tid = message.chat.id, message.message_thread_id
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("📅 КАЛЕНДАРЬ", url=f"{APP_URL}index.html?cid={cid}&tid={tid or ''}"),
-        types.InlineKeyboardButton("🎭 КАСТИНГ", url=f"{APP_URL}casting.html?cid={cid}&tid={tid or ''}")
-    )
-    bot.send_message(cid, f"🦾 <b>GULYWOOD ERP v{VERSION}</b>", reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
-
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('app_sel:'))
 def handle_select(call):
@@ -1594,16 +1625,6 @@ def handle_app_delete_callback(call):
         bot.answer_callback_query(call.id, f"❌ Ошибка удаления: {e}", show_alert=True)
 
 
-
-# --- Webhook Setup ---
-@app.route('/api', methods=['POST'])
-def tg_webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return ''
-    return 'Forbidden', 403
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
