@@ -5,7 +5,7 @@ import os
 import sys
 
 # Mock environment variables before importing index.py
-os.environ['BOT_KEY'] = 'test_bot_key'
+os.environ['BOT_KEY'] = '123456:test_bot_key'
 os.environ['SUPABASE_KEY'] = 'test_supabase_key'
 
 # Add api directory to path so index.py can be imported
