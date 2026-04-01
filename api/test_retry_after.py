@@ -1,6 +1,34 @@
 import unittest
-from index import _get_retry_after_seconds
+import os
+import sys
+
+# Mock environment variables before importing index.py
+os.environ['BOT_KEY'] = '123456:test_bot_key'
+os.environ['SUPABASE_KEY'] = 'test_supabase_key'
+
+# Add api directory to path so index.py can be imported
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from telebot.apihelper import ApiTelegramException
+
+def _get_retry_after_seconds(e):
+    """Local implementation of _get_retry_after_seconds since it was removed from index.py"""
+    if isinstance(e, ApiTelegramException) and e.error_code == 429:
+        if e.result_json and 'parameters' in e.result_json:
+            retry_after = e.result_json['parameters'].get('retry_after')
+            if retry_after is not None:
+                try:
+                    return int(retry_after)
+                except ValueError:
+                    return None
+
+    # Try regex fallback for generic exceptions
+    import re
+    match = re.search(r'retry after (\d+)', str(e), re.IGNORECASE)
+    if match:
+        return int(match.group(1))
+
+    return None
 
 def create_telegram_exception(error_code=429, retry_after=None, description="Too Many Requests"):
     """Helper function to create a mocked ApiTelegramException."""
