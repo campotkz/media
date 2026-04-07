@@ -1167,10 +1167,6 @@ def handle_actor_update_link(message):
         bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(func=lambda m: (m.text and "/add" in m.text) or (m.caption and "/add" in m.caption), content_types=['text', 'photo', 'video', 'document'])
-def handle_add_media_legacy(message):
-    # Rename this handler to avoid conflict or just remove it if unused.
-    # It seems to be conflicting with /foto and /video commands?
-    pass
 def handle_manual_add_media(message):
     try:
         reply = message.reply_to_message
