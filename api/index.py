@@ -427,7 +427,11 @@ def send_excel():
         if padding_needed:
             base64_data += '=' * (4 - padding_needed)
 
-        file_bytes = base64.b64decode(base64_data)
+        try:
+            file_bytes = base64.b64decode(base64_data, validate=True)
+        except Exception as e:
+            return jsonify({'error': 'Invalid base64 data'}), 400
+
         file_io = io.BytesIO(file_bytes)
         file_io.name = filename
 
