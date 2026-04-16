@@ -363,6 +363,25 @@ def drop_updates():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/timer/report', methods=['POST', 'OPTIONS'])
+def submit_timer_report():
+    if request.method == 'OPTIONS':
+        r = app.make_response('')
+        r.headers.add('Access-Control-Allow-Origin', '*')
+        r.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        r.headers.add('Access-Control-Allow-Methods', 'POST')
+        return r
+    try:
+        # Expected from timer.html: {"shift_id": ..., "chat_id": ..., "thread_id": ...}
+        # Acknowledges and returns status ok
+        r = jsonify({'status': 'ok'})
+        r.headers.add('Access-Control-Allow-Origin', '*')
+        return r
+    except Exception as e:
+        r = jsonify({'error': str(e)})
+        r.headers.add('Access-Control-Allow-Origin', '*')
+        return r, 500
+
 @app.route('/api/report', methods=['POST', 'OPTIONS'])
 def submit_report():
     if request.method == 'OPTIONS':
@@ -1034,14 +1053,13 @@ def handle_forwarded_message(message):
                 conf_msg = bot.reply_to(message, f"✅ Актер **{found_name}** добавлен в проект **{new_project_name}**.", reply_markup=markup)
                 
                 # Auto-delete confirmation message after 10 seconds to keep chat clean
-                import threading
                 import time
                 def delayed_delete(chat_id, msg_id):
                     time.sleep(10)
                     try: bot.delete_message(chat_id, msg_id)
                     except: pass
                 
-                threading.Thread(target=delayed_delete, args=(cid, conf_msg.message_id)).start()
+                _bg_executor.submit(delayed_delete, cid, conf_msg.message_id)
             
             print(f"🔄 FORWARD SYNC: Actor {found_name} synced to new project {new_project_name}")
 

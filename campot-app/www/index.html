@@ -1460,6 +1460,17 @@
     let selectedId = null; // For Shoots
     let selectedTaskId = null; // For Tasks (Re-introduced for stability)
 
+    // XSS Escaping Helper
+    function esc(str) {
+        if (!str) return "";
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     const pad2 = n => String(n).padStart(2, "0");
     const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
     const startMonth = d => new Date(d.getFullYear(), d.getMonth(), 1);
@@ -1753,7 +1764,7 @@
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = c.name + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
+        div.innerHTML = esc(c.name) + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => { tProjInput.value = c.name; tProjDropdown.style.display = 'none'; };
         tProjDropdown.appendChild(div);
       });
@@ -1778,7 +1789,7 @@
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = c.name + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
+        div.innerHTML = esc(c.name) + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => { tCastProjInput.value = c.name; tCastProjDropdown.style.display = 'none'; };
         tCastProjDropdown.appendChild(div);
       });
@@ -1844,7 +1855,7 @@
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = `<span>${c.name}</span> <small style="background:#4cd96433; color:#4cd964; padding:2px 6px; border-radius:4px; font-size:9px">MEDIA</small>` + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
+        div.innerHTML = `<span>${esc(c.name)}</span> <small style="background:#4cd96433; color:#4cd964; padding:2px 6px; border-radius:4px; font-size:9px">MEDIA</small>` + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => {
           projInput.value = c.name;
           projDropdown.style.display = 'none';
@@ -1871,7 +1882,7 @@
       matches.forEach(c => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = `<span>${c.name}</span> <small style="background:#7aa2ff33; color:#7aa2ff; padding:2px 6px; border-radius:4px; font-size:9px">CASTING</small>` + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
+        div.innerHTML = `<span>${esc(c.name)}</span> <small style="background:#7aa2ff33; color:#7aa2ff; padding:2px 6px; border-radius:4px; font-size:9px">CASTING</small>` + (c.is_hidden ? ' <small>(Hidden)</small>' : '');
         div.onclick = () => {
           castInput.value = c.name;
           castDropdown.style.display = 'none';
@@ -1914,7 +1925,7 @@
       matches.forEach(l => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = l.isProjectSpecific ? `📌 ${l.name} <small>(Проект)</small>` : l.name;
+        div.innerHTML = l.isProjectSpecific ? `📌 ${esc(l.name)} <small>(Проект)</small>` : esc(l.name);
         div.onclick = () => {
           locInput.value = l.name;
           locDropdown.style.display = 'none';
@@ -1974,7 +1985,7 @@
         const isBuilding = res.address && (res.address.house_number || res.type === 'house' || res.class === 'building');
         const icon = isBuilding ? '🏠' : '📍';
 
-        div.innerHTML = `<span>${icon} ${res.display_name}</span>`;
+        div.innerHTML = `<span>${icon} ${esc(res.display_name)}</span>`;
 
         div.onclick = () => {
           // Store as: Plain Address | 2GIS Link
@@ -2043,7 +2054,7 @@
         // Final fallback to ensure current mainLoc is always there if set
         if (mainLoc && !filtered.some(f => f.toLowerCase() === mainLocLC)) filtered.unshift(mainLoc);
 
-        locList.innerHTML = filtered.map(name => `<option value="${name}">${name}</option>`).join('');
+        locList.innerHTML = filtered.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('');
       }
       if (actList) {
         updateContactPool();
@@ -2051,13 +2062,13 @@
         const casting = currentCastingContacts.map(c => c.name);
         const media = currentMediaContacts.map(c => c.name);
         const pool = [...new Set([...actors, ...casting, ...media])].filter(n => n).sort();
-        actList.innerHTML = pool.map(a => `<option value="${a}">${a}</option>`).join('');
+        actList.innerHTML = pool.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
       }
       if (linkList) {
         const mProj = clientsData.find(c => c.name === f.project.value.trim());
         if (mProj) {
           const links = resourcesData.filter(r => String(r.chat_id) === String(mProj.chat_id) && String(r.thread_id) === String(mProj.thread_id));
-          linkList.innerHTML = links.map(l => `<option value="${l.url}">${l.username}: ${l.url}</option>`).join('');
+          linkList.innerHTML = links.map(l => `<option value="${esc(l.url)}">${esc(l.username)}: ${esc(l.url)}</option>`).join('');
         } else {
           linkList.innerHTML = '';
         }
@@ -2080,7 +2091,7 @@
       names.forEach(name => {
         const tag = document.createElement('div');
         tag.className = 'tag';
-        tag.innerHTML = `<span>${name}</span> <span class="tag-remove">×</span>`;
+        tag.innerHTML = `<span>${esc(name)}</span> <span class="tag-remove">×</span>`;
         tag.querySelector('.tag-remove').onclick = () => {
           const newNames = names.filter(n => n !== name);
           hidden.value = newNames.join(', ');
@@ -2146,7 +2157,7 @@
         matches.forEach(m => {
           const div = document.createElement('div');
           div.className = 'dropdown-item';
-          div.innerHTML = `${m.full_name} <small style="opacity:0.6">${m.position || ''}</small>`;
+          div.innerHTML = `${esc(m.full_name)} <small style="opacity:0.6">${esc(m.position || '')}</small>`;
           div.onclick = () => addTag(fieldId, tagsId, inputId, dropdownId, m.full_name);
           drop.appendChild(div);
         });
@@ -2233,8 +2244,8 @@
         const div = document.createElement('div');
         div.className = 'check-item';
         div.innerHTML = `
-          <input type="checkbox" id="chk_${name}" ${isChecked ? 'checked' : ''} value="${name}">
-          <label for="chk_${name}">${name}</label>
+          <input type="checkbox" id="chk_${esc(name)}" ${isChecked ? 'checked' : ''} value="${esc(name)}">
+          <label for="chk_${esc(name)}">${esc(name)}</label>
         `;
         div.onclick = (e) => {
           if (e.target.tagName !== 'INPUT') {
@@ -2293,7 +2304,7 @@
       matches.forEach(m => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = `${m.name} <small style="opacity:0.6">${m.phone}</small>`;
+        div.innerHTML = `${esc(m.name)} <small style="opacity:0.6">${esc(m.phone)}</small>`;
         div.onclick = () => {
           contactInput.value = `${m.name} (${m.phone})`;
           contactDropdown.style.display = 'none';
@@ -3205,10 +3216,10 @@
         html += `
             <div class="item ${st}" onclick="editShoot('${e.id}')">
                 <div class="item-content">
-                    <b>${e.project || "Без названия"}</b><br>
-                    <small>🎥 ${e.callTime || "--:--"}—${e.wrapTime || "--:--"} • ${e.location || ""}</small><br>
-                    ${e.crew ? `<small style="opacity:0.7">👥 ${e.crew}</small><br>` : ''}
-                    ${e.post_production ? `<small style="color:var(--accent)">✂️ ${e.post_production}</small>` : ''}
+                    <b>${esc(e.project || "Без названия")}</b><br>
+                    <small>🎥 ${esc(e.callTime || "--:--")}—${esc(e.wrapTime || "--:--")} • ${esc(e.location || "")}</small><br>
+                    ${e.crew ? `<small style="opacity:0.7">👥 ${esc(e.crew)}</small><br>` : ''}
+                    ${e.post_production ? `<small style="color:var(--accent)">✂️ ${esc(e.post_production)}</small>` : ''}
                 </div>
                 <div class="item-actions">${buttons}</div>
             </div>
@@ -3227,8 +3238,8 @@
         html += `
             <div class="item ${st}" style="border-left: 2px solid ${st === 'done' ? '#4cd964' : '#ffcc00'};" onclick="editTask('${t.id}')">
                 <div class="item-content">
-                    <b>${t.title}</b><br>
-                    <small>📌 ${t.project ? t.project + ' • ' : ''}${t.type}</small>
+                    <b>${esc(t.title)}</b><br>
+                    <small>📌 ${esc(t.project ? t.project + ' • ' : '')}${esc(t.type)}</small>
                 </div>
                 <div class="item-actions">${buttons}</div>
             </div>
@@ -3460,7 +3471,7 @@
       if (!currentCastingProject && projects.length > 0) currentCastingProject = projects[0];
 
       tabsDiv.innerHTML = projects.map(p => `
-        <div class="p-tab ${p === currentCastingProject ? 'active' : ''}" onclick="selectCastingProject('${p}')">${p}</div>
+        <div class="p-tab ${p === currentCastingProject ? 'active' : ''}" onclick="selectCastingProject('${esc(p)}')">${esc(p)}</div>
       `).join('');
 
       const currentActors = castingApps.filter(a => (a.project_name || 'Без проекта') === currentCastingProject);
@@ -3484,10 +3495,10 @@
 
         return `
           <div class="actor-card">
-            ${photoUrl ? `<img src="${photoUrl}" alt="${a.full_name}" />` : `<div style="height:200px;background:#333;display:flex;align-items:center;justify-content:center;color:#666;">Нет фото</div>`}
+            ${photoUrl ? `<img src="${esc(photoUrl)}" alt="${esc(a.full_name)}" />` : `<div style="height:200px;background:#333;display:flex;align-items:center;justify-content:center;color:#666;">Нет фото</div>`}
             <div class="actor-info">
-              <div class="actor-name">${a.full_name}</div>
-              <div class="actor-meta">${a.dob ? a.dob + ' лет, ' : ''}${a.city || ''}</div>
+              <div class="actor-name">${esc(a.full_name)}</div>
+              <div class="actor-meta">${a.dob ? esc(a.dob) + ' лет, ' : ''}${esc(a.city) || ''}</div>
               <div class="actor-actions">
                 <button class="btn-select ${a.is_selected ? 'selected' : ''}" onclick="toggleActorSelection('${a.id}', ${!a.is_selected})">${a.is_selected ? 'Выбран' : 'Выбрать'}</button>
                 <button class="btn-delete" onclick="deleteActorApplication('${a.id}')">Удалить</button>
