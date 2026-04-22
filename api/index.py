@@ -136,7 +136,7 @@ def optimize_url(url, width=1280):
     try:
         if "supabase.co" in url and "storage/v1/object/public" in url:
             # Check for image extensions
-            ext = url.lower().split('.')[-1]
+            ext = url.split('?')[0].lower().split('.')[-1]
             if ext in ['jpg', 'jpeg', 'png', 'webp', 'tiff']:
                 if '?' in url:
                     return f"{url}&width={width}&quality=80&format=origin"
