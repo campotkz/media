@@ -30,7 +30,11 @@ MEDIA_CHANNEL_ID = os.environ.get('MEDIA_CHANNEL_ID', '-1003893557217') # Тел
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY or "")
+except Exception as e:
+    print(f"CRITICAL: Supabase client init failed: {e}")
+    supabase = None
 
 # Version indicator for debugging
 VERSION = "1.7.1 (Backported & Merged)"
