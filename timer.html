@@ -887,6 +887,7 @@
                     <div id="btn_current_lunch" class="btn c-blue"
                         onclick="toggleBtn('current_lunch', 'ОБЕД', 'ОБЕД ИДЕТ')">
                         <span class="btn-label">Статус</span><span class="btn-val">ТЕКУЩИЙ ОБЕД</span>
+                        <div class="btn-timer">00:00</div>
                     </div>
                     <div class="btn c-blue" onclick="logEvent('catering_arrival', {}, true)"><span
                             class="btn-label">Горячее</span><span class="btn-val">БУФЕТ ПРИЕХАЛ</span></div>
@@ -1564,24 +1565,26 @@
                 const el = document.getElementById('btn_' + id);
                 if (el) {
                     const timerEl = el.querySelector('.btn-timer');
-                    const start = new Date(state.activeTimers[id]);
-                    const diff = new Date() - start;
+                    if (timerEl) {
+                        const start = new Date(state.activeTimers[id]);
+                        const diff = new Date() - start;
 
-                    const isPrep = el.hasAttribute('data-prep');
+                        const isPrep = el.hasAttribute('data-prep');
 
-                    if (isPrep) {
-                        const promised = parseInt(pGet('promised_' + id) || 0) * 60000;
-                        const remaining = promised - diff;
-                        if (remaining < 0) {
-                            timerEl.textContent = '-' + formatTimeShort(Math.abs(remaining));
-                            timerEl.style.color = 'var(--accent-red)';
+                        if (isPrep) {
+                            const promised = parseInt(pGet('promised_' + id) || 0) * 60000;
+                            const remaining = promised - diff;
+                            if (remaining < 0) {
+                                timerEl.textContent = '-' + formatTimeShort(Math.abs(remaining));
+                                timerEl.style.color = 'var(--accent-red)';
+                            } else {
+                                timerEl.textContent = formatTimeShort(remaining);
+                                timerEl.style.color = 'var(--accent-yellow)';
+                            }
                         } else {
-                            timerEl.textContent = formatTimeShort(remaining);
-                            timerEl.style.color = 'var(--accent-yellow)';
+                            timerEl.textContent = formatTimeShort(diff);
+                            timerEl.style.color = ''; // Reset color
                         }
-                    } else {
-                        timerEl.textContent = formatTimeShort(diff);
-                        timerEl.style.color = ''; // Reset color
                     }
                 }
             }
