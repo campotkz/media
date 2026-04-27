@@ -3409,7 +3409,7 @@
       document.getElementById('castingView').style.display = 'none';
 
       if (mod === 'calendar') {
-        document.querySelector('.wrap').style.display = 'flex';
+        document.querySelector('.wrap').style.display = 'grid';
       } else if (mod === 'timer') {
         window.location.href = 'timer.html';
       } else if (mod === 'casting') {
@@ -3540,7 +3540,38 @@
     document.getElementById("form").style.display = "none";
     render();
     // Cleaned up duplicate loadFromCloud
-    loadFromCloud();
+    async function loadFromCloud() {
+      if (!navigator.onLine) return;
+      try {
+        const { data, error } = await supabaseClient.from('shoots').select('*').order('date', { ascending: false });
+        if (data && !error) {
+          allEvents = data;
+          setCache(CACHE_KEYS.EVENTS, allEvents);
+          render();
+        }
+
+        const { data: tasks, error: tErr } = await supabaseClient.from('tasks').select('*');
+        if (tasks && !tErr) {
+          allTasks = tasks;
+          setCache(CACHE_KEYS.TASKS, allTasks);
+          render();
+        }
+        await fetchAutocompleteData();
+      } catch (e) {
+        console.warn("Load from cloud failed:", e);
+      }
+    }
+
+    async function fetchAutocompleteData() {
+      try {
+        const { data: clients, error: cErr } = await supabaseClient.from('clients').select('name, is_active');
+        if (!cErr && clients) clientsData = clients;
+        // ... (other fetch logic if any)
+      } catch (e) {
+        console.warn("Autocomplete fetch failed:", e);
+      }
+    }
+
   </script>
 </body>
 

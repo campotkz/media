@@ -1133,75 +1133,79 @@
 
             // Priority 3: No active shift, show selector
             await checkCalendar();
-            ui.overlay.classList.remove('hidden'); // Ensure overlay is visible for selection
+            if (state.status !== 'active') {
+                ui.overlay.classList.remove('hidden');
+            }
         }
 
         async function checkCalendar() {
-            const d = new Date();
-            const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-            // Backup/Safety range (Yesterday and Tomorrow)
-            const yest = new Date(d); yest.setDate(d.getDate() - 1);
-            const yestDate = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
-            const tom = new Date(d); tom.setDate(d.getDate() + 1);
-            const tomDate = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
-
-            console.log("Checking calendar for localDate:", localDate);
-
-            const { data, error } = await sb.from('shoots')
-                .select('*')
-                .gte('date', yestDate)
-                .lte('date', tomDate);
-
             const container = document.getElementById('shootSelector');
+            // Ensure Manual Start is ALWAYS available first
             container.innerHTML = `<div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue); margin-bottom:15px;" onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>`;
 
-            if (error) {
-                console.error("Calendar fetch error:", error);
-                container.innerHTML += `<div style="color:#ff6b6b; font-size:12px; padding:10px; text-align:center">Ошибка базы: ${error.message}</div>`;
-                return;
-            }
+            try {
+                const d = new Date();
+                const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-            if (data && data.length > 0) {
-                const curName = (state.project.name || '').trim().toLowerCase();
+                // Backup/Safety range (Yesterday and Tomorrow)
+                const yest = new Date(d); yest.setDate(d.getDate() - 1);
+                const yestDate = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+                const tom = new Date(d); tom.setDate(d.getDate() + 1);
+                const tomDate = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
 
-                // Sort: Today first, then by date
-                data.sort((a, b) => {
-                    if (a.date === localDate && b.date !== localDate) return -1;
-                    if (a.date !== localDate && b.date === localDate) return 1;
-                    return b.date.localeCompare(a.date);
-                });
+                console.log("Checking calendar for localDate:", localDate);
 
-                data.forEach(s => {
-                    const div = document.createElement('div');
-                    div.className = 'opt-item';
+                const { data, error } = await sb.from('shoots')
+                    .select('*')
+                    .gte('date', yestDate)
+                    .lte('date', tomDate);
 
-                    const isToday = s.date === localDate;
-                    const isMatch = s.project && s.project.trim().toLowerCase() === curName;
+                if (error) throw error;
 
-                    const actorCount = (s.actors || '').split(',').filter(a => a.trim()).length;
-                    const pName = (s.project || 'БЕЗ НАЗВАНИЯ').toUpperCase();
+                if (data && data.length > 0) {
+                    const curName = (state.project.name || '').trim().toLowerCase();
 
-                    div.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-                            <span style="font-size:13px; font-weight:700; color:${isToday ? 'var(--accent-yellow)' : 'var(--text-dim)'}">${pName}</span>
-                            ${isToday ? '<span style="font-size:8px; padding:2px 6px; background:var(--accent-green); border-radius:6px; color:#000; font-weight:700">СЕГОДНЯ</span>' : ''}
-                        </div>
-                        <div style="font-size:14px; margin:2px 0">📍 ${s.location || 'Локация...'}</div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; opacity:0.7">
-                            <div style="display:flex; gap:10px">
-                                <span>🕐 ${s.callTime || '?'}</span>
-                                ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
+                    // Sort: Today first, then by date
+                    data.sort((a, b) => {
+                        if (a.date === localDate && b.date !== localDate) return -1;
+                        if (a.date !== localDate && b.date === localDate) return 1;
+                        return b.date.localeCompare(a.date);
+                    });
+
+                    data.forEach(s => {
+                        const div = document.createElement('div');
+                        div.className = 'opt-item';
+
+                        const isToday = s.date === localDate;
+                        const isMatch = s.project && s.project.trim().toLowerCase() === curName;
+
+                        const actorCount = (s.actors || '').split(',').filter(a => a.trim()).length;
+                        const pName = (s.project || 'БЕЗ НАЗВАНИЯ').toUpperCase();
+
+                        div.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+                                <span style="font-size:13px; font-weight:700; color:${isToday ? 'var(--accent-yellow)' : 'var(--text-dim)'}">${pName}</span>
+                                ${isToday ? '<span style="font-size:8px; padding:2px 6px; background:var(--accent-green); border-radius:6px; color:#000; font-weight:700">СЕГОДНЯ</span>' : ''}
                             </div>
-                            ${!isToday ? `<span style="font-size:9px">${s.date}</span>` : ''}
-                        </div>`;
+                            <div style="font-size:14px; margin:2px 0">📍 ${s.location || 'Локация...'}</div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; opacity:0.7">
+                                <div style="display:flex; gap:10px">
+                                    <span>🕐 ${s.callTime || '?'}</span>
+                                    ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
+                                </div>
+                                ${!isToday ? `<span style="font-size:9px">${s.date}</span>` : ''}
+                            </div>`;
 
-                    div.onclick = () => selectShoot(s);
-                    if (isToday && isMatch) div.style.borderColor = 'var(--accent-green)';
-                    container.prepend(div); // Match backup: Prepend to push Manual Shift to bottom
-                });
-            } else {
-                container.innerHTML += `<div style="color:var(--text-dim); font-size:12px; padding:10px; text-align:center">Нет запланированных смен</div>`;
+                        div.onclick = () => selectShoot(s);
+                        if (isToday && isMatch) div.style.borderColor = 'var(--accent-green)';
+                        container.prepend(div); // Match backup: Prepend to push Manual Shift to bottom
+                    });
+                } else {
+                    container.innerHTML += `<div style="color:var(--text-dim); font-size:12px; padding:10px; text-align:center">Нет запланированных смен</div>`;
+                }
+            } catch (e) {
+                console.error("Calendar fetch error:", e);
+                container.innerHTML += `<div style="color:#ff6b6b; font-size:12px; padding:10px; text-align:center">Ошибка сети: Работаем оффлайн</div>`;
             }
         }
 
