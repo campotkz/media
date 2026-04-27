@@ -742,9 +742,10 @@
 
         <!-- STATUS -->
         <div class="status-bar">
-            <div class="status-info">
+            <div class="status-info" onclick="showLogs()">
                 <div id="elStatusDot" class="dot active"></div>
                 <span id="elPhaseLabel">ОЖИДАНИЕ</span>
+                <span id="valLogCount" style="font-size: 10px; opacity:0.6; margin-left:8px; border:1px solid rgba(255,255,255,0.2); padding:2px 4px; border-radius:4px;">0</span>
             </div>
             <div id="elPhaseTimer" class="phase-timer">00:00</div>
         </div>
@@ -995,6 +996,7 @@
             <h3 id="modalTitle" class="m-title">Title</h3>
             <p id="modalDesc" class="m-desc">Description</p>
             <div id="modalOptions" class="opt-list hidden"></div>
+            <div id="logViewer" class="hidden" style="max-height: 400px; overflow-y: auto; background: #000; color: #0f0; font-family: monospace; font-size: 10px; padding: 10px; border-radius: 8px; margin-bottom: 15px; white-space: pre-wrap;"></div>
             <div id="modalButtons" class="m-grid">
                 <button id="btnModalConfirm" class="m-btn m-confirm">ПОДТВЕРДИТЬ</button>
                 <button id="btnModalCancel" class="m-btn m-cancel">ОТМЕНА</button>
@@ -1143,7 +1145,7 @@
                     <div style="color:var(--accent-red); font-size:12px; padding:10px;">Ошибка связи с базой данных. Доступен только ручной режим.</div>`;
                 }
             }
-            if (ui.overlay && state.status !== 'active') ui.overlay.classList.remove('hidden'); // Ensure overlay is visible for selection if not already active
+            if (ui.overlay && state.status !== 'active') ui.overlay.classList.remove('hidden');
         }
 
         async function checkCalendar() {
@@ -1535,25 +1537,43 @@
         }
 
         async function logEvent(type, data = {}, blink = false) {
-            if (!state.shiftId) return;
+            const now = new Date().toISOString();
+            const entry = {
+                id: Date.now() + Math.random().toString(36).substr(2, 5),
+                shift_id: state.shiftId,
+                event_type: type,
+                created_at: now,
+                data: {
+                    ...data,
+                    scene_no: state.scene,
+                    shot_no: state.shot,
+                    take_no: state.take,
+                    loc: state.location,
+                    shoot_id: state.shootId,
+                    plan_row: state.currentTaskRow || null
+                }
+            };
+
+            // 1. Save to LocalStorage (Always)
+            const logsKey = pKey('logs');
+            let logs = [];
             try {
-                const entry = {
-                    shift_id: state.shiftId,
-                    event_type: type,
-                    data: {
-                        ...data,
-                        scene_no: state.scene,
-                        shot_no: state.shot,
-                        take_no: state.take,
-                        loc: state.location,
-                        shoot_id: state.shootId,
-                        plan_row: state.currentTaskRow || null
-                    }
-                };
-                sb.from('production_logs').insert(entry).then();
-                tg.HapticFeedback.impactOccurred('light');
-                if (blink) flashStatusBar();
-            } catch (e) { console.error(e); }
+                logs = JSON.parse(localStorage.getItem(logsKey) || '[]');
+            } catch(e) {}
+            logs.push(entry);
+            localStorage.setItem(logsKey, JSON.stringify(logs));
+
+            // 2. Try Cloud Save (Background)
+            if (state.shiftId && !state.shiftId.startsWith('offline_')) {
+                try {
+                    sb.from('production_logs').insert(entry).then(({error}) => {
+                        if (error) console.warn("Cloud log failed, kept locally.");
+                    });
+                } catch (e) {}
+            }
+
+            tg.HapticFeedback.impactOccurred('light');
+            if (blink) flashStatusBar();
         }
 
         function flashStatusBar() {
@@ -2262,6 +2282,50 @@
             const { error } = await sb.from('shoots').update({ schedule: JSON.stringify(currentSchedule) }).eq('id', state.shootId);
             if (error) console.error("Schedule save error", error);
         }
+
+        function showLogs() {
+            const logsKey = pKey('logs');
+            const logs = JSON.parse(localStorage.getItem(logsKey) || '[]');
+            
+            ui.modalTitle.textContent = "ИСТОРИЯ ЛОГОВ";
+            ui.modalDesc.textContent = `Записано событий: ${logs.length}`;
+            ui.modalOptions.classList.add('hidden');
+            ui.modalButtons.classList.remove('hidden');
+            
+            const viewer = document.getElementById('logViewer');
+            viewer.classList.remove('hidden');
+            
+            let logText = logs.map(l => {
+                const time = new Date(l.created_at).toLocaleTimeString();
+                let extra = '';
+                if (l.event_type === 'motor_start') extra = ` | Сц:${l.data.scene_no} Кадр:${l.data.shot_no} Д:${l.data.take_no}`;
+                return `[${time}] ${l.event_type.toUpperCase()}${extra}`;
+            }).join('\n');
+            
+            viewer.textContent = logText || "Событий пока нет.";
+            
+            document.getElementById('btnModalConfirm').textContent = "КОПИРОВАТЬ";
+            document.getElementById('btnModalConfirm').onclick = () => {
+                navigator.clipboard.writeText(logText);
+                tg.MainButton.setText("СКОПИРОВАНО!").show();
+                setTimeout(() => tg.MainButton.hide(), 2000);
+            };
+            
+            document.getElementById('btnModalCancel').onclick = () => {
+                ui.modal.style.display = 'none';
+                viewer.classList.add('hidden');
+            };
+            
+            ui.modal.style.display = 'flex';
+        }
+
+        function updateLogCount() {
+            const logs = JSON.parse(localStorage.getItem(pKey('logs')) || '[]');
+            const el = document.getElementById('valLogCount');
+            if (el) el.textContent = logs.length;
+        }
+        setInterval(updateLogCount, 5000);
+        updateLogCount();
 
         initApp();
     </script>
