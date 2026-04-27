@@ -1810,74 +1810,42 @@
             }
 
             const now = new Date().toISOString();
-            console.log("Starting shift for project:", state.project.id);
+            console.log("Starting shift locally...");
 
-            // Safety check: Avoid duplicate shifts on the same day
-            const todayStr = new Date().toISOString().split('T')[0];
-            try {
-                if (state.project.id) {
-                    const { data: existing } = await sb.from('production_shifts')
-                        .select('id, start_time')
-                        .eq('project_id', state.project.id)
-                        .gte('start_time', todayStr + 'T00:00:00Z')
-                        .limit(1);
+            // Instant local activation
+            state.startTime = now;
+            state.status = 'active';
+            state.phaseStartTime = now;
+            if (ui.phaseLabel) ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
+            saveState();
+            ui.overlay?.classList.add('hidden');
+            if (ui.modal) ui.modal.style.display = 'none';
+            logEvent('shift_start_local');
+            tg.HapticFeedback.notificationOccurred('success');
+            refreshUI();
 
-                    if (existing && existing.length > 0) {
-                        if (!confirm("⚠️ ВНИМАНИЕ: На сегодня уже есть запись смены для этого проекта. Вы уверены, что хотите начать НОВУЮ смену?")) {
-                            if (btn) { btn.textContent = 'НАЧАТЬ СМЕНУ'; btn.disabled = false; }
-                            return;
-                        }
-                    }
-                }
-            } catch (e) { console.warn("Collision check failed:", e); }
-
+            // Background network attempt
             try {
                 const cId = parseInt(state.project.cid);
                 const tId = parseInt(state.project.tid);
 
-                const { data, error } = await sb.from('production_shifts').insert({
+                sb.from('production_shifts').insert({
                     project_id: String(state.project.id || '0'),
                     chat_id: isNaN(cId) ? null : String(cId),
                     thread_id: isNaN(tId) ? null : String(tId),
                     shoot_id: String(state.shootId || 'manual'),
                     start_time: now,
                     status: 'active'
-                }).select();
+                }).select().then(({data, error}) => {
+                    if (data && data[0]) {
+                        state.shiftId = data[0].id;
+                        saveState();
+                        console.log("Cloud sync: Shift ID updated", data[0].id);
+                    }
+                }).catch(e => console.warn("Cloud sync deferred:", e));
 
-                if (error) throw error;
-
-                if (data && data[0]) {
-                    state.shiftId = data[0].id;
-                    state.startTime = now;
-                    state.status = 'active';
-                    state.phaseStartTime = now;
-                    if (ui.phaseLabel) ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ';
-                    saveState();
-                    ui.overlay?.classList.add('hidden');
-                    if (ui.modal) ui.modal.style.display = 'none';
-                    logEvent('shift_start');
-                    tg.HapticFeedback.notificationOccurred('success');
-                } else {
-                    throw new Error("No data returned from insert");
-                }
             } catch (err) {
-                console.error("Shift start error:", err);
-                const msg = err.message || err;
-                
-                if (confirm(`⚠️ ОШИБКА БАЗЫ ДАННЫХ: ${msg}\n\nПроект Supabase может быть приостановлен или отсутствует интернет. Хотите запустить смену в АВТОНОМНОМ РЕЖИМЕ (только локально)?`)) {
-                    state.shiftId = 'offline_' + Date.now();
-                    state.startTime = now;
-                    state.status = 'active';
-                    state.phaseStartTime = now;
-                    if (ui.phaseLabel) ui.phaseLabel.textContent = 'СТАРТ СМЕНЫ (OFFLINE)';
-                    saveState();
-                    ui.overlay?.classList.add('hidden');
-                    if (ui.modal) ui.modal.style.display = 'none';
-                    tg.HapticFeedback.notificationOccurred('warning');
-                    refreshUI();
-                } else {
-                    if (btn) { btn.textContent = 'ОШИБКА (ПОВТОР)'; btn.disabled = false; }
-                }
+                console.warn("Background start sync skipped:", err);
             }
         }
 
