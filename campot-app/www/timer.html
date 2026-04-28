@@ -888,6 +888,7 @@
                     <div id="btn_current_lunch" class="btn c-blue"
                         onclick="toggleBtn('current_lunch', 'ОБЕД', 'ОБЕД ИДЕТ')">
                         <span class="btn-label">Статус</span><span class="btn-val">ТЕКУЩИЙ ОБЕД</span>
+                        <div class="btn-timer">00:00</div>
                     </div>
                     <div class="btn c-blue" onclick="logEvent('catering_arrival', {}, true)"><span
                             class="btn-label">Горячее</span><span class="btn-val">БУФЕТ ПРИЕХАЛ</span></div>
@@ -1094,120 +1095,131 @@
                 console.log("Resuming from localStorage...");
                 ui.overlay?.classList.add('hidden');
                 refreshUI();
-                return;
+                // We'll still check Supabase in background to ensure we are synced
             }
 
             // Priority 2: Check Supabase for active shift by chat_id (reliable across contexts)
-            console.log("Checking Supabase for active shifts by chat_id...");
+            console.log("Checking Supabase for active shifts...");
             try {
                 const numCid = parseInt(state.project.cid);
-                // Search by chat_id from DB — works even when thread_id is unknown
-                // (e.g., when opened from calendar where thread isn't in URL)
                 const query = sb.from('production_shifts')
                     .select('*')
                     .eq('status', 'active')
                     .order('created_at', { ascending: false })
                     .limit(1);
 
-                // Prefer chat_id if available, fallback to project_id
-                const dbResult = numCid && !isNaN(numCid)
-                    ? await query.eq('chat_id', numCid)
+                const dbResult = (numCid && !isNaN(numCid))
+                    ? await query.eq('chat_id', String(numCid))
                     : await query.eq('project_id', state.project.id);
 
                 const { data, error } = dbResult;
                 if (data && data.length > 0) {
                     const s = data[0];
-                    console.log("Found active shift in DB, attaching. shift_id=", s.id, "shoot_id=", s.shoot_id);
+                    console.log("Active shift confirmed in DB:", s.id);
                     state.shiftId = s.id;
                     state.shootId = s.shoot_id;
                     state.startTime = s.start_time;
                     state.status = 'active';
                     state.phaseStartTime = s.start_time;
-                    // Restore project context so reports go to the right topic
                     if (s.chat_id) state.project.cid = String(s.chat_id);
                     if (s.thread_id) state.project.tid = String(s.thread_id);
                     saveState();
-                    ui.overlay.classList.add('hidden');
+                    ui.overlay?.classList.add('hidden');
                     refreshUI();
                     return;
+                } else if (state.status === 'active') {
+                    // Local state says active, but DB doesn't.
+                    // This could mean the shift was finished elsewhere.
+                    console.warn("Local shift active but not found in DB. Might be stale.");
                 }
             } catch (e) { console.warn("Sync check failed:", e); }
 
             // Priority 3: No active shift, show selector
-            await checkCalendar();
-            if (state.status !== 'active') {
-                ui.overlay.classList.remove('hidden');
+            try {
+                await checkCalendar();
+            } catch (e) {
+                console.error("Calendar check failed:", e);
+                const container = document.getElementById('shootSelector');
+                if (container) {
+                    container.innerHTML = `<div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue); margin-bottom:15px;" onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>
+                    <div style="color:var(--accent-red); font-size:12px; padding:10px;">Ошибка связи с базой данных. Доступен только ручной режим.</div>`;
+                }
             }
+            if (ui.overlay && state.status !== 'active') ui.overlay.classList.remove('hidden');
         }
 
         async function checkCalendar() {
             const container = document.getElementById('shootSelector');
-            // Ensure Manual Start is ALWAYS available first
+            if (!container) return;
+
+            // Always show manual start button first as a fallback
             container.innerHTML = `<div class="opt-item" style="border-color: var(--accent-blue); color: var(--accent-blue); margin-bottom:15px;" onclick="startManualShift()">➕ НОВАЯ СМЕНА (ВРУЧНУЮ)</div>`;
 
+            const d = new Date();
+            const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+            // Backup/Safety range (Yesterday and Tomorrow)
+            const yest = new Date(d); yest.setDate(d.getDate() - 1);
+            const yestDate = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+            const tom = new Date(d); tom.setDate(d.getDate() + 1);
+            const tomDate = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
+
+            console.log("Checking calendar for localDate:", localDate);
+
             try {
-                const d = new Date();
-                const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-                // Backup/Safety range (Yesterday and Tomorrow)
-                const yest = new Date(d); yest.setDate(d.getDate() - 1);
-                const yestDate = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
-                const tom = new Date(d); tom.setDate(d.getDate() + 1);
-                const tomDate = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
-
-                console.log("Checking calendar for localDate:", localDate);
-
                 const { data, error } = await sb.from('shoots')
                     .select('*')
                     .gte('date', yestDate)
                     .lte('date', tomDate);
 
-                if (error) throw error;
+                if (error) {
+                    console.error("Calendar fetch error:", error);
+                    container.innerHTML += `<div style="color:#ff6b6b; font-size:12px; padding:10px; text-align:center">Ошибка базы: ${error.message}</div>`;
+                    return;
+                }
 
                 if (data && data.length > 0) {
-                    const curName = (state.project.name || '').trim().toLowerCase();
+                const curName = (state.project.name || '').trim().toLowerCase();
 
-                    // Sort: Today first, then by date
-                    data.sort((a, b) => {
-                        if (a.date === localDate && b.date !== localDate) return -1;
-                        if (a.date !== localDate && b.date === localDate) return 1;
-                        return b.date.localeCompare(a.date);
-                    });
+                // Sort: Today first, then by date
+                data.sort((a, b) => {
+                    if (a.date === localDate && b.date !== localDate) return -1;
+                    if (a.date !== localDate && b.date === localDate) return 1;
+                    return b.date.localeCompare(a.date);
+                });
 
-                    data.forEach(s => {
-                        const div = document.createElement('div');
-                        div.className = 'opt-item';
+                data.forEach(s => {
+                    const div = document.createElement('div');
+                    div.className = 'opt-item';
 
-                        const isToday = s.date === localDate;
-                        const isMatch = s.project && s.project.trim().toLowerCase() === curName;
+                    const isToday = s.date === localDate;
+                    const isMatch = s.project && s.project.trim().toLowerCase() === curName;
 
-                        const actorCount = (s.actors || '').split(',').filter(a => a.trim()).length;
-                        const pName = (s.project || 'БЕЗ НАЗВАНИЯ').toUpperCase();
+                    const actorCount = (s.actors || '').split(',').filter(a => a.trim()).length;
+                    const pName = (s.project || 'БЕЗ НАЗВАНИЯ').toUpperCase();
 
-                        div.innerHTML = `
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-                                <span style="font-size:13px; font-weight:700; color:${isToday ? 'var(--accent-yellow)' : 'var(--text-dim)'}">${pName}</span>
-                                ${isToday ? '<span style="font-size:8px; padding:2px 6px; background:var(--accent-green); border-radius:6px; color:#000; font-weight:700">СЕГОДНЯ</span>' : ''}
+                    div.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+                            <span style="font-size:13px; font-weight:700; color:${isToday ? 'var(--accent-yellow)' : 'var(--text-dim)'}">${pName}</span>
+                            ${isToday ? '<span style="font-size:8px; padding:2px 6px; background:var(--accent-green); border-radius:6px; color:#000; font-weight:700">СЕГОДНЯ</span>' : ''}
+                        </div>
+                        <div style="font-size:14px; margin:2px 0">📍 ${s.location || 'Локация...'}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; opacity:0.7">
+                            <div style="display:flex; gap:10px">
+                                <span>🕐 ${s.callTime || '?'}</span>
+                                ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
                             </div>
-                            <div style="font-size:14px; margin:2px 0">📍 ${s.location || 'Локация...'}</div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; opacity:0.7">
-                                <div style="display:flex; gap:10px">
-                                    <span>🕐 ${s.callTime || '?'}</span>
-                                    ${actorCount ? `<span>🎭 ${actorCount}</span>` : ''}
-                                </div>
-                                ${!isToday ? `<span style="font-size:9px">${s.date}</span>` : ''}
-                            </div>`;
+                            ${!isToday ? `<span style="font-size:9px">${s.date}</span>` : ''}
+                        </div>`;
 
-                        div.onclick = () => selectShoot(s);
-                        if (isToday && isMatch) div.style.borderColor = 'var(--accent-green)';
-                        container.prepend(div); // Match backup: Prepend to push Manual Shift to bottom
-                    });
-                } else {
-                    container.innerHTML += `<div style="color:var(--text-dim); font-size:12px; padding:10px; text-align:center">Нет запланированных смен</div>`;
+                    div.onclick = () => selectShoot(s);
+                    if (isToday && isMatch) div.style.borderColor = 'var(--accent-green)';
+                    container.prepend(div); // Match backup: Prepend to push Manual Shift to bottom
+                });
                 }
             } catch (e) {
-                console.error("Calendar fetch error:", e);
-                container.innerHTML += `<div style="color:#ff6b6b; font-size:12px; padding:10px; text-align:center">Ошибка сети: Работаем оффлайн</div>`;
+                console.error("Calendar fetch exception:", e);
+                container.innerHTML += `<div style="color:#ff6b6b; font-size:12px; padding:10px; text-align:center">Ошибка сети: ${e.message || e}</div>`;
             }
         }
 
@@ -1576,20 +1588,27 @@
 
         setInterval(() => {
             if (state.startTime) {
-                const diff = new Date() - new Date(state.startTime);
-                ui.shiftTimer.textContent = formatTime(diff);
+                const diff = Math.max(0, new Date() - new Date(state.startTime));
+                if (!isNaN(diff)) {
+                    ui.shiftTimer.textContent = formatTime(diff);
+                }
             }
             if (state.phaseStartTime) {
-                const diff = new Date() - new Date(state.phaseStartTime);
-                ui.phaseTimer.textContent = formatTimeShort(diff);
+                const diff = Math.max(0, new Date() - new Date(state.phaseStartTime));
+                if (!isNaN(diff)) {
+                    ui.phaseTimer.textContent = formatTimeShort(diff);
+                }
             }
             // Button Timers
             for (let id in state.activeTimers) {
                 const el = document.getElementById('btn_' + id);
                 if (el) {
                     const timerEl = el.querySelector('.btn-timer');
+                    if (!timerEl) continue; // Safety check
+
                     const start = new Date(state.activeTimers[id]);
                     const diff = new Date() - start;
+                    if (isNaN(diff)) continue;
 
                     const isPrep = el.hasAttribute('data-prep');
 
@@ -1604,7 +1623,7 @@
                             timerEl.style.color = 'var(--accent-yellow)';
                         }
                     } else {
-                        timerEl.textContent = formatTimeShort(diff);
+                        timerEl.textContent = formatTimeShort(Math.max(0, diff));
                         timerEl.style.color = ''; // Reset color
                     }
                 }
@@ -1791,7 +1810,7 @@
             }
 
             const now = new Date().toISOString();
-            console.log("Starting shift locally (mobile)...");
+            console.log("Starting shift locally...");
 
             // Instant local activation
             state.startTime = now;
@@ -1811,22 +1830,22 @@
                 const tId = parseInt(state.project.tid);
 
                 sb.from('production_shifts').insert({
-                    project_id: state.project.id,
-                    chat_id: isNaN(cId) ? null : cId,
-                    thread_id: isNaN(tId) ? null : tId,
-                    shoot_id: state.shootId,
+                    project_id: String(state.project.id || '0'),
+                    chat_id: isNaN(cId) ? null : String(cId),
+                    thread_id: isNaN(tId) ? null : String(tId),
+                    shoot_id: String(state.shootId || 'manual'),
                     start_time: now,
                     status: 'active'
                 }).select().then(({data, error}) => {
                     if (data && data[0]) {
                         state.shiftId = data[0].id;
                         saveState();
-                        console.log("Cloud sync (mobile): Shift ID updated", data[0].id);
+                        console.log("Cloud sync: Shift ID updated", data[0].id);
                     }
-                }).catch(e => console.warn("Cloud sync deferred (mobile):", e));
+                }).catch(e => console.warn("Cloud sync deferred:", e));
 
             } catch (err) {
-                console.warn("Background start sync skipped (mobile):", err);
+                console.warn("Background start sync skipped:", err);
             }
         }
 
