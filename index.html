@@ -1469,18 +1469,33 @@
     const niceDateShort = d => d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }); // New helper
 
     // --- OFFLINE SYNC CONFIG ---
-    const CACHE_KEYS = { EVENTS: 'campot_events', TASKS: 'campot_tasks', SYNC: 'campot_sync_queue' };
+    const CACHE_KEYS = { 
+      EVENTS: 'campot_events', 
+      TASKS: 'campot_tasks', 
+      SYNC: 'campot_sync_queue',
+      CLIENTS: 'campot_clients',
+      TEAM: 'campot_team',
+      LOCATIONS: 'campot_locations',
+      CONTACTS: 'campot_contacts',
+      RESOURCES: 'campot_resources',
+      PROJECT_LOCATIONS: 'campot_project_locations'
+    };
 
     function getCache(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; } }
     function setCache(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
 
     function addToSyncQueue(type, payload) {
       let queue = getCache(CACHE_KEYS.SYNC);
-      // Remove previous pending update for same ID to avoid duplicates
-      queue = queue.filter(item => item.payload.id !== payload.id);
+      // Remove previous pending update for same identifier to avoid duplicates
+      queue = queue.filter(item => {
+        if (payload.id && item.payload.id === payload.id) return false;
+        if (type === 'locations' && item.type === 'locations' && item.payload.name === payload.name) return false;
+        if (type === 'team' && item.type === 'team' && item.payload.full_name === payload.full_name) return false;
+        return true;
+      });
       queue.push({ type, payload, timestamp: Date.now() });
       setCache(CACHE_KEYS.SYNC, queue);
-      console.log(`Added to sync queue: ${type} ${payload.id}`);
+      console.log(`Added to sync queue: ${type} ${payload.id || payload.name || payload.full_name}`);
     }
 
     async function processSyncQueue() {
@@ -1813,21 +1828,42 @@
 
     async function fetchAutocompleteData() {
       try {
-        const { data: cData } = await supabaseClient.from('clients').select('id, name, thread_id, chat_id, category, is_active, is_hidden');
-        if (cData) clientsData = cData;
-        const { data: tData } = await supabaseClient.from('team').select('full_name, username, roles, position');
-        if (tData) teamData = tData;
-        const { data: lData } = await supabaseClient.from('locations').select('name');
-        if (lData) locationsData = lData;
-        const { data: ctData } = await supabaseClient.from('contacts').select('name, phone, thread_id, chat_id, category');
-        if (ctData) contactsData = ctData || [];
-        const { data: rData } = await supabaseClient.from('project_resources').select('chat_id, thread_id, url, username');
-        if (rData) resourcesData = rData || [];
-        const { data: plData } = await supabaseClient.from('project_locations').select('project_id, name');
-        if (plData) projectLocationsData = plData || [];
+        if (navigator.onLine) {
+          const { data: cData } = await supabaseClient.from('clients').select('id, name, thread_id, chat_id, category, is_active, is_hidden');
+          if (cData) { clientsData = cData; setCache(CACHE_KEYS.CLIENTS, cData); }
+          
+          const { data: tData } = await supabaseClient.from('team').select('full_name, username, roles, position');
+          if (tData) { teamData = tData; setCache(CACHE_KEYS.TEAM, tData); }
+          
+          const { data: lData } = await supabaseClient.from('locations').select('name');
+          if (lData) { locationsData = lData; setCache(CACHE_KEYS.LOCATIONS, lData); }
+          
+          const { data: ctData } = await supabaseClient.from('contacts').select('name, phone, thread_id, chat_id, category');
+          if (ctData) { contactsData = ctData; setCache(CACHE_KEYS.CONTACTS, ctData); }
+          
+          const { data: rData } = await supabaseClient.from('project_resources').select('chat_id, thread_id, url, username');
+          if (rData) { resourcesData = rData; setCache(CACHE_KEYS.RESOURCES, rData); }
+          
+          const { data: plData } = await supabaseClient.from('project_locations').select('project_id, name');
+          if (plData) { projectLocationsData = plData; setCache(CACHE_KEYS.PROJECT_LOCATIONS, plData); }
+        } else {
+          clientsData = getCache(CACHE_KEYS.CLIENTS);
+          teamData = getCache(CACHE_KEYS.TEAM);
+          locationsData = getCache(CACHE_KEYS.LOCATIONS);
+          contactsData = getCache(CACHE_KEYS.CONTACTS);
+          resourcesData = getCache(CACHE_KEYS.RESOURCES);
+          projectLocationsData = getCache(CACHE_KEYS.PROJECT_LOCATIONS);
+        }
         updateDatalists();
       } catch (e) {
-        console.warn("Autocomplete fetch failed (offline mode):", e);
+        console.warn("Autocomplete fetch failed, falling back to cache:", e);
+        clientsData = getCache(CACHE_KEYS.CLIENTS);
+        teamData = getCache(CACHE_KEYS.TEAM);
+        locationsData = getCache(CACHE_KEYS.LOCATIONS);
+        contactsData = getCache(CACHE_KEYS.CONTACTS);
+        resourcesData = getCache(CACHE_KEYS.RESOURCES);
+        projectLocationsData = getCache(CACHE_KEYS.PROJECT_LOCATIONS);
+        updateDatalists();
       }
     }
 
@@ -2102,6 +2138,26 @@
         names.push(name);
         hidden.value = names.join(', ');
         renderTags(fieldId, tagsId);
+        
+        // Local cache expansion and sync queue update
+        if (fieldId === 'actors' || fieldId === 't_actors') {
+          const exists = teamData.some(t => (t.full_name || '').toLowerCase() === name.toLowerCase());
+          if (!exists) {
+            const record = { full_name: name, roles: ['actor'], position: 'Актер' };
+            teamData.push(record);
+            setCache(CACHE_KEYS.TEAM, teamData);
+            addToSyncQueue('team', record);
+          }
+        } else if (fieldId === 'crew' || fieldId === 't_assignees' || fieldId === 'post_production') {
+          const exists = teamData.some(t => (t.full_name || '').toLowerCase() === name.toLowerCase());
+          if (!exists) {
+            const role = fieldId === 'crew' ? 'production' : (fieldId === 'post_production' ? 'post' : null);
+            const record = { full_name: name, roles: role ? [role] : [], position: 'Команда' };
+            teamData.push(record);
+            setCache(CACHE_KEYS.TEAM, teamData);
+            addToSyncQueue('team', record);
+          }
+        }
       }
       document.getElementById(inputId).value = '';
       document.getElementById(dropdownId).style.display = 'none';
@@ -2927,6 +2983,35 @@
         report_link: f.report_link.value.trim(),
         status: 'pending'
       };
+
+      // Intercept custom strings for Autocomplete Cache and Sync Queue
+      if (payload.project) {
+        const exists = clientsData.some(c => (c.name || '').toLowerCase() === payload.project.toLowerCase() && (c.category || 'media') === 'media');
+        if (!exists) {
+          const record = { id: payload.id + '_proj', name: payload.project, category: 'media', is_active: true, is_hidden: false };
+          clientsData.push(record);
+          setCache(CACHE_KEYS.CLIENTS, clientsData);
+          addToSyncQueue('clients', record);
+        }
+      }
+      if (payload.casting_project) {
+        const exists = clientsData.some(c => (c.name || '').toLowerCase() === payload.casting_project.toLowerCase() && c.category === 'casting');
+        if (!exists) {
+          const record = { id: payload.id + '_cast', name: payload.casting_project, category: 'casting', is_active: true, is_hidden: false };
+          clientsData.push(record);
+          setCache(CACHE_KEYS.CLIENTS, clientsData);
+          addToSyncQueue('clients', record);
+        }
+      }
+      if (payload.location) {
+        const exists = locationsData.some(l => (l.name || '').toLowerCase() === payload.location.toLowerCase());
+        if (!exists) {
+          const record = { name: payload.location };
+          locationsData.push(record);
+          setCache(CACHE_KEYS.LOCATIONS, locationsData);
+          addToSyncQueue('locations', record);
+        }
+      }
 
       if (selectedId) {
         const existing = allEvents.find(e => e.id === selectedId);

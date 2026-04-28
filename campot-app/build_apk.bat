@@ -28,10 +28,11 @@ cd ..
 echo [5/6] Exporting APK to root folder...
 if exist "android\app\build\outputs\apk\debug\campot-debug.apk" (
     copy android\app\build\outputs\apk\debug\campot-debug.apk ..\Campot_v1.apk /y
-    echo [SUCCESS] APK exported to e:\Campot\Campot_v1.apk
+    copy android\app\build\outputs\apk\debug\campot-debug.apk ..\Campot_v2_OFFLINE.apk /y
+    echo [SUCCESS] APK exported to e:\Campot\Campot_v1.apk and Campot_v2_OFFLINE.apk
 ) else (
     echo [ERROR] APK not found! Build probably failed. Check logs above.
 )
 
 echo [6/6] Done!
-pause
+
