@@ -1495,6 +1495,11 @@
                 state.isMotor = false;
                 // Client Mapping Fix: Set to empty for manual shift
                 state.pool_client = [];
+                ui.locationLabel.textContent = 'ЛОКАЦИЯ: ' + loc;
+                ui.sceneLabel.textContent = '1';
+                ui.shotLabel.textContent = '1';
+                ui.takeLabel.textContent = '1';
+                saveState();
 
                 // Show the Red Ring
                 document.getElementById('shootSelector').classList.add('hidden');
@@ -1601,7 +1606,7 @@
             }
             // Button Timers
             for (let id in state.activeTimers) {
-                const el = document.getElementById('btn_' + id);
+                const el = document.getElementById('btn_' + id) || document.getElementById('btn_delay_' + id);
                 if (el) {
                     const timerEl = el.querySelector('.btn-timer');
                     if (!timerEl) continue; // Safety check
