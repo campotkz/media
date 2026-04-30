@@ -1496,6 +1496,12 @@
                 // Client Mapping Fix: Set to empty for manual shift
                 state.pool_client = [];
 
+                ui.locationLabel.textContent = `ЛОКАЦИЯ: ${loc}`;
+                ui.sceneLabel.textContent = 1;
+                ui.shotLabel.textContent = 1;
+                ui.takeLabel.textContent = 1;
+                saveState();
+
                 // Show the Red Ring
                 document.getElementById('shootSelector').classList.add('hidden');
                 document.getElementById('startOverlayDesc').textContent = "Ручной запуск. Нажмите на кольцо!";
@@ -1601,7 +1607,7 @@
             }
             // Button Timers
             for (let id in state.activeTimers) {
-                const el = document.getElementById('btn_' + id);
+                const el = document.getElementById('btn_' + id) || document.getElementById('btn_delay_' + id);
                 if (el) {
                     const timerEl = el.querySelector('.btn-timer');
                     if (!timerEl) continue; // Safety check
@@ -2152,7 +2158,7 @@
             const { data, error } = await sb.from('shoots').select('schedule').eq('id', state.shootId).single();
             if (data && data.schedule) {
                 try {
-                    currentSchedule = JSON.parse(data.schedule);
+                    currentSchedule = typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule;
                     renderSchedule();
                 } catch (e) { console.error("Schedule parse error", e); }
             }
