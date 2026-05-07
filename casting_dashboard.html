@@ -417,7 +417,8 @@
                 </div>
                 <div class="card-content">
                     <h3>${app.full_name}</h3>
-                    <p>${app.city} • ${app.age || '?'} лет</p>
+                    <p>${app.city} • ${app.age || '?'} лет • ${app.height || '?'} см / ${app.weight || '?'} кг</p>
+                    <p style="font-size: 11px; margin-top: 2px;">🎭 ${app.appearance || '—'} • 💇 ${app.hair_color || '—'}</p>
                     <div class="summary">${app.experience_summary || 'Нет опыта'}</div>
                     
                     <div class="rating-row">
