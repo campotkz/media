@@ -81,34 +81,46 @@ ${data.experience || "—"}
 
       const messageId = msgResult.result.message_id;
 
-      // --- 5. Шаг 2: Отправляем видео (если есть) ---
+      // --- 5. Шаг 2: Отправляем фото (MediaGroup) ---
+      const photos = formData.getAll("photos");
+      if (photos.length > 0) {
+        const sendMediaUrl = `https://api.telegram.org/bot${botToken}/sendMediaGroup`;
+        const mediaFormData = new FormData();
+        mediaFormData.append("chat_id", chatId);
+        mediaFormData.append("reply_to_message_id", messageId);
+        if (threadId) mediaFormData.append("message_thread_id", threadId);
+
+        const media = [];
+        photos.slice(0, 10).forEach((photo, index) => {
+          const fileId = `photo_${index}`;
+          media.push({
+            type: "photo",
+            media: `attach://${fileId}`
+          });
+          mediaFormData.append(fileId, photo);
+        });
+
+        mediaFormData.append("media", JSON.stringify(media));
+        
+        await fetch(sendMediaUrl, {
+          method: "POST",
+          body: mediaFormData
+        });
+      }
+
+      // --- 6. Шаг 3: Отправляем видео (если есть) ---
       if (videoFile && videoFile.size > 0) {
         const sendVideoUrl = `https://api.telegram.org/bot${botToken}/sendVideo`;
         const videoData = new FormData();
         videoData.append("chat_id", chatId);
         videoData.append("video", videoFile);
         videoData.append("reply_to_message_id", messageId);
-        if (threadId) {
-            videoData.append("message_thread_id", threadId);
-        }
+        if (threadId) videoData.append("message_thread_id", threadId);
 
-        const videoRes = await fetch(sendVideoUrl, {
+        await fetch(sendVideoUrl, {
           method: "POST",
           body: videoData
         });
-
-        const videoResult = await videoRes.json();
-        if (!videoResult.ok) {
-          // Если видео не ушло, возвращаем статус, но текст-то уже в группе
-          return new Response(JSON.stringify({ 
-            status: "partial_ok", 
-            message: "Text sent, but video failed", 
-            error: videoResult.description 
-          }), {
-            status: 200,
-            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-          });
-        }
       }
 
       return new Response(JSON.stringify({ status: "ok", message_id: messageId }), {

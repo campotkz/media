@@ -840,7 +840,7 @@
                     <input type="text" name="portfolio_url" placeholder="YouTube, Vimeo или Google Диск">
                 </div>    <script>
         // --- Configuration ---
-        const API_BASE = "https://media-seven-eta.vercel.app/api"; 
+        const API_BASE = "https://media.campot.workers.dev"; // ЗАМЕНИТЕ НА ВАШ URL WORKER-А
         
         const params = new URLSearchParams(window.location.search);
         const cid = params.get('cid');
@@ -849,7 +849,7 @@
         const lock = params.get('lock');
 
         let uploadedPhotos = []; 
-        let uploadedVideo = null; 
+        let uploadedVideoFile = null; 
         let pendingUploads = 0;
 
         const welcomeContainer = document.getElementById('welcomeContainer');
@@ -979,9 +979,12 @@
                 const id = Math.random().toString(36).substr(2, 9);
                 const item = createMediaItem(id, file);
                 document.getElementById('photoList').appendChild(item);
+                
+                // Сжатие оставляем для скорости, но сохраняем как Blob/File
                 const compressed = await compressImage(file);
+                uploadedPhotos.push({ id, file: compressed });
+                
                 const b64 = await fileToBase64(compressed);
-                uploadedPhotos.push({ id, b64 });
                 item.style.backgroundImage = `url(${b64})`;
                 pendingUploads--; updateSubmitButton();
             }
@@ -991,13 +994,13 @@
         document.getElementById('videoInput').onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            if (file.size > 5 * 1024 * 1024) return alert("Видео слишком большое (max 5MB).");
+            if (file.size > 100 * 1024 * 1024) return alert("Видео слишком большое (max 100MB).");
             pendingUploads++; updateSubmitButton();
             const id = Math.random().toString(36).substr(2, 9);
             const item = createMediaItem(id, file, true);
             document.getElementById('videoList').innerHTML = '';
             document.getElementById('videoList').appendChild(item);
-            uploadedVideo = await fileToBase64(file);
+            uploadedVideoFile = file;
             pendingUploads--; updateSubmitButton();
         };
 
@@ -1008,25 +1011,50 @@
                 chat_id: i.getAttribute('data-cid'),
                 thread_id: i.getAttribute('data-tid')
             }));
+            
             if (selected.length === 0) return alert("Выберите кастинг.");
             if (uploadedPhotos.length < 3) return alert("Минимум 3 фото.");
+            
             const overlay = document.getElementById('loadingOverlay');
             overlay.style.display = 'flex';
+            
             try {
-                const baseData = Object.fromEntries(new FormData(e.target).entries());
+                const baseFormData = new FormData(e.target);
+                
                 for (const p of selected) {
                     document.getElementById('loadingText').textContent = `Отправка в ${p.name}...`;
-                    const res = await fetch(`${API_BASE}/casting/submit_no_sb`, {
+                    
+                    const finalFormData = new FormData();
+                    // Копируем основные поля
+                    for (let [key, value] of baseFormData.entries()) {
+                        finalFormData.append(key, value);
+                    }
+                    
+                    // Переопределяем параметры маршрутизации
+                    finalFormData.set('casting_target', p.name);
+                    finalFormData.set('chat_id', p.chat_id);
+                    if (p.thread_id) finalFormData.set('thread_id', p.thread_id);
+                    
+                    // Добавляем файлы
+                    uploadedPhotos.forEach(ph => finalFormData.append('photos', ph.file));
+                    if (uploadedVideoFile) finalFormData.append('video', uploadedVideoFile);
+
+                    const res = await fetch(`${API_BASE}`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...baseData, casting_target: p.name, chat_id: p.chat_id, thread_id: p.thread_id, photos: uploadedPhotos.map(ph => ph.b64), video: uploadedVideo })
+                        body: finalFormData
                     });
+                    
                     if (!res.ok) throw new Error(await res.text());
                 }
+                
                 formContainer.style.display = 'none';
                 successScreen.style.display = 'block';
                 window.scrollTo(0, 0);
-            } catch (err) { alert("Ошибка: " + err.message); } finally { overlay.style.display = 'none'; }
+            } catch (err) { 
+                alert("Ошибка: " + err.message); 
+            } finally { 
+                overlay.style.display = 'none'; 
+            }
         };
     </script>
 </body>
