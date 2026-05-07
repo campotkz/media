@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "media",
+  "main": "worker.js",
   "compatibility_date": "2026-05-07",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
@@ -8,7 +9,8 @@
   "vars": {
     "SUPABASE_URL": "https://waekzofajzqcpoeldhkt.supabase.co",
     "SUPABASE_KEY": "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V",
-    "BOT_KEY": "8534227633:AAEqULwA8rypkF-BW87G_9ACmKWNEoGZFI4"
+    "BOT_KEY": "8534227633:AAEqULwA8rypkF-BW87G_9ACmKWNEoGZFI4",
+    "CHAT_ID": "-1003893557217"
   },
   "workers_dev": true,
   "site": { "bucket": "." },
