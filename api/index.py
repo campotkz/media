@@ -338,10 +338,14 @@ def handle_delete_all(message):
             except Exception:
                 pass
 
-    # 5. Режим SWEEP (Слепая зачистка ID 2-500)
+    # 5. Режим SWEEP (Слепая зачистка по ID)
     if is_sweep:
-        status_msg = bot.send_message(cid, "🕵️‍♂️ **Режим SWEEP активирован.**\nПрощупываю топики с ID 2 по 500...")
-        for i in range(2, 501):
+        nums = [int(s) for s in (message.text or "").split() if s.isdigit()]
+        start_id = nums[0] if len(nums) > 0 else 2
+        end_id = nums[1] if len(nums) > 1 else start_id + 200
+        
+        status_msg = bot.send_message(cid, f"🕵️‍♂️ **Режим SWEEP активирован.**\nПрощупываю топики с ID {start_id} по {end_id}...")
+        for i in range(start_id, end_id + 1):
             # Пропускаем, если ID уже был в базе
             if any(str(t.get('thread_id')) == str(i) for t in topics):
                 continue
@@ -361,7 +365,7 @@ def handle_delete_all(message):
         f"🗑 Удалено в Telegram: {deleted_tg}\n"
         f"☁️ Вычищено из базы: {deleted_db}\n"
         f"🛡 Сохранен: **'тестовый кастинг'**\n\n"
-        f"💡 _Если топики остались, используйте_ `/deleteall sweep` ",
+        f"💡 _Если топики остались, используйте_ `/deleteall sweep 200 400` _(для проверки других ID)_",
         parse_mode="Markdown"
     )
 
