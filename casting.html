@@ -836,7 +836,7 @@
     </div>
 
     <script>
-        const API_BASE = "https://media.sijic13.workers.dev";
+        const API_BASE = "https://media-seven-eta.vercel.app/api/casting/submit_no_sb";
         const VERCEL_URL = "https://media-seven-eta.vercel.app";
 
         const params = new URLSearchParams(window.location.search);
@@ -1095,6 +1095,7 @@ Socials: ${formData.get('social_links') || 'Нет'}
                     progressPercent.style.display = 'block';
 
                     await axios.post(API_BASE, finalData, {
+                        headers: { 'Content-Type': 'multipart/form-data' },
                         onUploadProgress: (progressEvent) => {
                             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
                             progressBar.style.width = percentCompleted + '%';
