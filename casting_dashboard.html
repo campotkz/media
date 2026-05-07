@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Casting Dashboard</title>
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --surface: rgba(255, 255, 255, 0.05);
+            --surface-hover: rgba(255, 255, 255, 0.08);
+            --text: #ffffff;
+            --text-secondary: #888888;
+            --accent: #ff6b6b;
+            --accent-hover: #ff5252;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 40px;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: rgba(10, 10, 12, 0.8);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 10px 0 0;
+        }
+
+        /* Filters */
+        .filters {
+            padding: 16px 20px;
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .filters::-webkit-scrollbar {
+            display: none;
+        }
+
+        .filter-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        /* Gallery Grid */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 16px;
+            padding: 0 20px;
+        }
+
+        /* Actor Card */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s;
+        }
+        
+        .card:active {
+            transform: scale(0.98);
+        }
+
+        .card-img-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 125%; /* 4:5 aspect ratio */
+            background: #222;
+        }
+
+        .card-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .card-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .card-content {
+            padding: 12px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            flex-grow: 1;
+        }
+        
+        .card-meta span {
+            display: inline-block;
+            margin-right: 6px;
+            margin-bottom: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text);
+        }
+
+        /* Empty State */
+        .empty-state {
+            grid-column: 1 / -1;
+            padding: 60px 20px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <button class="back-btn" onclick="window.location.href='index.html'">←</button>
+            🎭 Кастинг База
+        </div>
+    </header>
+
+    <div class="filters" id="filtersContainer">
+        <button class="filter-btn active" onclick="setFilter('Все')">Все проекты</button>
+        <!-- Dynamic filters will be appended here -->
+    </div>
+
+    <div class="gallery" id="galleryContainer">
+        <!-- Cards will be rendered here -->
+    </div>
+
+    <script>
+        let currentFilter = 'Все';
+        let actorsData = [];
+
+        // Моковые данные для тестирования интерфейса
+        async function fetchActors() {
+            return [
+                {
+                    id: '1',
+                    full_name: 'Алина Смирнова',
+                    age: 24,
+                    height_weight: '170 / 55',
+                    project: 'Форт №307',
+                    character: 'Главная героиня',
+                    photo_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+                    video_url: '#'
+                },
+                {
+                    id: '2',
+                    full_name: 'Егор Краснов',
+                    age: 32,
+                    height_weight: '185 / 80',
+                    project: 'Весы',
+                    character: 'Отец',
+                    photo_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
+                    video_url: '#'
+                },
+                {
+                    id: '3',
+                    full_name: 'Анна Ким',
+                    age: 19,
+                    height_weight: '165 / 50',
+                    project: 'Весы',
+                    character: 'Дочь',
+                    photo_url: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=400&q=80',
+                    video_url: '#'
+                }
+            ];
+        }
+
+        function renderFilters() {
+            const container = document.getElementById('filtersContainer');
+            // Extract unique projects
+            const projects = [...new Set(actorsData.map(a => a.project))].filter(Boolean);
+            
+            let html = `<button class="filter-btn ${currentFilter === 'Все' ? 'active' : ''}" onclick="setFilter('Все')">Все проекты</button>`;
+            
+            projects.forEach(proj => {
+                const isActive = currentFilter === proj ? 'active' : '';
+                html += `<button class="filter-btn ${isActive}" onclick="setFilter('${proj}')">${proj}</button>`;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function setFilter(project) {
+            currentFilter = project;
+            renderFilters();
+            renderGallery();
+        }
+
+        function renderGallery() {
+            const container = document.getElementById('galleryContainer');
+            
+            const filtered = currentFilter === 'Все' 
+                ? actorsData 
+                : actorsData.filter(a => a.project === currentFilter);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="empty-state">Нет анкет по данному фильтру.</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(actor => `
+                <div class="card">
+                    <div class="card-img-wrapper">
+                        <img src="${actor.photo_url}" class="card-img" alt="${actor.full_name}">
+                        <div class="card-badge">${actor.project}</div>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-title">${actor.full_name}</div>
+                        <div class="card-meta">
+                            <span>🎭 ${actor.character || 'Не указано'}</span><br>
+                            <span>🎂 ${actor.age} лет</span>
+                            <span>📏 ${actor.height_weight}</span>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-primary" onclick="alert('Открытие видео: ${actor.full_name}')">▶ Видео</button>
+                            <button class="btn btn-secondary" onclick="alert('Открытие чата: ${actor.full_name}')">💬 Чат</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialize application
+        async function init() {
+            actorsData = await fetchActors();
+            renderFilters();
+            renderGallery();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

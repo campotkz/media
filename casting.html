@@ -924,9 +924,9 @@
                         charInputGroup.innerHTML = `
                             <label>На какого персонажа вы подаетесь?<span>*</span></label>
                             <select name="character_name" required style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;">
-                                <option value="" disabled selected>Выберите персонажа...</option>
-                                ${uniqueRoles.map(r => `<option value="${r}">${r}</option>`).join('')}
-                                <option value="Другое (Массовка)">Другое (Массовка)</option>
+                                <option style="color: #000;" value="" disabled selected>Выберите персонажа...</option>
+                                ${uniqueRoles.map(r => `<option style="color: #000;" value="${r}">${r}</option>`).join('')}
+                                <option style="color: #000;" value="Другое (Массовка)">Другое (Массовка)</option>
                             </select>
                         `;
                     } else {
