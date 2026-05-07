@@ -375,13 +375,12 @@
                 <option value="Рыжий">Рыжий</option>
                 <option value="Русый">Русый</option>
                 <option value="Седой">Седой</option>
-                <option value="Лысый">Лысый</option>
             </select>
         </div>
 
         <div class="filter-group">
             <label>Размер одежды</label>
-            <input type="text" id="filterClothing" placeholder="S, 44...">
+            <input type="text" id="filterClothing" placeholder="Напр: S, 44...">
         </div>
 
         <div class="filter-group">
@@ -393,6 +392,9 @@
         </div>
 
         <button class="btn" style="background: var(--accent); color: #fff; padding: 15px; margin-top: 10px;" onclick="fetchApplications()">Применить фильтры</button>
+        <button class="btn" style="background: rgba(255,255,255,0.1); color: #fff; padding: 12px; margin-top: 5px;" onclick="location.reload()">
+            <span>🔄</span> Полное обновление
+        </button>
         <p style="font-size: 10px; color: var(--muted); text-align: center; margin-top: 10px;">Обновление каждые 30с</p>
     </div>
 
@@ -401,7 +403,10 @@
             <div class="project-tabs" id="projectTabs">
                 <div class="tab active" data-proj="Все">Все</div>
             </div>
-            <div class="stats" id="statsText">Загрузка CRM...</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="stats" id="statsText">Загрузка...</div>
+                <button class="btn" style="padding: 8px 12px; background: var(--accent); color: #fff; font-size: 11px;" onclick="fetchApplications(true)">ОБНОВИТЬ</button>
+            </div>
         </div>
 
         <div class="grid" id="appsGrid"></div>
@@ -410,7 +415,8 @@
     <div class="loading-overlay" id="loadingOverlay">
         <div style="text-align: center;">
             <div style="font-size: 40px; margin-bottom: 15px;">🎬</div>
-            <div style="color: #fff; font-weight: 700;">Синхронизация с базой...</div>
+            <div style="color: #fff; font-weight: 700; letter-spacing: 1px;">СИНХРОНИЗАЦИЯ...</div>
+            <div id="loadingStatus" style="font-size: 12px; color: var(--muted); margin-top: 8px;">Подключение к GULYWOOD Cloud...</div>
         </div>
     </div>
 
@@ -429,10 +435,15 @@
         async function fetchProjects() {
             try {
                 const res = await fetch(`${API_BASE}/api/projects`);
+                if (!res.ok) throw new Error("API Offline");
                 projects = await res.json();
                 const sel = document.getElementById('filterProject');
                 const tabs = document.getElementById('projectTabs');
                 
+                // Clear existing except "Все"
+                while(sel.children.length > 1) sel.removeChild(sel.lastChild);
+                while(tabs.children.length > 1) tabs.removeChild(tabs.lastChild);
+
                 projects.forEach(p => {
                     const opt = document.createElement('option');
                     opt.value = p; opt.textContent = p;
@@ -449,12 +460,15 @@
                     };
                     tabs.appendChild(tab);
                 });
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error("Projects Error:", e);
+            }
         }
 
         async function fetchCharacters() {
             try {
                 const res = await fetch(`${API_BASE}/api/characters`);
+                if (!res.ok) throw new Error("API Offline");
                 const characters = await res.json();
                 const list = document.getElementById('charList');
                 list.innerHTML = '';
@@ -470,7 +484,10 @@
             const grid = document.getElementById('appsGrid');
             const stats = document.getElementById('statsText');
             const overlay = document.getElementById('loadingOverlay');
-            if (!silent) overlay.style.display = 'flex';
+            if (!silent) {
+                overlay.style.display = 'flex';
+                grid.style.opacity = '0.3';
+            }
             
             const params = new URLSearchParams();
             params.append('project', document.getElementById('filterProject').value);
@@ -493,12 +510,27 @@
 
             try {
                 const res = await fetch(`${API_BASE}/api/applications?${params.toString()}`);
+                if (!res.ok) throw new Error("Network Error");
                 const data = await res.json();
                 grid.innerHTML = '';
+                grid.style.opacity = '1';
                 stats.textContent = `База: ${data.length} анкет`;
                 data.forEach(app => grid.appendChild(createCard(app)));
+                if (data.length === 0) {
+                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 100px; color: var(--muted);">Анкет не найдено. Попробуйте изменить фильтры.</div>';
+                }
             } catch (e) {
-                if (!silent) grid.innerHTML = '<div style="color: red;">Ошибка сети</div>';
+                console.error("Fetch Error:", e);
+                if (!silent) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; padding: 100px;">
+                            <div style="font-size: 40px; margin-bottom: 20px;">📡</div>
+                            <div style="color: #ff3b30; font-weight: 700; margin-bottom: 10px;">ОШИБКА СЕТИ</div>
+                            <div style="color: var(--muted); font-size: 13px; margin-bottom: 20px;">Не удалось подключиться к серверу Cloudflare.</div>
+                            <button class="btn" style="background: var(--accent); color: #fff; margin: 0 auto; width: 180px;" onclick="fetchApplications()">ПОВТОРИТЬ ПОПЫТКУ</button>
+                        </div>
+                    `;
+                }
             } finally {
                 if (!silent) overlay.style.display = 'none';
             }
@@ -509,6 +541,10 @@
             const status = app.status || 'pending';
             div.className = `card status-${status}`;
             
+            // Map gender for display
+            const genderLabel = app.gender === 'МУЖЧИНА' ? '👨 МУЖ' : (app.gender === 'ЖЕНЩИНА' ? '👩 ЖЕН' : app.gender);
+            
+            // Photo fallback
             const photoUrl = "https://via.placeholder.com/300x400/111/fff?text=NO+PHOTO";
             
             div.innerHTML = `
@@ -517,11 +553,24 @@
                     <div class="status-pill">${status === 'approved' ? 'Утвержден' : (status === 'blocked' ? 'БЛОК' : 'Новый')}</div>
                 </div>
                 <div class="card-content">
-                    <h3>${app.full_name}</h3>
-                    <p style="color: var(--accent); font-weight: 700; font-size: 11px; margin-bottom: 8px;">🎭 РОЛЬ: ${app.character_name || 'Не указана'}</p>
-                    <p>${app.city} • ${app.age || '?'} лет • ${app.height || '?'} см / ${app.weight || '?'} кг</p>
-                    <p style="font-size: 11px; margin-top: 2px;">🎭 ${app.appearance || '—'} • 💇 ${app.hair_color || '—'}</p>
-                    <div class="summary">${app.experience_summary || 'Нет опыта'}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <h3 style="margin-bottom: 2px;">${app.full_name}</h3>
+                        <span style="font-size: 10px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">${genderLabel}</span>
+                    </div>
+                    <p style="color: var(--accent); font-weight: 700; font-size: 11px; margin-bottom: 8px; text-transform: uppercase;">🎭 РОЛЬ: ${app.character_name || 'Не указана'}</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                        <div style="font-size: 12px; color: var(--muted);">📍 ${app.city}</div>
+                        <div style="font-size: 12px; color: var(--muted); text-align: right;">🎂 ${app.age || '?'} лет</div>
+                        <div style="font-size: 12px; color: var(--muted);">📏 ${app.height || '?'} см / ${app.weight || '?'} кг</div>
+                        <div style="font-size: 12px; color: var(--muted); text-align: right;">👕 ${app.clothing_size || '?'} / 👟 ${app.shoe_size || '?'}</div>
+                    </div>
+
+                    <p style="font-size: 11px; margin-top: 2px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.05);">
+                        🎭 ${app.appearance || '—'} • 💇 ${app.hair_color || '—'}
+                    </p>
+                    
+                    <div class="summary" title="${app.experience_summary || ''}">${app.experience_summary || 'Нет опыта'}</div>
                     
                     <div class="rating-row">
                         <div class="rating-stars">
@@ -552,12 +601,13 @@
 
         async function updateField(id, updates) {
             try {
-                await fetch(`${API_BASE}/api/applications/update`, {
+                const res = await fetch(`${API_BASE}/api/applications/update`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id, ...updates })
                 });
-                if (updates.status) fetchApplications();
+                if (!res.ok) throw new Error("Update Failed");
+                if (updates.status) fetchApplications(true);
             } catch (e) { alert("Ошибка обновления"); }
         }
 
@@ -583,9 +633,12 @@
 
         function closeModal() { document.getElementById('linkModal').style.display = 'none'; }
 
-        fetchProjects();
-        fetchCharacters();
-        fetchApplications();
+        // Initial Load sequence
+        (async function init() {
+            await fetchProjects();
+            await fetchCharacters();
+            await fetchApplications();
+        })();
 
         // Auto-refresh every 30 seconds (silent)
         setInterval(() => {

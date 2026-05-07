@@ -14,9 +14,9 @@
         rel="stylesheet">
     <style>
         :root {
-            --bg: #15161c;
-            --card-bg: #1c1d24;
-            --input-bg: #15161c;
+            --bg: #0d0e12;
+            --card-bg: #15161c;
+            --input-bg: #0d0e12;
             --accent: #ff3b30;
             --accent-glow: rgba(255, 59, 48, 0.2);
             --text: #ffffff;
@@ -45,6 +45,9 @@
         .container {
             width: 100%;
             max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
         .card {
@@ -52,8 +55,70 @@
             border-radius: 24px;
             padding: 24px;
             border: 1px solid var(--stroke);
-            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
+
+        .welcome-screen {
+            text-align: center;
+        }
+
+        .welcome-logo {
+            font-size: 40px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin: 0 0 12px;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .welcome-text {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .announcement {
+            background: rgba(255, 59, 48, 0.05);
+            border: 1px solid var(--accent);
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 13px;
+            color: var(--text);
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .option-btn {
+            width: 100%;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--stroke);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .option-btn:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .option-btn i { font-size: 20px; opacity: 0.8; }
 
         .section-header {
             display: flex;
@@ -88,18 +153,11 @@
             margin-bottom: 12px;
         }
 
-        label .req {
-            color: var(--accent);
-            margin-left: 2px;
-        }
+        label .req { color: var(--accent); margin-left: 2px; }
 
-        .form-group {
-            margin-bottom: 24px;
-        }
+        .form-group { margin-bottom: 24px; }
 
-        input,
-        select,
-        textarea {
+        input, select, textarea {
             width: 100%;
             background: var(--input-bg);
             border: 1px solid var(--stroke);
@@ -112,25 +170,14 @@
             outline: none;
         }
 
-        input:focus,
-        select:focus,
-        textarea:focus {
+        input:focus, select:focus, textarea:focus {
             border-color: var(--accent);
             box-shadow: 0 0 0 4px var(--accent-glow);
         }
 
-        .row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-        /* Selectable Options (Radio as blocks) */
-        .option-grid {
-            display: grid;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
+        .option-grid { display: grid; gap: 12px; margin-bottom: 24px; }
 
         .option-item {
             position: relative;
@@ -145,54 +192,28 @@
             gap: 12px;
         }
 
-        .option-item:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .option-item.selected {
-            border-color: var(--accent);
-            background: rgba(255, 59, 48, 0.05);
-        }
-
-        .option-item input {
-            position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+        .option-item:hover { border-color: rgba(255, 255, 255, 0.2); }
+        .option-item.selected { border-color: var(--accent); background: rgba(255, 59, 48, 0.05); }
+        .option-item input { position: absolute; opacity: 0; width: 0; height: 0; }
 
         .radio-circle {
-            width: 20px;
-            height: 20px;
+            width: 20px; height: 20px;
             border: 2px solid var(--stroke);
             border-radius: 50%;
             position: relative;
             flex-shrink: 0;
         }
 
-        .option-item.selected .radio-circle {
-            border-color: var(--accent);
-        }
-
+        .option-item.selected .radio-circle { border-color: var(--accent); }
         .option-item.selected .radio-circle::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
+            content: ''; position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 10px;
-            height: 10px;
-            background: var(--accent);
-            border-radius: 50%;
+            width: 10px; height: 10px;
+            background: var(--accent); border-radius: 50%;
         }
 
-        .option-label {
-            font-weight: 700;
-            font-size: 16px;
-            text-transform: uppercase;
-        }
+        .option-label { font-weight: 700; font-size: 16px; text-transform: uppercase; }
 
-        /* Photo Upload */
         .photo-upload-zone {
             border: 2px dashed var(--stroke);
             border-radius: 20px;
@@ -203,294 +224,341 @@
             background: var(--input-bg);
         }
 
-        .photo-upload-zone:hover {
-            border-color: var(--accent);
-            background: rgba(255, 59, 48, 0.02);
-        }
+        .photo-upload-zone:hover { border-color: var(--accent); background: rgba(255, 59, 48, 0.02); }
 
         .photo-previews {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 12px;
-            margin-top: 16px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 12px; margin-top: 16px;
         }
 
         .photo-thumb {
-            width: 100%;
-            aspect-ratio: 1;
-            object-fit: cover;
-            border-radius: 12px;
-            border: 1px solid var(--stroke);
+            width: 100%; aspect-ratio: 1; object-fit: cover;
+            border-radius: 12px; border: 1px solid var(--stroke);
         }
 
         .submit-btn {
-            width: 100%;
-            background: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 16px;
-            padding: 20px;
-            font-size: 18px;
-            font-weight: 800;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 10px 30px rgba(255, 59, 48, 0.3);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 20px;
+            width: 100%; background: var(--accent); color: white;
+            border: none; border-radius: 16px; padding: 20px;
+            font-size: 18px; font-weight: 800; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 10px 30px rgba(255, 59, 48, 0.3);
+            text-transform: uppercase; letter-spacing: 1px; margin-top: 20px;
         }
 
-        .submit-btn:active {
-            transform: scale(0.98);
-        }
+        .submit-btn:active { transform: scale(0.98); }
 
-        /* Success & Loading */
         #loadingOverlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.85);
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.9);
             backdrop-filter: blur(8px);
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
+            display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
         }
 
         .loader {
-            width: 50px;
-            height: 50px;
+            width: 50px; height: 50px;
             border: 4px solid rgba(255, 255, 255, 0.1);
             border-top-color: var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        #successScreen {
-            display: none;
-            text-align: center;
-            padding: 60px 20px;
-        }
-
-        #successScreen h1 { font-size: 32px; margin-bottom: 16px; }
+        #successScreen, #formContainer, #reentryScreen { display: none; }
     </style>
 </head>
 
 <body>
-    <div class="container" id="formContainer">
-        <form id="castingForm">
+    <div class="container">
+        <!-- WELCOME SCREEN -->
+        <div id="welcomeScreen" class="welcome-screen">
             <div class="card">
-                <label>На какой кастинг вы подаетесь?</label>
-                <div class="option-grid" id="projectOptions">
-                    <!-- Projects will be loaded here -->
-                    <div class="option-item" onclick="selectOption(this, 'project_name', 'ПРОБА')">
-                        <div class="radio-circle"></div>
-                        <span class="option-label">ПРОБА</span>
-                        <input type="radio" name="project_name" value="ПРОБА" required>
-                    </div>
+                <span class="welcome-logo">🎬</span>
+                <h1 class="welcome-title">Кастинг-платформа GULYWOOD</h1>
+                <p class="welcome-text">Добро пожаловать! Пожалуйста, выберите действие для продолжения.</p>
+                
+                <div class="announcement">
+                    <strong>📢 ОБЪЯВЛЕНИЕ:</strong><br>
+                    Мы ищем новые лица для крупного проекта. Если вы уже заполняли анкету ранее, просто обновите свои данные.
                 </div>
 
-                <div class="form-group">
-                    <label>На какого персонажа вы подаетесь?<span class="req">*</span></label>
-                    <input type="text" id="character_name" placeholder="например: «Главный герой», «Отец»" required>
-                </div>
+                <button class="option-btn" onclick="showForm('new')">
+                    <span>🆕</span>
+                    <div class="label">Я заполняю первый раз</div>
+                </button>
 
-                <div class="form-group">
-                    <label>Ваше полное имя (Фамилия Имя)<span class="req">*</span></label>
-                    <input type="text" id="full_name" placeholder="Иванов Иван" required>
-                </div>
-
-                <label>Ваш Гендер<span class="req">*</span></label>
-                <div class="option-grid">
-                    <div class="option-item" onclick="selectOption(this, 'gender', 'МУЖЧИНА')">
-                        <div class="radio-circle"></div>
-                        <span class="option-label">МУЖЧИНА</span>
-                        <input type="radio" name="gender" value="МУЖЧИНА" required>
-                    </div>
-                    <div class="option-item" onclick="selectOption(this, 'gender', 'ЖЕНЩИНА')">
-                        <div class="radio-circle"></div>
-                        <span class="option-label">ЖЕНЩИНА</span>
-                        <input type="radio" name="gender" value="ЖЕНЩИНА" required>
-                    </div>
-                </div>
+                <button class="option-btn" onclick="showReentry()">
+                    <span>🔄</span>
+                    <div class="label">Я уже заполнял (обновить)</div>
+                </button>
             </div>
+        </div>
 
+        <!-- RE-ENTRY SCREEN -->
+        <div id="reentryScreen">
             <div class="card">
-                <div class="section-header">
-                    <h2>Контакты</h2>
-                    <div class="line"></div>
+                <h2 class="welcome-title">С возвращением!</h2>
+                <p class="welcome-text">Введите номер телефона, который вы указывали при регистрации.</p>
+                
+                <div class="form-group">
+                    <label>Номер телефона</label>
+                    <input type="tel" id="checkPhone" placeholder="+7 (___) ___-__-__">
                 </div>
 
-                <div class="form-group">
-                    <label>Город проживания<span class="req">*</span></label>
-                    <select id="city" required>
-                        <option value="" disabled selected>Выберите город</option>
-                        <option value="Алматы">Алматы</option>
-                        <option value="Астана">Астана</option>
-                        <option value="Шымкент">Шымкент</option>
-                        <option value="Другой">Другой</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Телефон<span class="req">*</span></label>
-                    <input type="tel" id="phone" placeholder="+7 (___) ___-__-__" required>
-                </div>
-
-                <div class="form-group">
-                    <label>Instagram / Соцсеть</label>
-                    <input type="text" id="instagram" placeholder="@username или ссылка">
-                </div>
-
-                <div class="form-group">
-                    <label>Email или Telegram Ник<span class="req">*</span></label>
-                    <input type="text" id="contact_method" placeholder="@username" required>
-                </div>
+                <button class="submit-btn" onclick="checkUser()">Найти анкету</button>
+                <button class="option-btn" style="margin-top: 15px; border: none; background: transparent; justify-content: center;" onclick="showWelcome()">
+                    Вернуться назад
+                </button>
             </div>
+        </div>
 
-            <div class="card">
-                <div class="section-header">
-                    <h2>Параметры</h2>
-                    <div class="line"></div>
+        <!-- FORM CONTAINER -->
+        <div id="formContainer">
+            <form id="castingForm">
+                <input type="hidden" id="is_update" value="false">
+                
+                <div class="card">
+                    <label>Проект<span class="req">*</span></label>
+                    <div class="option-grid" id="projectOptions">
+                        <div class="option-item" onclick="selectOption(this, 'project_name', 'ПРОБА')">
+                            <div class="radio-circle"></div>
+                            <span class="option-label">ПРОБА</span>
+                            <input type="radio" name="project_name" value="ПРОБА" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Персонаж / Роль<span class="req">*</span></label>
+                        <input type="text" id="character_name" placeholder="например: «Главный герой»" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Полное имя<span class="req">*</span></label>
+                        <input type="text" id="full_name" placeholder="Имя Фамилия" required>
+                    </div>
+
+                    <label>Гендер<span class="req">*</span></label>
+                    <div class="option-grid">
+                        <div class="option-item" onclick="selectOption(this, 'gender', 'МУЖЧИНА')">
+                            <div class="radio-circle"></div>
+                            <span class="option-label">МУЖЧИНА</span>
+                            <input type="radio" name="gender" value="МУЖЧИНА" required>
+                        </div>
+                        <div class="option-item" onclick="selectOption(this, 'gender', 'ЖЕНЩИНА')">
+                            <div class="radio-circle"></div>
+                            <span class="option-label">ЖЕНЩИНА</span>
+                            <input type="radio" name="gender" value="ЖЕНЩИНА" required>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="row">
-                    <div class="form-group">
-                        <label>Возраст<span class="req">*</span></label>
-                        <input type="number" id="age" placeholder="Лет" required>
+                <div class="card">
+                    <div class="section-header">
+                        <h2>Контакты</h2>
+                        <div class="line"></div>
                     </div>
-                    <div class="form-group">
-                        <label>Рост (см)<span class="req">*</span></label>
-                        <input type="number" id="height" placeholder="175" required>
-                    </div>
-                </div>
 
-                <div class="row">
                     <div class="form-group">
-                        <label>Вес (кг)<span class="req">*</span></label>
-                        <input type="number" id="weight" placeholder="70" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Тип внешности<span class="req">*</span></label>
-                        <select id="appearance" required>
-                            <option value="" disabled selected>Выберите тип</option>
-                            <option value="Азиатский">Азиатский</option>
-                            <option value="Европейский">Европейский</option>
-                            <option value="Славянский">Славянский</option>
-                            <option value="Кавказский">Кавказский</option>
-                            <option value="Африканский">Африканский</option>
-                            <option value="Смешанный">Смешанный</option>
+                        <label>Город<span class="req">*</span></label>
+                        <select id="city" required>
+                            <option value="" disabled selected>Выберите город</option>
+                            <option value="Алматы">Алматы</option>
+                            <option value="Астана">Астана</option>
+                            <option value="Шымкент">Шымкент</option>
+                            <option value="Другой">Другой</option>
                         </select>
                     </div>
-                </div>
 
-                <div class="form-group">
-                    <label>Цвет волос<span class="req">*</span></label>
-                    <select id="hair_color" required>
-                        <option value="" disabled selected>Выберите цвет</option>
-                        <option value="Шатен">Шатен</option>
-                        <option value="Блондин">Блондин</option>
-                        <option value="Брюнет">Брюнет</option>
-                        <option value="Рыжий">Рыжий</option>
-                        <option value="Русый">Русый</option>
-                        <option value="Седой">Седой</option>
-                        <option value="Лысый">Лысый</option>
-                    </select>
-                </div>
-
-                <div class="row">
                     <div class="form-group">
-                        <label>Размер одежды<span class="req">*</span></label>
-                        <input type="text" id="clothing_size" placeholder="S / 44" required>
+                        <label>Телефон<span class="req">*</span></label>
+                        <input type="tel" id="phone" placeholder="+7" required>
                     </div>
+
                     <div class="form-group">
-                        <label>Размер обуви<span class="req">*</span></label>
-                        <input type="number" id="shoe_size" placeholder="42" required>
+                        <label>Instagram / TG<span class="req">*</span></label>
+                        <input type="text" id="contact_method" placeholder="@username" required>
                     </div>
                 </div>
-            </div>
 
+                <div class="card">
+                    <div class="section-header">
+                        <h2>Параметры</h2>
+                        <div class="line"></div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>Возраст<span class="req">*</span></label>
+                            <input type="number" id="age" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Рост (см)<span class="req">*</span></label>
+                            <input type="number" id="height" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>Вес (кг)<span class="req">*</span></label>
+                            <input type="number" id="weight" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Тип внешности<span class="req">*</span></label>
+                            <select id="appearance" required>
+                                <option value="" disabled selected>Выберите</option>
+                                <option value="Азиатский">Азиатский</option>
+                                <option value="Европейский">Европейский</option>
+                                <option value="Славянский">Славянский</option>
+                                <option value="Кавказский">Кавказский</option>
+                                <option value="Африканский">Африканский</option>
+                                <option value="Смешанный">Смешанный</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>Цвет волос<span class="req">*</span></label>
+                            <select id="hair_color" required>
+                                <option value="" disabled selected>Выберите</option>
+                                <option value="Брюнет">Брюнет</option>
+                                <option value="Шатен">Шатен</option>
+                                <option value="Русый">Русый</option>
+                                <option value="Блондин">Блондин</option>
+                                <option value="Рыжий">Рыжий</option>
+                                <option value="Седой">Седой</option>
+                                <option value="Лысый">Лысый</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <!-- empty spacer for grid -->
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>Размер одежды<span class="req">*</span></label>
+                            <input type="text" id="clothing_size" placeholder="S / 44" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Размер обуви<span class="req">*</span></label>
+                            <input type="number" id="shoe_size" placeholder="42" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2>Медиа</h2>
+                        <div class="line"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Опыт работы / О себе</label>
+                        <textarea id="experience_summary" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Фотографии (до 5)<span class="req">*</span></label>
+                        <div class="photo-upload-zone" onclick="document.getElementById('photoInput').click()">
+                            <span>📸 Нажмите для выбора</span>
+                        </div>
+                        <input type="file" id="photoInput" multiple accept="image/*" style="display:none" onchange="handlePhotos(event)">
+                        <div class="photo-previews" id="photoPreview"></div>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submitBtn">Отправить Анкету</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- SUCCESS SCREEN -->
+        <div id="successScreen" class="welcome-screen">
             <div class="card">
-                <div class="section-header">
-                    <h2>Медиа и Опыт</h2>
-                    <div class="line"></div>
-                </div>
-
-                <div class="form-group">
-                    <label>Ваш опыт и особенности</label>
-                    <textarea id="experience_summary" rows="4" placeholder="Опишите кратко ваш опыт, наличие усов, тату и т.д."></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label>Фотографии (до 5 шт)<span class="req">*</span></label>
-                    <div class="photo-upload-zone" onclick="document.getElementById('photoInput').click()">
-                        <span style="font-size: 40px; display: block; margin-bottom: 10px;">📸</span>
-                        <span style="color: var(--muted); font-size: 14px;">Нажмите для загрузки</span>
-                    </div>
-                    <input type="file" id="photoInput" multiple accept="image/*" style="display:none" onchange="handlePhotos(event)">
-                    <div class="photo-previews" id="photoPreview"></div>
-                </div>
-
-                <button type="submit" class="submit-btn">Отправить Анкету</button>
+                <span style="font-size: 64px; display: block; margin-bottom: 24px;">✅</span>
+                <h1 class="welcome-title">Готово!</h1>
+                <p class="welcome-text">Ваша анкета успешно отправлена в систему GULYWOOD. Мы свяжемся с вами, если вы пройдете отбор.</p>
+                <button class="submit-btn" onclick="location.reload()">Вернуться в начало</button>
             </div>
-        </form>
+        </div>
     </div>
 
     <div id="loadingOverlay">
         <div class="loader"></div>
-        <p style="color: white; margin-top: 20px; font-weight: 700;">Отправляем ваши данные...</p>
-    </div>
-
-    <div id="successScreen">
-        <div class="card">
-            <span style="font-size: 64px; display: block; margin-bottom: 24px;">✅</span>
-            <h1>Анкета принята!</h1>
-            <p style="color: var(--muted);">Спасибо за участие. Мы свяжемся с вами в случае успеха.</p>
-            <button class="submit-btn" onclick="location.reload()">Отправить еще одну</button>
-        </div>
+        <p style="color: white; margin-top: 20px; font-weight: 700;" id="loadingText">Обработка...</p>
     </div>
 
     <script>
-        const S_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
-        const S_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
-        const supabase = window.supabase.createClient(S_URL, S_KEY);
-
+        const API_BASE = "https://media.sijic13.workers.dev";
         let uploadedPhotos = [];
 
+        function showWelcome() {
+            document.getElementById('welcomeScreen').style.display = 'block';
+            document.getElementById('reentryScreen').style.display = 'none';
+            document.getElementById('formContainer').style.display = 'none';
+        }
+
+        function showReentry() {
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('reentryScreen').style.display = 'block';
+        }
+
+        function showForm(mode) {
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('reentryScreen').style.display = 'none';
+            document.getElementById('formContainer').style.display = 'block';
+            document.getElementById('is_update').value = (mode === 'update');
+            if (mode === 'update') {
+                document.getElementById('submitBtn').textContent = "Обновить анкету";
+            }
+        }
+
+        async function checkUser() {
+            const phone = document.getElementById('checkPhone').value;
+            if (!phone) return alert("Введите номер");
+            
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            try {
+                const res = await fetch(`${API_BASE}/api/check-phone?phone=${encodeURIComponent(phone)}`);
+                const data = await res.json();
+                
+                if (data.status === 'blocked') {
+                    alert("Ваш номер заблокирован.");
+                } else if (data.status === 'new') {
+                    alert("Анкета не найдена. Заполните как новый участник.");
+                    showForm('new');
+                } else {
+                    alert("Анкета найдена! Теперь обновите данные.");
+                    document.getElementById('phone').value = phone;
+                    showForm('update');
+                }
+            } catch (e) { alert("Ошибка связи"); }
+            finally { document.getElementById('loadingOverlay').style.display = 'none'; }
+        }
+
         function selectOption(el, name, value) {
-            // Find parent and clear other selections
             const grid = el.parentElement;
             grid.querySelectorAll('.option-item').forEach(item => item.classList.remove('selected'));
             el.classList.add('selected');
-            
-            // Set hidden radio input
-            const input = el.querySelector('input');
-            input.checked = true;
+            el.querySelector('input').checked = true;
         }
 
         async function loadProjects() {
             try {
-                const { data, error } = await supabase.from('projects').select('name').eq('is_active', true);
+                const res = await fetch(`${API_BASE}/api/projects`);
+                const data = await res.json();
                 if (data && data.length > 0) {
                     const container = document.getElementById('projectOptions');
-                    container.innerHTML = ''; // Clear defaults
+                    container.innerHTML = '';
                     data.forEach(p => {
                         const div = document.createElement('div');
                         div.className = 'option-item';
-                        div.onclick = () => selectOption(div, 'project_name', p.name);
-                        div.innerHTML = `
-                            <div class="radio-circle"></div>
-                            <span class="option-label">${p.name}</span>
-                            <input type="radio" name="project_name" value="${p.name}" required>
-                        `;
+                        div.onclick = () => selectOption(div, 'project_name', p);
+                        div.innerHTML = `<div class="radio-circle"></div><span class="option-label">${p}</span><input type="radio" name="project_name" value="${p}" required>`;
                         container.appendChild(div);
                     });
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) {}
         }
         loadProjects();
 
@@ -502,8 +570,7 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = 'photo-thumb';
+                    img.src = e.target.result; img.className = 'photo-thumb';
                     preview.appendChild(img);
                     uploadedPhotos.push(file);
                 };
@@ -513,45 +580,47 @@
 
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
-            if (uploadedPhotos.length === 0) { alert("Пожалуйста, добавьте фото"); return; }
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = 'flex';
+            
+            const formData = new FormData();
+            const proj = document.querySelector('input[name="project_name"]:checked')?.value;
+            const gender = document.querySelector('input[name="gender"]:checked')?.value;
+            
+            formData.append('casting_target', proj);
+            formData.append('character_name', document.getElementById('character_name').value);
+            formData.append('full_name', document.getElementById('full_name').value);
+            formData.append('gender', gender);
+            formData.append('city', document.getElementById('city').value);
+            formData.append('phone', document.getElementById('phone').value);
+            formData.append('contact_method', document.getElementById('contact_method').value);
+            formData.append('age', document.getElementById('age').value);
+            formData.append('height', document.getElementById('height').value);
+            formData.append('weight', document.getElementById('weight').value);
+            formData.append('appearance', document.getElementById('appearance').value);
+            formData.append('hair_color', document.getElementById('hair_color').value || '—');
+            formData.append('clothing_size', document.getElementById('clothing_size').value);
+            formData.append('shoe_size', document.getElementById('shoe_size').value);
+            formData.append('experience_summary', document.getElementById('experience_summary').value);
+            formData.append('update', document.getElementById('is_update').value);
 
-            document.getElementById('loadingOverlay').style.display = 'flex';
-
-            const projectName = document.querySelector('input[name="project_name"]:checked').value;
-            const gender = document.querySelector('input[name="gender"]:checked').value;
+            uploadedPhotos.forEach(file => formData.append('photos', file));
 
             try {
-                const formData = {
-                    project_name: projectName,
-                    character_name: document.getElementById('character_name').value,
-                    full_name: document.getElementById('full_name').value,
-                    gender: gender,
-                    city: document.getElementById('city').value,
-                    age: parseInt(document.getElementById('age').value),
-                    height: parseInt(document.getElementById('height').value),
-                    weight: parseInt(document.getElementById('weight').value),
-                    appearance: document.getElementById('appearance').value,
-                    hair_color: document.getElementById('hair_color').value,
-                    clothing_size: document.getElementById('clothing_size').value,
-                    shoe_size: parseInt(document.getElementById('shoe_size').value),
-                    phone: document.getElementById('phone').value,
-                    instagram: document.getElementById('instagram').value,
-                    contact_method: document.getElementById('contact_method').value,
-                    experience_summary: document.getElementById('experience_summary').value,
-                    created_at: new Date().toISOString()
-                };
-
-                const { error } = await supabase.from('casting_applications').insert([formData]);
-                if (error) throw error;
-
-                document.getElementById('formContainer').style.display = 'none';
-                document.getElementById('successScreen').style.display = 'block';
-            } catch (err) {
-                alert('Ошибка: ' + err.message);
-            } finally {
-                document.getElementById('loadingOverlay').style.display = 'none';
-            }
+                const res = await fetch(API_BASE, { method: 'POST', body: formData });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    document.getElementById('formContainer').style.display = 'none';
+                    document.getElementById('successScreen').style.display = 'block';
+                } else {
+                    alert("Ошибка: " + (result.message || "Неизвестная ошибка"));
+                }
+            } catch (err) { alert("Ошибка сети: " + err.message); }
+            finally { overlay.style.display = 'none'; }
         };
+
+        // Initialize view
+        showWelcome();
     </script>
 </body>
 
