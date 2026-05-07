@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GULYWOOD | CASTING PIPELINE</title>
+    <title>GULYWOOD | CASTING HUB</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
@@ -422,7 +422,7 @@
     <div id="successScreen" class="success-screen">
         <div class="success-icon">✨</div>
         <h2>УСПЕШНО!</h2>
-        <p style="color:var(--text-dim); margin-top:10px;">Анкета отправлена. Видео загружается на Google Диск.</p>
+        <p style="color:var(--text-dim); margin-top:10px;">Анкета отправлена. Видео загружается в облако.</p>
         <button onclick="location.reload()" class="submit-btn" style="width:auto; padding:15px 40px; margin-top:30px;">НОВАЯ АНКЕТА</button>
     </div>
 
@@ -436,14 +436,12 @@
     </div>
 
     <script>
-        const CF_WORKER = "https://media.sijic13.workers.dev"; // Your Worker
-        const VERCEL_API = "https://media-seven-eta.vercel.app/api/casting/submit_no_sb";
+        const CF_WORKER = "https://media.sijic13.workers.dev";
         const TOPICS_API = "https://media-seven-eta.vercel.app/api/casting/topics";
 
         let photos = [];
         let videoFile = null;
 
-        // UI Initialization
         const photoInput = document.getElementById('photoInput');
         const videoInput = document.getElementById('videoInput');
         const photoGrid = document.getElementById('photoGrid');
@@ -455,10 +453,7 @@
                 const box = document.createElement('div');
                 box.className = 'media-box';
                 if (photos[i]) {
-                    box.innerHTML = `
-                        <img src="${URL.createObjectURL(photos[i])}">
-                        <div class="remove-btn" onclick="removePhoto(${i}, event)">×</div>
-                    `;
+                    box.innerHTML = `<img src="${URL.createObjectURL(photos[i])}"><div class="remove-btn" onclick="removePhoto(${i}, event)">×</div>`;
                 } else {
                     box.innerHTML = `<span>+</span><span>ФОТО</span>`;
                     box.onclick = () => photoInput.click();
@@ -467,11 +462,7 @@
             }
         }
 
-        function removePhoto(idx, e) {
-            e.stopPropagation();
-            photos.splice(idx, 1);
-            renderPhotos();
-        }
+        function removePhoto(idx, e) { e.stopPropagation(); photos.splice(idx, 1); renderPhotos(); }
 
         photoInput.onchange = (e) => {
             const files = Array.from(e.target.files);
@@ -499,10 +490,7 @@
                 res.data.forEach(p => {
                     const item = document.createElement('div');
                     item.className = 'project-item';
-                    item.innerHTML = `
-                        <input type="checkbox" data-cid="${p.chat_id}" data-tid="${p.thread_id || ''}" data-name="${p.name}">
-                        <div><div style="font-weight:bold;">${p.name}</div></div>
-                    `;
+                    item.innerHTML = `<input type="checkbox" data-cid="${p.chat_id}" data-tid="${p.thread_id || ''}" data-name="${p.name}"><div><b>${p.name}</b></div>`;
                     item.onclick = () => {
                         const cb = item.querySelector('input');
                         cb.checked = !cb.checked;
@@ -513,7 +501,6 @@
             } catch (err) { console.error(err); }
         }
 
-        // Helper for Base64
         const toBase64 = file => new Promise((res, rej) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -526,28 +513,27 @@
             const selected = Array.from(document.querySelectorAll('#projectsList input:checked')).map(i => ({
                 cid: i.dataset.cid, tid: i.dataset.tid, name: i.dataset.name
             }));
-            if (!selected.length) return alert("Выберите проект!");
-            if (photos.length < 1) return alert("Нужно хотя бы 1 фото!");
+            if (!selected.length) return alert("Выберите кастинг!");
+            if (photos.length < 1) return alert("Нужно фото!");
             if (!videoFile) return alert("Нужно видео!");
 
             const overlay = document.getElementById('loadingOverlay');
             const status = document.getElementById('loadingStatus');
             const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
             overlay.style.display = 'flex';
 
             try {
                 const fd = new FormData(this);
                 
-                // 1. Convert everything for the Worker
-                status.textContent = "ПОДГОТОВКА ФОТО...";
-                progressBar.style.width = "20%";
-                const photoB64 = await toBase64(photos[0]);
+                status.textContent = "ПОДГОТОВКА ФОТО (1/6)...";
+                progressBar.style.width = "10%";
+                const photoB64Array = await Promise.all(photos.map(p => toBase64(p)));
 
-                status.textContent = "ПОДГОТОВКА ВИДЕО...";
-                progressBar.style.width = "40%";
+                status.textContent = "ПОДГОТОВКА ВИДЕО (ЭТО МОЖЕТ ЗАНЯТЬ ВРЕМЯ)...";
+                progressBar.style.width = "30%";
                 const videoB64 = await toBase64(videoFile);
 
-                // 2. Final Payload for Cloudflare
                 const payload = {
                     projects: selected,
                     full_name: fd.get('full_name'),
@@ -563,17 +549,16 @@
                     character_name: fd.get('character_name'),
                     social_links: fd.get('social_links'),
                     experience: fd.get('experience'),
-                    photo: photoB64,
-                    video: videoB64
+                    photos: photoB64Array,
+                    video: videoB64,
+                    drive_folder_id: "1hTpIgv5AWAiCETPfqkjUig_yIkjzWTAS"
                 };
 
-                status.textContent = "ОТПРАВКА В TELEGRAM И НА ДИСК...";
-                progressBar.style.width = "70%";
+                status.textContent = "ОТПРАВКА В ТЕЛЕГРАМ И НА ДИСК...";
+                progressBar.style.width = "60%";
+                progressPercent.textContent = "60%";
 
-                // Submit to Cloudflare Worker (which handles Drive + TG)
-                await axios.post(CF_WORKER, payload, {
-                    headers: { 'Content-Type': 'application/json' }
-                });
+                await axios.post(CF_WORKER, payload);
 
                 progressBar.style.width = "100%";
                 document.getElementById('formContainer').style.display = 'none';
@@ -582,7 +567,7 @@
 
             } catch (err) {
                 console.error(err);
-                alert("Ошибка: " + (err.response?.data?.error || err.message));
+                alert("Ошибка: " + err.message);
             } finally {
                 overlay.style.display = 'none';
             }
