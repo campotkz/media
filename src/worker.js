@@ -64,6 +64,7 @@ export default {
           headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
         });
         const data = await res.json();
+        if (!Array.isArray(data)) return jsonRes([]);
         const projects = [...new Set(data.map(d => d.project_name))]
           .filter(p => p && p !== "General" && p !== "Тестовый" && p !== "Test");
         return jsonRes(projects);
