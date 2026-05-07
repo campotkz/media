@@ -713,6 +713,10 @@
                     <label>Почта или Telegram<span>*</span></label>
                     <input type="text" name="email_tg" required placeholder="example@mail.com или @username">
                 </div>
+                <div class="form-group">
+                    <label>Ссылка на Instagram / Портфолио</label>
+                    <input type="text" name="social_links" placeholder="https://instagram.com/...">
+                </div>
             </div>
 
             <!-- Блок 4: Профессиональные данные -->
@@ -996,7 +1000,11 @@
             const item = document.createElement('div');
             item.className = 'file-item video';
             item.innerHTML = '<div class="remove">×</div>';
-            item.querySelector('.remove').onclick = () => { list.innerHTML = ''; uploadedVideoFile = null; };
+            item.querySelector('.remove').onclick = () => { 
+                list.innerHTML = ''; 
+                uploadedVideoFile = null;
+                document.getElementById('videoInput').value = ''; // Allow re-selection
+            };
             list.appendChild(item);
             uploadedVideoFile = file;
         };
@@ -1058,6 +1066,7 @@
 Гонорар: ${formData.get('fee_min')} - ${formData.get('fee_max')}
 Купальник: ${formData.get('swimsuit_ok')}
 Telegram/Email: ${formData.get('email_tg')}
+Socials: ${formData.get('social_links') || 'Нет'}
                 `.trim();
 
                 for (const p of selected) {
