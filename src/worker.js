@@ -57,17 +57,29 @@ export default {
       return jsonRes({ status: "new" });
     }
 
-    // GET /api/projects - Список уникальных проектов
+    // GET /api/projects - Список проектов (из таблицы clients)
     if (request.method === "GET" && url.pathname === "/api/projects") {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/casting_applications?select=project_name`, {
+        const res = await fetch(`${supabaseUrl}/rest/v1/clients?select=name`, {
           headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
         });
         const data = await res.json();
         if (!Array.isArray(data)) return jsonRes([]);
-        const projects = [...new Set(data.map(d => d.project_name))]
-          .filter(p => p && p !== "General" && p !== "Тестовый" && p !== "Test");
+        const projects = data.map(d => d.name).filter(p => p);
         return jsonRes(projects);
+      } catch (err) { return jsonRes({ error: err.message }, 500); }
+    }
+
+    // GET /api/characters - Список уникальных ролей
+    if (request.method === "GET" && url.pathname === "/api/characters") {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/casting_applications?select=character_name`, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        });
+        const data = await res.json();
+        if (!Array.isArray(data)) return jsonRes([]);
+        const characters = [...new Set(data.map(d => d.character_name))].filter(c => c);
+        return jsonRes(characters);
       } catch (err) { return jsonRes({ error: err.message }, 500); }
     }
 
