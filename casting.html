@@ -449,6 +449,24 @@
             margin-bottom: 20px;
         }
 
+        .progress-container {
+            width: 200px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-top: 15px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+            transition: width 0.3s;
+        }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
@@ -793,8 +811,12 @@
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
-        <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;">ОТПРАВКА...</div>
-        <div id="loadingText" style="font-size: 13px; color: var(--muted);">Пожалуйста, не закрывайте страницу</div>
+        <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;" id="loadingStatus">ОТПРАВКА...</div>
+        <div id="loadingText" style="font-size: 13px; color: var(--muted); margin-bottom: 10px;">Пожалуйста, не закрывайте страницу</div>
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div id="progressPercent" style="font-size: 12px; color: var(--accent); margin-top: 8px; font-weight: 600; display: none;">0%</div>
     </div>
 
     <!-- Modal Duplicate -->
@@ -1055,8 +1077,26 @@ Telegram/Email: ${formData.get('email_tg')}
                     uploadedPhotos.forEach(ph => finalData.append('photos', ph.file));
                     finalData.append('video', uploadedVideoFile);
 
-                    const res = await fetch(API_BASE, { method: 'POST', body: finalData });
-                    if (!res.ok) throw new Error(await res.text());
+                    const progressContainer = document.getElementById('progressContainer');
+                    const progressBar = document.getElementById('progressBar');
+                    const progressPercent = document.getElementById('progressPercent');
+                    const loadingStatus = document.getElementById('loadingStatus');
+
+                    progressContainer.style.display = 'block';
+                    progressPercent.style.display = 'block';
+
+                    await axios.post(API_BASE, finalData, {
+                        onUploadProgress: (progressEvent) => {
+                            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                            progressBar.style.width = percentCompleted + '%';
+                            progressPercent.textContent = percentCompleted + '%';
+                            if (percentCompleted === 100) {
+                                loadingStatus.textContent = "ОБРАБОТКА ТЕЛЕГРАМ...";
+                            } else {
+                                loadingStatus.textContent = `ЗАГРУЗКА ВИДЕО...`;
+                            }
+                        }
+                    });
                 }
 
                 document.getElementById('formContainer').style.display = 'none';
