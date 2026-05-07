@@ -370,25 +370,28 @@ def handle_delete_all(message):
     )
 
 
+casting_states = {}
+
 @bot.message_handler(commands=['link', 'cast_link'])
 def handle_smart_link(message):
     cid, tid = message.chat.id, message.message_thread_id
     
     if tid:
-        # Вызов внутри конкретного топика
+        # Внутри конкретного топика
         ensure_project(cid, tid, message.chat.title)
-        res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
+        res = supabase.from_("clients").select("id, name").eq("chat_id", cid).eq("thread_id", tid).execute()
         if res.data:
+            row_id = res.data[0]['id']
             pname = res.data[0]['name']
-            link = f"{APP_URL}casting.html?cid={cid}&tid={tid}&proj={urllib.parse.quote(pname)}&lock=1"
-            markup = types.InlineKeyboardMarkup()
-            markup.add(types.InlineKeyboardButton(text="🎯 ЗАПОЛНИТЬ АНКЕТУ", url=link))
-            bot.send_message(cid, f"🎯 <b>КАСТИНГ: {pname}</b>\n\n🔗 <code>{link}</code>\n\n_Эта ссылка жестко привязана к текущему топику._", reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
+            # Спрашиваем про роли
+            casting_states[cid] = {'name': pname, 'tid': tid, 'row_id': row_id}
+            msg = bot.send_message(cid, "👥 Укажите персонажей для этого кастинга через запятую\n_(Например: Главный герой, Мама, Прохожий)_\n\nЛибо отправьте `0`, если персонажи не нужны.", parse_mode="Markdown")
+            bot.register_next_step_handler(msg, process_casting_roles, cid)
         else:
             bot.reply_to(message, "❌ Ошибка: не удалось найти или создать проект для этого топика.")
     else:
-        # Вызов в общем чате (General)
-        msg = bot.send_message(cid, "📝 Как назовем этот общий кастинг?\n_(Отправьте название следующим сообщением)_", parse_mode="Markdown")
+        # В общем чате
+        msg = bot.send_message(cid, "📝 Как назовем этот новый кастинг?\n_(Отправьте название следующим сообщением)_", parse_mode="Markdown")
         bot.register_next_step_handler(msg, process_general_casting_name, cid)
 
 def process_general_casting_name(message, cid):
@@ -396,53 +399,61 @@ def process_general_casting_name(message, cid):
         return bot.send_message(cid, "❌ Ошибка: нужно отправить текстовое название.")
     
     pname = message.text.strip()
+    casting_states[cid] = {'name': pname, 'tid': None, 'row_id': None}
+    
+    msg = bot.send_message(cid, "👥 Укажите персонажей для этого кастинга через запятую\n_(Например: Главный герой, Мама, Прохожий)_\n\nЛибо отправьте `0`, если персонажи не нужны.", parse_mode="Markdown")
+    bot.register_next_step_handler(msg, process_casting_roles, cid)
+
+def process_casting_roles(message, cid):
+    if cid not in casting_states:
+        return bot.send_message(cid, "❌ Время ожидания истекло. Начните заново с /link")
+    
+    state = casting_states.pop(cid)
+    pname = state['name']
+    tid = state['tid']
+    row_id = state['row_id']
+    
+    roles_input = message.text.strip()
+    roles_str = "" if roles_input == "0" else roles_input
+    category_val = f"casting|{roles_str}" if roles_str else "casting"
     
     try:
-        # Проверяем, нет ли уже такого кастинга с таким именем
-        res = supabase.from_("clients").select("id, thread_id").eq("chat_id", cid).eq("name", pname).execute()
-        
-        tid = None
-        if not res.data:
-            # Создаем новый топик прямо в Telegram
+        if tid is None:
+            # Это общий чат, нужно создать топик
             try:
                 created_topic = bot.create_forum_topic(cid, pname)
                 tid = created_topic.message_thread_id
             except Exception as e:
-                return bot.send_message(cid, f"❌ Ошибка создания топика в Telegram (проверьте права бота): {e}")
-
-            # Записываем в базу с новым ID топика
-            supabase.from_("clients").insert({
+                return bot.send_message(cid, f"❌ Ошибка создания топика в Telegram: {e}")
+            
+            # Записываем в базу
+            res = supabase.from_("clients").insert({
                 "chat_id": cid,
                 "thread_id": tid,
                 "name": pname,
-                "category": "casting",
+                "category": category_val,
                 "is_active": True,
                 "is_hidden": False
             }).execute()
+            row_id = res.data[0]['id']
+            bot.send_message(cid, f"✅ Топик **{pname}** успешно создан!\n🔗 Ссылка внутри топика.", parse_mode="Markdown")
         else:
-            tid = res.data[0]['thread_id']
-            
-        # Генерируем ссылку, жестко привязанную к этому новому (или найденному) топику
-        link = f"{APP_URL}casting.html?cid={cid}&tid={tid}&proj={urllib.parse.quote(pname)}&lock=1"
+            # Обновляем существующую запись ролями
+            supabase.from_("clients").update({"category": category_val}).eq("id", row_id).execute()
+        
+        # Генерируем короткую ссылку
+        link = f"{APP_URL}casting.html?c={row_id}"
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton(text="🎯 ЗАПОЛНИТЬ АНКЕТУ", url=link))
         
-        # Отправляем сообщение со ссылкой В САМ НОВЫЙ ТОПИК
         bot.send_message(
             cid, 
             f"🎯 <b>КАСТИНГ: {pname}</b>\n\n"
             f"🔗 <code>{link}</code>\n\n"
-            f"_Анкеты будут приходить сюда. Скопируйте ссылку и отправьте актерам!_", 
+            f"_Скопируйте эту короткую ссылку и отправьте актерам!_", 
             reply_markup=markup, 
             message_thread_id=tid,
             parse_mode="HTML"
-        )
-        
-        # И для удобства дублируем в General, где пользователь запрашивал
-        bot.send_message(
-            cid, 
-            f"✅ Топик **{pname}** успешно создан!\n🔗 Ссылка внутри топика.", 
-            parse_mode="Markdown"
         )
         
     except Exception as e:
@@ -475,6 +486,7 @@ def submit_no_sb():
         summary = (
             f"🌟 <b>НОВАЯ АНКЕТА: {v('full_name')}</b>\n"
             f"🎯 Проект: <b>{v('casting_target')}</b>\n"
+            f"🎭 Персонаж: <b>{v('character_name')}</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
             f"👤 <b>Данные:</b> {v('city')} | {v('gender')} | {v('dob')}\n"
             f"📈 Рост/Вес: {v('height_weight')} | {v('sizes')}\n"
@@ -519,11 +531,12 @@ def submit_no_sb():
 def get_casting_topics():
     if request.method == 'OPTIONS': return ('', 204)
     try:
-        path = os.path.join(os.path.dirname(__file__), 'casting_topics.json')
-        if os.path.exists(path):
-            with open(path, 'r', encoding='utf-8') as f: return jsonify(json.load(f))
-        return jsonify([])
-    except Exception as e: return jsonify({'error': str(e)}), 500
+        if not supabase: return jsonify([])
+        res = supabase.from_("clients").select("id, chat_id, thread_id, name, category").like("category", "%casting%").eq("is_active", True).execute()
+        return jsonify(res.data)
+    except Exception as e: 
+        print(f"Error fetching topics: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))

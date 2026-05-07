@@ -41,12 +41,14 @@ export default {
       };
       
       const target = data.casting_target || "General Casting";
-      const threadId = topicMappings[target] || null;
+      const threadId = data.thread_id ? parseInt(data.thread_id) : (topicMappings[target] || null);
+      const targetChatId = data.chat_id || chatId;
 
       // --- 3. Формируем текст анкеты ---
       const text = `
 🌟 <b>НОВАЯ АНКЕТА: ${data.full_name || "—"}</b>
 🎯 Проект: <b>${target}</b>
+🎭 Персонаж: <b>${data.character_name || "—"}</b>
 ━━━━━━━━━━━━━━━━━━━━
 
 👤 <b>Данные:</b> ${data.city || "—"} | ${data.gender || "—"}
@@ -67,7 +69,7 @@ ${data.experience || "—"}
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          chat_id: chatId,
+          chat_id: targetChatId,
           text: text,
           parse_mode: "HTML",
           message_thread_id: threadId
@@ -86,7 +88,7 @@ ${data.experience || "—"}
       if (photos.length > 0) {
         const sendMediaUrl = `https://api.telegram.org/bot${botToken}/sendMediaGroup`;
         const mediaFormData = new FormData();
-        mediaFormData.append("chat_id", chatId);
+        mediaFormData.append("chat_id", targetChatId);
         mediaFormData.append("reply_to_message_id", messageId);
         if (threadId) mediaFormData.append("message_thread_id", threadId);
 
@@ -112,7 +114,7 @@ ${data.experience || "—"}
       if (videoFile && videoFile.size > 0) {
         const sendVideoUrl = `https://api.telegram.org/bot${botToken}/sendVideo`;
         const videoData = new FormData();
-        videoData.append("chat_id", chatId);
+        videoData.append("chat_id", targetChatId);
         videoData.append("video", videoFile);
         videoData.append("reply_to_message_id", messageId);
         if (threadId) videoData.append("message_thread_id", threadId);

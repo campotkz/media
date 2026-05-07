@@ -841,12 +841,14 @@
                 </div>    <script>
         // --- Configuration ---
         const API_BASE = "https://media.sijic13.workers.dev";
+        const VERCEL_URL = "https://media-seven-eta.vercel.app";
         
         const params = new URLSearchParams(window.location.search);
         const cid = params.get('cid');
         const tid = params.get('tid');
         const proj = params.get('proj');
         const lock = params.get('lock');
+        const cParam = params.get('c');
 
         let uploadedPhotos = []; 
         let uploadedVideoFile = null; 
@@ -871,29 +873,52 @@
         async function loadCastingProjects() {
             const container = document.getElementById('castingChecklist');
             try {
-                const response = await fetch(`${API_BASE}/casting/topics`);
+                const response = await fetch(`${VERCEL_URL}/api/casting/topics`);
                 const projects = await response.json();
                 container.innerHTML = '';
                 
-                let targetProj = proj ? projects.find(p => p.name === proj) : null;
-                if (!targetProj && cid && tid) {
+                let targetProj = null;
+                if (cParam) {
+                    targetProj = projects.find(p => p.id == cParam);
+                } else if (proj) {
+                    targetProj = projects.find(p => p.name === proj);
+                } else if (cid && tid) {
                     targetProj = projects.find(p => p.chat_id == cid && p.thread_id == tid);
                 }
 
                 let sortedProjects = projects;
-                if (targetProj && lock) {
+                const isLocked = lock || cParam;
+                
+                if (targetProj && isLocked) {
                     sortedProjects = [targetProj];
                 } else if (proj && cid) {
                     const fallbackProj = { name: proj, chat_id: cid, thread_id: tid };
                     if (!projects.find(p => p.name === proj)) {
-                        sortedProjects = lock ? [fallbackProj] : [fallbackProj, ...projects];
+                        sortedProjects = isLocked ? [fallbackProj] : [fallbackProj, ...projects];
+                    }
+                }
+
+                // Handle Character Roles
+                if (targetProj && targetProj.category && targetProj.category.startsWith("casting|")) {
+                    const rolesStr = targetProj.category.substring(8);
+                    const roles = rolesStr.split(',').map(r => r.trim()).filter(r => r);
+                    if (roles.length > 0) {
+                        const charInputGroup = document.querySelector('input[name="character_name"]').parentNode;
+                        charInputGroup.innerHTML = `
+                            <label>На какого персонажа вы подаетесь?<span>*</span></label>
+                            <select name="character_name" required style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;">
+                                <option value="" disabled selected>Выберите персонажа...</option>
+                                ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
+                                <option value="Другое (Массовка)">Другое (Массовка)</option>
+                            </select>
+                        `;
                     }
                 }
 
                 sortedProjects.forEach(p => {
                     const label = document.createElement('label');
                     label.className = 'check-item';
-                    const isActive = p.name === proj || (p.chat_id == cid && p.thread_id == tid);
+                    const isActive = (targetProj && p.name === targetProj.name) || p.name === proj || (p.chat_id == cid && p.thread_id == tid);
                     if (isActive) label.classList.add('active');
 
                     label.innerHTML = `
