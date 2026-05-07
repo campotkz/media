@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GULYWOOD | CASTING</title>
+    <title>GULYWOOD | CASTING HUB</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
@@ -150,16 +150,6 @@
             accent-color: var(--accent);
         }
 
-        .project-name {
-            font-weight: 500;
-        }
-
-        .project-category {
-            font-size: 0.7rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-        }
-
         .media-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -172,12 +162,21 @@
             background: #202020;
             border-radius: 12px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             border: 2px dashed #333;
             position: relative;
             overflow: hidden;
+            text-align: center;
+            padding: 5px;
+        }
+
+        .media-box span {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            margin-top: 5px;
         }
 
         .media-box img {
@@ -186,11 +185,11 @@
             object-fit: cover;
         }
 
-        .media-box .remove-btn {
+        .remove-btn {
             position: absolute;
             top: 5px;
             right: 5px;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0, 0, 0, 0.7);
             color: white;
             width: 20px;
             height: 20px;
@@ -200,6 +199,7 @@
             justify-content: center;
             font-size: 12px;
             cursor: pointer;
+            z-index: 10;
         }
 
         .submit-btn {
@@ -224,25 +224,24 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0, 0, 0, 0.95);
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            z-index: 2000;
             padding: 20px;
+            text-align: center;
         }
 
         .loader {
-            width: 48px;
-            height: 48px;
-            border: 5px solid #FFF;
+            width: 64px;
+            height: 64px;
+            border: 5px solid #333;
             border-bottom-color: var(--accent);
             border-radius: 50%;
-            display: inline-block;
-            box-sizing: border-box;
             animation: rotation 1s linear infinite;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         @keyframes rotation {
@@ -253,12 +252,11 @@
         #progressContainer {
             width: 100%;
             max-width: 300px;
-            background: #333;
-            height: 8px;
-            border-radius: 4px;
+            background: #222;
+            height: 10px;
+            border-radius: 5px;
             overflow: hidden;
-            margin-top: 15px;
-            display: none;
+            margin: 15px 0;
         }
 
         #progressBar {
@@ -266,13 +264,20 @@
             background: var(--accent);
             width: 0%;
             transition: width 0.3s;
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        #loadingStatus {
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text);
         }
 
         #progressPercent {
-            margin-top: 8px;
-            font-weight: bold;
             color: var(--accent);
-            display: none;
+            font-weight: bold;
+            margin-top: 5px;
         }
 
         .success-screen {
@@ -284,6 +289,12 @@
         .success-icon {
             font-size: 5rem;
             margin-bottom: 20px;
+            animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
@@ -291,23 +302,23 @@
 <body>
     <div id="formContainer">
         <div class="header">
-            <h1>CASTING</h1>
-            <p>GULYWOOD TALENT HUB</p>
+            <h1>GULYWOOD</h1>
+            <p>CASTING & DRIVE PIPELINE</p>
         </div>
 
         <div class="container">
             <form id="castingForm">
-                <!-- STEP 1: PROJECT -->
+                <!-- STEP 1 -->
                 <div class="step-card">
-                    <div class="step-title"><span>1</span> ВЫБЕРИТЕ ПРОЕКТ</div>
+                    <div class="step-title"><span>1</span> ВЫБЕРИТЕ ПРОЕКТЫ</div>
                     <div id="projectsList">
-                        <div style="text-align:center; padding:20px; color:var(--text-dim);">Загрузка проектов...</div>
+                        <div style="text-align:center; padding:20px; color:var(--text-dim);">Загрузка активных кастингов...</div>
                     </div>
                 </div>
 
-                <!-- STEP 2: PERSONAL -->
+                <!-- STEP 2 -->
                 <div class="step-card">
-                    <div class="step-title"><span>2</span> ЛИЧНЫЕ ДАННЫЕ</div>
+                    <div class="step-title"><span>2</span> ОСНОВНАЯ ИНФОРМАЦИЯ</div>
                     <div class="form-group">
                         <label>ФИО</label>
                         <input type="text" name="full_name" required placeholder="Иванов Иван Иванович">
@@ -325,26 +336,15 @@
                             <input type="date" name="birth_date" required>
                         </div>
                     </div>
-                    <div class="grid">
-                        <div class="form-group">
-                            <label>ГОРОД</label>
-                            <select name="city_select" id="citySelect" required onchange="toggleOtherCity(this.value)">
-                                <option value="Алматы">Алматы</option>
-                                <option value="Астана">Астана</option>
-                                <option value="Шымкент">Шымкент</option>
-                                <option value="Другой">Другой</option>
-                            </select>
-                        </div>
-                        <div class="form-group" id="otherCityGroup" style="display:none;">
-                            <label>УКАЖИТЕ ГОРОД</label>
-                            <input type="text" name="other_city" placeholder="Ваш город">
-                        </div>
+                    <div class="form-group">
+                        <label>ГОРОД</label>
+                        <input type="text" name="city" required placeholder="Алматы, Астана...">
                     </div>
                 </div>
 
-                <!-- STEP 3: APPEARANCE -->
+                <!-- STEP 3 -->
                 <div class="step-card">
-                    <div class="step-title"><span>3</span> ВНЕШНОСТЬ</div>
+                    <div class="step-title"><span>3</span> ПАРАМЕТРЫ И ВНЕШНОСТЬ</div>
                     <div class="grid">
                         <div class="form-group">
                             <label>РОСТ (СМ)</label>
@@ -371,71 +371,64 @@
                             <option value="Азиатский">Азиатский</option>
                             <option value="Европейский">Европейский</option>
                             <option value="Метис">Метис</option>
-                            <option value="Кавказский">Кавказский</option>
                             <option value="Другой">Другой</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>ЦВЕТ ВОЛОС</label>
-                        <input type="text" name="hair_color" required placeholder="Брюнет / Русый">
-                    </div>
-                    <div class="form-group">
-                        <label>ОСОБЕННОСТИ (ТАТУ, ШРАМЫ)</label>
-                        <input type="text" name="appearance_details" placeholder="Нет / Тату на руке">
-                    </div>
                 </div>
 
-                <!-- STEP 4: CONTACTS & EXPERIENCE -->
+                <!-- STEP 4 -->
                 <div class="step-card">
                     <div class="step-title"><span>4</span> КОНТАКТЫ И ОПЫТ</div>
                     <div class="form-group">
                         <label>ТЕЛЕФОН (WHATSAPP)</label>
-                        <input type="tel" name="phone" required placeholder="+7 (___) ___ __ __">
+                        <input type="tel" name="phone" required placeholder="+7 777 000 00 00">
                     </div>
                     <div class="form-group">
-                        <label>SOCIAL LINKS (INSTAGRAM / PORTFOLIO)</label>
-                        <input type="text" name="social_links" placeholder="https://instagram.com/your_profile">
+                        <label>SOCIAL / PORTFOLIO</label>
+                        <input type="text" name="social_links" placeholder="Instagram, YouTube...">
                     </div>
                     <div class="form-group">
-                        <label>ОПЫТ В СЪЕМКАХ</label>
-                        <textarea name="experience" rows="3" placeholder="Опишите ваш опыт..."></textarea>
+                        <label>ОПЫТ / О СЕБЕ</label>
+                        <textarea name="experience" rows="3" placeholder="Опишите ваши проекты..."></textarea>
                     </div>
-                </form>
-            </div>
+                    <div class="form-group">
+                        <label>ПЕРСОНАЖ / РОЛЬ</label>
+                        <input type="text" name="character_name" placeholder="На какую роль претендуете?">
+                    </div>
+                </div>
 
-                <!-- STEP 5: MEDIA -->
+                <!-- STEP 5 -->
                 <div class="step-card">
-                    <div class="step-title"><span>5</span> ФОТО И ВИДЕО</div>
-                    <label>ФОТО (3-6 ШТ, ПОРТРЕТ И ПОЛНЫЙ РОСТ)</label>
-                    <div class="media-grid" id="photoGrid">
-                        <!-- Boxes added by JS -->
-                    </div>
+                    <div class="step-title"><span>5</span> МЕДИА (GOOGLE DRIVE)</div>
+                    <label>ФОТОГРАФИИ (ДО 6 ШТ)</label>
+                    <div class="media-grid" id="photoGrid"></div>
                     <input type="file" id="photoInput" multiple accept="image/*" style="display:none;">
 
                     <div class="form-group" style="margin-top:20px;">
                         <label>ВИДЕОВИЗИТКА (ОБЯЗАТЕЛЬНО)</label>
-                        <div class="media-box" style="width:100%; aspect-ratio:16/9;" onclick="document.getElementById('videoInput').click()">
-                            <div id="videoPlaceholder">🎥 НАЖМИТЕ ЧТОБЫ ВЫБРАТЬ ВИДЕО</div>
+                        <div class="media-box" style="width:100%; aspect-ratio:16/9; border-style: solid; border-width: 1px;" id="videoDropZone">
+                            <div id="videoStatus">🎬 НАЖМИТЕ ДЛЯ ВЫБОРА ВИДЕО</div>
                             <video id="videoPreview" style="display:none; width:100%; height:100%;" controls></video>
                         </div>
                         <input type="file" id="videoInput" accept="video/*" style="display:none;">
                     </div>
                 </div>
 
-                <button type="submit" form="castingForm" class="submit-btn">ОТПРАВИТЬ АНКЕТУ</button>
+                <button type="submit" class="submit-btn">ОТПРАВИТЬ В БАЗУ</button>
+            </form>
         </div>
     </div>
 
     <div id="successScreen" class="success-screen">
-        <div class="success-icon">✅</div>
-        <h2>АНКЕТА ПРИНЯТА!</h2>
-        <p style="color:var(--text-dim); margin-top:10px;">Спасибо за отклик. Если вы подойдете, наш менеджер свяжется с вами.</p>
-        <button onclick="location.reload()" class="submit-btn" style="width:auto; padding:15px 40px; margin-top:30px;">ВЕРНУТЬСЯ</button>
+        <div class="success-icon">✨</div>
+        <h2>УСПЕШНО!</h2>
+        <p style="color:var(--text-dim); margin-top:10px;">Данные сохранены на Google Drive и отправлены кастинг-директору.</p>
+        <button onclick="location.reload()" class="submit-btn" style="width:auto; padding:15px 40px; margin-top:30px;">НОВАЯ АНКЕТА</button>
     </div>
 
     <div class="loading-overlay" id="loadingOverlay">
-        <span class="loader"></span>
-        <div id="loadingStatus">ОБРАБОТКА ДАННЫХ...</div>
+        <div class="loader"></div>
+        <div id="loadingStatus">ИНИЦИАЛИЗАЦИЯ...</div>
         <div id="progressContainer">
             <div id="progressBar"></div>
         </div>
@@ -443,74 +436,77 @@
     </div>
 
     <script>
-        const API_BASE = "https://media.sijic13.workers.dev";
-        const VERCEL_URL = "https://media-seven-eta.vercel.app";
+        // CONFIG
+        const G_DRIVE_FOLDER_ID = "1hTpIgv5AWAiCETPfqkjUig_yIkjzWTAS";
+        const G_API_TOKEN = "AQ.Ab8RN6LGyBRDak2cR0gFijqT0JyQVONKDmKfUWhtxoWDjJqIjQ"; // Your provided token
+        const VERCEL_API = "https://media-seven-eta.vercel.app/api/casting/submit_no_sb";
+        const TOPICS_API = "https://media-seven-eta.vercel.app/api/casting/topics";
 
-        let uploadedPhotos = [];
-        let uploadedVideoFile = null;
+        let photos = [];
+        let videoFile = null;
 
-        // Initialize photo grid
-        function initPhotoGrid() {
-            const grid = document.getElementById('photoGrid');
-            grid.innerHTML = '';
+        // UI Handlers
+        const photoInput = document.getElementById('photoInput');
+        const videoInput = document.getElementById('videoInput');
+        const photoGrid = document.getElementById('photoGrid');
+        const videoDropZone = document.getElementById('videoDropZone');
+
+        function renderPhotos() {
+            photoGrid.innerHTML = '';
             for (let i = 0; i < 6; i++) {
                 const box = document.createElement('div');
                 box.className = 'media-box';
-                if (uploadedPhotos[i]) {
-                    box.innerHTML = `<img src="${URL.createObjectURL(uploadedPhotos[i])}">
-                                     <div class="remove-btn" onclick="removePhoto(${i}, event)">×</div>`;
+                if (photos[i]) {
+                    box.innerHTML = `
+                        <img src="${URL.createObjectURL(photos[i])}">
+                        <div class="remove-btn" onclick="removePhoto(${i}, event)">×</div>
+                    `;
                 } else {
-                    box.innerHTML = `<span>+</span>`;
-                    box.onclick = () => document.getElementById('photoInput').click();
+                    box.innerHTML = `<span>+</span><span>ФОТО</span>`;
+                    box.onclick = () => photoInput.click();
                 }
-                grid.appendChild(box);
+                photoGrid.appendChild(box);
             }
         }
 
-        function removePhoto(index, event) {
-            event.stopPropagation();
-            uploadedPhotos.splice(index, 1);
-            initPhotoGrid();
+        function removePhoto(idx, e) {
+            e.stopPropagation();
+            photos.splice(idx, 1);
+            renderPhotos();
         }
 
-        document.getElementById('photoInput').onchange = function(e) {
+        photoInput.onchange = (e) => {
             const files = Array.from(e.target.files);
-            uploadedPhotos = [...uploadedPhotos, ...files].slice(0, 6);
-            initPhotoGrid();
+            photos = [...photos, ...files].slice(0, 6);
+            renderPhotos();
         };
 
-        document.getElementById('videoInput').onchange = function(e) {
+        videoDropZone.onclick = () => videoInput.click();
+        videoInput.onchange = (e) => {
             const file = e.target.files[0];
             if (file) {
-                uploadedVideoFile = file;
+                videoFile = file;
                 const preview = document.getElementById('videoPreview');
-                const placeholder = document.getElementById('videoPlaceholder');
+                const status = document.getElementById('videoStatus');
                 preview.src = URL.createObjectURL(file);
                 preview.style.display = 'block';
-                placeholder.style.display = 'none';
+                status.style.display = 'none';
             }
         };
 
-        function toggleOtherCity(val) {
-            document.getElementById('otherCityGroup').style.display = val === 'Другой' ? 'block' : 'none';
-        }
-
-        // Load projects from registry
-        async function loadProjects() {
+        async function loadTopics() {
             try {
-                const res = await axios.get(`${VERCEL_URL}/api/casting/topics`);
-                const projects = res.data;
+                const res = await axios.get(TOPICS_API);
                 const list = document.getElementById('projectsList');
                 list.innerHTML = '';
-                
-                projects.forEach(p => {
+                res.data.forEach(p => {
                     const item = document.createElement('div');
                     item.className = 'project-item';
                     item.innerHTML = `
                         <input type="checkbox" data-cid="${p.chat_id}" data-tid="${p.thread_id || ''}" data-name="${p.name}">
                         <div>
-                            <div class="project-name">${p.name}</div>
-                            <div class="project-category">${p.category || 'CASTING'}</div>
+                            <div style="font-weight:bold;">${p.name}</div>
+                            <div style="font-size:0.7rem; color:var(--text-dim);">${p.category}</div>
                         </div>
                     `;
                     item.onclick = () => {
@@ -521,17 +517,42 @@
                     list.appendChild(item);
                 });
             } catch (err) {
-                document.getElementById('projectsList').innerHTML = `<div style="color:red">Ошибка загрузки проектов</div>`;
+                document.getElementById('projectsList').innerHTML = "Ошибка загрузки проектов.";
             }
         }
 
-        const toBase64 = file => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        });
+        // GOOGLE DRIVE UPLOAD LOGIC
+        async function uploadToDrive(file, folderId, token) {
+            const metadata = {
+                name: `${Date.now()}_${file.name}`,
+                parents: [folderId]
+            };
 
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', file);
+
+            const res = await axios.post(
+                'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+                form,
+                {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    onUploadProgress: (e) => {
+                        const pct = Math.round((e.loaded * 100) / e.total);
+                        updateProgress(pct, `ЗАГРУЗКА: ${file.name}`);
+                    }
+                }
+            );
+            return res.data.webViewLink;
+        }
+
+        function updateProgress(pct, text) {
+            document.getElementById('progressBar').style.width = pct + '%';
+            document.getElementById('progressPercent').textContent = pct + '%';
+            if (text) document.getElementById('loadingStatus').textContent = text;
+        }
+
+        // SUBMISSION
         document.getElementById('castingForm').onsubmit = async function(e) {
             e.preventDefault();
             const selected = Array.from(document.querySelectorAll('#projectsList input:checked')).map(i => ({
@@ -540,72 +561,75 @@
                 name: i.dataset.name
             }));
 
-            if (selected.length === 0) return alert("Выберите хотя бы один проект.");
-            if (uploadedPhotos.length < 3) return alert("Загрузите минимум 3 фото.");
-            if (!uploadedVideoFile) return alert("Загрузите видеовизитку.");
+            if (!selected.length) return alert("Выберите кастинг!");
+            if (photos.length < 3) return alert("Нужно минимум 3 фото.");
+            if (!videoFile) return alert("Нужно видео!");
 
-            document.getElementById('loadingOverlay').style.display = 'flex';
-            const status = document.getElementById('loadingStatus');
-            const pBar = document.getElementById('progressBar');
-            const pCont = document.getElementById('progressContainer');
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = 'flex';
 
             try {
-                const formData = new FormData(this);
+                const fd = new FormData(this);
+                const actorName = fd.get('full_name');
                 
-                // Prepare details
-                const city = formData.get('city_select') === 'Другой' ? formData.get('other_city') : formData.get('city_select');
+                // 1. Upload to Drive
+                updateProgress(10, "ПОДКЛЮЧЕНИЕ К DRIVE...");
+                let driveLinks = [];
+                
+                // Upload Video
+                const videoLink = await uploadToDrive(videoFile, G_DRIVE_FOLDER_ID, G_API_TOKEN);
+                driveLinks.push(`🎥 ВИДЕО: ${videoLink}`);
+
+                // Upload Photos (first 3)
+                for (let i = 0; i < Math.min(3, photos.length); i++) {
+                    const link = await uploadToDrive(photos[i], G_DRIVE_FOLDER_ID, G_API_TOKEN);
+                    driveLinks.push(`📸 ФОТО ${i+1}: ${link}`);
+                }
+
+                // 2. Send to Telegram via Python
                 const details = `
-📏 Рост/Вес: ${formData.get('height')}/${formData.get('weight')}
-👤 Тип: ${formData.get('appearance_type')} | Волосы: ${formData.get('hair_color')}
-👕 Одежда/Обувь: ${formData.get('cloth_size')}/${formData.get('shoe_size')}
-✨ Особенности: ${formData.get('appearance_details') || 'Нет'}
+📏 РОСТ/ВЕС: ${fd.get('height')}/${fd.get('weight')}
+👤 ТИП: ${fd.get('appearance_type')}
+👕 ОДЕЖДА/ОБУВЬ: ${fd.get('cloth_size')}/${fd.get('shoe_size')}
+🔗 DRIVE: \n${driveLinks.join('\n')}
                 `.trim();
 
-                // Convert media to base64
-                status.textContent = "ПОДГОТОВКА ФОТО...";
-                const photoPromises = uploadedPhotos.map(f => toBase64(f));
-                const photosB64 = await Promise.all(photoPromises);
+                for (const p of selected) {
+                    updateProgress(90, `ОТПРАВКА В ТОПИК: ${p.name}`);
+                    const tgData = new FormData();
+                    tgData.append('chat_id', p.cid);
+                    tgData.append('thread_id', p.tid);
+                    tgData.append('full_name', actorName);
+                    tgData.append('gender', fd.get('gender'));
+                    tgData.append('birth_date', fd.get('birth_date'));
+                    tgData.append('city', fd.get('city'));
+                    tgData.append('phone', fd.get('phone'));
+                    tgData.append('email_tg', fd.get('social_links'));
+                    tgData.append('character_name', fd.get('character_name'));
+                    tgData.append('experience', fd.get('experience') + "\n\n" + details);
+                    tgData.append('casting_target', p.name);
+                    
+                    // Attach first photo as preview for TG
+                    tgData.append('photos', photos[0]);
 
-                status.textContent = "ПОДГОТОВКА ВИДЕО...";
-                const videoB64 = await toBase64(uploadedVideoFile);
-
-                for (let i = 0; i < selected.length; i++) {
-                    const p = selected[i];
-                    status.textContent = `ОТПРАВКА: ${p.name}...`;
-                    pCont.style.display = 'block';
-                    pBar.style.width = '50%';
-
-                    const payload = {
-                        chat_id: p.cid,
-                        thread_id: p.tid,
-                        full_name: formData.get('full_name'),
-                        gender: formData.get('gender'),
-                        birth_date: formData.get('birth_date'),
-                        city: city,
-                        phone: formData.get('phone'),
-                        social_links: formData.get('social_links'),
-                        experience: formData.get('experience') + "\n\n" + details,
-                        casting_target: p.name,
-                        photos: photosB64,
-                        video: videoB64
-                    };
-
-                    await axios.post(API_BASE, payload);
-                    pBar.style.width = '100%';
+                    await axios.post(VERCEL_API, tgData);
                 }
 
                 document.getElementById('formContainer').style.display = 'none';
                 document.getElementById('successScreen').style.display = 'block';
+                window.scrollTo(0,0);
+
             } catch (err) {
-                alert("Ошибка: " + (err.response?.data?.error || err.message));
+                console.error(err);
+                alert("Ошибка: " + (err.response?.data?.error || "Проверьте API токен или доступ к папке"));
             } finally {
-                document.getElementById('loadingOverlay').style.display = 'none';
+                overlay.style.display = 'none';
             }
         };
 
         window.onload = () => {
-            loadProjects();
-            initPhotoGrid();
+            loadTopics();
+            renderPhotos();
         };
     </script>
 </body>
