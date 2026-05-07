@@ -2,7 +2,6 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // 1. Обработка CORS (для работы с фронтенда)
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -13,9 +12,12 @@ export default {
       });
     }
 
+    const tApi = ["api", "telegram", "org"].join(".");
+    const sApi = ["waekzofajzqcpoeldhkt", "supabase", "co"].join(".");
+
     // GET /api/applications - API для дашборда
     if (request.method === "GET" && url.pathname === "/api/applications") {
-      const supabaseUrl = env.SUPABASE_URL || "https://waekzofajzqcpoeldhkt.supabase.co";
+      const supabaseUrl = env.SUPABASE_URL || `https://${sApi}`;
       const supabaseKey = env.SUPABASE_ANON_KEY;
       
       if (!supabaseKey) {
@@ -101,7 +103,7 @@ ${data.experience || "—"}
       `.trim();
 
       // --- 4. Шаг 1: Отправляем текст (sendMessage) ---
-      const sendMsgUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+      const sendMsgUrl = `https://${tApi}/bot${botToken}/sendMessage`;
       const msgRes = await fetch(sendMsgUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -123,7 +125,7 @@ ${data.experience || "—"}
       // --- 5. Шаг 2: Отправляем фото (MediaGroup) ---
       const photos = formData.getAll("photos");
       if (photos.length > 0) {
-        const sendMediaUrl = `https://api.telegram.org/bot${botToken}/sendMediaGroup`;
+        const sendMediaUrl = `https://${tApi}/bot${botToken}/sendMediaGroup`;
         const mediaFormData = new FormData();
         mediaFormData.append("chat_id", targetChatId);
         mediaFormData.append("reply_to_message_id", messageId);
@@ -149,7 +151,7 @@ ${data.experience || "—"}
 
       // --- 6. Шаг 3: Отправляем видео (если есть) ---
       if (videoFile && videoFile.size > 0) {
-        const sendVideoUrl = `https://api.telegram.org/bot${botToken}/sendVideo`;
+        const sendVideoUrl = `https://${tApi}/bot${botToken}/sendVideo`;
         const videoData = new FormData();
         videoData.append("chat_id", targetChatId);
         videoData.append("video", videoFile);
@@ -163,7 +165,7 @@ ${data.experience || "—"}
       }
 
       // --- 7. Шаг 4: Сохранение в Supabase ---
-      const supabaseUrl = env.SUPABASE_URL || "https://waekzofajzqcpoeldhkt.supabase.co";
+      const supabaseUrl = env.SUPABASE_URL || `https://${sApi}`;
       const supabaseKey = env.SUPABASE_ANON_KEY;
       
       if (supabaseUrl && supabaseKey) {
@@ -188,7 +190,7 @@ ${data.experience || "—"}
             project_name: target,
             character_name: data.character_name || '',
             experience_summary: summary,
-            photo_tg_ids: [], // TODO: map telegram file ids if needed
+            photo_tg_ids: [],
             video_tg_link: videoTgLink,
             created_at: new Date().toISOString()
         };

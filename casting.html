@@ -711,7 +711,16 @@
                 <div class="block-title">Контакты</div>
                 <div class="form-group">
                     <label>Город проживания<span>*</span></label>
-                    <input type="text" name="city" required placeholder="Алматы">
+                    <select name="city_select" id="citySelect" required style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;">
+                        <option style="color: #000;" value="" disabled selected>Выберите город...</option>
+                        <option style="color: #000;" value="Алматы">Алматы</option>
+                        <option style="color: #000;" value="Астана">Астана</option>
+                        <option style="color: #000;" value="Шымкент">Шымкент</option>
+                        <option style="color: #000;" value="Караганда">Караганда</option>
+                        <option style="color: #000;" value="Атырау">Атырау</option>
+                        <option style="color: #000;" value="Другой">Другой</option>
+                    </select>
+                    <input type="text" name="city_manual" id="cityManual" placeholder="Введите ваш город" style="display: none; margin-top: 12px;">
                 </div>
                 <div class="form-group">
                     <label>Возраст (лет)<span>*</span></label>
@@ -721,6 +730,14 @@
                     <label>Внешность (Типаж)<span>*</span></label>
                     <input type="text" name="nationality" required
                         placeholder="азиат, европеец, глаза карие, стройный...">
+                </div>
+                <div class="form-group">
+                    <label>Необычные приметы внешности</label>
+                    <input type="text" name="unusual_features" placeholder="шрамы, татуировки, родимые пятна (если есть)">
+                </div>
+                <div class="form-group">
+                    <label>Хронические заболевания / Аллергии</label>
+                    <input type="text" name="diseases" placeholder="укажите, если есть">
                 </div>
                 <div class="form-group">
                     <label>Номер телефона (WhatsApp)<span>*</span></label>
@@ -736,8 +753,11 @@
             <div class="block">
                 <div class="block-title">Параметры и Опыт</div>
                 <div class="form-group">
-                    <label>Рост / Вес<span>*</span></label>
-                    <input type="text" name="height_weight" required placeholder="180 см / 75 кг">
+                    <label>Параметры тела<span>*</span></label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <input type="number" name="height" required placeholder="Рост (см)" min="50" max="250">
+                        <input type="number" name="weight" required placeholder="Вес (кг)" min="20" max="250">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Размер одежды / Обуви<span>*</span></label>
@@ -759,8 +779,11 @@
             <div class="block">
                 <div class="block-title">Бюджет</div>
                 <div class="form-group">
-                    <label>Ваш гонорар (Вилка «ОТ» и «ДО» за смену)<span>*</span></label>
-                    <input type="text" name="fee_range" required placeholder="например: 50.000 - 150.000">
+                    <label>Ваш гонорар (Вилка за смену, ₸)<span>*</span></label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <input type="number" name="fee_from" required placeholder="От" min="0" step="1000">
+                        <input type="number" name="fee_to" required placeholder="До" min="0" step="1000">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Готовы к съемкам в белье / купальниках?<span>*</span></label>
@@ -1064,6 +1087,17 @@
             pendingUploads--; updateSubmitButton();
         };
 
+        document.getElementById('citySelect').addEventListener('change', function(e) {
+            const manualInput = document.getElementById('cityManual');
+            if (this.value === 'Другой') {
+                manualInput.style.display = 'block';
+                manualInput.required = true;
+            } else {
+                manualInput.style.display = 'none';
+                manualInput.required = false;
+            }
+        });
+
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
             const selected = Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => ({
@@ -1080,6 +1114,26 @@
             
             try {
                 const baseFormData = new FormData(e.target);
+                
+                // --- Склейка полей для бэкенда ---
+                const citySelect = baseFormData.get('city_select');
+                const cityManual = baseFormData.get('city_manual');
+                baseFormData.set('city', (citySelect === 'Другой') ? (cityManual || 'Не указан') : (citySelect || 'Не указан'));
+                
+                const height = baseFormData.get('height') || '?';
+                const weight = baseFormData.get('weight') || '?';
+                baseFormData.set('height_weight', `${height} см / ${weight} кг`);
+                
+                const feeFrom = baseFormData.get('fee_from') || '?';
+                const feeTo = baseFormData.get('fee_to') || '?';
+                baseFormData.set('fee_range', `${feeFrom} - ${feeTo}`);
+
+                let expText = baseFormData.get('experience') || 'Нет';
+                const diseases = baseFormData.get('diseases');
+                const features = baseFormData.get('unusual_features');
+                if (diseases && diseases.trim()) expText += `\nБолезни: ${diseases}`;
+                if (features && features.trim()) expText += `\nПриметы: ${features}`;
+                baseFormData.set('experience', expText);
                 
                 for (const p of selected) {
                     document.getElementById('loadingText').textContent = `Отправка в ${p.name}...`;
