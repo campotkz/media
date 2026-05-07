@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 
 <head>
@@ -1066,7 +1066,7 @@
         async function loadCastingProjects() {
             const container = document.getElementById('castingChecklist');
             try {
-                const response = await fetch(`${VERCEL_URL}/api/casting/topics`);
+                const response = await fetch(`${CLOUDFLARE_URL}/api/casting/topics`);
                 const projects = await response.json();
                 container.innerHTML = '';
                 
