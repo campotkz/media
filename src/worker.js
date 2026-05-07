@@ -375,19 +375,19 @@ export default {
       const text = `
 ${headerText}
 🎯 Проект: <b>${targetProject}</b>
-🎭 Персонаж: <b>${data.character_name || "—"}</b>
+📍 Город: <b>${data.city || "—"}</b>
 ━━━━━━━━━━━━━━━━━━━━
 
-👤 <b>Данные:</b> ${data.city || "—"} | ${data.gender || "—"}
-🎂 Возраст: ${data.dob || "—"}
-📏 Рост/Вес: ${data.height_weight || "—"}
+👤 <b>Данные:</b> ${data.age || "?"} лет | ${data.height || "?"} см | ${data.weight || "?"} кг
+🎭 Внешность: ${data.appearance || "—"}
+💇 Волосы: ${data.hair_color || "—"}
+👕 Одежда: ${data.clothing_size || "—"} | 👟 Обувь: ${data.shoe_size || "—"}
+
 📱 Тел: ${data.phone || "—"}
-🔗 Inst: ${data.instagram || "—"}
+📧 Соцсеть/TG: ${data.instagram || data.contact_method || "—"}
 
-🎭 <b>Опыт:</b>
-${data.experience || "—"}
-
-💰 Бюджет: ${data.fee_range || "—"}
+📝 <b>Опыт:</b>
+${data.experience_summary || "—"}
       `.trim();
 
       const msgRes = await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
@@ -405,7 +405,7 @@ ${data.experience || "—"}
       if (!msgResult.ok) throw new Error(`TG Error: ${msgResult.description}`);
       const messageId = msgResult.result.message_id;
 
-      // Фото и Видео (аналогично предыдущей версии)
+      // Фото и Видео
       const photos = formData.getAll("photos");
       if (photos.length > 0) {
         const mediaFormData = new FormData();
@@ -422,57 +422,35 @@ ${data.experience || "—"}
         await fetch(`https://${tD}/bot${botToken}/sendMediaGroup`, { method: "POST", body: mediaFormData });
       }
 
-      if (videoFile && videoFile.size > 0) {
-        const vData = new FormData();
-        vData.append("chat_id", targetChatId);
-        vData.append("video", videoFile);
-        vData.append("reply_to_message_id", messageId);
-        if (threadId) vData.append("message_thread_id", threadId);
-        await fetch(`https://${tD}/bot${botToken}/sendVideo`, { method: "POST", body: vData });
-      }
-
-      // Сохранение/Обновление в Supabase
-      let videoTgLink = null;
-      if (videoFile && videoFile.size > 0) {
-         const cleanChatId = String(targetChatId).replace('-100', '');
-         videoTgLink = `https://t.me/c/${cleanChatId}/${messageId}`;
-      }
-      const expText = data.experience || '';
-      const summary = `${data.dob || '?'} лет, ${data.height_weight || '?'}. Опыт: ${expText.substring(0, 50)}...`;
-      
-      // Populate numeric fields for filtering
-      const ageNum = parseInt(data.dob) || null;
-      const heightNum = parseInt(data.height) || null;
-      const weightNum = parseInt(data.weight) || null;
-      const gender = data.gender || null;
-      
+      // Сохранение в Supabase
       const payload = {
           full_name: data.full_name || '',
-          age: data.dob || '',
-          age_num: ageNum,
-          height_num: heightNum,
-          weight_num: weightNum,
-          gender: gender,
-          height_weight: data.height_weight || '',
+          age: data.age || '',
+          age_num: parseInt(data.age) || null,
+          height: data.height || '',
+          weight: data.weight || '',
+          height_num: parseInt(data.height) || null,
+          weight_num: parseInt(data.weight) || null,
+          appearance: data.appearance || '',
+          hair_color: data.hair_color || '',
+          clothing_size: data.clothing_size || '',
+          shoe_size: data.shoe_size || '',
           city: data.city || '',
           phone: data.phone || '',
           instagram: data.instagram || '',
+          contact_method: data.contact_method || '',
           project_name: targetProject,
-          character_name: data.character_name || '',
-          experience_summary: summary,
-          video_tg_link: videoTgLink,
+          experience_summary: data.experience_summary || '',
           updated_at: new Date().toISOString()
       };
 
       if (isUpdate && userRecord) {
-        // UPDATE
         await fetch(`${supabaseUrl}/rest/v1/casting_applications?id=eq.${userRecord.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
             body: JSON.stringify(payload)
         });
       } else {
-        // INSERT
         await fetch(`${supabaseUrl}/rest/v1/casting_applications`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Prefer': 'return=minimal' },
