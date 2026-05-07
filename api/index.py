@@ -291,53 +291,54 @@ def handle_delete_all(message):
     try:
         member = bot.get_chat_member(cid, user_id)
         if member.status not in ['administrator', 'creator']:
-            return bot.reply_to(message, "❌ У вас нет прав администратора для этой команды.")
+            return bot.reply_to(message, "❌ Только администраторы могут выполнять полную очистку.")
     except Exception as e:
-        return bot.reply_to(message, f"❌ Ошибка проверки прав: {e}")
+        return bot.reply_to(message, f"❌ Ошибка прав: {e}")
 
-    # 2. Запрос списка топиков из Supabase
+    # 2. Берем ВООБЩЕ ВСЕ записи для этого чата из Supabase (включая скрытые и без ID)
     try:
-        res = supabase.from_("clients").select("name, thread_id").eq("chat_id", cid).execute()
+        res = supabase.from_("clients").select("*").eq("chat_id", cid).execute()
         topics = res.data or []
     except Exception as e:
-        return bot.reply_to(message, f"❌ Ошибка при чтении базы данных: {e}")
+        return bot.reply_to(message, f"❌ Ошибка БД: {e}")
 
-    deleted_count = 0
+    deleted_tg = 0
+    deleted_db = 0
     
-    # 3. Цикл массового удаления
+    # 3. Массовая зачистка
     for topic in topics:
-        name = topic.get('name', '')
+        name = str(topic.get('name', '')).lower()
         tid = topic.get('thread_id')
-        
-        if not tid: continue
-        
-        # Исключение: Пропускаем "тестовый кастинг"
-        if name.lower() == "тестовый кастинг":
+        row_id = topic.get('id')
+
+        # Пропускаем только защищенный топик
+        if "тестовый кастинг" in name:
             continue
 
-        # Удаление в Telegram
-        try:
-            bot.delete_forum_topic(cid, tid)
-        except ApiTelegramException as e:
-            # Если топик уже удален или не найден, просто идем дальше
-            print(f"Telegram Topic {tid} delete skip: {e.description}")
-        except Exception as e:
-            print(f"Unexpected Telegram Error for topic {tid}: {e}")
+        # Пытаемся удалить в Telegram (если есть ID ветки)
+        if tid:
+            try:
+                bot.delete_forum_topic(cid, tid)
+                deleted_tg += 1
+            except Exception:
+                # Если уже удален вручную или ID неверный - просто игнорируем
+                pass
 
-        # Синхронизация с БД: Удаляем запись из Supabase
-        try:
-            supabase.from_("clients").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
-            deleted_count += 1
-        except Exception as e:
-            print(f"Supabase Delete Error for topic {tid}: {e}")
+        # В ЛЮБОМ СЛУЧАЕ удаляем запись из Supabase по её внутреннему ID
+        if row_id:
+            try:
+                supabase.from_("clients").delete().eq("id", row_id).execute()
+                deleted_db += 1
+            except Exception as e:
+                print(f"Ошибка удаления строки {row_id}: {e}")
 
-    # 4. Финальный отчет
+    # 4. Итоговый отчет
     bot.send_message(
         cid, 
-        f"✅ **ОПЕРАЦИЯ ЗАВЕРШЕНА**\n\n"
-        f"🗑 Удалено топиков: {deleted_count}\n"
-        f"☁️ База Supabase очищена.\n"
-        f"🛡 Оставлен только: **'тестовый кастинг'**.",
+        f"☢️ **ЯДЕРНАЯ ОЧИСТКА ЗАВЕРШЕНА**\n\n"
+        f"🗑 Удалено в Telegram: {deleted_tg}\n"
+        f"☁️ Вычищено из Supabase: {deleted_db}\n"
+        f"🛡 Сохранен: **'тестовый кастинг'**",
         parse_mode="Markdown"
     )
 
