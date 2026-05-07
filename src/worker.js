@@ -82,22 +82,109 @@ export default {
     if (contentType.includes("application/json")) {
       try {
         const update = await request.json();
-        if (update.message && update.message.text) {
-          const msgText = update.message.text;
-          const chatId = update.message.chat.id;
-          if (msgText === "/hub" || msgText === "/start") {
-            const dashboardUrl = "https://campotkz.github.io/media/casting_dashboard.html";
+        const message = update.message || update.callback_query?.message;
+        if (!message) return new Response("OK", { status: 200 });
+
+        const chatId = message.chat.id;
+        const fromId = update.message?.from?.id || update.callback_query?.from?.id;
+        const msgText = update.message?.text || "";
+
+        // 1. Проверка Белого Списка
+        const allowedEnv = (env.ALLOWED_CHATS || "-8534227633,-195051697,542053490").split(",").map(id => id.trim());
+        
+        async function checkAccess() {
+          if (allowedEnv.includes(String(chatId))) return true;
+          const res = await fetch(`${supabaseUrl}/rest/v1/allowed_chats?chat_id=eq.${chatId}`, {
+            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+          });
+          const data = await res.json();
+          return data.length > 0;
+        }
+
+        const hasAccess = await checkAccess();
+        if (!hasAccess) {
+          if (msgText.startsWith("/")) {
             await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 chat_id: chatId,
-                text: `🚀 <b>Casting Hub</b>\n\nЗдесь вы можете просматривать анкеты и информацию об актерах:\n\n🔗 <a href="${dashboardUrl}">Открыть Дашборд</a>`,
+                text: "🚫 <b>Доступ запрещен.</b>\nЭтот бот настроен только для работы в закрытых группах GULYWOOD.",
                 parse_mode: "HTML"
               })
             });
           }
+          return new Response("OK", { status: 200 });
         }
+
+        // 2. Команды Админа (542053490)
+        if (fromId === 542053490) {
+          if (msgText.startsWith("/white")) {
+            const parts = msgText.split(" ");
+            if (parts.length < 2) {
+              await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: chatId,
+                  text: "Пришли мне ID нового чата. Чтобы узнать его, перешли любое сообщение из нужной группы в бот @getidsbot.\n\nИспользование: <code>/white -100123456789</code>",
+                  parse_mode: "HTML"
+                })
+              });
+            } else {
+              const newId = parts[1];
+              await fetch(`${supabaseUrl}/rest/v1/allowed_chats`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+                body: JSON.stringify({ chat_id: newId, added_by: fromId })
+              });
+              await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: chatId, text: `✅ Чат ${newId} добавлен в белый список.` })
+              });
+            }
+            return new Response("OK", { status: 200 });
+          }
+
+          if (msgText.startsWith("/black")) {
+            const parts = msgText.split(" ");
+            if (parts.length < 2) {
+              await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: chatId, text: "Использование: <code>/black -100123456789</code>", parse_mode: "HTML" })
+              });
+            } else {
+              const targetId = parts[1];
+              await fetch(`${supabaseUrl}/rest/v1/allowed_chats?chat_id=eq.${targetId}`, {
+                method: 'DELETE',
+                headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+              });
+              await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: chatId, text: `❌ Чат ${targetId} удален из белого списка.` })
+              });
+            }
+            return new Response("OK", { status: 200 });
+          }
+        }
+
+        // 3. Обычные команды
+        if (msgText === "/hub" || msgText === "/start") {
+          const dashboardUrl = "https://campotkz.github.io/media/casting_dashboard.html";
+          await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: `🚀 <b>Casting Hub</b>\n\nЗдесь вы можете просматривать анкеты и информацию об актерах:\n\n🔗 <a href="${dashboardUrl}">Открыть Дашборд</a>`,
+              parse_mode: "HTML"
+            })
+          });
+        }
+        
         return new Response("OK", { status: 200 });
       } catch (e) { return new Response("OK", { status: 200 }); }
     }
@@ -131,7 +218,7 @@ export default {
 
       const videoFile = formData.get("video");
       const threadId = data.thread_id ? parseInt(data.thread_id) : null;
-      const targetChatId = data.chat_id || chatId;
+      const targetChatId = chatId; // Forcing env.CHAT_ID for security as per requirements
 
       const headerText = isUpdate ? `🔄 <b>ОБНОВЛЕННАЯ АНКЕТА: ${data.full_name || "—"}</b>` : `🌟 <b>НОВАЯ АНКЕТА: ${data.full_name || "—"}</b>`;
 
