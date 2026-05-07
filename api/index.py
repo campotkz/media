@@ -471,6 +471,15 @@ def handle_delete(message):
         else: bot.reply_to(message, "❌ Ссылки не найдены.")
     else: bot.reply_to(message, "❌ Используйте ответ на сообщение.")
 
+@bot.message_handler(commands=['hide_menu'])
+def hide_menu(message):
+    # Убираем Web App кнопку (Фидбэк) для конкретного чата, заменяя ее на обычное меню команд
+    try:
+        bot.set_chat_menu_button(message.chat.id, types.MenuButtonCommands())
+        bot.reply_to(message, "✅ Кнопка 'Фидбэк' успешно скрыта для этого чата. Теперь здесь стандартное меню команд.")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
 # --- Stateless Casting Routes ---
 
 @app.route('/api/casting/submit_no_sb', methods=['POST', 'OPTIONS'])

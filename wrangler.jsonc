@@ -11,6 +11,5 @@
     "CHAT_ID": "-1003893557217"
   },
   "workers_dev": true,
-  "site": { "bucket": "." },
   "routes": []
 }

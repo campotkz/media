@@ -702,11 +702,6 @@
                             <div class="radio-mark"></div>
                             <span>Женщина</span>
                         </label>
-                        <label class="radio-item">
-                            <input type="radio" name="gender" value="Другое">
-                            <div class="radio-mark"></div>
-                            <span>Другое</span>
-                        </label>
                     </div>
                 </div>
             </div>
@@ -897,20 +892,47 @@
                         sortedProjects = isLocked ? [fallbackProj] : [fallbackProj, ...projects];
                     }
                 }
+                
+                // Фильтруем тестовые кастинги в общей ссылке
+                if (!isLocked) {
+                    sortedProjects = sortedProjects.filter(p => !p.name.toLowerCase().includes("тестов"));
+                }
 
-                // Handle Character Roles
-                if (targetProj && targetProj.category && targetProj.category.startsWith("casting|")) {
-                    const rolesStr = targetProj.category.substring(8);
-                    const roles = rolesStr.split(',').map(r => r.trim()).filter(r => r);
-                    if (roles.length > 0) {
-                        const charInputGroup = document.querySelector('input[name="character_name"]').parentNode;
+                // Вспомогательная функция для обновления поля персонажей
+                function updateCharacterInput() {
+                    const selectedCheckboxes = Array.from(container.querySelectorAll('input:checked'));
+                    let allRoles = [];
+                    let hasRolelessProject = false;
+                    
+                    if (selectedCheckboxes.length === 0) {
+                        hasRolelessProject = true; // По умолчанию текстовое поле
+                    } else {
+                        selectedCheckboxes.forEach(cb => {
+                            const r = cb.getAttribute('data-roles');
+                            if (r) {
+                                allRoles.push(...r.split(','));
+                            } else {
+                                hasRolelessProject = true;
+                            }
+                        });
+                    }
+                    
+                    const charInputGroup = document.querySelector('[name="character_name"]').parentNode;
+                    
+                    if (!hasRolelessProject && allRoles.length > 0) {
+                        const uniqueRoles = [...new Set(allRoles)];
                         charInputGroup.innerHTML = `
                             <label>На какого персонажа вы подаетесь?<span>*</span></label>
                             <select name="character_name" required style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;">
                                 <option value="" disabled selected>Выберите персонажа...</option>
-                                ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
+                                ${uniqueRoles.map(r => `<option value="${r}">${r}</option>`).join('')}
                                 <option value="Другое (Массовка)">Другое (Массовка)</option>
                             </select>
+                        `;
+                    } else {
+                        charInputGroup.innerHTML = `
+                            <label>На какого персонажа вы подаетесь?<span>*</span></label>
+                            <input type="text" name="character_name" required placeholder="например: «Главный герой», «Отец», «Прохожий»">
                         `;
                     }
                 }
@@ -921,9 +943,15 @@
                     const isActive = (targetProj && p.name === targetProj.name) || p.name === proj || (p.chat_id == cid && p.thread_id == tid);
                     if (isActive) label.classList.add('active');
 
+                    let rolesAttr = "";
+                    if (p.category && p.category.startsWith("casting|")) {
+                        const rStr = p.category.substring(8);
+                        if (rStr) rolesAttr = `data-roles="${rStr}"`;
+                    }
+
                     label.innerHTML = `
                         <input type="checkbox" value="${p.name}" ${isActive ? 'checked' : ''} 
-                               data-cid="${p.chat_id}" data-tid="${p.thread_id || ''}">
+                               data-cid="${p.chat_id}" data-tid="${p.thread_id || ''}" ${rolesAttr}>
                         <span>${p.name}</span>
                     `;
 
@@ -934,9 +962,13 @@
                         if (e.target.checked && checkedCount > 1) {
                             document.getElementById('confirmModal').style.display = 'flex';
                         }
+                        updateCharacterInput();
                     };
                     container.appendChild(label);
                 });
+                
+                // Инициализация при загрузке
+                updateCharacterInput();
 
                 document.getElementById('modalBack').onclick = () => document.getElementById('confirmModal').style.display = 'none';
                 document.getElementById('modalConfirm').onclick = () => document.getElementById('confirmModal').style.display = 'none';
