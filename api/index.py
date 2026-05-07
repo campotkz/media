@@ -370,18 +370,65 @@ def handle_delete_all(message):
     )
 
 
-@bot.message_handler(commands=['cast_link'])
-def handle_specific_casting(message):
+@bot.message_handler(commands=['link', 'cast_link'])
+def handle_smart_link(message):
     cid, tid = message.chat.id, message.message_thread_id
-    if not tid: return bot.reply_to(message, "❌ Только в топике.")
-    ensure_project(cid, tid, message.chat.title)
-    res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
-    if res.data:
-        pname = res.data[0]['name']
-        link = f"{APP_URL}casting.html?cid={cid}&tid={tid}&proj={urllib.parse.quote(pname)}&lock=1"
+    
+    if tid:
+        # Вызов внутри конкретного топика
+        ensure_project(cid, tid, message.chat.title)
+        res = supabase.from_("clients").select("name").eq("chat_id", cid).eq("thread_id", tid).execute()
+        if res.data:
+            pname = res.data[0]['name']
+            link = f"{APP_URL}casting.html?cid={cid}&tid={tid}&proj={urllib.parse.quote(pname)}&lock=1"
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton(text="🎯 ЗАПОЛНИТЬ АНКЕТУ", url=link))
+            bot.send_message(cid, f"🎯 <b>КАСТИНГ: {pname}</b>\n\n🔗 <code>{link}</code>\n\n_Эта ссылка жестко привязана к текущему топику._", reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
+        else:
+            bot.reply_to(message, "❌ Ошибка: не удалось найти или создать проект для этого топика.")
+    else:
+        # Вызов в общем чате (General)
+        msg = bot.send_message(cid, "📝 Как назовем этот общий кастинг?\n_(Отправьте название следующим сообщением)_", parse_mode="Markdown")
+        bot.register_next_step_handler(msg, process_general_casting_name, cid)
+
+def process_general_casting_name(message, cid):
+    if not message.text:
+        return bot.send_message(cid, "❌ Ошибка: нужно отправить текстовое название.")
+    
+    pname = message.text.strip()
+    
+    try:
+        # Проверяем, нет ли уже такого общего кастинга (где thread_id is null)
+        # Архитектура на будущее: добавляем возможность хранения правил маршрутизации (routing_rules)
+        res = supabase.from_("clients").select("id").eq("chat_id", cid).is_("thread_id", "null").eq("name", pname).execute()
+        
+        if not res.data:
+            # Создаем новую запись для общего кастинга
+            supabase.from_("clients").insert({
+                "chat_id": cid,
+                "thread_id": None, # Базовый топик / Общий чат
+                "name": pname,
+                "category": "casting",
+                "is_active": True,
+                "is_hidden": False
+                # В будущем в Supabase можно добавить JSON-колонку 'routing_rules' 
+                # для распределения анкет по саб-топикам (например, по весу или национальности)
+            }).execute()
+            
+        # Генерируем универсальную ссылку (без tid)
+        link = f"{APP_URL}casting.html?cid={cid}&proj={urllib.parse.quote(pname)}&lock=1"
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton(text="🎯 ЗАПОЛНИТЬ АНКЕТУ", url=link))
-        bot.send_message(cid, f"🎯 <b>КАСТИНГ: {pname}</b>\n\n🔗 <code>{link}</code>", reply_markup=markup, message_thread_id=tid, parse_mode="HTML")
+        bot.send_message(
+            cid, 
+            f"🎯 <b>ОБЩИЙ КАСТИНГ: {pname}</b>\n\n"
+            f"🔗 <code>{link}</code>\n\n"
+            f"_Анкеты по этой ссылке будут приходить в общий чат. Позже мы настроим автоматическую маршрутизацию по под-топикам._", 
+            reply_markup=markup, 
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        bot.send_message(cid, f"❌ Ошибка создания кастинга: {e}")
 
 @bot.message_handler(commands=['del'])
 def handle_delete(message):
