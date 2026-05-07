@@ -209,13 +209,19 @@
             }
 
             try {
-                await fetch(SCRIPT_URL, {
+                // Используем обычную форму для обхода CORS
+                const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
+                
+                // Google Scripts при no-cors всегда возвращает непрозрачный ответ, 
+                // поэтому мы просто считаем, что если нет ошибки в сети, то всё ок.
                 status.style.color = "#4cd964";
-                status.innerText = "✅ Успешно! Анкета в таблице.";
+                status.innerText = "✅ Анкета успешно отправлена! Проверьте таблицу.";
                 e.target.reset();
                 document.getElementById('photoLabel').innerText = "Нажмите для выбора фото";
             } catch (err) {
