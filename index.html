@@ -16,7 +16,7 @@
     rel="stylesheet" />
 
   <style>
-    /* ПОЛНОСТЬЮ ТВОИ ОРИГИНАЛЬНЫЕ СТИЛИ */
+    /* РџРћР›РќРћРЎРўР¬Р® РўР’РћР РћР РР“РРќРђР›Р¬РќР«Р• РЎРўРР›Р */
     :root {
       --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
       --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
@@ -980,12 +980,12 @@
 
 <body>
   <datalist id="taskOptions">
-    <option value="Подготовка"></option>
-    <option value="Перестановка"></option>
-    <option value="Перерыв"></option>
-    <option value="Обед"></option>
-    <option value="Тех. перерыв"></option>
-    <option value="Переезд"></option>
+    <option value="РџРѕРґРіРѕС‚РѕРІРєР°"></option>
+    <option value="РџРµСЂРµСЃС‚Р°РЅРѕРІРєР°"></option>
+    <option value="РџРµСЂРµСЂС‹РІ"></option>
+    <option value="РћР±РµРґ"></option>
+    <option value="РўРµС…. РїРµСЂРµСЂС‹РІ"></option>
+    <option value="РџРµСЂРµРµР·Рґ"></option>
   </datalist>
   <datalist id="locationOptions"></datalist>
   <datalist id="actorOptions"></datalist>
@@ -1162,7 +1162,7 @@
     <h1>🍓 Campot</h1>
     <button class="menu-btn calendar-btn" onclick="openModule('calendar')">📅 Календарь</button>
     <button class="menu-btn timer-btn" onclick="openModule('timer')">⏱️ Таймер</button>
-    <button class="menu-btn casting-btn" onclick="window.location.href='casting_dashboard.html'">🎭 Кастинг</button>
+    <button class="menu-btn casting-btn" onclick="window.location.href='casting_dashboard.html'">💼 Кастинг Хаб</button>
   </div>
 
 
@@ -1172,34 +1172,34 @@
     <div class="card" id="calendarView">
       <div class="head">
         <div class="title" style="display:flex; align-items:center; gap:10px;">
-          <button class="mini-btn" onclick="goBackToMenu()" style="padding: 4px 8px;">🔙 Меню</button>
-          🍓 Campot
+          <button class="mini-btn" onclick="goBackToMenu()" style="padding: 4px 8px;">рџ”™ РњРµРЅСЋ</button>
+          рџЌ“ Campot
         </div>
         <div class="seg">
-          <button id="prevBtn">◀</button>
-          <button id="todayBtn">Сегодня</button>
-          <button id="nextBtn">▶</button>
+          <button id="prevBtn">в—Ђ</button>
+          <button id="todayBtn">РЎРµРіРѕРґРЅСЏ</button>
+          <button id="nextBtn">в–¶</button>
         </div>
       </div>
       <div class="calendar">
         <div class="monthBar">
-          <div class="month" id="monthLabel">—</div>
-          <div class="hint" id="monthStat">0 съёмок</div>
+          <div class="month" id="monthLabel">вЂ”</div>
+          <div class="hint" id="monthStat">0 СЃСЉС‘РјРѕРє</div>
         </div>
         <div class="dow">
-          <div>Пн</div>
-          <div>Вт</div>
-          <div>Ср</div>
-          <div>Чт</div>
-          <div>Пт</div>
-          <div>Сб</div>
-          <div>Вс</div>
+          <div>РџРЅ</div>
+          <div>Р’С‚</div>
+          <div>РЎСЂ</div>
+          <div>Р§С‚</div>
+          <div>РџС‚</div>
+          <div>РЎР±</div>
+          <div>Р’СЃ</div>
         </div>
         <div class="grid" id="grid"></div>
       </div>
       <div class="footer">
-        <button class="primary" id="copyDayBtn">Скопировать выгрузку дня</button>
-        <button id="cloudSyncBtn" onclick="loadFromCloud()" title="Обновить из облака">☁️ Обновить</button>
+        <button class="primary" id="copyDayBtn">РЎРєРѕРїРёСЂРѕРІР°С‚СЊ РІС‹РіСЂСѓР·РєСѓ РґРЅСЏ</button>
+        <button id="cloudSyncBtn" onclick="loadFromCloud()" title="РћР±РЅРѕРІРёС‚СЊ РёР· РѕР±Р»Р°РєР°">вЃпёЏ РћР±РЅРѕРІРёС‚СЊ</button>
       </div>
     </div>
 
@@ -1207,26 +1207,26 @@
     <div class="card" id="dayCard">
       <div class="head">
         <div class="dayHeadGlow"></div>
-        <div class="title">📅 <span id="selectedLabel">—</span> <small style="font-size:8px; opacity:0.5;">v1.2</small>
+        <div class="title">рџ“… <span id="selectedLabel">вЂ”</span> <small style="font-size:8px; opacity:0.5;">v1.2</small>
         </div>
         <div style="display:flex; gap:10px;">
-          <button class="mini-btn" id="newBtn">Смена</button>
-          <button class="mini-btn task-btn" onclick="openTaskForm()">+ Задача</button>
+          <button class="mini-btn" id="newBtn">РЎРјРµРЅР°</button>
+          <button class="mini-btn task-btn" onclick="openTaskForm()">+ Р—Р°РґР°С‡Р°</button>
         </div>
       </div>
       <div class="side">
         <div class="list" id="eventList"></div>
         <form id="form">
           <div class="row2">
-            <label>Проект/клиент
+            <label>РџСЂРѕРµРєС‚/РєР»РёРµРЅС‚
               <div class="input-wrap">
-                <input id="project" autocomplete="off" placeholder="Напр: Fujifilm" />
+                <input id="project" autocomplete="off" placeholder="РќР°РїСЂ: Fujifilm" />
                 <div id="projectDropdown" class="dropdown"></div>
               </div>
             </label>
-            <label>Локация
+            <label>Р›РѕРєР°С†РёСЏ
               <div class="input-wrap">
-                <input id="location" placeholder="Зал или адрес..." required />
+                <input id="location" placeholder="Р—Р°Р» РёР»Рё Р°РґСЂРµСЃ..." required />
                 <div id="locationDropdown" class="dropdown"></div>
               </div>
             </label>
@@ -1235,56 +1235,56 @@
             <label>Call<input id="callTime" type="time" /></label>
             <label>Wrap<input id="wrapTime" type="time" /></label>
           </div>
-          <label>Адрес/линк
+          <label>РђРґСЂРµСЃ/Р»РёРЅРє
             <div class="input-wrap">
-              <input id="address" placeholder="Найти адрес (2GIS / Maps)..." autocomplete="off" />
+              <input id="address" placeholder="РќР°Р№С‚Рё Р°РґСЂРµСЃ (2GIS / Maps)..." autocomplete="off" />
               <div id="addressDropdown" class="dropdown"></div>
             </div>
           </label>
-          <label>Контакт
+          <label>РљРѕРЅС‚Р°РєС‚
             <div class="input-wrap">
-              <input id="contact" placeholder="Имя + телефон" autocomplete="off" />
+              <input id="contact" placeholder="РРјСЏ + С‚РµР»РµС„РѕРЅ" autocomplete="off" />
               <div id="contactDropdown" class="dropdown"></div>
             </div>
           </label>
-          <label>ТЗ<textarea id="deliverables" placeholder="Опиши задачу..."></textarea></label>
+          <label>РўР—<textarea id="deliverables" placeholder="РћРїРёС€Рё Р·Р°РґР°С‡Сѓ..."></textarea></label>
 
-          <label>Команда продакшн
+          <label>РљРѕРјР°РЅРґР° РїСЂРѕРґР°РєС€РЅ
             <div class="multi-select-wrap" id="crewWrapper">
               <div id="crewTags" class="tags"></div>
-              <input id="crewInput" placeholder="Добавить..." autocomplete="off" />
+              <input id="crewInput" placeholder="Р”РѕР±Р°РІРёС‚СЊ..." autocomplete="off" />
               <div id="crewDropdown" class="dropdown"></div>
             </div>
             <textarea id="crew" style="display:none"></textarea>
           </label>
 
-          <label>Пост/монтаж
+          <label>РџРѕСЃС‚/РјРѕРЅС‚Р°Р¶
             <div class="multi-select-wrap" id="postWrapper">
               <div id="postTags" class="tags"></div>
-              <input id="postInput" placeholder="Выбрать реж. монтажа..." autocomplete="off" />
+              <input id="postInput" placeholder="Р’С‹Р±СЂР°С‚СЊ СЂРµР¶. РјРѕРЅС‚Р°Р¶Р°..." autocomplete="off" />
               <div id="postDropdown" class="dropdown"></div>
             </div>
             <textarea id="post_production" style="display:none"></textarea>
           </label>
 
           <div class="row2">
-            <label>Кастинг проект
+            <label>РљР°СЃС‚РёРЅРі РїСЂРѕРµРєС‚
               <div class="input-wrap">
-                <input id="casting_project" placeholder="Найти проект..." autocomplete="off" />
+                <input id="casting_project" placeholder="РќР°Р№С‚Рё РїСЂРѕРµРєС‚..." autocomplete="off" />
                 <div id="castingDropdown" class="dropdown"></div>
               </div>
             </label>
-            <label>Актеры
+            <label>РђРєС‚РµСЂС‹
               <div class="multi-select-wrap" id="actorsWrapper" onclick="openActorChecklist('main')">
                 <div id="actorsTags" class="tags"></div>
-                <input id="actorsInput" placeholder="Выбрать..." readonly style="cursor:pointer;" />
+                <input id="actorsInput" placeholder="Р’С‹Р±СЂР°С‚СЊ..." readonly style="cursor:pointer;" />
                 <div id="actorsDropdown" class="dropdown"></div>
               </div>
               <textarea id="actors" style="display:none"></textarea>
             </label>
           </div>
 
-          <label>План/тайминг
+          <label>РџР»Р°РЅ/С‚Р°Р№РјРёРЅРі
             <div class="timing-wrap">
               <div class="timing-table" id="timingTable">
                 <div class="timing-header timing-row">
@@ -1299,97 +1299,97 @@
                   <div class="timing-cell"></div> <!-- Delete -->
                 </div>
                 <div id="timingRows"></div>
-                <div class="timing-add-btn" onclick="addTimingRow({}, event)">+ ДОБАВИТЬ СТРОКУ</div>
+                <div class="timing-add-btn" onclick="addTimingRow({}, event)">+ Р”РћР‘РђР’РРўР¬ РЎРўР РћРљРЈ</div>
               </div>
             </div>
             <textarea id="schedule" style="display:none"></textarea>
           </label>
-          <label>Техника
+          <label>РўРµС…РЅРёРєР°
             <div class="timing-wrap">
               <div class="timing-table" id="gearTable">
                 <div class="gear-header gear-row">
-                  <div class="timing-cell">Категория</div>
-                  <div class="timing-cell">Модель/Название</div>
-                  <div class="timing-cell">Кол-во</div>
-                  <div class="timing-cell">Заметки</div>
+                  <div class="timing-cell">РљР°С‚РµРіРѕСЂРёСЏ</div>
+                  <div class="timing-cell">РњРѕРґРµР»СЊ/РќР°Р·РІР°РЅРёРµ</div>
+                  <div class="timing-cell">РљРѕР»-РІРѕ</div>
+                  <div class="timing-cell">Р—Р°РјРµС‚РєРё</div>
                   <div class="timing-cell"></div>
                 </div>
                 <div id="gearRows"></div>
-                <div class="timing-add-btn" onclick="addGearRow({}, event)">+ ДОБАВИТЬ ТЕХНИКУ</div>
+                <div class="timing-add-btn" onclick="addGearRow({}, event)">+ Р”РћР‘РђР’РРўР¬ РўР•РҐРќРРљРЈ</div>
               </div>
             </div>
             <textarea id="gear" style="display:none"></textarea>
           </label>
-          <label>Примечания<textarea id="notes" placeholder="Парковка, пропуск..."></textarea></label>
-          <label>Отчет (Тайминг)<input id="report_link" placeholder="Ссылка на PDF/Excel..." /></label>
+          <label>РџСЂРёРјРµС‡Р°РЅРёСЏ<textarea id="notes" placeholder="РџР°СЂРєРѕРІРєР°, РїСЂРѕРїСѓСЃРє..."></textarea></label>
+          <label>РћС‚С‡РµС‚ (РўР°Р№РјРёРЅРі)<input id="report_link" placeholder="РЎСЃС‹Р»РєР° РЅР° PDF/Excel..." /></label>
           <div class="actions">
-            <button type="button" id="copyBtn" style="color:#7aa2ff; border-color:#7aa2ff;">Копировать</button>
+            <button type="button" id="copyBtn" style="color:#7aa2ff; border-color:#7aa2ff;">РљРѕРїРёСЂРѕРІР°С‚СЊ</button>
             <button type="button" id="excelExportBtn" style="color:#4caf50; border-color:#4caf50;"
-              onclick="exportShootToExcel(event)">📊 Excel</button>
+              onclick="exportShootToExcel(event)">рџ“Љ Excel</button>
             <button type="button" id="excelImportBtn" style="color:#ffcc00; border-color:#ffcc00;"
-              onclick="triggerExcelImport()">📥 Импорт</button>
+              onclick="triggerExcelImport()">рџ“Ґ РРјРїРѕСЂС‚</button>
             <input type="file" id="excelFileInput" style="display:none" accept=".xlsx, .xls"
               onchange="handleExcelImport(event)">
             <button type="button" id="timerBtn" style="color:#ff6b6b; border-color:#ff6b6b; font-weight:700;"
-              onclick="openTimer()">🎬 Таймер</button>
-            <button type="button" id="deleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
-            <button class="primary" type="submit">Сохранить</button>
+              onclick="openTimer()">рџЋ¬ РўР°Р№РјРµСЂ</button>
+            <button type="button" id="deleteBtn" style="color:#ff6b6b; display:none;">РЈРґР°Р»РёС‚СЊ</button>
+            <button class="primary" type="submit">РЎРѕС…СЂР°РЅРёС‚СЊ</button>
           </div>
         </form>
-        <pre id="preview">—</pre>
+        <pre id="preview">вЂ”</pre>
 
         <!-- TASK FORM (Moved here) -->
         <form id="taskForm"
           style="display:none; padding: var(--s-3); margin-top:10px; border-radius:8px; border: 1px solid rgba(255, 204, 0, 0.3); background: rgba(255, 204, 0, 0.05);">
-          <h3 style="margin:0 0 10px 0; font-size:14px; text-transform:uppercase; color:#ffcc00;">Новая задача</h3>
+          <h3 style="margin:0 0 10px 0; font-size:14px; text-transform:uppercase; color:#ffcc00;">РќРѕРІР°СЏ Р·Р°РґР°С‡Р°</h3>
 
-          <label>Проект
+          <label>РџСЂРѕРµРєС‚
             <div class="input-wrap">
-              <input id="t_project" placeholder="Найти..." autocomplete="off">
+              <input id="t_project" placeholder="РќР°Р№С‚Рё..." autocomplete="off">
               <div id="t_projectDropdown" class="dropdown"></div>
             </div>
           </label>
           <!-- <input type="hidden" id="task_id_hidden"> -->
           <!-- <small id="debug_id_disp" style="color:gray; font-size:10px; display:block;">ID: -</small> -->
-          <label>Название<input id="t_title" placeholder="Сделать монтаж..." required /></label>
-          <label>Описание<textarea id="t_desc" placeholder="Детали..." style="min-height:60px;"></textarea></label>
+          <label>РќР°Р·РІР°РЅРёРµ<input id="t_title" placeholder="РЎРґРµР»Р°С‚СЊ РјРѕРЅС‚Р°Р¶..." required /></label>
+          <label>РћРїРёСЃР°РЅРёРµ<textarea id="t_desc" placeholder="Р”РµС‚Р°Р»Рё..." style="min-height:60px;"></textarea></label>
 
           <div class="row2">
-            <label>Дедлайн<input id="t_deadline" type="date" required /></label>
-            <label>Тип
+            <label>Р”РµРґР»Р°Р№РЅ<input id="t_deadline" type="date" required /></label>
+            <label>РўРёРї
               <select id="t_type" class="input-style"
                 style="width:100%; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.12); color:white; padding:10px; border-radius:8px; outline:none;">
-                <option value="general">Общее</option>
-                <option value="casting">Кастинг</option>
-                <option value="actors">Актеры</option>
-                <option value="design">Дизайн</option>
-                <option value="location">Локация</option>
-                <option value="shoot_prep">Подготовка</option>
+                <option value="general">РћР±С‰РµРµ</option>
+                <option value="casting">РљР°СЃС‚РёРЅРі</option>
+                <option value="actors">РђРєС‚РµСЂС‹</option>
+                <option value="design">Р”РёР·Р°Р№РЅ</option>
+                <option value="location">Р›РѕРєР°С†РёСЏ</option>
+                <option value="shoot_prep">РџРѕРґРіРѕС‚РѕРІРєР°</option>
               </select>
             </label>
           </div>
 
           <div class="row2">
-            <label>Кастинг проект
+            <label>РљР°СЃС‚РёРЅРі РїСЂРѕРµРєС‚
               <div class="input-wrap">
-                <input id="t_casting_project" placeholder="Найти проект..." autocomplete="off" />
+                <input id="t_casting_project" placeholder="РќР°Р№С‚Рё РїСЂРѕРµРєС‚..." autocomplete="off" />
                 <div id="t_castingDropdown" class="dropdown"></div>
               </div>
             </label>
-            <label>Актеры
+            <label>РђРєС‚РµСЂС‹
               <div class="multi-select-wrap" id="t_actorsWrapper" onclick="openActorChecklist('task')">
                 <div id="t_actorsTags" class="tags"></div>
-                <input id="t_actorsInput" placeholder="Выбрать..." readonly style="cursor:pointer;" />
+                <input id="t_actorsInput" placeholder="Р’С‹Р±СЂР°С‚СЊ..." readonly style="cursor:pointer;" />
                 <div id="t_actorsDropdown" class="dropdown"></div>
               </div>
               <textarea id="t_actors" style="display:none"></textarea>
             </label>
           </div>
 
-          <label>Исполнитель
+          <label>РСЃРїРѕР»РЅРёС‚РµР»СЊ
             <div class="multi-select-wrap" id="assigneeWrapper">
               <div id="assigneeTags" class="tags"></div>
-              <input id="assigneeInput" placeholder="Выбрать..." autocomplete="off" />
+              <input id="assigneeInput" placeholder="Р’С‹Р±СЂР°С‚СЊ..." autocomplete="off" />
               <div id="assigneeDropdown" class="dropdown"></div>
             </div>
             <textarea id="t_assignees" style="display:none"></textarea>
@@ -1397,11 +1397,11 @@
 
           <div class="actions">
             <button type="button" id="taskCopyBtn"
-              style="color:#7aa2ff; border-color:#7aa2ff; display:none;">Копировать</button>
-            <button type="button" id="taskDeleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
-            <button type="button" onclick="document.getElementById('taskForm').style.display='none'">Свернуть</button>
+              style="color:#7aa2ff; border-color:#7aa2ff; display:none;">РљРѕРїРёСЂРѕРІР°С‚СЊ</button>
+            <button type="button" id="taskDeleteBtn" style="color:#ff6b6b; display:none;">РЈРґР°Р»РёС‚СЊ</button>
+            <button type="button" onclick="document.getElementById('taskForm').style.display='none'">РЎРІРµСЂРЅСѓС‚СЊ</button>
             <button id="taskSubmitBtn" class="primary" type="submit"
-              style="background:#ffcc00; color:#000; border:none;">Сохранить</button>
+              style="background:#ffcc00; color:#000; border:none;">РЎРѕС…СЂР°РЅРёС‚СЊ</button>
           </div>
           <!-- Safe area for keyboard -->
           <div style="height: 250px; pointer-events: none;"></div>
@@ -1416,8 +1416,8 @@
   <div id="castingView">
     <div class="head" style="padding: 20px;">
       <div class="title" style="display:flex; align-items:center; gap:10px;">
-        <button class="mini-btn" onclick="goBackToMenu()" style="padding: 4px 8px;">🔙 Меню</button>
-        🎭 Кастинг Хаб
+        <button class="mini-btn" onclick="goBackToMenu()" style="padding: 4px 8px;">рџ”™ РњРµРЅСЋ</button>
+        рџЋ­ РљР°СЃС‚РёРЅРі РҐР°Р±
       </div>
     </div>
     <div style="padding: 0 20px;">
@@ -1429,20 +1429,20 @@
   <!-- Actor Checklist Modal -->
   <div id="actorChecklistModal" class="modal-overlay" style="display:none;">
     <div class="modal-content">
-      <h3 style="margin: 0 0 10px 0; font-size: 18px;">Выбрать актеров/клиентов</h3>
-      <input type="text" id="checklistSearch" placeholder="Поиск..." style="margin-bottom: 10px; font-size: 14px;" />
+      <h3 style="margin: 0 0 10px 0; font-size: 18px;">Р’С‹Р±СЂР°С‚СЊ Р°РєС‚РµСЂРѕРІ/РєР»РёРµРЅС‚РѕРІ</h3>
+      <input type="text" id="checklistSearch" placeholder="РџРѕРёСЃРє..." style="margin-bottom: 10px; font-size: 14px;" />
       <div id="checklistItems" class="checklist-container">
         <!-- Items populated by JS -->
       </div>
       <div class="actions" style="margin-top: 20px;">
-        <button type="button" onclick="closeActorChecklist()">Отмена</button>
-        <button type="button" class="primary" onclick="confirmActorChecklist()">Готово</button>
+        <button type="button" onclick="closeActorChecklist()">РћС‚РјРµРЅР°</button>
+        <button type="button" class="primary" onclick="confirmActorChecklist()">Р“РѕС‚РѕРІРѕ</button>
       </div>
     </div>
   </div>
 
   <script>
-    // 1. КОНФИГУРАЦИЯ SUPABASE
+    // 1. РљРћРќР¤РР“РЈР РђР¦РРЇ SUPABASE
     const S_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
     const S_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
     const supabaseClient = window.supabase.createClient(S_URL, S_KEY);
@@ -1451,7 +1451,7 @@
     const tg = window?.Telegram?.WebApp;
     if (tg) tg.expand();
 
-    // ПЕРЕМЕННЫЕ
+    // РџР•Р Р•РњР•РќРќР«Р•
     let allEvents = [];
     let allTasks = []; // New
     let currentTab = 'calendar'; // 'calendar' or 'tasks'
@@ -1578,7 +1578,7 @@
     }
 
     async function deleteTask(id) {
-      if (!confirm('Удалить задачу?')) return;
+      if (!confirm('РЈРґР°Р»РёС‚СЊ Р·Р°РґР°С‡Сѓ?')) return;
       // 1. Optimistic
       allTasks = allTasks.filter(x => x.id !== id);
       setCache(CACHE_KEYS.TASKS, allTasks);
@@ -1610,9 +1610,9 @@
         selectedTaskId = task.id; // Global Variable Mode
 
         form.style.borderColor = '#ffcc00'; // Yellow/Red border for EDIT
-        document.querySelector('#taskForm h3').textContent = 'РЕДАКТИРОВАНИЕ ЗАДАЧИ';
+        document.querySelector('#taskForm h3').textContent = 'Р Р•Р”РђРљРўРР РћР’РђРќРР• Р—РђР”РђР§Р';
         // document.getElementById('debug_id_disp').textContent = 'ID: ' + task.id; // Visible Debug
-        if (btn) btn.textContent = 'Сохранить';
+        if (btn) btn.textContent = 'РЎРѕС…СЂР°РЅРёС‚СЊ';
         if (deleteBtn) {
           deleteBtn.style.display = 'block';
           deleteBtn.onclick = () => deleteTask(task.id);
@@ -1634,8 +1634,8 @@
         selectedTaskId = null; // Clear Global ID
 
         form.style.borderColor = 'rgba(255, 204, 0, 0.3)'; // Default border
-        document.querySelector('#taskForm h3').textContent = 'НОВАЯ ЗАДАЧА';
-        if (btn) btn.textContent = 'Создать';
+        document.querySelector('#taskForm h3').textContent = 'РќРћР’РђРЇ Р—РђР”РђР§Рђ';
+        if (btn) btn.textContent = 'РЎРѕР·РґР°С‚СЊ';
         if (deleteBtn) deleteBtn.style.display = 'none';
         if (copyBtn) copyBtn.style.display = 'none';
 
@@ -1657,18 +1657,18 @@
     }
 
     function copyTask(task) {
-      const txt = `📌 **${task.title}**\n` +
-        `📅 Дедлайн: ${task.deadline}\n` +
-        `📂 Проект: ${task.project_id || '-'}\n` +
-        `📝 Описание: ${task.description || '-'}\n` +
-        `👥 Исполнители: ${(task.assignee_ids || []).join(', ')}`;
+      const txt = `рџ“Њ **${task.title}**\n` +
+        `рџ“… Р”РµРґР»Р°Р№РЅ: ${task.deadline}\n` +
+        `рџ“‚ РџСЂРѕРµРєС‚: ${task.project_id || '-'}\n` +
+        `рџ“ќ РћРїРёСЃР°РЅРёРµ: ${task.description || '-'}\n` +
+        `рџ‘Ґ РСЃРїРѕР»РЅРёС‚РµР»Рё: ${(task.assignee_ids || []).join(', ')}`;
 
       navigator.clipboard.writeText(txt);
       if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
       const copyBtn = document.getElementById('taskCopyBtn');
       const originalText = copyBtn.textContent;
-      copyBtn.textContent = "Скопировано!";
+      copyBtn.textContent = "РЎРєРѕРїРёСЂРѕРІР°РЅРѕ!";
       setTimeout(() => copyBtn.textContent = originalText, 1500);
     }
 
@@ -1709,7 +1709,7 @@
         if (existing) payload.status = existing.status;
 
         // Preserve start date (created_at) if editing? 
-        // User says: "выбран день на календаре это начало задачи".
+        // User says: "РІС‹Р±СЂР°РЅ РґРµРЅСЊ РЅР° РєР°Р»РµРЅРґР°СЂРµ СЌС‚Рѕ РЅР°С‡Р°Р»Рѕ Р·Р°РґР°С‡Рё".
         // If I edit a task, should I move the start date to the NEW selected date?
         // Probably yes, if I'm "rescheduling" the start.
         // But usually editing title/desc shouldn't move start date.
@@ -1729,7 +1729,7 @@
       render();
 
       const btn = document.getElementById('taskSubmitBtn');
-      if (btn) btn.innerHTML = '⌛...';
+      if (btn) btn.innerHTML = 'вЊ›...';
 
       // 2. Cloud or Queue
       if (navigator.onLine) {
@@ -1738,7 +1738,7 @@
           if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
           document.getElementById('taskForm').style.display = 'none';
           selectedTaskId = null;
-          if (btn) btn.innerHTML = 'Сохранить';
+          if (btn) btn.innerHTML = 'РЎРѕС…СЂР°РЅРёС‚СЊ';
           return;
         }
       }
@@ -1746,7 +1746,7 @@
       addToSyncQueue('tasks', payload);
       document.getElementById('taskForm').style.display = 'none';
       selectedTaskId = null;
-      if (btn) btn.innerHTML = 'Сохранить';
+      if (btn) btn.innerHTML = 'РЎРѕС…СЂР°РЅРёС‚СЊ';
     };
 
     // --- PROJECT LOGIC ---
@@ -1954,18 +1954,18 @@
       matches.forEach(l => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = l.isProjectSpecific ? `📌 ${l.name} <small>(Проект)</small>` : l.name;
+        div.innerHTML = l.isProjectSpecific ? `рџ“Њ ${l.name} <small>(РџСЂРѕРµРєС‚)</small>` : l.name;
         div.onclick = () => {
           locInput.value = l.name;
           locDropdown.style.display = 'none';
 
           // Auto-fill address for studio locations
-          const studioAddress = "Comfort Residencies, Улица Иванилова, 63з";
-          // Check if it's one of ours (excluding 'Студия Campot' itself which might be broader, but inclusion is fine)
-          const isStudio = ["Бали", "Экспертный кабинет", "Классический", "Ванная комната", "Кухня", "Кофейня", "Minimalistic", "Циклорама", "Лестница", "Студия Campot"].includes(l.name);
+          const studioAddress = "Comfort Residencies, РЈР»РёС†Р° РРІР°РЅРёР»РѕРІР°, 63Р·";
+          // Check if it's one of ours (excluding 'РЎС‚СѓРґРёСЏ Campot' itself which might be broader, but inclusion is fine)
+          const isStudio = ["Р‘Р°Р»Рё", "Р­РєСЃРїРµСЂС‚РЅС‹Р№ РєР°Р±РёРЅРµС‚", "РљР»Р°СЃСЃРёС‡РµСЃРєРёР№", "Р’Р°РЅРЅР°СЏ РєРѕРјРЅР°С‚Р°", "РљСѓС…РЅСЏ", "РљРѕС„РµР№РЅСЏ", "Minimalistic", "Р¦РёРєР»РѕСЂР°РјР°", "Р›РµСЃС‚РЅРёС†Р°", "РЎС‚СѓРґРёСЏ Campot"].includes(l.name);
           if (isStudio) {
             const addrInt = document.getElementById('address');
-            const sAddr = "Comfort Residencies, Улица Иванилова, 63з";
+            const sAddr = "Comfort Residencies, РЈР»РёС†Р° РРІР°РЅРёР»РѕРІР°, 63Р·";
             const sLink = "https://go.2gis.com/bd4n9";
             addrInt.value = sAddr;
             addrInt.dataset.full = `${sAddr} | ${sLink}`; // Update hidden data too!
@@ -2012,7 +2012,7 @@
         div.style.justifyContent = 'space-between';
 
         const isBuilding = res.address && (res.address.house_number || res.type === 'house' || res.class === 'building');
-        const icon = isBuilding ? '🏠' : '📍';
+        const icon = isBuilding ? 'рџЏ ' : 'рџ“Ќ';
 
         div.innerHTML = `<span>${icon} ${res.display_name}</span>`;
 
@@ -2061,14 +2061,14 @@
         const mainLocLC = mainLoc.toLowerCase();
         const mainProjName = (mainProjInput.value || '').trim();
 
-        const studioRooms = ["Бали", "Экспертный кабинет", "Классический", "Ванная комната", "Кухня", "Кофейня", "Minimalistic", "Циклорама", "Лестница", "Студия Campot"];
+        const studioRooms = ["Р‘Р°Р»Рё", "Р­РєСЃРїРµСЂС‚РЅС‹Р№ РєР°Р±РёРЅРµС‚", "РљР»Р°СЃСЃРёС‡РµСЃРєРёР№", "Р’Р°РЅРЅР°СЏ РєРѕРјРЅР°С‚Р°", "РљСѓС…РЅСЏ", "РљРѕС„РµР№РЅСЏ", "Minimalistic", "Р¦РёРєР»РѕСЂР°РјР°", "Р›РµСЃС‚РЅРёС†Р°", "РЎС‚СѓРґРёСЏ Campot"];
         const studioRoomsLC = studioRooms.map(r => r.toLowerCase());
 
         let filtered = [];
         const mainProj = clientsData.find(c => c.name === mainProjName);
         const pLocs = mainProj ? projectLocationsData.filter(pl => pl.project_id === mainProj.id).map(pl => pl.name) : [];
 
-        if (mainLocLC === "студия campot") {
+        if (mainLocLC === "СЃС‚СѓРґРёСЏ campot") {
           // If Studio Campot - show all studio rooms + project-specific ones
           const studio = locationsData.filter(l => studioRoomsLC.includes(l.name.toLowerCase())).map(l => l.name);
           filtered = [...new Set([...studio, ...pLocs])];
@@ -2120,7 +2120,7 @@
       names.forEach(name => {
         const tag = document.createElement('div');
         tag.className = 'tag';
-        tag.innerHTML = `<span>${name}</span> <span class="tag-remove">×</span>`;
+        tag.innerHTML = `<span>${name}</span> <span class="tag-remove">Г—</span>`;
         tag.querySelector('.tag-remove').onclick = () => {
           const newNames = names.filter(n => n !== name);
           hidden.value = newNames.join(', ');
@@ -2143,7 +2143,7 @@
         if (fieldId === 'actors' || fieldId === 't_actors') {
           const exists = teamData.some(t => (t.full_name || '').toLowerCase() === name.toLowerCase());
           if (!exists) {
-            const record = { full_name: name, roles: ['actor'], position: 'Актер' };
+            const record = { full_name: name, roles: ['actor'], position: 'РђРєС‚РµСЂ' };
             teamData.push(record);
             setCache(CACHE_KEYS.TEAM, teamData);
             addToSyncQueue('team', record);
@@ -2152,7 +2152,7 @@
           const exists = teamData.some(t => (t.full_name || '').toLowerCase() === name.toLowerCase());
           if (!exists) {
             const role = fieldId === 'crew' ? 'production' : (fieldId === 'post_production' ? 'post' : null);
-            const record = { full_name: name, roles: role ? [role] : [], position: 'Команда' };
+            const record = { full_name: name, roles: role ? [role] : [], position: 'РљРѕРјР°РЅРґР°' };
             teamData.push(record);
             setCache(CACHE_KEYS.TEAM, teamData);
             addToSyncQueue('team', record);
@@ -2185,13 +2185,13 @@
         // AND all contacts from 'casting' category
         if (fieldId === 'actors') {
           const mediaContacts = currentMediaContacts.map(c => ({
-            full_name: c.name, position: 'Контакт (Media)', roles: ['actor']
+            full_name: c.name, position: 'РљРѕРЅС‚Р°РєС‚ (Media)', roles: ['actor']
           }));
           const castingContacts = currentCastingContacts.map(c => ({
-            full_name: c.name, position: 'Актер (Casting)', roles: ['actor']
+            full_name: c.name, position: 'РђРєС‚РµСЂ (Casting)', roles: ['actor']
           }));
           // Also include ALL contacts with category 'casting' regardless of selected project?
-          // The user said: "фильтровать по топику кастинг ... ПЛЮС клиенты из проекта"
+          // The user said: "С„РёР»СЊС‚СЂРѕРІР°С‚СЊ РїРѕ С‚РѕРїРёРєСѓ РєР°СЃС‚РёРЅРі ... РџР›Р®РЎ РєР»РёРµРЅС‚С‹ РёР· РїСЂРѕРµРєС‚Р°"
           // So let's stick to the selected projects' contacts.
           pool = [...pool, ...mediaContacts, ...castingContacts];
           pool = pool.filter((v, i, a) => a.findIndex(t => t.full_name === v.full_name) === i);
@@ -2265,7 +2265,7 @@
         const mainActors = document.getElementById("actors").value;
         pool = mainActors ? mainActors.split(",").map(s => s.trim()).filter(s => s) : [];
         if (!pool.length) {
-          container.innerHTML = "<div style='padding:10px; opacity:0.6; text-align:center;'>Сначала добавьте актеров в общую ячейку 'Актеры'</div>";
+          container.innerHTML = "<div style='padding:10px; opacity:0.6; text-align:center;'>РЎРЅР°С‡Р°Р»Р° РґРѕР±Р°РІСЊС‚Рµ Р°РєС‚РµСЂРѕРІ РІ РѕР±С‰СѓСЋ СЏС‡РµР№РєСѓ 'РђРєС‚РµСЂС‹'</div>";
           return;
         }
       } else {
@@ -2401,7 +2401,7 @@
       navigator.clipboard.writeText(txt);
       if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
       const originalBtnText = document.getElementById('copyBtn').textContent;
-      document.getElementById('copyBtn').textContent = "Скопировано!";
+      document.getElementById('copyBtn').textContent = "РЎРєРѕРїРёСЂРѕРІР°РЅРѕ!";
       setTimeout(() => document.getElementById('copyBtn').textContent = originalBtnText, 1500);
     };
 
@@ -2438,10 +2438,10 @@
 
 
 
-    // 2. ЗАГРУЗКА ИЗ ОБЛАКА
+    // 2. Р—РђР“Р РЈР—РљРђ РР— РћР‘Р›РђРљРђ
     async function loadFromCloud() {
       const syncBtn = document.getElementById("syncBtn");
-      if (syncBtn) syncBtn.textContent = "⌛";
+      if (syncBtn) syncBtn.textContent = "вЊ›";
 
       // 1. Start with Cache (Instant UI)
       allEvents = getCache(CACHE_KEYS.EVENTS);
@@ -2451,7 +2451,7 @@
       await fetchAutocompleteData();
 
       if (!navigator.onLine) {
-        if (syncBtn) { syncBtn.textContent = "📡"; setTimeout(() => syncBtn.textContent = "☁️", 2000); }
+        if (syncBtn) { syncBtn.textContent = "рџ“Ў"; setTimeout(() => syncBtn.textContent = "вЃпёЏ", 2000); }
         return;
       }
 
@@ -2474,12 +2474,12 @@
         processSyncQueue(); // Sync any local changes now that we know we're online
 
         if (syncBtn) {
-          syncBtn.textContent = "✅";
-          setTimeout(() => syncBtn.textContent = "☁️", 1500);
+          syncBtn.textContent = "вњ…";
+          setTimeout(() => syncBtn.textContent = "вЃпёЏ", 1500);
         }
       } catch (err) {
         console.error("Network/Other Error:", err);
-        if (syncBtn) syncBtn.textContent = "⚠️";
+        if (syncBtn) syncBtn.textContent = "вљ пёЏ";
       }
     }
 
@@ -2496,7 +2496,7 @@
       row.dataset.id = rowId;
       row.innerHTML = `
         <div class="timing-cell drag-handle">
-          ${data.num ? `<span style="color:#ffcc00; font-weight:800; font-size:10px;">№${data.num}</span>` : '⋮⋮'}
+          ${data.num ? `<span style="color:#ffcc00; font-weight:800; font-size:10px;">в„–${data.num}</span>` : 'в‹®в‹®'}
         </div>
         <div class="timing-cell"><input type="time" class="t-start" value="${data.start || ''}"></div>
         <div class="timing-cell"><input type="time" class="t-end" value="${data.end || ''}"></div>
@@ -2516,7 +2516,7 @@
           <input type="text" class="t-link" value="${data.link || ''}" placeholder="..." autocomplete="off">
         </div>
         <div class="timing-cell" style="justify-content:center">
-          <button type="button" class="timing-del-btn" onclick="removeTimingRow(this, event)">×</button>
+          <button type="button" class="timing-del-btn" onclick="removeTimingRow(this, event)">Г—</button>
         </div>
       `;
       container.appendChild(row);
@@ -2537,18 +2537,18 @@
       row.innerHTML = `
         <div class="timing-cell">
           <select class="g-cat">
-            <option value="Камера" ${data.cat === 'Камера' ? 'selected' : ''}>Камера</option>
-            <option value="Оптика" ${data.cat === 'Оптика' ? 'selected' : ''}>Оптика</option>
-            <option value="Свет" ${data.cat === 'Свет' ? 'selected' : ''}>Свет</option>
-            <option value="Звук" ${data.cat === 'Звук' ? 'selected' : ''}>Звук</option>
-            <option value="Другое" ${data.cat === 'Другое' ? 'selected' : ''}>Другое</option>
+            <option value="РљР°РјРµСЂР°" ${data.cat === 'РљР°РјРµСЂР°' ? 'selected' : ''}>РљР°РјРµСЂР°</option>
+            <option value="РћРїС‚РёРєР°" ${data.cat === 'РћРїС‚РёРєР°' ? 'selected' : ''}>РћРїС‚РёРєР°</option>
+            <option value="РЎРІРµС‚" ${data.cat === 'РЎРІРµС‚' ? 'selected' : ''}>РЎРІРµС‚</option>
+            <option value="Р—РІСѓРє" ${data.cat === 'Р—РІСѓРє' ? 'selected' : ''}>Р—РІСѓРє</option>
+            <option value="Р”СЂСѓРіРѕРµ" ${data.cat === 'Р”СЂСѓРіРѕРµ' ? 'selected' : ''}>Р”СЂСѓРіРѕРµ</option>
           </select>
         </div>
-        <div class="timing-cell"><input type="text" class="g-model" value="${data.model || ''}" placeholder="Модель..."></div>
+        <div class="timing-cell"><input type="text" class="g-model" value="${data.model || ''}" placeholder="РњРѕРґРµР»СЊ..."></div>
         <div class="timing-cell"><input type="number" class="g-qty" value="${data.qty || 1}" style="text-align:center;"></div>
         <div class="timing-cell"><input type="text" class="g-note" value="${data.note || ''}" placeholder="..."></div>
         <div class="timing-cell" style="text-align:center;">
-          <button type="button" class="timing-del-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+          <button type="button" class="timing-del-btn" onclick="this.parentElement.parentElement.remove()">Г—</button>
         </div>
       `;
       document.getElementById('gearRows').appendChild(row);
@@ -2621,29 +2621,29 @@
         if (colWidths) ws['!cols'] = colWidths.map(w => ({ wch: w }));
       }
 
-      // ИНФО sheet
+      // РРќР¤Рћ sheet
       const infoData = [
-        ["ПОЛЕ", "ЗНАЧЕНИЕ"],
-        ["ПРОЕКТ", e.project], ["ДАТА", e.date], ["ЛОКАЦИЯ", e.location],
-        ["АДРЕС", e.address], ["КОНТАКТ", e.contact], ["CALL", e.callTime], ["WRAP", e.wrapTime],
-        [""], ["ТЗ", e.deliverables], ["ПРИМЕЧАНИЯ", e.notes], ["КОМАНДА", e.crew], ["АКТЕРЫ", e.actors]
+        ["РџРћР›Р•", "Р—РќРђР§Р•РќРР•"],
+        ["РџР РћР•РљРў", e.project], ["Р”РђРўРђ", e.date], ["Р›РћРљРђР¦РРЇ", e.location],
+        ["РђР”Р Р•РЎ", e.address], ["РљРћРќРўРђРљРў", e.contact], ["CALL", e.callTime], ["WRAP", e.wrapTime],
+        [""], ["РўР—", e.deliverables], ["РџР РРњР•Р§РђРќРРЇ", e.notes], ["РљРћРњРђРќР”Рђ", e.crew], ["РђРљРўР•Р Р«", e.actors]
       ];
       const wsInfo = XLSX.utils.aoa_to_sheet(infoData);
       formatSheet(wsInfo, [16, 50]);
-      XLSX.utils.book_append_sheet(wb, wsInfo, "ИНФО");
+      XLSX.utils.book_append_sheet(wb, wsInfo, "РРќР¤Рћ");
 
-      // ТАЙМИНГ sheet
+      // РўРђР™РњРРќР“ sheet
       if (timing.length) {
         const wsTiming = XLSX.utils.json_to_sheet(timing);
         formatSheet(wsTiming, [10, 10, 18, 22, 18, 22, 30]);
-        XLSX.utils.book_append_sheet(wb, wsTiming, "ТАЙМИНГ");
+        XLSX.utils.book_append_sheet(wb, wsTiming, "РўРђР™РњРРќР“");
       }
 
-      // ТЕХНИКА sheet
+      // РўР•РҐРќРРљРђ sheet
       if (gear.length) {
         const wsGear = XLSX.utils.json_to_sheet(gear);
         formatSheet(wsGear, [14, 30, 8, 25]);
-        XLSX.utils.book_append_sheet(wb, wsGear, "ТЕХНИКА");
+        XLSX.utils.book_append_sheet(wb, wsGear, "РўР•РҐРќРРљРђ");
       }
 
       const fileName = `Shoot_${e.project.replace(/\s+/g, '_')}_${e.date.replace(/[^\d.]/g, '')}.xlsx`;
@@ -2657,7 +2657,7 @@
 
       if (exportBtn) {
         exportBtn.disabled = true;
-        exportBtn.innerHTML = "⌛...";
+        exportBtn.innerHTML = "вЊ›...";
       }
 
       fetch('/api/send_excel', {
@@ -2674,24 +2674,24 @@
           if (res.status === 'ok') {
             if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             if (exportBtn) {
-              exportBtn.innerHTML = "✅ В ТГ";
-              setTimeout(() => { exportBtn.innerHTML = "📊 Excel"; exportBtn.disabled = false; }, 2000);
+              exportBtn.innerHTML = "вњ… Р’ РўР“";
+              setTimeout(() => { exportBtn.innerHTML = "рџ“Љ Excel"; exportBtn.disabled = false; }, 2000);
             }
           } else {
-            alert("Ошибка TG: " + res.error);
-            if (exportBtn) { exportBtn.innerHTML = "❌"; exportBtn.disabled = false; }
+            alert("РћС€РёР±РєР° TG: " + res.error);
+            if (exportBtn) { exportBtn.innerHTML = "вќЊ"; exportBtn.disabled = false; }
           }
         })
         .catch(err => {
           console.error("Fetch Error:", err);
-          if (exportBtn) { exportBtn.innerHTML = "⚠️"; exportBtn.disabled = false; }
+          if (exportBtn) { exportBtn.innerHTML = "вљ пёЏ"; exportBtn.disabled = false; }
         });
     }
 
     function triggerExcelImport() { document.getElementById('excelFileInput').click(); }
 
     function openTimer() {
-      const project = document.getElementById('project').value.trim() || 'Проект';
+      const project = document.getElementById('project').value.trim() || 'РџСЂРѕРµРєС‚';
 
       // Try to get IDs from URL params (fallback if TG data is hidden)
       const urlParams = new URL(window.location.href).searchParams;
@@ -2729,37 +2729,37 @@
         const data = new Uint8Array(re.target.result);
         const wb = XLSX.read(data, { type: 'array' });
 
-        const wsInfo = wb.Sheets["ИНФО"];
+        const wsInfo = wb.Sheets["РРќР¤Рћ"];
         if (wsInfo) {
           const info = XLSX.utils.sheet_to_json(wsInfo, { header: 1 });
           info.forEach(r => {
             if (!r[0]) return;
             const k = r[0].toString().toUpperCase(); const v = r[1] || "";
-            if (k === "ПРОЕКТ") document.getElementById("project").value = v;
-            if (k === "ЛОКАЦИЯ") document.getElementById("location").value = v;
-            if (k === "АДРЕС") document.getElementById("address").value = v;
-            if (k === "КОНТАКТ") document.getElementById("contact").value = v;
+            if (k === "РџР РћР•РљРў") document.getElementById("project").value = v;
+            if (k === "Р›РћРљРђР¦РРЇ") document.getElementById("location").value = v;
+            if (k === "РђР”Р Р•РЎ") document.getElementById("address").value = v;
+            if (k === "РљРћРќРўРђРљРў") document.getElementById("contact").value = v;
             if (k === "CALL") document.getElementById("callTime").value = v;
             if (k === "WRAP") document.getElementById("wrapTime").value = v;
-            if (k === "ТЗ") document.getElementById("deliverables").value = v;
-            if (k === "ПРИМЕЧАНИЯ") document.getElementById("notes").value = v;
-            if (k === "КОМАНДА") { document.getElementById("crew").value = v; renderCrewTags(); }
-            if (k === "АКТЕРЫ") { document.getElementById("actors").value = v; renderActorsTags(); }
+            if (k === "РўР—") document.getElementById("deliverables").value = v;
+            if (k === "РџР РРњР•Р§РђРќРРЇ") document.getElementById("notes").value = v;
+            if (k === "РљРћРњРђРќР”Рђ") { document.getElementById("crew").value = v; renderCrewTags(); }
+            if (k === "РђРљРўР•Р Р«") { document.getElementById("actors").value = v; renderActorsTags(); }
           });
         }
-        const wsTiming = wb.Sheets["ТАЙМИНГ"];
+        const wsTiming = wb.Sheets["РўРђР™РњРРќР“"];
         if (wsTiming) {
           const rows = XLSX.utils.sheet_to_json(wsTiming);
           document.getElementById('timingRows').innerHTML = '';
           rows.forEach(r => addTimingRow({ start: r.START || '', end: r.END || '', loc: r.LOC || '', task: r.TASK || '', act: r.ACTORS || '', notes: r.NOTES || '', link: r.LINK || '' }));
         }
-        const wsGear = wb.Sheets["ТЕХНИКА"];
+        const wsGear = wb.Sheets["РўР•РҐРќРРљРђ"];
         if (wsGear) {
           const rows = XLSX.utils.sheet_to_json(wsGear);
           document.getElementById('gearRows').innerHTML = '';
           rows.forEach(r => addGearRow({ cat: r.CAT, model: r.MODEL, qty: r.QTY, note: r.NOTES }));
         }
-        alert("Excel импортирован!");
+        alert("Excel РёРјРїРѕСЂС‚РёСЂРѕРІР°РЅ!");
       };
       reader.readAsArrayBuffer(file);
     }
@@ -2864,7 +2864,7 @@
       const rows = document.querySelectorAll('#timingRows .timing-row');
       const data = [];
       let taskCounter = 0;
-      const techTasks = ['подготовка', 'перестановка', 'перерыв', 'обед', 'тех. перерыв', 'переезд'];
+      const techTasks = ['РїРѕРґРіРѕС‚РѕРІРєР°', 'РїРµСЂРµСЃС‚Р°РЅРѕРІРєР°', 'РїРµСЂРµСЂС‹РІ', 'РѕР±РµРґ', 'С‚РµС…. РїРµСЂРµСЂС‹РІ', 'РїРµСЂРµРµР·Рґ'];
 
       rows.forEach(row => {
         const start = row.querySelector('.t-start').value;
@@ -2945,16 +2945,16 @@
           data.forEach(d => addGearRow(d));
         } else if (raw.trim()) {
           // Migration for old plain text
-          addGearRow({ cat: 'Другое', model: raw.trim(), qty: 1 });
+          addGearRow({ cat: 'Р”СЂСѓРіРѕРµ', model: raw.trim(), qty: 1 });
         }
       } catch (e) {
         // Fallback or migration
-        if (raw.trim()) addGearRow({ cat: 'Другое', model: raw.trim(), qty: 1 });
+        if (raw.trim()) addGearRow({ cat: 'Р”СЂСѓРіРѕРµ', model: raw.trim(), qty: 1 });
       }
       if (container.children.length === 0) addGearRow();
     }
 
-    // 3. СОХРАНЕНИЕ В ОБЛАКО
+    // 3. РЎРћРҐР РђРќР•РќРР• Р’ РћР‘Р›РђРљРћ
     document.getElementById("form").onsubmit = async (ev) => {
       ev.preventDefault();
       await saveShootData();
@@ -3025,7 +3025,7 @@
       render();
 
       const saveBtn = document.querySelector('#form button[type="submit"]');
-      if (saveBtn) saveBtn.innerHTML = '⌛...';
+      if (saveBtn) saveBtn.innerHTML = 'вЊ›...';
 
       // 2. Cloud Save (or Queue)
       if (navigator.onLine) {
@@ -3034,8 +3034,8 @@
           if (!selectedId) selectedId = payload.id;
           if (tg && tg.HapticFeedback && !isAutoSave) tg.HapticFeedback.notificationOccurred('success');
           if (saveBtn) {
-            saveBtn.innerHTML = '✅';
-            setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
+            saveBtn.innerHTML = 'вњ…';
+            setTimeout(() => { saveBtn.innerHTML = 'РЎРѕС…СЂР°РЅРёС‚СЊ'; }, 1500);
           }
           if (!isAutoSave) toggleForm(false);
           return;
@@ -3045,8 +3045,8 @@
       // Offline or error -> Add to queue
       addToSyncQueue('shoots', payload);
       if (saveBtn) {
-        saveBtn.innerHTML = '💾'; // Saved locally
-        setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
+        saveBtn.innerHTML = 'рџ’ѕ'; // Saved locally
+        setTimeout(() => { saveBtn.innerHTML = 'РЎРѕС…СЂР°РЅРёС‚СЊ'; }, 1500);
       }
       if (!isAutoSave) toggleForm(false);
     }
@@ -3063,9 +3063,9 @@
     document.getElementById('form').addEventListener('input', triggerAutoSave);
     document.getElementById('form').addEventListener('change', triggerAutoSave);
 
-    // 4. УДАЛЕНИЕ
+    // 4. РЈР”РђР›Р•РќРР•
     document.getElementById("deleteBtn").onclick = async () => {
-      if (!selectedId || !confirm("Удалить съемку?")) return;
+      if (!selectedId || !confirm("РЈРґР°Р»РёС‚СЊ СЃСЉРµРјРєСѓ?")) return;
 
       // 1. Optimistic
       allEvents = allEvents.filter(e => e.id !== selectedId);
@@ -3093,7 +3093,7 @@
     }
 
     async function rescheduleTask(id) {
-      const reason = prompt("Причина переноса?");
+      const reason = prompt("РџСЂРёС‡РёРЅР° РїРµСЂРµРЅРѕСЃР°?");
       if (!reason) return;
 
       // Simple prompt for new date (mockup flow, ideally a date picker)
@@ -3109,15 +3109,15 @@
       f.deliverables.value = ev.deliverables; f.crew.value = ev.crew;
       f.schedule.value = ev.schedule; f.gear.value = ev.gear;
       // Append reason to notes
-      f.notes.value = (ev.notes ? ev.notes + "\n" : "") + `[Перенос с ${ev.date}: ${reason}]`;
+      f.notes.value = (ev.notes ? ev.notes + "\n" : "") + `[РџРµСЂРµРЅРѕСЃ СЃ ${ev.date}: ${reason}]`;
 
       document.getElementById("deleteBtn").style.display = "block";
       toggleForm(true);
       // User manually changes date and saves
-      alert("Выберите новую дату и нажмите Сохранить");
+      alert("Р’С‹Р±РµСЂРёС‚Рµ РЅРѕРІСѓСЋ РґР°С‚Сѓ Рё РЅР°Р¶РјРёС‚Рµ РЎРѕС…СЂР°РЅРёС‚СЊ");
     }
 
-    // 5. ЛОГИКА КАЛЕНДАРЯ
+    // 5. Р›РћР“РРљРђ РљРђР›Р•РќР”РђР РЇ
     function render() {
       const grid = document.getElementById("grid");
       grid.innerHTML = "";
@@ -3143,9 +3143,9 @@
 
       // Update Header with Icons
       const statHtml = `
-        <span style="color:#4cd964">✅ ${done}</span>
-        <span style="color:#ffcc00; margin-left:8px">🟡 ${pending}</span>
-        <span style="color:#ff3b30; margin-left:8px">🔥 ${overdue}</span>
+        <span style="color:#4cd964">вњ… ${done}</span>
+        <span style="color:#ffcc00; margin-left:8px">рџџЎ ${pending}</span>
+        <span style="color:#ff3b30; margin-left:8px">рџ”Ґ ${overdue}</span>
       `;
       document.getElementById("monthStat").innerHTML = statHtml;
 
@@ -3263,7 +3263,7 @@
         grid.appendChild(cell);
       }
 
-      // Список проектов дня (Shoots + Tasks)
+      // РЎРїРёСЃРѕРє РїСЂРѕРµРєС‚РѕРІ РґРЅСЏ (Shoots + Tasks)
       const listDiv = document.getElementById("eventList");
       const dayShoots = allEvents.filter(e => {
         const proj = clientsData.find(c => c.name === e.project);
@@ -3280,24 +3280,24 @@
       });
 
       let html = "";
-      if (!dayShoots.length && !dayTasksList.length) html = '<div class="item" style="color:gray">Нет событий</div>';
+      if (!dayShoots.length && !dayTasksList.length) html = '<div class="item" style="color:gray">РќРµС‚ СЃРѕР±С‹С‚РёР№</div>';
 
       // Render Shoots
       dayShoots.forEach(e => {
         const st = getStatus(e);
         // ... (Buttons logic same as before)
         let buttons = "";
-        if (st === 'pending' || st === 'overdue') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'done')">✅</button>`;
-        if (st === 'done') buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'pending')">↩️</button>`;
-        if (st === 'overdue') buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); rescheduleTask('${e.id}')">📅</button>`;
+        if (st === 'pending' || st === 'overdue') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'done')">вњ…</button>`;
+        if (st === 'done') buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleStatus('${e.id}', 'pending')">в†©пёЏ</button>`;
+        if (st === 'overdue') buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); rescheduleTask('${e.id}')">рџ“…</button>`;
 
         html += `
             <div class="item ${st}" onclick="editShoot('${e.id}')">
                 <div class="item-content">
-                    <b>${e.project || "Без названия"}</b><br>
-                    <small>🎥 ${e.callTime || "--:--"}—${e.wrapTime || "--:--"} • ${e.location || ""}</small><br>
-                    ${e.crew ? `<small style="opacity:0.7">👥 ${e.crew}</small><br>` : ''}
-                    ${e.post_production ? `<small style="color:var(--accent)">✂️ ${e.post_production}</small>` : ''}
+                    <b>${e.project || "Р‘РµР· РЅР°Р·РІР°РЅРёСЏ"}</b><br>
+                    <small>рџЋҐ ${e.callTime || "--:--"}вЂ”${e.wrapTime || "--:--"} вЂў ${e.location || ""}</small><br>
+                    ${e.crew ? `<small style="opacity:0.7">рџ‘Ґ ${e.crew}</small><br>` : ''}
+                    ${e.post_production ? `<small style="color:var(--accent)">вњ‚пёЏ ${e.post_production}</small>` : ''}
                 </div>
                 <div class="item-actions">${buttons}</div>
             </div>
@@ -3309,15 +3309,15 @@
         const st = t.status === 'done' ? 'done' : (t.deadline < todayISO ? 'overdue' : 'pending');
         // Task Buttons
         let buttons = "";
-        if (t.status !== 'done') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'done')">✅</button>`;
-        else buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'pending')">↩️</button>`;
-        buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); deleteTask('${t.id}')">🗑</button>`;
+        if (t.status !== 'done') buttons += `<button class="icon-btn done-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'done')">вњ…</button>`;
+        else buttons += `<button class="icon-btn" onclick="event.stopPropagation(); toggleTaskStatus('${t.id}', 'pending')">в†©пёЏ</button>`;
+        buttons += `<button class="icon-btn resched-btn" onclick="event.stopPropagation(); deleteTask('${t.id}')">рџ—‘</button>`;
 
         html += `
             <div class="item ${st}" style="border-left: 2px solid ${st === 'done' ? '#4cd964' : '#ffcc00'};" onclick="editTask('${t.id}')">
                 <div class="item-content">
                     <b>${t.title}</b><br>
-                    <small>📌 ${t.project ? t.project + ' • ' : ''}${t.type}</small>
+                    <small>рџ“Њ ${t.project ? t.project + ' вЂў ' : ''}${t.type}</small>
                 </div>
                 <div class="item-actions">${buttons}</div>
             </div>
@@ -3366,47 +3366,47 @@
       const hlL = (txt, html) => html ? `<span class="hl-label">${txt}</span>` : txt;
       const hlT = (txt, html) => html ? `<span class="hl-time">${txt}</span>` : txt;
 
-      const stat = getStatus(e) === 'done' ? '✅ ' : '';
-      const studioAddress = "Comfort Residencies, Улица Иванилова, 63з";
+      const stat = getStatus(e) === 'done' ? 'вњ… ' : '';
+      const studioAddress = "Comfort Residencies, РЈР»РёС†Р° РРІР°РЅРёР»РѕРІР°, 63Р·";
       const studioLink = "https://go.2gis.com/bd4n9";
       let displayAddr = e.address || '';
 
       if (displayAddr.includes(' | ')) {
         const parts = displayAddr.split(' | ');
         displayAddr = (parts[0] === studioAddress) ? `[${studioAddress}](${studioLink})` : `[${parts[0]}](${parts[1]})`;
-      } else if (displayAddr.includes("Иванилова, 63з") || displayAddr === studioAddress) {
+      } else if (displayAddr.includes("РРІР°РЅРёР»РѕРІР°, 63Р·") || displayAddr === studioAddress) {
         displayAddr = `[${studioAddress}](${studioLink})`;
       }
 
-      const shiftTime = `${e.callTime || '--:--'}—${e.wrapTime || '--:--'}`;
+      const shiftTime = `${e.callTime || '--:--'}вЂ”${e.wrapTime || '--:--'}`;
       let lines = [];
-      const header = i !== null ? `🎥 ${hlL(`ПРОЕКТ #${i + 1}`, isHtml)}` : `🎥 ${hlL(e.project || 'ПРОЕКТ', isHtml)}`;
+      const header = i !== null ? `рџЋҐ ${hlL(`РџР РћР•РљРў #${i + 1}`, isHtml)}` : `рџЋҐ ${hlL(e.project || 'РџР РћР•РљРў', isHtml)}`;
 
       lines.push(`${stat}${header}`);
-      if (i !== null) lines.push(`${hlL('ПРОЕКТ:', isHtml)} ${e.project}`);
-      lines.push(`${hlL('СМЕНА:', isHtml)} ${hlT(shiftTime, isHtml)}`);
-      lines.push(`${hlL('ЛОКАЦИЯ:', isHtml)} ${e.location}`);
-      lines.push(`${hlL('АДРЕС:', isHtml)} ${displayAddr}`);
-      lines.push(`${hlL('КОМАНДА:', isHtml)} ${e.crew}`);
+      if (i !== null) lines.push(`${hlL('РџР РћР•РљРў:', isHtml)} ${e.project}`);
+      lines.push(`${hlL('РЎРњР•РќРђ:', isHtml)} ${hlT(shiftTime, isHtml)}`);
+      lines.push(`${hlL('Р›РћРљРђР¦РРЇ:', isHtml)} ${e.location}`);
+      lines.push(`${hlL('РђР”Р Р•РЎ:', isHtml)} ${displayAddr}`);
+      lines.push(`${hlL('РљРћРњРђРќР”Рђ:', isHtml)} ${e.crew}`);
 
-      if (e.post_production) lines.push(`${hlL('ПОСТ/МОНТАЖ:', isHtml)} ${e.post_production}`);
+      if (e.post_production) lines.push(`${hlL('РџРћРЎРў/РњРћРќРўРђР–:', isHtml)} ${e.post_production}`);
       if (e.casting_project || e.actors) {
-        lines.push(`${hlL('КАСТИНГ:', isHtml)} ${e.casting_project || '—'}`);
-        if (e.actors) lines.push(`${hlL('🎬 АКТЕРЫ:', isHtml)} ${e.actors}`);
+        lines.push(`${hlL('РљРђРЎРўРРќР“:', isHtml)} ${e.casting_project || 'вЂ”'}`);
+        if (e.actors) lines.push(`${hlL('рџЋ¬ РђРљРўР•Р Р«:', isHtml)} ${e.actors}`);
       }
 
       if (fullDetails && e.schedule) {
         try {
           const sch = JSON.parse(e.schedule);
           if (Array.isArray(sch) && sch.some(r => r.start || r.task || r.loc || r.act || r.link)) {
-            lines.push(`\n${hlL('🕒 ТАЙМИНГ:', isHtml)}`);
+            lines.push(`\n${hlL('рџ•’ РўРђР™РњРРќР“:', isHtml)}`);
             sch.forEach(row => {
-              const timeStr = row.start ? (row.end ? `${row.start}—${row.end}` : row.start) : '';
+              const timeStr = row.start ? (row.end ? `${row.start}вЂ”${row.end}` : row.start) : '';
               const task = row.task || '';
               const obj = row.loc ? ` (${row.loc})` : '';
-              const acts = row.act ? ` — 👤 ${row.act}` : '';
-              const link = row.link ? ` [🔗](${row.link})` : '';
-              const num = row.num ? `№${row.num} ` : '';
+              const acts = row.act ? ` вЂ” рџ‘¤ ${row.act}` : '';
+              const link = row.link ? ` [рџ”—](${row.link})` : '';
+              const num = row.num ? `в„–${row.num} ` : '';
               if (timeStr || task || obj || row.act || row.link) {
                 lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${num}${task}${obj}${acts}${link}`);
               }
@@ -3415,36 +3415,36 @@
         } catch (ex) { }
       }
 
-      if (fullDetails && e.deliverables) lines.push(`\n${hlL('📝 ЗАДАЧИ:', isHtml)}\n${e.deliverables}`);
+      if (fullDetails && e.deliverables) lines.push(`\n${hlL('рџ“ќ Р—РђР”РђР§Р:', isHtml)}\n${e.deliverables}`);
       if (e.gear) {
         try {
           const gd = JSON.parse(e.gear);
           if (Array.isArray(gd) && gd.length > 0) {
-            lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}`);
+            lines.push(`\n${hlL('вљ™пёЏ РўР•РҐРќРРљРђ:', isHtml)}`);
             gd.forEach(g => {
-              lines.push(`  • ${g.cat}: ${g.model}${g.qty > 1 ? ` (x${g.qty})` : ''}${g.note ? ` — ${g.note}` : ''}`);
+              lines.push(`  вЂў ${g.cat}: ${g.model}${g.qty > 1 ? ` (x${g.qty})` : ''}${g.note ? ` вЂ” ${g.note}` : ''}`);
             });
           } else if (typeof e.gear === 'string' && e.gear.trim()) {
-            lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}\n${e.gear}`);
+            lines.push(`\n${hlL('вљ™пёЏ РўР•РҐРќРРљРђ:', isHtml)}\n${e.gear}`);
           }
         } catch (ex) {
-          if (e.gear && e.gear.trim()) lines.push(`\n${hlL('⚙️ ТЕХНИКА:', isHtml)}\n${e.gear}`);
+          if (e.gear && e.gear.trim()) lines.push(`\n${hlL('вљ™пёЏ РўР•РҐРќРРљРђ:', isHtml)}\n${e.gear}`);
         }
       }
-      if (e.notes) lines.push(`\n${hlL('⚠️ ИНФО:', isHtml)}\n${e.notes}`);
-      if (e.contact) lines.push(`${hlL('📞 КОНТАКТ:', isHtml)} ${e.contact}`);
-      if (e.report_link) lines.push(`${hlL('📊 ОТЧЕТ:', isHtml)} ${e.report_link}`);
+      if (e.notes) lines.push(`\n${hlL('вљ пёЏ РРќР¤Рћ:', isHtml)}\n${e.notes}`);
+      if (e.contact) lines.push(`${hlL('рџ“ћ РљРћРќРўРђРљРў:', isHtml)} ${e.contact}`);
+      if (e.report_link) lines.push(`${hlL('рџ“Љ РћРўР§Р•Рў:', isHtml)} ${e.report_link}`);
 
       return lines.join("\n");
     }
 
     function buildExportText(isHtml = false) {
       const list = allEvents.filter(e => e.date === toISO(selectedDate));
-      if (!list.length) return "Смен нет.";
+      if (!list.length) return "РЎРјРµРЅ РЅРµС‚.";
 
-      let lines = [`📅 **СЪЁМОЧНЫЙ ДЕНЬ — ${niceDate(selectedDate)}**`];
+      let lines = [`рџ“… **РЎРЄРЃРњРћР§РќР«Р™ Р”Р•РќР¬ вЂ” ${niceDate(selectedDate)}**`];
       list.forEach((e, i) => {
-        lines.push(`\n— — — — — — — — —\n`);
+        lines.push(`\nвЂ” вЂ” вЂ” вЂ” вЂ” вЂ” вЂ” вЂ” вЂ”\n`);
         lines.push(buildSingleShootExport(e, i, isHtml, false)); // No details in daily export
       });
       return lines.join("\n");
@@ -3457,7 +3457,7 @@
       if (show === undefined) show = (form.style.display === "none");
 
       form.style.display = show ? "grid" : "none";
-      btn.textContent = show ? "Свернуть" : "Новая";
+      btn.textContent = show ? "РЎРІРµСЂРЅСѓС‚СЊ" : "РќРѕРІР°СЏ";
 
       if (show) {
         if (selectedId === null) {
@@ -3489,7 +3489,7 @@
     document.getElementById("nextBtn").onclick = () => moveMonth(1);
     document.getElementById("todayBtn").onclick = () => { selectedDate = new Date(); currentMonth = startMonth(selectedDate); render(); };
     document.getElementById("newBtn").onclick = () => toggleForm();
-    document.getElementById("copyDayBtn").onclick = () => { navigator.clipboard.writeText(buildExportText(false)); alert("Скопировано!"); };
+    document.getElementById("copyDayBtn").onclick = () => { navigator.clipboard.writeText(buildExportText(false)); alert("РЎРєРѕРїРёСЂРѕРІР°РЅРѕ!"); };
 
     // NAVIGATION & MODULES
     function openModule(mod) {
@@ -3532,10 +3532,10 @@
 
       if (castingApps.length === 0) {
         castingApps = [
-          { id: 'mock1', project_name: 'Реклама Сока', full_name: 'Анна Смирнова', dob: 25, city: 'Москва', photo_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200', is_selected: false },
-          { id: 'mock2', project_name: 'Реклама Сока', full_name: 'Михаил Иванов', dob: 31, city: 'Санкт-Петербург', photo_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200&h=200', is_selected: true },
-          { id: 'mock3', project_name: 'Фильм "Лето"', full_name: 'София Ким', dob: 22, city: 'Казань', photo_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200', is_selected: false },
-          { id: 'mock4', project_name: 'Фильм "Лето"', full_name: 'Алексей Петров', dob: 28, city: 'Екатеринбург', photo_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=200&h=200', is_selected: false }
+          { id: 'mock1', project_name: 'Р РµРєР»Р°РјР° РЎРѕРєР°', full_name: 'РђРЅРЅР° РЎРјРёСЂРЅРѕРІР°', dob: 25, city: 'РњРѕСЃРєРІР°', photo_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200', is_selected: false },
+          { id: 'mock2', project_name: 'Р РµРєР»Р°РјР° РЎРѕРєР°', full_name: 'РњРёС…Р°РёР» РРІР°РЅРѕРІ', dob: 31, city: 'РЎР°РЅРєС‚-РџРµС‚РµСЂР±СѓСЂРі', photo_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200&h=200', is_selected: true },
+          { id: 'mock3', project_name: 'Р¤РёР»СЊРј "Р›РµС‚Рѕ"', full_name: 'РЎРѕС„РёСЏ РљРёРј', dob: 22, city: 'РљР°Р·Р°РЅСЊ', photo_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200', is_selected: false },
+          { id: 'mock4', project_name: 'Р¤РёР»СЊРј "Р›РµС‚Рѕ"', full_name: 'РђР»РµРєСЃРµР№ РџРµС‚СЂРѕРІ', dob: 28, city: 'Р•РєР°С‚РµСЂРёРЅР±СѓСЂРі', photo_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=200&h=200', is_selected: false }
         ];
       }
       renderCastingHub();
@@ -3545,16 +3545,16 @@
       const tabsDiv = document.getElementById('projectTabs');
       const grid = document.getElementById('actorsGrid');
 
-      const projects = [...new Set(castingApps.map(a => a.project_name || 'Без проекта'))];
+      const projects = [...new Set(castingApps.map(a => a.project_name || 'Р‘РµР· РїСЂРѕРµРєС‚Р°'))];
       if (!currentCastingProject && projects.length > 0) currentCastingProject = projects[0];
 
       tabsDiv.innerHTML = projects.map(p => `
         <div class="p-tab ${p === currentCastingProject ? 'active' : ''}" onclick="selectCastingProject('${p}')">${p}</div>
       `).join('');
 
-      const currentActors = castingApps.filter(a => (a.project_name || 'Без проекта') === currentCastingProject);
+      const currentActors = castingApps.filter(a => (a.project_name || 'Р‘РµР· РїСЂРѕРµРєС‚Р°') === currentCastingProject);
       if (currentActors.length === 0) {
-        grid.innerHTML = '<div style="color:#666; padding: 20px;">Нет заявок</div>';
+        grid.innerHTML = '<div style="color:#666; padding: 20px;">РќРµС‚ Р·Р°СЏРІРѕРє</div>';
         return;
       }
 
@@ -3573,13 +3573,13 @@
 
         return `
           <div class="actor-card">
-            ${photoUrl ? `<img src="${photoUrl}" alt="${a.full_name}" />` : `<div style="height:200px;background:#333;display:flex;align-items:center;justify-content:center;color:#666;">Нет фото</div>`}
+            ${photoUrl ? `<img src="${photoUrl}" alt="${a.full_name}" />` : `<div style="height:200px;background:#333;display:flex;align-items:center;justify-content:center;color:#666;">РќРµС‚ С„РѕС‚Рѕ</div>`}
             <div class="actor-info">
               <div class="actor-name">${a.full_name}</div>
-              <div class="actor-meta">${a.dob ? a.dob + ' лет, ' : ''}${a.city || ''}</div>
+              <div class="actor-meta">${a.dob ? a.dob + ' Р»РµС‚, ' : ''}${a.city || ''}</div>
               <div class="actor-actions">
-                <button class="btn-select ${a.is_selected ? 'selected' : ''}" onclick="toggleActorSelection('${a.id}', ${!a.is_selected})">${a.is_selected ? 'Выбран' : 'Выбрать'}</button>
-                <button class="btn-delete" onclick="deleteActorApplication('${a.id}')">Удалить</button>
+                <button class="btn-select ${a.is_selected ? 'selected' : ''}" onclick="toggleActorSelection('${a.id}', ${!a.is_selected})">${a.is_selected ? 'Р’С‹Р±СЂР°РЅ' : 'Р’С‹Р±СЂР°С‚СЊ'}</button>
+                <button class="btn-delete" onclick="deleteActorApplication('${a.id}')">РЈРґР°Р»РёС‚СЊ</button>
               </div>
             </div>
           </div>
@@ -3608,7 +3608,7 @@
     }
 
     async function deleteActorApplication(id) {
-      if (!confirm("Удалить анкету?")) return;
+      if (!confirm("РЈРґР°Р»РёС‚СЊ Р°РЅРєРµС‚Сѓ?")) return;
       if (String(id).startsWith('mock')) {
         castingApps = castingApps.filter(a => a.id !== id);
         if (castingApps.filter(a => a.project_name === currentCastingProject).length === 0) {

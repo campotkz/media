@@ -598,6 +598,87 @@
             color: var(--muted);
             margin-bottom: 32px;
         }
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: #111;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: var(--radius);
+            padding: 32px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+            animation: modalShow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        @keyframes modalShow {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-content h2 {
+            font-size: 20px;
+            margin: 0 0 16px;
+            color: #fff;
+        }
+
+        .modal-content p {
+            font-size: 14px;
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-btn.primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .modal-btn.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .modal-btn:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 
@@ -770,7 +851,8 @@
                 </div>
                 <div class="form-group">
                     <label>Номер телефона (WhatsApp)<span>*</span></label>
-                    <input type="tel" name="phone" required placeholder="+7 777 000 00 00" inputmode="numeric">
+                    <input type="tel" id="phoneInput" name="phone" required placeholder="+7 777 000 00 00" inputmode="numeric" onblur="handlePhoneBlur()">
+                    <div id="phoneHint" style="font-size: 11px; margin-top: 6px; display: none;"></div>
                 </div>
                 <div class="form-group">
                     <label>Инстаграм или ссылка на соцсеть</label>
@@ -891,6 +973,67 @@
                 </div>    <script>
         // --- Configuration ---
         const API_BASE = "https://media.sijic13.workers.dev";
+        let phoneStatus = { status: 'new' };
+        let isUpdateMode = false;
+        
+        async function handlePhoneBlur() {
+            const phoneInput = document.getElementById('phoneInput');
+            const phone = phoneInput.value;
+            const selectedProjects = getSelectedProjectNames();
+            const project = selectedProjects.length > 0 ? selectedProjects[0] : "General Casting";
+            const hint = document.getElementById('phoneHint');
+            
+            if (phone.length < 5) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/check-phone?phone=${encodeURIComponent(phone)}&project=${encodeURIComponent(project)}`);
+                const data = await res.json();
+                phoneStatus = data;
+                
+                if (data.status === 'blocked') {
+                    hint.style.display = 'block';
+                    hint.style.color = '#ff3b30';
+                    hint.textContent = '⚠ Этот номер заблокирован системой.';
+                } else if (data.status === 'already_applied') {
+                    hint.style.display = 'block';
+                    hint.style.color = '#f45925';
+                    hint.textContent = 'ℹ Вы уже подавались на этот проект.';
+                } else if (data.status === 'exists_other_project') {
+                    hint.style.display = 'block';
+                    hint.style.color = '#7aa2ff';
+                    hint.textContent = 'ℹ Ваша анкета уже есть в нашей базе.';
+                } else {
+                    hint.style.display = 'none';
+                }
+            } catch (e) {}
+        }
+
+        function getSelectedProjectNames() {
+            return Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => i.value);
+        }
+
+        function showModal(config) {
+            const modal = document.getElementById('duplicateModal');
+            document.getElementById('modalTitle').textContent = config.title;
+            document.getElementById('modalBody').textContent = config.body;
+            
+            const pBtn = document.getElementById('modalPrimaryBtn');
+            const sBtn = document.getElementById('modalSecondaryBtn');
+            
+            pBtn.textContent = config.primaryText;
+            pBtn.onclick = () => {
+                modal.style.display = 'none';
+                config.onPrimary();
+            };
+            
+            sBtn.textContent = config.secondaryText;
+            sBtn.onclick = () => {
+                modal.style.display = 'none';
+                config.onSecondary();
+            };
+            
+            modal.style.display = 'flex';
+        }
         const VERCEL_URL = "https://media-seven-eta.vercel.app";
         
         const params = new URLSearchParams(window.location.search);
@@ -1132,6 +1275,48 @@
 
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
+            
+            // Проверка статуса (дубликаты/блокировка)
+            if (phoneStatus.status === 'blocked') {
+                alert("Ваша анкета заблокирована системой модерации.");
+                return;
+            }
+
+            if (phoneStatus.status === 'already_applied' && !isUpdateMode) {
+                showModal({
+                    title: "Заявка уже подана",
+                    body: "Ваши данные уже у кастинг-директора. Если вы хотите изменить информацию (фото, опыт, контакт), нажмите «Обновить».",
+                    primaryText: "Обновить данные",
+                    secondaryText: "Все верно, не менять",
+                    onPrimary: () => {
+                        isUpdateMode = true;
+                        document.getElementById('castingForm').dispatchEvent(new Event('submit'));
+                    },
+                    onSecondary: () => {
+                        document.getElementById('formContainer').style.display = 'none';
+                        document.getElementById('successScreen').style.display = 'block';
+                        document.querySelector('#successScreen p').textContent = "Ваши данные уже у кастинг-директора. С вами свяжутся, если вы подходите. Пожалуйста, не дублируйте заявки.";
+                        window.scrollTo(0, 0);
+                    }
+                });
+                return;
+            }
+
+            if (phoneStatus.status === 'exists_other_project' && !isUpdateMode) {
+                showModal({
+                    title: "Внимание: Строгая модерация",
+                    body: "Ваша анкета уже есть в нашей базе. Если вы подадите заявку на проект, под критерии которого вы явно не подходите (рост, возраст, типаж), ваша анкета может быть заблокирована навсегда. Продолжить?",
+                    primaryText: "Да, я подхожу",
+                    secondaryText: "Отмена",
+                    onPrimary: () => {
+                        isUpdateMode = true;
+                        document.getElementById('castingForm').dispatchEvent(new Event('submit'));
+                    },
+                    onSecondary: () => {}
+                });
+                return;
+            }
+
             const selected = Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => ({
                 name: i.value,
                 chat_id: i.getAttribute('data-cid'),
@@ -1160,7 +1345,6 @@
                 const feeTo = baseFormData.get('fee_to') || '?';
                 baseFormData.set('fee_range', `${feeFrom} - ${feeTo}`);
 
-                // Новые поля: Внешность и Размеры
                 const appType = baseFormData.get('appearance_type') || '—';
                 const hairColor = baseFormData.get('hair_color') || '—';
                 const appDetails = baseFormData.get('appearance_details') || '—';
@@ -1176,26 +1360,24 @@
                 if (features && features.trim()) expText += `\nПриметы: ${features}`;
                 baseFormData.set('experience', expText);
 
-                // Контакты
                 const emailTg = baseFormData.get('email_tg') || '—';
                 const instagram = baseFormData.get('instagram') || '—';
                 baseFormData.set('instagram', `Inst: ${instagram}\nEmail/TG: ${emailTg}`);
                 
+                if (isUpdateMode) baseFormData.set('update', 'true');
+
                 for (const p of selected) {
                     document.getElementById('loadingText').textContent = `Отправка в ${p.name}...`;
                     
                     const finalFormData = new FormData();
-                    // Копируем основные поля
                     for (let [key, value] of baseFormData.entries()) {
                         finalFormData.append(key, value);
                     }
                     
-                    // Переопределяем параметры маршрутизации
                     finalFormData.set('casting_target', p.name);
                     finalFormData.set('chat_id', p.chat_id);
                     if (p.thread_id) finalFormData.set('thread_id', p.thread_id);
                     
-                    // Добавляем файлы
                     uploadedPhotos.forEach(ph => finalFormData.append('photos', ph.file));
                     if (uploadedVideoFile) finalFormData.append('video', uploadedVideoFile);
 
@@ -1207,16 +1389,27 @@
                     if (!res.ok) throw new Error(await res.text());
                 }
                 
-                formContainer.style.display = 'none';
-                successScreen.style.display = 'block';
+                document.getElementById('formContainer').style.display = 'none';
+                document.getElementById('successScreen').style.display = 'block';
                 window.scrollTo(0, 0);
             } catch (err) { 
                 alert("Ошибка: " + err.message); 
             } finally { 
                 overlay.style.display = 'none'; 
+                isUpdateMode = false;
             }
         };
     </script>
+    <div id="duplicateModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modalTitle">Заявка уже подана</h2>
+            <p id="modalBody">Вы уже подавали анкету на этот проект. Хотите обновить данные?</p>
+            <div class="modal-actions">
+                <button id="modalPrimaryBtn" class="modal-btn primary">Обновить данные</button>
+                <button id="modalSecondaryBtn" class="modal-btn secondary">Все верно, не менять</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

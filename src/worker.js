@@ -2,6 +2,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // 1. Обработка CORS
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -12,81 +13,131 @@ export default {
       });
     }
 
-    const tApi = ["api", "telegram", "org"].join(".");
-    const sApi = ["waekzofajzqcpoeldhkt", "supabase", "co"].join(".");
+    const tD = ["api", "telegram", "org"].join(".");
+    const sD = ["waekzofajzqcpoeldhkt", "supabase", "co"].join(".");
+    const supabaseUrl = env.SUPABASE_URL || `https://${sD}`;
+    const supabaseKey = env.SUPABASE_ANON_KEY;
+    const botToken = env.BOT_TOKEN;
+
+    // Вспомогательная функция для ответов
+    const jsonRes = (data, status = 200) => new Response(JSON.stringify(data), {
+      status,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    });
+
+    // --- SETUP WEBHOOK (Временный эндпоинт по запросу пользователя) ---
+    if (url.pathname === "/api/setup-webhook" && botToken) {
+      const workerUrl = `https://${url.hostname}`;
+      const res = await fetch(`https://${tD}/bot${botToken}/setWebhook?url=${workerUrl}`);
+      const result = await res.json();
+      return jsonRes({ status: "webhook_setup", result });
+    }
+
+    // GET /api/check-phone - Фоновая проверка телефона
+    if (request.method === "GET" && url.pathname === "/api/check-phone") {
+      const phone = url.searchParams.get("phone");
+      const project = url.searchParams.get("project");
+      if (!phone) return jsonRes({ error: "No phone" }, 400);
+
+      const res = await fetch(`${supabaseUrl}/rest/v1/casting_applications?phone=eq.${encodeURIComponent(phone)}`, {
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+      });
+      const existing = await res.json();
+
+      if (existing.length > 0) {
+        const user = existing[0];
+        if (user.is_blocked) return jsonRes({ status: "blocked" });
+        
+        // Проверяем, подавался ли уже на этот проект
+        const sameProject = existing.find(a => a.project_name === project);
+        if (sameProject) return jsonRes({ status: "already_applied", project: project });
+        
+        return jsonRes({ status: "exists_other_project", projects: existing.map(a => a.project_name) });
+      }
+      return jsonRes({ status: "new" });
+    }
 
     // GET /api/applications - API для дашборда
     if (request.method === "GET" && url.pathname === "/api/applications") {
-      const supabaseUrl = env.SUPABASE_URL || `https://${sApi}`;
-      const supabaseKey = env.SUPABASE_ANON_KEY;
-      
-      if (!supabaseKey) {
-          return new Response(JSON.stringify({ error: "Supabase keys not configured in worker" }), { status: 500, headers: { "Access-Control-Allow-Origin": "*" }});
-      }
-
       const projectFilter = url.searchParams.get('project');
       const searchFilter = url.searchParams.get('search');
-      
       let query = `${supabaseUrl}/rest/v1/casting_applications?select=*&order=created_at.desc`;
-      if (projectFilter && projectFilter !== 'Все') {
-          query += `&project_name=eq.${encodeURIComponent(projectFilter)}`;
-      }
-      if (searchFilter) {
-          query += `&full_name=ilike.*${encodeURIComponent(searchFilter)}*`;
-      }
+      if (projectFilter && projectFilter !== 'Все') query += `&project_name=eq.${encodeURIComponent(projectFilter)}`;
+      if (searchFilter) query += `&full_name=ilike.*${encodeURIComponent(searchFilter)}*`;
       
       try {
-          const res = await fetch(query, {
-              headers: {
-                  'apikey': supabaseKey,
-                  'Authorization': `Bearer ${supabaseKey}`
-              }
-          });
+          const res = await fetch(query, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } });
           const data = await res.json();
-          return new Response(JSON.stringify(data), {
-              headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-          });
+          return jsonRes(data);
       } catch (err) {
-          return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Access-Control-Allow-Origin": "*" }});
+          return jsonRes({ error: err.message }, 500);
       }
     }
 
-    if (request.method !== "POST") {
-      return new Response("Method Not Allowed", { status: 405 });
+    if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
+
+    const contentType = request.headers.get("content-type") || "";
+
+    // Обработка Telegram Webhook
+    if (contentType.includes("application/json")) {
+      try {
+        const update = await request.json();
+        if (update.message && update.message.text) {
+          const msgText = update.message.text;
+          const chatId = update.message.chat.id;
+          if (msgText === "/hub" || msgText === "/start") {
+            const dashboardUrl = "https://campotkz.github.io/media/casting_dashboard.html";
+            await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: `🚀 <b>Casting Hub</b>\n\nЗдесь вы можете просматривать анкеты и информацию об актерах:\n\n🔗 <a href="${dashboardUrl}">Открыть Дашборд</a>`,
+                parse_mode: "HTML"
+              })
+            });
+          }
+        }
+        return new Response("OK", { status: 200 });
+      } catch (e) { return new Response("OK", { status: 200 }); }
     }
 
+    // --- ОБРАБОТКА ФОРМЫ (АНКЕТЫ) ---
     try {
       const formData = await request.formData();
-      const botToken = env.BOT_TOKEN;
+      const isUpdate = formData.get("update") === "true";
       const chatId = env.CHAT_ID || "-1003893557217";
 
-      // --- 1. Извлекаем текстовые поля ---
       const data = {};
-      formData.forEach((value, key) => {
-        if (typeof value === "string") {
-          data[key] = value;
-        }
+      formData.forEach((value, key) => { if (typeof value === "string") data[key] = value; });
+
+      const phone = data.phone;
+      const targetProject = data.casting_target || "General Casting";
+
+      // 1. Проверка дубликатов перед сохранением
+      const checkRes = await fetch(`${supabaseUrl}/rest/v1/casting_applications?phone=eq.${encodeURIComponent(phone)}&project_name=eq.${encodeURIComponent(targetProject)}`, {
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
       });
-
-      // Извлекаем видеофайл
-      const videoFile = formData.get("video");
-
-      // --- 2. Маршрутизация по топикам (Thread IDs) ---
-      const topicMappings = {
-        "General Casting": null,
-        "Commercial Project X": 2,
-        "Весы": 10,
-        "Форт №307": 15
-      };
+      const existing = await checkRes.json();
       
-      const target = data.casting_target || "General Casting";
-      const threadId = data.thread_id ? parseInt(data.thread_id) : (topicMappings[target] || null);
+      if (existing.length > 0 && !isUpdate) {
+        return jsonRes({ status: "error", code: "already_applied", message: "Вы уже подавали заявку на этот проект." }, 400);
+      }
+
+      const userRecord = existing[0];
+      if (userRecord && userRecord.is_blocked) {
+        return jsonRes({ status: "error", code: "blocked", message: "Ваш аккаунт заблокирован системой модерации." }, 403);
+      }
+
+      const videoFile = formData.get("video");
+      const threadId = data.thread_id ? parseInt(data.thread_id) : null;
       const targetChatId = data.chat_id || chatId;
 
-      // --- 3. Формируем текст анкеты ---
+      const headerText = isUpdate ? `🔄 <b>ОБНОВЛЕННАЯ АНКЕТА: ${data.full_name || "—"}</b>` : `🌟 <b>НОВАЯ АНКЕТА: ${data.full_name || "—"}</b>`;
+
       const text = `
-🌟 <b>НОВАЯ АНКЕТА: ${data.full_name || "—"}</b>
-🎯 Проект: <b>${target}</b>
+${headerText}
+🎯 Проект: <b>${targetProject}</b>
 🎭 Персонаж: <b>${data.character_name || "—"}</b>
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -102,9 +153,7 @@ ${data.experience || "—"}
 💰 Бюджет: ${data.fee_range || "—"}
       `.trim();
 
-      // --- 4. Шаг 1: Отправляем текст (sendMessage) ---
-      const sendMsgUrl = `https://${tApi}/bot${botToken}/sendMessage`;
-      const msgRes = await fetch(sendMsgUrl, {
+      const msgRes = await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -116,107 +165,78 @@ ${data.experience || "—"}
       });
 
       const msgResult = await msgRes.json();
-      if (!msgResult.ok) {
-        throw new Error(`Telegram SendMessage Error: ${msgResult.description}`);
-      }
-
+      if (!msgResult.ok) throw new Error(`TG Error: ${msgResult.description}`);
       const messageId = msgResult.result.message_id;
 
-      // --- 5. Шаг 2: Отправляем фото (MediaGroup) ---
+      // Фото и Видео (аналогично предыдущей версии)
       const photos = formData.getAll("photos");
       if (photos.length > 0) {
-        const sendMediaUrl = `https://${tApi}/bot${botToken}/sendMediaGroup`;
         const mediaFormData = new FormData();
         mediaFormData.append("chat_id", targetChatId);
         mediaFormData.append("reply_to_message_id", messageId);
         if (threadId) mediaFormData.append("message_thread_id", threadId);
-
         const media = [];
         photos.slice(0, 10).forEach((photo, index) => {
-          const fileId = `photo_${index}`;
-          media.push({
-            type: "photo",
-            media: `attach://${fileId}`
-          });
-          mediaFormData.append(fileId, photo);
+          const fid = `p${index}`;
+          media.push({ type: "photo", media: `attach://${fid}` });
+          mediaFormData.append(fid, photo);
         });
-
         mediaFormData.append("media", JSON.stringify(media));
-        
-        await fetch(sendMediaUrl, {
-          method: "POST",
-          body: mediaFormData
-        });
+        await fetch(`https://${tD}/bot${botToken}/sendMediaGroup`, { method: "POST", body: mediaFormData });
       }
 
-      // --- 6. Шаг 3: Отправляем видео (если есть) ---
       if (videoFile && videoFile.size > 0) {
-        const sendVideoUrl = `https://${tApi}/bot${botToken}/sendVideo`;
-        const videoData = new FormData();
-        videoData.append("chat_id", targetChatId);
-        videoData.append("video", videoFile);
-        videoData.append("reply_to_message_id", messageId);
-        if (threadId) videoData.append("message_thread_id", threadId);
-
-        await fetch(sendVideoUrl, {
-          method: "POST",
-          body: videoData
-        });
+        const vData = new FormData();
+        vData.append("chat_id", targetChatId);
+        vData.append("video", videoFile);
+        vData.append("reply_to_message_id", messageId);
+        if (threadId) vData.append("message_thread_id", threadId);
+        await fetch(`https://${tD}/bot${botToken}/sendVideo`, { method: "POST", body: vData });
       }
 
-      // --- 7. Шаг 4: Сохранение в Supabase ---
-      const supabaseUrl = env.SUPABASE_URL || `https://${sApi}`;
-      const supabaseKey = env.SUPABASE_ANON_KEY;
+      // Сохранение/Обновление в Supabase
+      let videoTgLink = null;
+      if (videoFile && videoFile.size > 0) {
+         const cleanChatId = String(targetChatId).replace('-100', '');
+         videoTgLink = `https://t.me/c/${cleanChatId}/${messageId}`;
+      }
+      const expText = data.experience || '';
+      const summary = `${data.dob || '?'} лет, ${data.height_weight || '?'}. Опыт: ${expText.substring(0, 50)}...`;
       
-      if (supabaseUrl && supabaseKey) {
-        let videoTgLink = null;
-        if (videoFile && videoFile.size > 0) {
-           const cleanChatId = String(targetChatId).replace('-100', '');
-           videoTgLink = `https://t.me/c/${cleanChatId}/${messageId}`;
-        }
-        
-        const expText = data.experience || '';
-        const shortExp = expText.length > 50 ? expText.substring(0, 50) + '...' : expText;
-        const summary = `${data.dob || '?'} лет, ${data.height_weight || '?'}. Опыт: ${shortExp}`;
+      const payload = {
+          full_name: data.full_name || '',
+          age: data.dob || '',
+          height_weight: data.height_weight || '',
+          city: data.city || '',
+          phone: data.phone || '',
+          instagram: data.instagram || '',
+          project_name: targetProject,
+          character_name: data.character_name || '',
+          experience_summary: summary,
+          video_tg_link: videoTgLink,
+          updated_at: new Date().toISOString()
+      };
 
-        const payload = {
-            id: crypto.randomUUID(),
-            full_name: data.full_name || '',
-            age: data.dob || '',
-            height_weight: data.height_weight || '',
-            city: data.city || '',
-            phone: data.phone || '',
-            instagram: data.instagram || '',
-            project_name: target,
-            character_name: data.character_name || '',
-            experience_summary: summary,
-            photo_tg_ids: [],
-            video_tg_link: videoTgLink,
-            created_at: new Date().toISOString()
-        };
-
+      if (isUpdate && userRecord) {
+        // UPDATE
+        await fetch(`${supabaseUrl}/rest/v1/casting_applications?id=eq.${userRecord.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+            body: JSON.stringify(payload)
+        });
+      } else {
+        // INSERT
         await fetch(`${supabaseUrl}/rest/v1/casting_applications`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': supabaseKey,
-                'Authorization': `Bearer ${supabaseKey}`,
-                'Prefer': 'return=minimal'
-            },
-            body: JSON.stringify(payload)
-        }).catch(err => console.error("Supabase Save Error:", err));
+            headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ ...payload, id: crypto.randomUUID(), created_at: new Date().toISOString() })
+        });
       }
 
-      return new Response(JSON.stringify({ status: "ok", message_id: messageId }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-      });
+      return jsonRes({ status: "ok", message_id: messageId });
 
     } catch (err) {
-      return new Response(JSON.stringify({ status: "error", error: err.message }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-      });
+      return jsonRes({ status: "error", error: err.message }, 500);
     }
   }
 };
