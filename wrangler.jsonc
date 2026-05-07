@@ -2,10 +2,10 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "media",
   "main": "worker.js",
+  "account_id": "657f328b3e54276b7412a4306584582f",
   "compatibility_date": "2026-05-07",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
-  "assets": { "directory": "." },
   "vars": {
     "SUPABASE_URL": "https://waekzofajzqcpoeldhkt.supabase.co",
     "CHAT_ID": "-1003893557217"
