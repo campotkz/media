@@ -323,13 +323,60 @@
             border: 1px solid var(--stroke);
         }
 
-        .file-item.video::before {
-            content: "🎬";
+        .welcome-card::after {
+            content: "";
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 24px;
+            inset: 0;
+            border-radius: inherit;
+            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.02);
+            pointer-events: none;
+        }
+
+        .welcome-text {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .welcome-instruction {
+            background: rgba(122, 162, 255, 0.08);
+            border-left: 3px solid var(--accent);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .option-btn {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--stroke);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+
+        .option-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .option-btn i {
+            font-size: 20px;
+            font-style: normal;
+        }
+
+        .option-btn .label {
+            font-weight: 600;
+            font-size: 15px;
         }
 
         .file-item .remove {
@@ -493,18 +540,39 @@
                 <img src="https://media.sijic13.workers.dev/logo.png" alt="Gulywood Logo" onerror="this.src='favicon.png'">
             </div>
             <div class="welcome-card">
-                <h1>АНКЕТА УЧАСТНИКА</h1>
-                <p>Добро пожаловать в базу талантов Gulywood. Заполнение анкеты займет около 3-5 минут.</p>
-                <a href="https://campotkz.github.io/media/launcher.html" class="btn-hub">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
-                    </svg>
-                    CASTING HUB
-                </a>
-                <button class="submit-btn" id="startNewBtn">НАЧАТЬ ЗАПОЛНЕНИЕ</button>
+                <div class="welcome-text">
+                    Вы заполняете анкету на кастинг Sklad Productions.
+                </div>
+                <div class="welcome-instruction">
+                    ⚠️ <b>Важно:</b> Ваши шансы значительно увеличатся, если вы загрузите актуальные фото (сделайте их прямо сейчас на телефон) и видеовизитку (до 1 минуты) с отыгрышем персонажа.
+                </div>
+                <div class="welcome-text" style="color: var(--error); font-weight: 600; font-size: 13px;">
+                    🚫 Анкеты с неактуальными фото или снимками, не имеющими отношения к кастингу, рассматриваться не будут.
+                </div>
+
+                <div style="margin-top: 30px;">
+                    <div class="option-btn" id="startNewBtn">
+                        <i>📝</i>
+                        <div class="label">Я заполняю первый раз</div>
+                    </div>
+
+                    <div class="option-btn" id="reentryStartBtn">
+                        <i>🔄</i>
+                        <div class="label">Я уже заполнял(а) анкету ранее</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; border-top: 1px solid var(--stroke); padding-top: 20px;">
+                    <a href="https://campotkz.github.io/media/launcher.html" class="btn-hub" style="margin-bottom: 0;">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        CASTING HUB
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -773,6 +841,11 @@
             document.getElementById('welcomeContainer').style.display = 'none';
             document.getElementById('formContainer').style.display = 'block';
             window.scrollTo(0, 0);
+        };
+
+        document.getElementById('reentryStartBtn').onclick = () => {
+            alert("Пожалуйста, введите ваш номер телефона в анкете. Система автоматически найдет вашу предыдущую заявку и предложит обновить её.");
+            document.getElementById('startNewBtn').click();
         };
 
         // City Logic
