@@ -327,12 +327,15 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="charGroup">
                         <label>Персонаж / Роль<span class="req">*</span></label>
-                        <input type="text" id="character_name" placeholder="например: «Главный герой»" required>
+                        <div id="charInputContainer">
+                            <input type="text" id="character_name" placeholder="например: «Главный герой»" required>
+                        </div>
                     </div>
+                </div>
 
-                    <div class="form-group">
+                <div class="form-group">
                         <label>Полное имя<span class="req">*</span></label>
                         <input type="text" id="full_name" placeholder="Имя Фамилия" required>
                     </div>
@@ -543,24 +546,64 @@
             el.querySelector('input').checked = true;
         }
 
-        async function loadProjects() {
+        function updateCharacters(category) {
+            const container = document.getElementById('charInputContainer');
+            if (category && category.includes('|')) {
+                const rolesStr = category.split('|')[1];
+                if (rolesStr) {
+                    const roles = rolesStr.split(',').map(r => r.trim());
+                    let html = `<select id="character_name" required><option value="" disabled selected>Выберите роль</option>`;
+                    roles.forEach(r => html += `<option value="${r}">${r}</option>`);
+                    html += `</select>`;
+                    container.innerHTML = html;
+                    return;
+                }
+            }
+            container.innerHTML = `<input type="text" id="character_name" placeholder="например: «Главный герой»" required>`;
+        }
+
+        async function initProject() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectToken = urlParams.get('c');
+            const container = document.getElementById('projectOptions');
+
             try {
+                if (projectToken) {
+                    // Fetch single project
+                    const res = await fetch(`${API_BASE}/api/project-info?id=${projectToken}`);
+                    const p = await res.json();
+                    if (p.name) {
+                        container.innerHTML = `
+                            <div class="option-item selected" onclick="selectOption(this, 'project_name', '${p.name}')">
+                                <div class="radio-circle"></div>
+                                <span class="option-label">${p.name}</span>
+                                <input type="radio" name="project_name" value="${p.name}" checked required>
+                            </div>
+                        `;
+                        updateCharacters(p.category);
+                        return;
+                    }
+                }
+
+                // Normal load
                 const res = await fetch(`${API_BASE}/api/projects`);
                 const data = await res.json();
                 if (data && data.length > 0) {
-                    const container = document.getElementById('projectOptions');
                     container.innerHTML = '';
                     data.forEach(p => {
                         const div = document.createElement('div');
                         div.className = 'option-item';
-                        div.onclick = () => selectOption(div, 'project_name', p);
-                        div.innerHTML = `<div class="radio-circle"></div><span class="option-label">${p}</span><input type="radio" name="project_name" value="${p}" required>`;
+                        div.onclick = () => {
+                            selectOption(div, 'project_name', p.name);
+                            updateCharacters(p.category);
+                        };
+                        div.innerHTML = `<div class="radio-circle"></div><span class="option-label">${p.name}</span><input type="radio" name="project_name" value="${p.name}" required>`;
                         container.appendChild(div);
                     });
                 }
-            } catch (e) {}
+            } catch (e) { console.error("Init Project Error:", e); }
         }
-        loadProjects();
+        initProject();
 
         function handlePhotos(event) {
             const files = Array.from(event.target.files);

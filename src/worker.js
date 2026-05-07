@@ -60,13 +60,24 @@ export default {
     // GET /api/projects - Список проектов (из таблицы clients)
     if (request.method === "GET" && url.pathname === "/api/projects") {
       try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/clients?select=name`, {
+        const res = await fetch(`${supabaseUrl}/rest/v1/clients?select=id,name,category&is_active=eq.true`, {
           headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
         });
         const data = await res.json();
-        if (!Array.isArray(data)) return jsonRes([]);
-        const projects = data.map(d => d.name).filter(p => p);
-        return jsonRes(projects);
+        return jsonRes(data);
+      } catch (err) { return jsonRes({ error: err.message }, 500); }
+    }
+
+    // GET /api/project-info - Информация об одном проекте
+    if (request.method === "GET" && url.pathname === "/api/project-info") {
+      const id = url.searchParams.get("id");
+      if (!id) return jsonRes({ error: "No ID" }, 400);
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/clients?id=eq.${id}&select=id,name,category`, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        });
+        const data = await res.json();
+        return jsonRes(data[0] || { error: "Not found" });
       } catch (err) { return jsonRes({ error: err.message }, 500); }
     }
 
