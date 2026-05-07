@@ -980,7 +980,7 @@
 
 <body>
   <datalist id="taskOptions">
-    <option value="РџРѕРґРіРѕС‚РѕРІРєР°"></option>
+    <option value="Подготовка"></option>
     <option value="РџРµСЂРµСЃС‚Р°РЅРѕРІРєР°"></option>
     <option value="РџРµСЂРµСЂС‹РІ"></option>
     <option value="РћР±РµРґ"></option>
@@ -1172,12 +1172,12 @@
     <div class="card" id="calendarView">
       <div class="head">
         <div class="title" style="display:flex; align-items:center; gap:10px;">
-          <button class="mini-btn" onclick="goBackToMenu()" style="padding: 4px 8px;">рџ”™ РњРµРЅСЋ</button>
+          <button class="mini-btn" onclick="goBackToMenu()" style="padding: 4px 8px;">рџ”™ Меню</button>
           рџЌ“ Campot
         </div>
         <div class="seg">
           <button id="prevBtn">в—Ђ</button>
-          <button id="todayBtn">РЎРµРіРѕРґРЅСЏ</button>
+          <button id="todayBtn">Сегодня</button>
           <button id="nextBtn">в–¶</button>
         </div>
       </div>
@@ -1198,8 +1198,8 @@
         <div class="grid" id="grid"></div>
       </div>
       <div class="footer">
-        <button class="primary" id="copyDayBtn">РЎРєРѕРїРёСЂРѕРІР°С‚СЊ РІС‹РіСЂСѓР·РєСѓ РґРЅСЏ</button>
-        <button id="cloudSyncBtn" onclick="loadFromCloud()" title="РћР±РЅРѕРІРёС‚СЊ РёР· РѕР±Р»Р°РєР°">вЃпёЏ РћР±РЅРѕРІРёС‚СЊ</button>
+        <button class="primary" id="copyDayBtn">Скопировать выгрузку дня</button>
+        <button id="cloudSyncBtn" onclick="loadFromCloud()" title="Обновить из облака">вЃпёЏ Обновить</button>
       </div>
     </div>
 
@@ -1218,13 +1218,13 @@
         <div class="list" id="eventList"></div>
         <form id="form">
           <div class="row2">
-            <label>РџСЂРѕРµРєС‚/РєР»РёРµРЅС‚
+            <label>Проект/РєР»РёРµРЅС‚
               <div class="input-wrap">
                 <input id="project" autocomplete="off" placeholder="РќР°РїСЂ: Fujifilm" />
                 <div id="projectDropdown" class="dropdown"></div>
               </div>
             </label>
-            <label>Р›РѕРєР°С†РёСЏ
+            <label>Локация
               <div class="input-wrap">
                 <input id="location" placeholder="Р—Р°Р» РёР»Рё Р°РґСЂРµСЃ..." required />
                 <div id="locationDropdown" class="dropdown"></div>
@@ -1241,15 +1241,15 @@
               <div id="addressDropdown" class="dropdown"></div>
             </div>
           </label>
-          <label>РљРѕРЅС‚Р°РєС‚
+          <label>Контакт
             <div class="input-wrap">
               <input id="contact" placeholder="РРјСЏ + С‚РµР»РµС„РѕРЅ" autocomplete="off" />
               <div id="contactDropdown" class="dropdown"></div>
             </div>
           </label>
-          <label>РўР—<textarea id="deliverables" placeholder="РћРїРёС€Рё Р·Р°РґР°С‡Сѓ..."></textarea></label>
+          <label>ТЗ<textarea id="deliverables" placeholder="РћРїРёС€Рё Р·Р°РґР°С‡Сѓ..."></textarea></label>
 
-          <label>РљРѕРјР°РЅРґР° РїСЂРѕРґР°РєС€РЅ
+          <label>Команда РїСЂРѕРґР°РєС€РЅ
             <div class="multi-select-wrap" id="crewWrapper">
               <div id="crewTags" class="tags"></div>
               <input id="crewInput" placeholder="Р”РѕР±Р°РІРёС‚СЊ..." autocomplete="off" />
@@ -1258,44 +1258,44 @@
             <textarea id="crew" style="display:none"></textarea>
           </label>
 
-          <label>РџРѕСЃС‚/РјРѕРЅС‚Р°Р¶
+          <label>Пост/монтаж
             <div class="multi-select-wrap" id="postWrapper">
               <div id="postTags" class="tags"></div>
-              <input id="postInput" placeholder="Р’С‹Р±СЂР°С‚СЊ СЂРµР¶. РјРѕРЅС‚Р°Р¶Р°..." autocomplete="off" />
+              <input id="postInput" placeholder="Выбрать реж. монтажа..." autocomplete="off" />
               <div id="postDropdown" class="dropdown"></div>
             </div>
             <textarea id="post_production" style="display:none"></textarea>
           </label>
 
           <div class="row2">
-            <label>РљР°СЃС‚РёРЅРі РїСЂРѕРµРєС‚
+            <label>Кастинг проект
               <div class="input-wrap">
-                <input id="casting_project" placeholder="РќР°Р№С‚Рё РїСЂРѕРµРєС‚..." autocomplete="off" />
+                <input id="casting_project" placeholder="Найти проект..." autocomplete="off" />
                 <div id="castingDropdown" class="dropdown"></div>
               </div>
             </label>
-            <label>РђРєС‚РµСЂС‹
+            <label>Актеры
               <div class="multi-select-wrap" id="actorsWrapper" onclick="openActorChecklist('main')">
                 <div id="actorsTags" class="tags"></div>
-                <input id="actorsInput" placeholder="Р’С‹Р±СЂР°С‚СЊ..." readonly style="cursor:pointer;" />
+                <input id="actorsInput" placeholder="Выбрать..." readonly style="cursor:pointer;" />
                 <div id="actorsDropdown" class="dropdown"></div>
               </div>
               <textarea id="actors" style="display:none"></textarea>
             </label>
           </div>
 
-          <label>РџР»Р°РЅ/С‚Р°Р№РјРёРЅРі
+          <label>План/тайминг
             <div class="timing-wrap">
               <div class="timing-table" id="timingTable">
                 <div class="timing-header timing-row">
                   <div class="timing-cell"></div> <!-- Handle -->
-                  <div class="timing-cell">Start</div>
-                  <div class="timing-cell">End</div>
-                  <div class="timing-cell">Loc</div>
-                  <div class="timing-cell">Task</div>
-                  <div class="timing-cell">Actors</div>
-                  <div class="timing-cell">Notes</div>
-                  <div class="timing-cell">Link</div>
+                  <div class="timing-cell">Старт</div>
+                  <div class="timing-cell">Конец</div>
+                  <div class="timing-cell">Локация</div>
+                  <div class="timing-cell">Задача</div>
+                  <div class="timing-cell">Актеры</div>
+                  <div class="timing-cell">Заметки</div>
+                  <div class="timing-cell">Линк</div>
                   <div class="timing-cell"></div> <!-- Delete -->
                 </div>
                 <div id="timingRows"></div>
@@ -1304,14 +1304,14 @@
             </div>
             <textarea id="schedule" style="display:none"></textarea>
           </label>
-          <label>РўРµС…РЅРёРєР°
+          <label>Техника
             <div class="timing-wrap">
               <div class="timing-table" id="gearTable">
                 <div class="gear-header gear-row">
-                  <div class="timing-cell">РљР°С‚РµРіРѕСЂРёСЏ</div>
-                  <div class="timing-cell">РњРѕРґРµР»СЊ/РќР°Р·РІР°РЅРёРµ</div>
-                  <div class="timing-cell">РљРѕР»-РІРѕ</div>
-                  <div class="timing-cell">Р—Р°РјРµС‚РєРё</div>
+                  <div class="timing-cell">Категория</div>
+                  <div class="timing-cell">Модель/Название</div>
+                  <div class="timing-cell">Кол-во</div>
+                  <div class="timing-cell">Заметки</div>
                   <div class="timing-cell"></div>
                 </div>
                 <div id="gearRows"></div>
@@ -1320,10 +1320,10 @@
             </div>
             <textarea id="gear" style="display:none"></textarea>
           </label>
-          <label>РџСЂРёРјРµС‡Р°РЅРёСЏ<textarea id="notes" placeholder="РџР°СЂРєРѕРІРєР°, РїСЂРѕРїСѓСЃРє..."></textarea></label>
-          <label>РћС‚С‡РµС‚ (РўР°Р№РјРёРЅРі)<input id="report_link" placeholder="РЎСЃС‹Р»РєР° РЅР° PDF/Excel..." /></label>
+          <label>Примечания<textarea id="notes" placeholder="Парковка, пропуск..."></textarea></label>
+          <label>Отчет (Тайминг)<input id="report_link" placeholder="Ссылка на PDF/Excel..." /></label>
           <div class="actions">
-            <button type="button" id="copyBtn" style="color:#7aa2ff; border-color:#7aa2ff;">РљРѕРїРёСЂРѕРІР°С‚СЊ</button>
+            <button type="button" id="copyBtn" style="color:#7aa2ff; border-color:#7aa2ff;">Копировать</button>
             <button type="button" id="excelExportBtn" style="color:#4caf50; border-color:#4caf50;"
               onclick="exportShootToExcel(event)">рџ“Љ Excel</button>
             <button type="button" id="excelImportBtn" style="color:#ffcc00; border-color:#ffcc00;"
@@ -1331,9 +1331,9 @@
             <input type="file" id="excelFileInput" style="display:none" accept=".xlsx, .xls"
               onchange="handleExcelImport(event)">
             <button type="button" id="timerBtn" style="color:#ff6b6b; border-color:#ff6b6b; font-weight:700;"
-              onclick="openTimer()">рџЋ¬ РўР°Р№РјРµСЂ</button>
-            <button type="button" id="deleteBtn" style="color:#ff6b6b; display:none;">РЈРґР°Р»РёС‚СЊ</button>
-            <button class="primary" type="submit">РЎРѕС…СЂР°РЅРёС‚СЊ</button>
+              onclick="openTimer()">рџЋ¬ Таймер</button>
+            <button type="button" id="deleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
+            <button class="primary" type="submit">Сохранить</button>
           </div>
         </form>
         <pre id="preview">вЂ”</pre>
@@ -1341,45 +1341,45 @@
         <!-- TASK FORM (Moved here) -->
         <form id="taskForm"
           style="display:none; padding: var(--s-3); margin-top:10px; border-radius:8px; border: 1px solid rgba(255, 204, 0, 0.3); background: rgba(255, 204, 0, 0.05);">
-          <h3 style="margin:0 0 10px 0; font-size:14px; text-transform:uppercase; color:#ffcc00;">РќРѕРІР°СЏ Р·Р°РґР°С‡Р°</h3>
+          <h3 style="margin:0 0 10px 0; font-size:14px; text-transform:uppercase; color:#ffcc00;">Новая задача</h3>
 
-          <label>РџСЂРѕРµРєС‚
+          <label>Проект
             <div class="input-wrap">
-              <input id="t_project" placeholder="РќР°Р№С‚Рё..." autocomplete="off">
+              <input id="t_project" placeholder="Найти..." autocomplete="off">
               <div id="t_projectDropdown" class="dropdown"></div>
             </div>
           </label>
           <!-- <input type="hidden" id="task_id_hidden"> -->
           <!-- <small id="debug_id_disp" style="color:gray; font-size:10px; display:block;">ID: -</small> -->
-          <label>РќР°Р·РІР°РЅРёРµ<input id="t_title" placeholder="РЎРґРµР»Р°С‚СЊ РјРѕРЅС‚Р°Р¶..." required /></label>
-          <label>РћРїРёСЃР°РЅРёРµ<textarea id="t_desc" placeholder="Р”РµС‚Р°Р»Рё..." style="min-height:60px;"></textarea></label>
+          <label>Название<input id="t_title" placeholder="Сделать монтаж..." required /></label>
+          <label>Описание<textarea id="t_desc" placeholder="Детали..." style="min-height:60px;"></textarea></label>
 
           <div class="row2">
-            <label>Р”РµРґР»Р°Р№РЅ<input id="t_deadline" type="date" required /></label>
-            <label>РўРёРї
+            <label>Дедлайн<input id="t_deadline" type="date" required /></label>
+            <label>Тип
               <select id="t_type" class="input-style"
                 style="width:100%; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.12); color:white; padding:10px; border-radius:8px; outline:none;">
-                <option value="general">РћР±С‰РµРµ</option>
-                <option value="casting">РљР°СЃС‚РёРЅРі</option>
-                <option value="actors">РђРєС‚РµСЂС‹</option>
-                <option value="design">Р”РёР·Р°Р№РЅ</option>
-                <option value="location">Р›РѕРєР°С†РёСЏ</option>
-                <option value="shoot_prep">РџРѕРґРіРѕС‚РѕРІРєР°</option>
+                <option value="general">Общее</option>
+                <option value="casting">Кастинг</option>
+                <option value="actors">Актеры</option>
+                <option value="design">Дизайн</option>
+                <option value="location">Локация</option>
+                <option value="shoot_prep">Подготовка</option>
               </select>
             </label>
           </div>
 
           <div class="row2">
-            <label>РљР°СЃС‚РёРЅРі РїСЂРѕРµРєС‚
+            <label>Кастинг проект
               <div class="input-wrap">
-                <input id="t_casting_project" placeholder="РќР°Р№С‚Рё РїСЂРѕРµРєС‚..." autocomplete="off" />
+                <input id="t_casting_project" placeholder="Найти проект..." autocomplete="off" />
                 <div id="t_castingDropdown" class="dropdown"></div>
               </div>
             </label>
-            <label>РђРєС‚РµСЂС‹
+            <label>Актеры
               <div class="multi-select-wrap" id="t_actorsWrapper" onclick="openActorChecklist('task')">
                 <div id="t_actorsTags" class="tags"></div>
-                <input id="t_actorsInput" placeholder="Р’С‹Р±СЂР°С‚СЊ..." readonly style="cursor:pointer;" />
+                <input id="t_actorsInput" placeholder="Выбрать..." readonly style="cursor:pointer;" />
                 <div id="t_actorsDropdown" class="dropdown"></div>
               </div>
               <textarea id="t_actors" style="display:none"></textarea>
@@ -1389,7 +1389,7 @@
           <label>РСЃРїРѕР»РЅРёС‚РµР»СЊ
             <div class="multi-select-wrap" id="assigneeWrapper">
               <div id="assigneeTags" class="tags"></div>
-              <input id="assigneeInput" placeholder="Р’С‹Р±СЂР°С‚СЊ..." autocomplete="off" />
+              <input id="assigneeInput" placeholder="Выбрать..." autocomplete="off" />
               <div id="assigneeDropdown" class="dropdown"></div>
             </div>
             <textarea id="t_assignees" style="display:none"></textarea>
@@ -1686,9 +1686,9 @@
 
     function copyTask(task) {
       const txt = `рџ“Њ **${task.title}**\n` +
-        `рџ“… Р”РµРґР»Р°Р№РЅ: ${task.deadline}\n` +
-        `рџ“‚ РџСЂРѕРµРєС‚: ${task.project_id || '-'}\n` +
-        `рџ“ќ РћРїРёСЃР°РЅРёРµ: ${task.description || '-'}\n` +
+        `рџ“… Дедлайн: ${task.deadline}\n` +
+        `рџ“‚ Проект: ${task.project_id || '-'}\n` +
+        `рџ“ќ Описание: ${task.description || '-'}\n` +
         `рџ‘Ґ РСЃРїРѕР»РЅРёС‚РµР»Рё: ${(task.assignee_ids || []).join(', ')}`;
 
       navigator.clipboard.writeText(txt);
@@ -1982,7 +1982,7 @@
       matches.forEach(l => {
         const div = document.createElement('div');
         div.className = 'dropdown-item';
-        div.innerHTML = l.isProjectSpecific ? `рџ“Њ ${l.name} <small>(РџСЂРѕРµРєС‚)</small>` : l.name;
+        div.innerHTML = l.isProjectSpecific ? `рџ“Њ ${l.name} <small>(Проект)</small>` : l.name;
         div.onclick = () => {
           locInput.value = l.name;
           locDropdown.style.display = 'none';
@@ -2213,7 +2213,7 @@
         // AND all contacts from 'casting' category
         if (fieldId === 'actors') {
           const mediaContacts = currentMediaContacts.map(c => ({
-            full_name: c.name, position: 'РљРѕРЅС‚Р°РєС‚ (Media)', roles: ['actor']
+            full_name: c.name, position: 'Контакт (Media)', roles: ['actor']
           }));
           const castingContacts = currentCastingContacts.map(c => ({
             full_name: c.name, position: 'РђРєС‚РµСЂ (Casting)', roles: ['actor']
@@ -2524,7 +2524,7 @@
       row.dataset.id = rowId;
       row.innerHTML = `
         <div class="timing-cell drag-handle">
-          ${data.num ? `<span style="color:#ffcc00; font-weight:800; font-size:10px;">в„–${data.num}</span>` : 'в‹®в‹®'}
+          ${data.num ? `<span style="color:#ffcc00; font-weight:800; font-size:10px;">№${data.num}</span>` : '⋮⋮'}
         </div>
         <div class="timing-cell"><input type="time" class="t-start" value="${data.start || ''}"></div>
         <div class="timing-cell"><input type="time" class="t-end" value="${data.end || ''}"></div>
@@ -2565,14 +2565,14 @@
       row.innerHTML = `
         <div class="timing-cell">
           <select class="g-cat">
-            <option value="РљР°РјРµСЂР°" ${data.cat === 'РљР°РјРµСЂР°' ? 'selected' : ''}>РљР°РјРµСЂР°</option>
-            <option value="РћРїС‚РёРєР°" ${data.cat === 'РћРїС‚РёРєР°' ? 'selected' : ''}>РћРїС‚РёРєР°</option>
-            <option value="РЎРІРµС‚" ${data.cat === 'РЎРІРµС‚' ? 'selected' : ''}>РЎРІРµС‚</option>
-            <option value="Р—РІСѓРє" ${data.cat === 'Р—РІСѓРє' ? 'selected' : ''}>Р—РІСѓРє</option>
-            <option value="Р”СЂСѓРіРѕРµ" ${data.cat === 'Р”СЂСѓРіРѕРµ' ? 'selected' : ''}>Р”СЂСѓРіРѕРµ</option>
+            <option value="Камера" ${data.cat === 'Камера' ? 'selected' : ''}>Камера</option>
+            <option value="Оптика" ${data.cat === 'Оптика' ? 'selected' : ''}>Оптика</option>
+            <option value="Свет" ${data.cat === 'Свет' ? 'selected' : ''}>Свет</option>
+            <option value="Звук" ${data.cat === 'Звук' ? 'selected' : ''}>Звук</option>
+            <option value="Другое" ${data.cat === 'Другое' ? 'selected' : ''}>Другое</option>
           </select>
         </div>
-        <div class="timing-cell"><input type="text" class="g-model" value="${data.model || ''}" placeholder="РњРѕРґРµР»СЊ..."></div>
+        <div class="timing-cell"><input type="text" class="g-model" value="${data.model || ''}" placeholder="Модель..."></div>
         <div class="timing-cell"><input type="number" class="g-qty" value="${data.qty || 1}" style="text-align:center;"></div>
         <div class="timing-cell"><input type="text" class="g-note" value="${data.note || ''}" placeholder="..."></div>
         <div class="timing-cell" style="text-align:center;">
@@ -2651,10 +2651,10 @@
 
       // РРќР¤Рћ sheet
       const infoData = [
-        ["РџРћР›Р•", "Р—РќРђР§Р•РќРР•"],
-        ["РџР РћР•РљРў", e.project], ["Р”РђРўРђ", e.date], ["Р›РћРљРђР¦РРЇ", e.location],
-        ["РђР”Р Р•РЎ", e.address], ["РљРћРќРўРђРљРў", e.contact], ["CALL", e.callTime], ["WRAP", e.wrapTime],
-        [""], ["РўР—", e.deliverables], ["РџР РРњР•Р§РђРќРРЇ", e.notes], ["РљРћРњРђРќР”Рђ", e.crew], ["РђРљРўР•Р Р«", e.actors]
+        ["ПОЛЕ", "Р—РќРђР§Р•РќРР•"],
+        ["ПРОЕКТ", e.project], ["ДАТА", e.date], ["Р›РћРљРђР¦РРЇ", e.location],
+        ["АДРЕС", e.address], ["КОНТАКТ", e.contact], ["CALL", e.callTime], ["WRAP", e.wrapTime],
+        [""], ["ТЗ", e.deliverables], ["РџР РРњР•Р§РђРќРРЇ", e.notes], ["КОМАНДА", e.crew], ["АКТЕРЫ", e.actors]
       ];
       const wsInfo = XLSX.utils.aoa_to_sheet(infoData);
       formatSheet(wsInfo, [16, 50]);
@@ -2702,11 +2702,11 @@
           if (res.status === 'ok') {
             if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             if (exportBtn) {
-              exportBtn.innerHTML = "вњ… Р’ РўР“";
+              exportBtn.innerHTML = "вњ… В ТГ";
               setTimeout(() => { exportBtn.innerHTML = "рџ“Љ Excel"; exportBtn.disabled = false; }, 2000);
             }
           } else {
-            alert("РћС€РёР±РєР° TG: " + res.error);
+            alert("Ошибка TG: " + res.error);
             if (exportBtn) { exportBtn.innerHTML = "вќЊ"; exportBtn.disabled = false; }
           }
         })
@@ -2719,7 +2719,7 @@
     function triggerExcelImport() { document.getElementById('excelFileInput').click(); }
 
     function openTimer() {
-      const project = document.getElementById('project').value.trim() || 'РџСЂРѕРµРєС‚';
+      const project = document.getElementById('project').value.trim() || 'Проект';
 
       // Try to get IDs from URL params (fallback if TG data is hidden)
       const urlParams = new URL(window.location.href).searchParams;
@@ -2763,16 +2763,16 @@
           info.forEach(r => {
             if (!r[0]) return;
             const k = r[0].toString().toUpperCase(); const v = r[1] || "";
-            if (k === "РџР РћР•РљРў") document.getElementById("project").value = v;
+            if (k === "ПРОЕКТ") document.getElementById("project").value = v;
             if (k === "Р›РћРљРђР¦РРЇ") document.getElementById("location").value = v;
-            if (k === "РђР”Р Р•РЎ") document.getElementById("address").value = v;
-            if (k === "РљРћРќРўРђРљРў") document.getElementById("contact").value = v;
+            if (k === "АДРЕС") document.getElementById("address").value = v;
+            if (k === "КОНТАКТ") document.getElementById("contact").value = v;
             if (k === "CALL") document.getElementById("callTime").value = v;
             if (k === "WRAP") document.getElementById("wrapTime").value = v;
-            if (k === "РўР—") document.getElementById("deliverables").value = v;
+            if (k === "ТЗ") document.getElementById("deliverables").value = v;
             if (k === "РџР РРњР•Р§РђРќРРЇ") document.getElementById("notes").value = v;
-            if (k === "РљРћРњРђРќР”Рђ") { document.getElementById("crew").value = v; renderCrewTags(); }
-            if (k === "РђРљРўР•Р Р«") { document.getElementById("actors").value = v; renderActorsTags(); }
+            if (k === "КОМАНДА") { document.getElementById("crew").value = v; renderCrewTags(); }
+            if (k === "АКТЕРЫ") { document.getElementById("actors").value = v; renderActorsTags(); }
           });
         }
         const wsTiming = wb.Sheets["РўРђР™РњРРќР“"];
@@ -2787,7 +2787,7 @@
           document.getElementById('gearRows').innerHTML = '';
           rows.forEach(r => addGearRow({ cat: r.CAT, model: r.MODEL, qty: r.QTY, note: r.NOTES }));
         }
-        alert("Excel РёРјРїРѕСЂС‚РёСЂРѕРІР°РЅ!");
+        alert("Excel импортирован!");
       };
       reader.readAsArrayBuffer(file);
     }
@@ -2973,11 +2973,11 @@
           data.forEach(d => addGearRow(d));
         } else if (raw.trim()) {
           // Migration for old plain text
-          addGearRow({ cat: 'Р”СЂСѓРіРѕРµ', model: raw.trim(), qty: 1 });
+          addGearRow({ cat: 'Другое', model: raw.trim(), qty: 1 });
         }
       } catch (e) {
         // Fallback or migration
-        if (raw.trim()) addGearRow({ cat: 'Р”СЂСѓРіРѕРµ', model: raw.trim(), qty: 1 });
+        if (raw.trim()) addGearRow({ cat: 'Другое', model: raw.trim(), qty: 1 });
       }
       if (container.children.length === 0) addGearRow();
     }
@@ -3063,7 +3063,7 @@
           if (tg && tg.HapticFeedback && !isAutoSave) tg.HapticFeedback.notificationOccurred('success');
           if (saveBtn) {
             saveBtn.innerHTML = 'вњ…';
-            setTimeout(() => { saveBtn.innerHTML = 'РЎРѕС…СЂР°РЅРёС‚СЊ'; }, 1500);
+            setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
           }
           if (!isAutoSave) toggleForm(false);
           return;
@@ -3074,7 +3074,7 @@
       addToSyncQueue('shoots', payload);
       if (saveBtn) {
         saveBtn.innerHTML = 'рџ’ѕ'; // Saved locally
-        setTimeout(() => { saveBtn.innerHTML = 'РЎРѕС…СЂР°РЅРёС‚СЊ'; }, 1500);
+        setTimeout(() => { saveBtn.innerHTML = 'Сохранить'; }, 1500);
       }
       if (!isAutoSave) toggleForm(false);
     }
@@ -3093,7 +3093,7 @@
 
     // 4. РЈР”РђР›Р•РќРР•
     document.getElementById("deleteBtn").onclick = async () => {
-      if (!selectedId || !confirm("РЈРґР°Р»РёС‚СЊ СЃСЉРµРјРєСѓ?")) return;
+      if (!selectedId || !confirm("Удалить СЃСЉРµРјРєСѓ?")) return;
 
       // 1. Optimistic
       allEvents = allEvents.filter(e => e.id !== selectedId);
@@ -3142,7 +3142,7 @@
       document.getElementById("deleteBtn").style.display = "block";
       toggleForm(true);
       // User manually changes date and saves
-      alert("Р’С‹Р±РµСЂРёС‚Рµ РЅРѕРІСѓСЋ РґР°С‚Сѓ Рё РЅР°Р¶РјРёС‚Рµ РЎРѕС…СЂР°РЅРёС‚СЊ");
+      alert("Р’С‹Р±РµСЂРёС‚Рµ РЅРѕРІСѓСЋ РґР°С‚Сѓ Рё РЅР°Р¶РјРёС‚Рµ Сохранить");
     }
 
     // 5. Р›РћР“РРљРђ РљРђР›Р•РќР”РђР РЇ
@@ -3408,19 +3408,19 @@
 
       const shiftTime = `${e.callTime || '--:--'}вЂ”${e.wrapTime || '--:--'}`;
       let lines = [];
-      const header = i !== null ? `рџЋҐ ${hlL(`РџР РћР•РљРў #${i + 1}`, isHtml)}` : `рџЋҐ ${hlL(e.project || 'РџР РћР•РљРў', isHtml)}`;
+      const header = i !== null ? `рџЋҐ ${hlL(`ПРОЕКТ #${i + 1}`, isHtml)}` : `рџЋҐ ${hlL(e.project || 'ПРОЕКТ', isHtml)}`;
 
       lines.push(`${stat}${header}`);
-      if (i !== null) lines.push(`${hlL('РџР РћР•РљРў:', isHtml)} ${e.project}`);
+      if (i !== null) lines.push(`${hlL('ПРОЕКТ:', isHtml)} ${e.project}`);
       lines.push(`${hlL('РЎРњР•РќРђ:', isHtml)} ${hlT(shiftTime, isHtml)}`);
       lines.push(`${hlL('Р›РћРљРђР¦РРЇ:', isHtml)} ${e.location}`);
-      lines.push(`${hlL('РђР”Р Р•РЎ:', isHtml)} ${displayAddr}`);
-      lines.push(`${hlL('РљРћРњРђРќР”Рђ:', isHtml)} ${e.crew}`);
+      lines.push(`${hlL('АДРЕС:', isHtml)} ${displayAddr}`);
+      lines.push(`${hlL('КОМАНДА:', isHtml)} ${e.crew}`);
 
       if (e.post_production) lines.push(`${hlL('РџРћРЎРў/РњРћРќРўРђР–:', isHtml)} ${e.post_production}`);
       if (e.casting_project || e.actors) {
         lines.push(`${hlL('РљРђРЎРўРРќР“:', isHtml)} ${e.casting_project || 'вЂ”'}`);
-        if (e.actors) lines.push(`${hlL('рџЋ¬ РђРљРўР•Р Р«:', isHtml)} ${e.actors}`);
+        if (e.actors) lines.push(`${hlL('рџЋ¬ АКТЕРЫ:', isHtml)} ${e.actors}`);
       }
 
       if (fullDetails && e.schedule) {
@@ -3434,7 +3434,7 @@
               const obj = row.loc ? ` (${row.loc})` : '';
               const acts = row.act ? ` вЂ” рџ‘¤ ${row.act}` : '';
               const link = row.link ? ` [рџ”—](${row.link})` : '';
-              const num = row.num ? `в„–${row.num} ` : '';
+              const num = row.num ? `№${row.num} ` : '';
               if (timeStr || task || obj || row.act || row.link) {
                 lines.push(`  ${timeStr ? hlT(timeStr, isHtml) + ' ' : ''}${num}${task}${obj}${acts}${link}`);
               }
@@ -3460,7 +3460,7 @@
         }
       }
       if (e.notes) lines.push(`\n${hlL('вљ пёЏ РРќР¤Рћ:', isHtml)}\n${e.notes}`);
-      if (e.contact) lines.push(`${hlL('рџ“ћ РљРћРќРўРђРљРў:', isHtml)} ${e.contact}`);
+      if (e.contact) lines.push(`${hlL('рџ“ћ КОНТАКТ:', isHtml)} ${e.contact}`);
       if (e.report_link) lines.push(`${hlL('рџ“Љ РћРўР§Р•Рў:', isHtml)} ${e.report_link}`);
 
       return lines.join("\n");
@@ -3607,7 +3607,7 @@
               <div class="actor-meta">${a.dob ? a.dob + ' Р»РµС‚, ' : ''}${a.city || ''}</div>
               <div class="actor-actions">
                 <button class="btn-select ${a.is_selected ? 'selected' : ''}" onclick="toggleActorSelection('${a.id}', ${!a.is_selected})">${a.is_selected ? 'Р’С‹Р±СЂР°РЅ' : 'Р’С‹Р±СЂР°С‚СЊ'}</button>
-                <button class="btn-delete" onclick="deleteActorApplication('${a.id}')">РЈРґР°Р»РёС‚СЊ</button>
+                <button class="btn-delete" onclick="deleteActorApplication('${a.id}')">Удалить</button>
               </div>
             </div>
           </div>
@@ -3636,7 +3636,7 @@
     }
 
     async function deleteActorApplication(id) {
-      if (!confirm("РЈРґР°Р»РёС‚СЊ Р°РЅРєРµС‚Сѓ?")) return;
+      if (!confirm("Удалить Р°РЅРєРµС‚Сѓ?")) return;
       if (String(id).startsWith('mock')) {
         castingApps = castingApps.filter(a => a.id !== id);
         if (castingApps.filter(a => a.project_name === currentCastingProject).length === 0) {

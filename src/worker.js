@@ -190,7 +190,7 @@ export default {
     const contentType = request.headers.get("content-type") || "";
 
     // Обработка Telegram Webhook
-    if (contentType.includes("application/json")) {
+    if (request.method === "POST" && contentType.includes("application/json")) {
       try {
         const update = await request.json();
         const message = update.message || update.callback_query?.message;
@@ -200,7 +200,7 @@ export default {
         const fromId = update.message?.from?.id || update.callback_query?.from?.id;
         const msgText = update.message?.text || "";
 
-        const allowedEnv = (env.ALLOWED_CHATS || "-8534227633,-195051697,542053490").split(",").map(id => id.trim());
+        const allowedEnv = (env.ALLOWED_CHATS || "-8534227633,-195051697,542053490,-1003738942785").split(",").map(id => id.trim());
         async function checkAccess() {
           if (allowedEnv.includes(String(chatId))) return true;
           try {
