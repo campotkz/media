@@ -17,7 +17,7 @@ export default {
 
     try {
       const formData = await request.formData();
-      const botToken = env.BOT_KEY;
+      const botToken = env.BOT_TOKEN;
       const chatId = env.CHAT_ID || "-1003893557217";
 
       // --- 1. Извлекаем текстовые поля ---
