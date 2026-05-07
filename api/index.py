@@ -398,37 +398,55 @@ def process_general_casting_name(message, cid):
     pname = message.text.strip()
     
     try:
-        # Проверяем, нет ли уже такого общего кастинга (где thread_id is null)
-        # Архитектура на будущее: добавляем возможность хранения правил маршрутизации (routing_rules)
-        res = supabase.from_("clients").select("id").eq("chat_id", cid).is_("thread_id", "null").eq("name", pname).execute()
+        # Проверяем, нет ли уже такого кастинга с таким именем
+        res = supabase.from_("clients").select("id, thread_id").eq("chat_id", cid).eq("name", pname).execute()
         
+        tid = None
         if not res.data:
-            # Создаем новую запись для общего кастинга
+            # Создаем новый топик прямо в Telegram
+            try:
+                created_topic = bot.create_forum_topic(cid, pname)
+                tid = created_topic.message_thread_id
+            except Exception as e:
+                return bot.send_message(cid, f"❌ Ошибка создания топика в Telegram (проверьте права бота): {e}")
+
+            # Записываем в базу с новым ID топика
             supabase.from_("clients").insert({
                 "chat_id": cid,
-                "thread_id": None, # Базовый топик / Общий чат
+                "thread_id": tid,
                 "name": pname,
                 "category": "casting",
                 "is_active": True,
                 "is_hidden": False
-                # В будущем в Supabase можно добавить JSON-колонку 'routing_rules' 
-                # для распределения анкет по саб-топикам (например, по весу или национальности)
             }).execute()
+        else:
+            tid = res.data[0]['thread_id']
             
-        # Генерируем универсальную ссылку (без tid)
-        link = f"{APP_URL}casting.html?cid={cid}&proj={urllib.parse.quote(pname)}&lock=1"
+        # Генерируем ссылку, жестко привязанную к этому новому (или найденному) топику
+        link = f"{APP_URL}casting.html?cid={cid}&tid={tid}&proj={urllib.parse.quote(pname)}&lock=1"
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton(text="🎯 ЗАПОЛНИТЬ АНКЕТУ", url=link))
+        
+        # Отправляем сообщение со ссылкой В САМ НОВЫЙ ТОПИК
         bot.send_message(
             cid, 
-            f"🎯 <b>ОБЩИЙ КАСТИНГ: {pname}</b>\n\n"
+            f"🎯 <b>КАСТИНГ: {pname}</b>\n\n"
             f"🔗 <code>{link}</code>\n\n"
-            f"_Анкеты по этой ссылке будут приходить в общий чат. Позже мы настроим автоматическую маршрутизацию по под-топикам._", 
+            f"_Анкеты будут приходить сюда. Скопируйте ссылку и отправьте актерам!_", 
             reply_markup=markup, 
+            message_thread_id=tid,
             parse_mode="HTML"
         )
+        
+        # И для удобства дублируем в General, где пользователь запрашивал
+        bot.send_message(
+            cid, 
+            f"✅ Топик **{pname}** успешно создан!\n🔗 Ссылка внутри топика.", 
+            parse_mode="Markdown"
+        )
+        
     except Exception as e:
-        bot.send_message(cid, f"❌ Ошибка создания кастинга: {e}")
+        bot.send_message(cid, f"❌ Ошибка: {e}")
 
 @bot.message_handler(commands=['del'])
 def handle_delete(message):
