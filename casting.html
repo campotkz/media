@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GULYWOOD | CASTING HUB</title>
+    <title>GULYWOOD | CASTING PIPELINE</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
@@ -303,7 +303,7 @@
     <div id="formContainer">
         <div class="header">
             <h1>GULYWOOD</h1>
-            <p>CASTING & DRIVE PIPELINE</p>
+            <p>DRIVE & TELEGRAM SYNC</p>
         </div>
 
         <div class="container">
@@ -378,10 +378,14 @@
 
                 <!-- STEP 4 -->
                 <div class="step-card">
-                    <div class="step-title"><span>4</span> КОНТАКТЫ И ОПЫТ</div>
+                    <div class="step-title"><span>4</span> КОНТАКТЫ И РОЛЬ</div>
                     <div class="form-group">
                         <label>ТЕЛЕФОН (WHATSAPP)</label>
                         <input type="tel" name="phone" required placeholder="+7 777 000 00 00">
+                    </div>
+                    <div class="form-group">
+                        <label>ПЕРСОНАЖ / РОЛЬ</label>
+                        <input type="text" name="character_name" placeholder="На какую роль претендуете?" required>
                     </div>
                     <div class="form-group">
                         <label>SOCIAL / PORTFOLIO</label>
@@ -391,15 +395,11 @@
                         <label>ОПЫТ / О СЕБЕ</label>
                         <textarea name="experience" rows="3" placeholder="Опишите ваши проекты..."></textarea>
                     </div>
-                    <div class="form-group">
-                        <label>ПЕРСОНАЖ / РОЛЬ</label>
-                        <input type="text" name="character_name" placeholder="На какую роль претендуете?">
-                    </div>
                 </div>
 
                 <!-- STEP 5 -->
                 <div class="step-card">
-                    <div class="step-title"><span>5</span> МЕДИА (GOOGLE DRIVE)</div>
+                    <div class="step-title"><span>5</span> МЕДИА</div>
                     <label>ФОТОГРАФИИ (ДО 6 ШТ)</label>
                     <div class="media-grid" id="photoGrid"></div>
                     <input type="file" id="photoInput" multiple accept="image/*" style="display:none;">
@@ -414,7 +414,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="submit-btn">ОТПРАВИТЬ В БАЗУ</button>
+                <button type="submit" class="submit-btn" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
             </form>
         </div>
     </div>
@@ -422,7 +422,7 @@
     <div id="successScreen" class="success-screen">
         <div class="success-icon">✨</div>
         <h2>УСПЕШНО!</h2>
-        <p style="color:var(--text-dim); margin-top:10px;">Данные сохранены на Google Drive и отправлены кастинг-директору.</p>
+        <p style="color:var(--text-dim); margin-top:10px;">Анкета отправлена. Видео загружается на Google Диск.</p>
         <button onclick="location.reload()" class="submit-btn" style="width:auto; padding:15px 40px; margin-top:30px;">НОВАЯ АНКЕТА</button>
     </div>
 
@@ -436,16 +436,14 @@
     </div>
 
     <script>
-        // CONFIG
-        const G_DRIVE_FOLDER_ID = "1hTpIgv5AWAiCETPfqkjUig_yIkjzWTAS";
-        const G_API_TOKEN = "AQ.Ab8RN6LGyBRDak2cR0gFijqT0JyQVONKDmKfUWhtxoWDjJqIjQ"; // Your provided token
+        const CF_WORKER = "https://media.sijic13.workers.dev"; // Your Worker
         const VERCEL_API = "https://media-seven-eta.vercel.app/api/casting/submit_no_sb";
         const TOPICS_API = "https://media-seven-eta.vercel.app/api/casting/topics";
 
         let photos = [];
         let videoFile = null;
 
-        // UI Handlers
+        // UI Initialization
         const photoInput = document.getElementById('photoInput');
         const videoInput = document.getElementById('videoInput');
         const photoGrid = document.getElementById('photoGrid');
@@ -487,10 +485,9 @@
             if (file) {
                 videoFile = file;
                 const preview = document.getElementById('videoPreview');
-                const status = document.getElementById('videoStatus');
                 preview.src = URL.createObjectURL(file);
                 preview.style.display = 'block';
-                status.style.display = 'none';
+                document.getElementById('videoStatus').style.display = 'none';
             }
         };
 
@@ -504,10 +501,7 @@
                     item.className = 'project-item';
                     item.innerHTML = `
                         <input type="checkbox" data-cid="${p.chat_id}" data-tid="${p.thread_id || ''}" data-name="${p.name}">
-                        <div>
-                            <div style="font-weight:bold;">${p.name}</div>
-                            <div style="font-size:0.7rem; color:var(--text-dim);">${p.category}</div>
-                        </div>
+                        <div><div style="font-weight:bold;">${p.name}</div></div>
                     `;
                     item.onclick = () => {
                         const cb = item.querySelector('input');
@@ -516,120 +510,85 @@
                     };
                     list.appendChild(item);
                 });
-            } catch (err) {
-                document.getElementById('projectsList').innerHTML = "Ошибка загрузки проектов.";
-            }
+            } catch (err) { console.error(err); }
         }
 
-        // GOOGLE DRIVE UPLOAD LOGIC
-        async function uploadToDrive(file, folderId) {
-            // Obfuscated Token to bypass Github blocking
-            const p1 = "YA29.A0AXeO80S";
-            const p2 = "some_part_of_token"; // We will use the user's provided token logic
-            const token = "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"; // Placeholder or user secret if valid
-            
-            // Note: Since GitHub blocks raw secrets, we'll use the user-provided Drive logic 
-            // but structure the request to be handled via our Worker or a safer proxy if needed.
-            // For now, we use a more robust way to send to Telegram.
-            
-            const metadata = {
-                name: `${Date.now()}_${file.name}`,
-                parents: [folderId]
-            };
-
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-            form.append('file', file);
-
-            // If drive fails, we fallback to our Cloudflare Worker which is safer for large files
-            const res = await axios.post(
-                'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-                form,
-                {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }
-            );
-            return res.data.id;
-        }
+        // Helper for Base64
+        const toBase64 = file => new Promise((res, rej) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => res(reader.result.split(',')[1]);
+            reader.onerror = rej;
+        });
 
         document.getElementById('castingForm').onsubmit = async function(e) {
             e.preventDefault();
             const selected = Array.from(document.querySelectorAll('#projectsList input:checked')).map(i => ({
-                cid: i.dataset.cid,
-                tid: i.dataset.tid,
-                name: i.dataset.name
+                cid: i.dataset.cid, tid: i.dataset.tid, name: i.dataset.name
             }));
+            if (!selected.length) return alert("Выберите проект!");
+            if (photos.length < 1) return alert("Нужно хотя бы 1 фото!");
+            if (!videoFile) return alert("Нужно видео!");
 
-            if (!selected.length) return alert("Выберите кастинг!");
-            
             const overlay = document.getElementById('loadingOverlay');
-            overlay.style.display = 'flex';
             const status = document.getElementById('loadingStatus');
+            const progressBar = document.getElementById('progressBar');
+            overlay.style.display = 'flex';
 
             try {
                 const fd = new FormData(this);
                 
-                // Prepare details
-                status.textContent = "ПОДГОТОВКА ДАННЫХ...";
-                const details = `
-📏 РОСТ/ВЕС: ${fd.get('height')}/${fd.get('weight')}
-👕 ОДЕЖДА/ОБУВЬ: ${fd.get('cloth_size')}/${fd.get('shoe_size')}
-🎭 ТИП: ${fd.get('appearance_type')}
-                `.trim();
+                // 1. Convert everything for the Worker
+                status.textContent = "ПОДГОТОВКА ФОТО...";
+                progressBar.style.width = "20%";
+                const photoB64 = await toBase64(photos[0]);
 
-                for (const p of selected) {
-                    status.textContent = `ОТПРАВКА: ${p.name}...`;
-                    
-                    const tgData = new FormData();
-                    tgData.append('chat_id', p.cid);
-                    tgData.append('thread_id', p.tid);
-                    tgData.append('full_name', fd.get('full_name'));
-                    tgData.append('gender', fd.get('gender'));
-                    tgData.append('birth_date', fd.get('birth_date'));
-                    tgData.append('city', fd.get('city'));
-                    tgData.append('phone', fd.get('phone'));
-                    tgData.append('email_tg', fd.get('social_links'));
-                    tgData.append('character_name', fd.get('character_name'));
-                    tgData.append('experience', fd.get('experience') + "\n\n" + details + "\n\n🎥 ВИДЕО: Загружается на Google Drive...");
-                    tgData.append('casting_target', p.name);
-                    
-                    // First photo to TG
-                    if (photos[0]) tgData.append('photos', photos[0]);
+                status.textContent = "ПОДГОТОВКА ВИДЕО...";
+                progressBar.style.width = "40%";
+                const videoB64 = await toBase64(videoFile);
 
-                    // Send text and photo to Telegram first
-                    await axios.post(VERCEL_API, tgData);
+                // 2. Final Payload for Cloudflare
+                const payload = {
+                    projects: selected,
+                    full_name: fd.get('full_name'),
+                    gender: fd.get('gender'),
+                    birth_date: fd.get('birth_date'),
+                    city: fd.get('city'),
+                    height: fd.get('height'),
+                    weight: fd.get('weight'),
+                    cloth_size: fd.get('cloth_size'),
+                    shoe_size: fd.get('shoe_size'),
+                    appearance_type: fd.get('appearance_type'),
+                    phone: fd.get('phone'),
+                    character_name: fd.get('character_name'),
+                    social_links: fd.get('social_links'),
+                    experience: fd.get('experience'),
+                    photo: photoB64,
+                    video: videoB64
+                };
 
-                    // Then upload video to Drive and send link as a second message
-                    status.textContent = "ЗАГРУЗКА ВИДЕО НА ДРАЙВ...";
-                    // (Drive logic here...)
-                }
+                status.textContent = "ОТПРАВКА В TELEGRAM И НА ДИСК...";
+                progressBar.style.width = "70%";
 
-                document.getElementById('formContainer').style.display = 'none';
-                document.getElementById('successScreen').style.display = 'block';
+                // Submit to Cloudflare Worker (which handles Drive + TG)
+                await axios.post(CF_WORKER, payload, {
+                    headers: { 'Content-Type': 'application/json' }
+                });
 
-            } catch (err) {
-                alert("Ошибка отправки: " + err.message);
-            } finally {
-                overlay.style.display = 'none';
-            }
-        };
-
+                progressBar.style.width = "100%";
                 document.getElementById('formContainer').style.display = 'none';
                 document.getElementById('successScreen').style.display = 'block';
                 window.scrollTo(0,0);
 
             } catch (err) {
                 console.error(err);
-                alert("Ошибка: " + (err.response?.data?.error || "Проверьте API токен или доступ к папке"));
+                alert("Ошибка: " + (err.response?.data?.error || err.message));
             } finally {
                 overlay.style.display = 'none';
             }
         };
 
-        window.onload = () => {
-            loadTopics();
-            renderPhotos();
-        };
+        window.onload = loadTopics;
     </script>
 </body>
 </html>
