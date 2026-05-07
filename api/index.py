@@ -486,39 +486,42 @@ def hide_menu(message):
 def submit_no_sb():
     if request.method == 'OPTIONS': return ('', 204)
     try:
-        data = request.json or {}
-        cid = int(data.get('chat_id', 0))
-        tid = int(data.get('thread_id', 0)) if data.get('thread_id') else None
+        # Use form and files for multipart support
+        f = request.form
+        cid = int(f.get('chat_id', 0))
+        tid = int(f.get('thread_id', 0)) if f.get('thread_id') else None
         if not cid: return jsonify({'error': 'No chat_id'}), 400
 
-        def v(k): return str(data.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
+        def v(k): return str(f.get(k) or "—").replace("<", "&lt;").replace(">", "&gt;")
+        
         summary = (
             f"🌟 <b>НОВАЯ АНКЕТА: {v('full_name')}</b>\n"
             f"🎯 Проект: <b>{v('casting_target')}</b>\n"
             f"🎭 Персонаж: <b>{v('character_name')}</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"👤 <b>Данные:</b> {v('city')} | {v('gender')} | {v('dob')}\n"
-            f"📈 Рост/Вес: {v('height_weight')} | {v('sizes')}\n"
-            f"🎭 Опыт: {v('experience')}\n\n"
-            f"📱 <b>Контакты:</b>\n📞 {v('phone')} | 🔗 Inst: {v('instagram')}\n\n"
-            f"💰 Бюджет: {v('fee_range')}\n"
+            f"👤 <b>Данные:</b> {v('city')} | {v('gender')} | {v('birth_date')}\n"
+            f"📈 Параметры:\n{v('experience')}\n\n"
+            f"📱 <b>Контакты:</b>\n📞 {v('phone')} | {v('email_tg')}\n"
+            f"🔗 Inst/Social: {v('social_links')}\n"
         )
-        if data.get('portfolio_url'): summary += f"🔗 <a href='{v('portfolio_url')}'>Портфолио</a>\n"
 
-        photos_b64, media_group = data.get('photos', []), []
-        for i, b64 in enumerate(photos_b64[:10]):
+        photos = request.files.getlist('photos')
+        video = request.files.get('video')
+
+        media_group = []
+        for i, photo_file in enumerate(photos[:10]):
             try:
-                if ',' in b64: b64 = b64.split(',')[1]
-                img_io = io.BytesIO(base64.b64decode(b64)); img_io.name = f"p{i}.jpg"
+                photo_bytes = photo_file.read()
+                img_io = io.BytesIO(photo_bytes); img_io.name = f"p{i}.jpg"
                 caption = f"📸 {v('full_name')} ({v('casting_target')})" if i == 0 else None
                 media_group.append(types.InputMediaPhoto(img_io, caption=caption))
             except Exception as e: print(f"Photo err: {e}")
 
-        video_b64, video_io = data.get('video'), None
-        if video_b64:
+        video_io = None
+        if video:
             try:
-                if ',' in video_b64: video_b64 = video_b64.split(',')[1]
-                video_io = io.BytesIO(base64.b64decode(video_b64)); video_io.name = "v.mp4"
+                video_bytes = video.read()
+                video_io = io.BytesIO(video_bytes); video_io.name = "v.mp4"
             except Exception as e: print(f"Video err: {e}")
 
         reply_to = None
