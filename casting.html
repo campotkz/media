@@ -551,14 +551,61 @@
                         </label>
                     </div>
                 </div>
-                <div class="dual-inputs">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div class="form-group">
                         <label>Дата рождения<span>*</span></label>
                         <input type="date" name="birth_date" required>
                     </div>
                     <div class="form-group">
+                        <label>Тип внешности<span>*</span></label>
+                        <select name="appearance_type" required>
+                            <option value="" disabled selected>Выбрать...</option>
+                            <option value="Азиатский">Азиатский</option>
+                            <option value="Европейский">Европейский</option>
+                            <option value="Африканский">Африканский</option>
+                            <option value="Ближневосточный">Ближневосточный</option>
+                            <option value="Латино">Латино</option>
+                            <option value="Смешанный">Смешанный</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="dual-inputs">
+                    <div class="form-group">
                         <label>Рост (см)<span>*</span></label>
                         <input type="number" name="height" required placeholder="175">
+                    </div>
+                    <div class="form-group">
+                        <label>Вес (кг)<span>*</span></label>
+                        <input type="number" name="weight" required placeholder="70">
+                    </div>
+                </div>
+                <div class="dual-inputs">
+                    <div class="form-group">
+                        <label>Цвет волос<span>*</span></label>
+                        <select name="hair_color" required>
+                            <option value="" disabled selected>Выбрать...</option>
+                            <option value="Брюнет">Брюнет</option>
+                            <option value="Шатен">Шатен</option>
+                            <option value="Блондин">Блондин</option>
+                            <option value="Рыжий">Рыжий</option>
+                            <option value="Седой">Седой</option>
+                            <option value="Лысый">Лысый</option>
+                            <option value="Другой">Другой</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Цвет глаз / Детали<span>*</span></label>
+                        <input type="text" name="appearance_details" required placeholder="Цвет глаз, борода, шрамы">
+                    </div>
+                </div>
+                <div class="dual-inputs">
+                    <div class="form-group">
+                        <label>Размер одежды<span>*</span></label>
+                        <input type="text" name="cloth_size" required placeholder="S/48">
+                    </div>
+                    <div class="form-group">
+                        <label>Размер обуви<span>*</span></label>
+                        <input type="number" name="shoe_size" required placeholder="42">
                     </div>
                 </div>
             </div>
@@ -918,8 +965,11 @@
                 
                 // Assemble details
                 const detailStr = `
+Тип: ${formData.get('appearance_type')} | Волосы: ${formData.get('hair_color')}
+Детали: ${formData.get('appearance_details')}
+Одежда: ${formData.get('cloth_size')} | Обувь: ${formData.get('shoe_size')}
 Образование: ${formData.get('education')}
-Рост: ${formData.get('height')} см
+Рост/Вес: ${formData.get('height')} см / ${formData.get('weight')} кг
 Массовка: ${formData.get('extras_ok')}
 Гонорар: ${formData.get('fee_min')} - ${formData.get('fee_max')}
 Купальник: ${formData.get('swimsuit_ok')}
