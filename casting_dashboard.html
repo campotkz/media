@@ -417,6 +417,7 @@
                 </div>
                 <div class="card-content">
                     <h3>${app.full_name}</h3>
+                    <p style="color: var(--accent); font-weight: 700; font-size: 11px; margin-bottom: 8px;">🎭 РОЛЬ: ${app.character_name || 'Не указана'}</p>
                     <p>${app.city} • ${app.age || '?'} лет • ${app.height || '?'} см / ${app.weight || '?'} кг</p>
                     <p style="font-size: 11px; margin-top: 2px;">🎭 ${app.appearance || '—'} • 💇 ${app.hair_color || '—'}</p>
                     <div class="summary">${app.experience_summary || 'Нет опыта'}</div>

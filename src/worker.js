@@ -375,10 +375,12 @@ export default {
       const text = `
 ${headerText}
 🎯 Проект: <b>${targetProject}</b>
+🎭 Персонаж: <b>${data.character_name || "—"}</b>
 📍 Город: <b>${data.city || "—"}</b>
 ━━━━━━━━━━━━━━━━━━━━
 
-👤 <b>Данные:</b> ${data.age || "?"} лет | ${data.height || "?"} см | ${data.weight || "?"} кг
+👤 <b>Данные:</b> ${data.gender || "—"} | ${data.age || "?"} лет
+📏 Рост/Вес: ${data.height || "?"} см / ${data.weight || "?"} кг
 🎭 Внешность: ${data.appearance || "—"}
 💇 Волосы: ${data.hair_color || "—"}
 👕 Одежда: ${data.clothing_size || "—"} | 👟 Обувь: ${data.shoe_size || "—"}
@@ -425,6 +427,8 @@ ${data.experience_summary || "—"}
       // Сохранение в Supabase
       const payload = {
           full_name: data.full_name || '',
+          character_name: data.character_name || '',
+          gender: data.gender || '',
           age: data.age || '',
           age_num: parseInt(data.age) || null,
           height: data.height || '',
