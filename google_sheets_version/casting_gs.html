@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GULYWOOD CASTING - Анкета</title>
+    <style>
+        body { font-family: sans-serif; background: #0a0b10; color: white; display: flex; justify-content: center; padding: 20px; }
+        .form-card { background: #14161e; padding: 30px; border-radius: 20px; width: 100%; max-width: 500px; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #1c1f26; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #f45925; border: none; color: white; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 20px; }
+        .status { margin-top: 15px; text-align: center; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="form-card">
+        <h2>АНКЕТА УЧАСТНИКА</h2>
+        <form id="castingForm">
+            <input type="text" name="full_name" placeholder="ФИО" required>
+            <input type="text" name="project_name" placeholder="Проект" required>
+            <input type="text" name="character_name" placeholder="На какую роль">
+            <input type="text" name="city" placeholder="Город">
+            <select name="gender">
+                <option value="Мужской">Мужской</option>
+                <option value="Женский">Женский</option>
+            </select>
+            <input type="number" name="age" placeholder="Возраст">
+            <input type="number" name="height" placeholder="Рост (см)">
+            <input type="number" name="weight" placeholder="Вес (кг)">
+            <input type="tel" name="phone" placeholder="Телефон" required>
+            <input type="text" name="contact" placeholder="TG / Instagram">
+            <textarea name="experience" placeholder="Опыт работы" rows="4"></textarea>
+            
+            <label>Фотография:</label>
+            <input type="file" id="photoFile" accept="image/*">
+            
+            <label>Видеовизитка:</label>
+            <input type="file" id="videoFile" accept="video/*">
+
+            <button type="submit" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
+            <div id="status" class="status"></div>
+        </form>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "ВСТАВЬТЕ_URL_ВАШЕГО_WEB_APP_ЗДЕСЬ";
+
+        document.getElementById('castingForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const status = document.getElementById('status');
+            btn.disabled = true;
+            status.innerText = "Загрузка данных и файлов...";
+
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            // Функция для конвертации файла в Base64
+            const toBase64 = file => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+
+            const photo = document.getElementById('photoFile').files[0];
+            const video = document.getElementById('videoFile').files[0];
+
+            if (photo) {
+                data.photoBase64 = await toBase64(photo);
+                data.photoName = photo.name;
+            }
+            if (video) {
+                if (video.size > 20 * 1024 * 1024) { // Ограничение 20МБ для Google Script
+                    alert("Видео слишком тяжелое (макс 20МБ). Загрузите на YouTube и вставьте ссылку в опыт.");
+                    btn.disabled = false; return;
+                }
+                data.videoBase64 = await toBase64(video);
+                data.videoName = video.name;
+            }
+
+            try {
+                const res = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Важно для Google Script
+                    body: JSON.stringify(data)
+                });
+                status.style.color = "#4cd964";
+                status.innerText = "✅ Анкета успешно отправлена!";
+                e.target.reset();
+            } catch (err) {
+                status.style.color = "#ff3b30";
+                status.innerText = "❌ Ошибка отправки. Проверьте URL скрипта.";
+            }
+            btn.disabled = false;
+        };
+    </script>
+</body>
+</html>

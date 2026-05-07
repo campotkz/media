@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GULYWOOD - Дашборд Кастинга</title>
+    <style>
+        body { font-family: sans-serif; background: #0a0b10; color: white; padding: 20px; }
+        .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #14161e; padding: 15px; border-radius: 12px; }
+        select, input { padding: 8px; border-radius: 6px; background: #1c1f26; color: white; border: 1px solid #333; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: #14161e; padding: 20px; border-radius: 16px; border: 1px solid #222; }
+        .card img { width: 100%; border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
+        .btn-tg { width: 100%; padding: 12px; background: #0088cc; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .btn-tg:hover { background: #00aaff; }
+    </style>
+</head>
+<body>
+    <h1>Дашборд Кастинга (Google Sheets)</h1>
+    
+    <div class="filters">
+        <input type="text" id="filterName" placeholder="Поиск по ФИО..." oninput="render()">
+        <input type="text" id="filterProject" placeholder="Проект..." oninput="render()">
+        <input type="text" id="filterCity" placeholder="Город..." oninput="render()">
+        <select id="filterGender" onchange="render()">
+            <option value="">Все полы</option>
+            <option value="Мужской">Мужской</option>
+            <option value="Женский">Женский</option>
+        </select>
+        <button onclick="fetchData()">Обновить данные</button>
+    </div>
+
+    <div class="grid" id="actorGrid">Загрузка данных из таблицы...</div>
+
+    <script>
+        const SCRIPT_URL = "ВСТАВЬТЕ_URL_ВАШЕГО_WEB_APP_ЗДЕСЬ";
+        const BOT_TOKEN = "ВСТАВЬТЕ_ВАШ_BOT_TOKEN_ЗДЕСЬ";
+        const CHAT_ID = "-1003738942785"; // Основной чат
+
+        let actors = [];
+
+        async function fetchData() {
+            try {
+                const res = await fetch(SCRIPT_URL);
+                actors = await res.json();
+                render();
+            } catch (err) {
+                document.getElementById('actorGrid').innerText = "Ошибка загрузки. Проверьте URL скрипта.";
+            }
+        }
+
+        function render() {
+            const grid = document.getElementById('actorGrid');
+            const nameF = document.getElementById('filterName').value.toLowerCase();
+            const projectF = document.getElementById('filterProject').value.toLowerCase();
+            const cityF = document.getElementById('filterCity').value.toLowerCase();
+            const genderF = document.getElementById('filterGender').value;
+
+            const filtered = actors.filter(a => {
+                return (String(a["ФИО"]).toLowerCase().includes(nameF)) &&
+                       (String(a["Проект"]).toLowerCase().includes(projectF)) &&
+                       (String(a["Город"]).toLowerCase().includes(cityF)) &&
+                       (!genderF || a["Пол"] === genderF);
+            });
+
+            grid.innerHTML = filtered.map(a => `
+                <div class="card">
+                    ${a["Фото Ссылка"] ? `<img src="${a["Фото Ссылка"]}" onclick="window.open('${a["Фото Ссылка"]}')">` : ''}
+                    <h3>${a["ФИО"]}</h3>
+                    <p>🎭 Роль: ${a["Роль"]}</p>
+                    <p>📍 ${a["Город"]} | ${a["Возраст"]} лет</p>
+                    <p>📏 ${a["Рост"]} см / ${a["Вес"]} кг</p>
+                    <p>📱 ${a["Телефон"]}</p>
+                    <button class="btn-tg" onclick="sendToTelegram('${encodeURIComponent(JSON.stringify(a))}')">ОТПРАВИТЬ В ЧАТ</button>
+                </div>
+            `).join('');
+        }
+
+        async function sendToTelegram(encodedData) {
+            const a = JSON.parse(decodeURIComponent(encodedData));
+            const text = `
+🌟 <b>АНКЕТА ИЗ ДАШБОРДА</b>
+👤 ФИО: <b>${a["ФИО"]}</b>
+🎯 Проект: ${a["Проект"]}
+🎭 Роль: ${a["Роль"]}
+📍 Город: ${a["Город"]}
+📏 Параметры: ${a["Возраст"]} лет, ${a["Рост"]} см
+📱 Тел: ${a["Телефон"]}
+
+🖼 <a href="${a["Фото Ссылка"]}">Открыть Фото</a>
+🎥 <a href="${a["Видео Ссылка"]}">Смотреть Видеовизитку</a>
+            `.trim();
+
+            try {
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        text: text,
+                        parse_mode: 'HTML'
+                    })
+                });
+                alert("Отправлено в Телеграм!");
+            } catch (err) {
+                alert("Ошибка отправки в Телеграм.");
+            }
+        }
+
+        fetchData();
+    </script>
+</body>
+</html>
