@@ -170,6 +170,14 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>Видеовизитка (макс 20МБ)</label>
+                    <div class="file-input-wrapper">
+                        <span id="videoLabel">Нажмите для выбора видео</span>
+                        <input type="file" id="videoFile" accept="video/*">
+                    </div>
+                </div>
+
                 <button type="submit" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
                 <div id="status" class="status"></div>
             </form>
@@ -181,6 +189,10 @@
 
         document.getElementById('photoFile').onchange = (e) => {
             document.getElementById('photoLabel').innerText = e.target.files[0].name;
+        };
+
+        document.getElementById('videoFile').onchange = (e) => {
+            document.getElementById('videoLabel').innerText = e.target.files[0].name;
         };
 
         document.getElementById('castingForm').onsubmit = async (e) => {
@@ -206,6 +218,17 @@
                 status.innerText = "📸 Загрузка фото...";
                 data.photoBase64 = await toBase64(photo);
                 data.photoName = photo.name;
+            }
+
+            const video = document.getElementById('videoFile').files[0];
+            if (video) {
+                if (video.size > 25 * 1024 * 1024) {
+                    alert("Видео слишком большое! Макс 25 МБ. Сожмите видео или загрузите на YouTube.");
+                    btn.disabled = false; status.innerText = ""; return;
+                }
+                status.innerText = "🎥 Загрузка видео...";
+                data.videoBase64 = await toBase64(video);
+                data.videoName = video.name;
             }
 
             try {
