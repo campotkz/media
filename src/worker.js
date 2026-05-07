@@ -57,21 +57,132 @@ export default {
       return jsonRes({ status: "new" });
     }
 
-    // GET /api/applications - API для дашборда
+    // GET /api/projects - Список уникальных проектов
+    if (request.method === "GET" && url.pathname === "/api/projects") {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/casting_applications?select=project_name`, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        });
+        const data = await res.json();
+        const projects = [...new Set(data.map(d => d.project_name))]
+          .filter(p => p && p !== "General" && p !== "Тестовый" && p !== "Test");
+        return jsonRes(projects);
+      } catch (err) { return jsonRes({ error: err.message }, 500); }
+    }
+
+    // GET /api/applications - API для дашборда с фильтрами
     if (request.method === "GET" && url.pathname === "/api/applications") {
-      const projectFilter = url.searchParams.get('project');
-      const searchFilter = url.searchParams.get('search');
+      const p = url.searchParams;
       let query = `${supabaseUrl}/rest/v1/casting_applications?select=*&order=created_at.desc`;
-      if (projectFilter && projectFilter !== 'Все') query += `&project_name=eq.${encodeURIComponent(projectFilter)}`;
-      if (searchFilter) query += `&full_name=ilike.*${encodeURIComponent(searchFilter)}*`;
+      
+      const project = p.get('project');
+      const city = p.get('city');
+      const gender = p.get('gender');
+      const ageMin = p.get('age_min');
+      const ageMax = p.get('age_max');
+      const search = p.get('search');
+      const approved = p.get('approved');
+      const status = p.get('status');
+
+      if (project && project !== 'Все') query += `&project_name=eq.${encodeURIComponent(project)}`;
+      if (city && city !== 'Все') query += `&city=eq.${encodeURIComponent(city)}`;
+      if (gender && gender !== 'Все') query += `&gender=eq.${encodeURIComponent(gender)}`;
+      if (ageMin) query += `&age_num=gte.${ageMin}`;
+      if (ageMax) query += `&age_num=lte.${ageMax}`;
+      if (search) query += `&full_name=ilike.*${encodeURIComponent(search)}*`;
+      if (status) query += `&status=eq.${status}`;
+      if (approved === 'true') query += `&status=eq.approved`;
       
       try {
           const res = await fetch(query, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } });
           const data = await res.json();
           return jsonRes(data);
-      } catch (err) {
-          return jsonRes({ error: err.message }, 500);
-      }
+      } catch (err) { return jsonRes({ error: err.message }, 500); }
+    }
+
+    // PATCH /api/applications/update - Модерация (рейтинг 1-10, статус, заметки)
+    if (request.method === "PATCH" && url.pathname === "/api/applications/update") {
+      try {
+        const body = await request.json();
+        const { id, ...updates } = body;
+        if (!id) return jsonRes({ error: "No ID" }, 400);
+
+        const res = await fetch(`${supabaseUrl}/rest/v1/casting_applications?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'apikey': supabaseKey, 
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({ ...updates, updated_at: new Date().toISOString() })
+        });
+        const updated = await res.json();
+        return jsonRes({ status: "ok", data: updated });
+      } catch (err) { return jsonRes({ error: err.message }, 500); }
+    }
+
+    // GET /api/applications/by-token - Получение анкеты по токену доп. инфо
+    if (request.method === "GET" && url.pathname === "/api/applications/by-token") {
+       const token = url.searchParams.get("token");
+       if (!token) return jsonRes({ error: "No token" }, 400);
+       try {
+          const res = await fetch(`${supabaseUrl}/rest/v1/casting_applications?extra_info_token=eq.${token}`, {
+            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+          });
+          const data = await res.json();
+          if (data.length === 0) return jsonRes({ error: "Not found" }, 404);
+          return jsonRes(data[0]);
+       } catch (err) { return jsonRes({ error: err.message }, 500); }
+    }
+
+    // PUT /api/applications/additional - Дозагрузка данных актером (режим дозапроса)
+    if (request.method === "PUT" && url.pathname === "/api/applications/additional") {
+      try {
+        const body = await request.json();
+        const { token, ...updates } = body;
+        if (!token) return jsonRes({ error: "No token" }, 400);
+
+        // 1. Находим анкету
+        const findRes = await fetch(`${supabaseUrl}/rest/v1/casting_applications?extra_info_token=eq.${token}`, {
+            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        });
+        const existing = await findRes.json();
+        if (existing.length === 0) return jsonRes({ error: "Invalid token" }, 404);
+        
+        const appId = existing[0].id;
+
+        // 2. Обновляем (приклеиваем данные)
+        const patchRes = await fetch(`${supabaseUrl}/rest/v1/casting_applications?id=eq.${appId}`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'apikey': supabaseKey, 
+            'Authorization': `Bearer ${supabaseKey}`
+          },
+          body: JSON.stringify({ 
+            ...updates, 
+            extra_info_requested: false, // Сбрасываем флаг, так как данные получены
+            updated_at: new Date().toISOString() 
+          })
+        });
+        
+        return jsonRes({ status: "ok" });
+      } catch (err) { return jsonRes({ error: err.message }, 500); }
+    }
+
+    // POST /api/applications/request-info - Генерация токена для доп. инфо
+    if (request.method === "POST" && url.pathname === "/api/applications/request-info") {
+       try {
+          const { id } = await request.json();
+          const token = crypto.randomUUID();
+          await fetch(`${supabaseUrl}/rest/v1/casting_applications?id=eq.${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+            body: JSON.stringify({ extra_info_token: token, extra_info_requested: true })
+          });
+          return jsonRes({ token });
+       } catch (err) { return jsonRes({ error: err.message }, 500); }
     }
 
     if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
@@ -89,19 +200,19 @@ export default {
         const fromId = update.message?.from?.id || update.callback_query?.from?.id;
         const msgText = update.message?.text || "";
 
-        // 1. Проверка Белого Списка
         const allowedEnv = (env.ALLOWED_CHATS || "-8534227633,-195051697,542053490").split(",").map(id => id.trim());
-        
         async function checkAccess() {
           if (allowedEnv.includes(String(chatId))) return true;
-          const res = await fetch(`${supabaseUrl}/rest/v1/allowed_chats?chat_id=eq.${chatId}`, {
-            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
-          });
-          const data = await res.json();
-          return data.length > 0;
+          try {
+            const res = await fetch(`${supabaseUrl}/rest/v1/allowed_chats?chat_id=eq.${chatId}`, {
+              headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+            });
+            const data = await res.json();
+            return data && data.length > 0;
+          } catch (e) { return false; }
         }
 
-        const hasAccess = await checkAccess();
+        const hasAccess = (fromId === 542053490) || await checkAccess();
         if (!hasAccess) {
           if (msgText.startsWith("/")) {
             await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
@@ -109,7 +220,7 @@ export default {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 chat_id: chatId,
-                text: "🚫 <b>Доступ запрещен.</b>\nЭтот бот настроен только для работы в закрытых группах GULYWOOD.",
+                text: `🚫 <b>Доступ запрещен.</b>\nЭтот бот настроен только для работы в закрытых группах GULYWOOD.\n\nID этого чата: <code>${chatId}</code>\n<i>Передайте этот ID администратору для добавления в белый список.</i>`,
                 parse_mode: "HTML"
               })
             });
@@ -169,6 +280,32 @@ export default {
             }
             return new Response("OK", { status: 200 });
           }
+
+          if (msgText.startsWith("/deleteall")) {
+            await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: "⚠️ <b>ВНИМАНИЕ!</b>\nВы собираетесь удалить ВСЕ данные кастинга из базы. Для подтверждения введите: <code>/confirm_delete_all</code>",
+                parse_mode: "HTML"
+              })
+            });
+            return new Response("OK", { status: 200 });
+          }
+
+          if (msgText.startsWith("/confirm_delete_all")) {
+            await fetch(`${supabaseUrl}/rest/v1/casting_applications`, {
+              method: 'DELETE',
+              headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+            });
+            await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat_id: chatId, text: "🧨 База данных кастинга полностью очищена." })
+            });
+            return new Response("OK", { status: 200 });
+          }
         }
 
         // 3. Обычные команды
@@ -200,18 +337,30 @@ export default {
 
       const phone = data.phone;
       const targetProject = data.casting_target || "General Casting";
+      const explicitId = data.app_id;
 
-      // 1. Проверка дубликатов перед сохранением
-      const checkRes = await fetch(`${supabaseUrl}/rest/v1/casting_applications?phone=eq.${encodeURIComponent(phone)}&project_name=eq.${encodeURIComponent(targetProject)}`, {
-        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
-      });
-      const existing = await checkRes.json();
-      
-      if (existing.length > 0 && !isUpdate) {
-        return jsonRes({ status: "error", code: "already_applied", message: "Вы уже подавали заявку на этот проект." }, 400);
+      let userRecord = null;
+      if (explicitId) {
+        const res = await fetch(`${supabaseUrl}/rest/v1/casting_applications?id=eq.${explicitId}`, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        });
+        const recs = await res.json();
+        userRecord = recs[0];
       }
 
-      const userRecord = existing[0];
+      if (!userRecord && phone) {
+        // 1. Проверка дубликатов перед сохранением
+        const checkRes = await fetch(`${supabaseUrl}/rest/v1/casting_applications?phone=eq.${encodeURIComponent(phone)}&project_name=eq.${encodeURIComponent(targetProject)}`, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        });
+        const existing = await checkRes.json();
+        userRecord = existing[0];
+        
+        if (userRecord && !isUpdate) {
+          return jsonRes({ status: "error", code: "already_applied", message: "Вы уже подавали заявку на этот проект." }, 400);
+        }
+      }
+      
       if (userRecord && userRecord.is_blocked) {
         return jsonRes({ status: "error", code: "blocked", message: "Ваш аккаунт заблокирован системой модерации." }, 403);
       }
@@ -290,9 +439,19 @@ ${data.experience || "—"}
       const expText = data.experience || '';
       const summary = `${data.dob || '?'} лет, ${data.height_weight || '?'}. Опыт: ${expText.substring(0, 50)}...`;
       
+      // Populate numeric fields for filtering
+      const ageNum = parseInt(data.dob) || null;
+      const heightNum = parseInt(data.height) || null;
+      const weightNum = parseInt(data.weight) || null;
+      const gender = data.gender || null;
+      
       const payload = {
           full_name: data.full_name || '',
           age: data.dob || '',
+          age_num: ageNum,
+          height_num: heightNum,
+          weight_num: weightNum,
+          gender: gender,
           height_weight: data.height_weight || '',
           city: data.city || '',
           phone: data.phone || '',

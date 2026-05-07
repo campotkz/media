@@ -1397,11 +1397,11 @@
 
           <div class="actions">
             <button type="button" id="taskCopyBtn"
-              style="color:#7aa2ff; border-color:#7aa2ff; display:none;">РљРѕРїРёСЂРѕРІР°С‚СЊ</button>
-            <button type="button" id="taskDeleteBtn" style="color:#ff6b6b; display:none;">РЈРґР°Р»РёС‚СЊ</button>
-            <button type="button" onclick="document.getElementById('taskForm').style.display='none'">РЎРІРµСЂРЅСѓС‚СЊ</button>
+              style="color:#7aa2ff; border-color:#7aa2ff; display:none;">Копировать</button>
+            <button type="button" id="taskDeleteBtn" style="color:#ff6b6b; display:none;">Удалить</button>
+            <button type="button" onclick="document.getElementById('taskForm').style.display='none'">Свернуть</button>
             <button id="taskSubmitBtn" class="primary" type="submit"
-              style="background:#ffcc00; color:#000; border:none;">РЎРѕС…СЂР°РЅРёС‚СЊ</button>
+              style="background:#ffcc00; color:#000; border:none;">Сохранить</button>
           </div>
           <!-- Safe area for keyboard -->
           <div style="height: 250px; pointer-events: none;"></div>
@@ -1416,8 +1416,8 @@
   <div id="castingView">
     <div class="head" style="padding: 20px;">
       <div class="title" style="display:flex; align-items:center; gap:10px;">
-        <button class="mini-btn" onclick="goBackToMenu()" style="padding: 4px 8px;">рџ”™ РњРµРЅСЋ</button>
-        рџЋ­ РљР°СЃС‚РёРЅРі РҐР°Р±
+        <button class="mini-btn" onclick="goBackToMenu()" style="padding: 4px 8px;">рџ”™ Меню</button>
+        рџЋ­ Кастинг Хаб
       </div>
     </div>
     <div style="padding: 0 20px;">
@@ -1429,20 +1429,20 @@
   <!-- Actor Checklist Modal -->
   <div id="actorChecklistModal" class="modal-overlay" style="display:none;">
     <div class="modal-content">
-      <h3 style="margin: 0 0 10px 0; font-size: 18px;">Р’С‹Р±СЂР°С‚СЊ Р°РєС‚РµСЂРѕРІ/РєР»РёРµРЅС‚РѕРІ</h3>
-      <input type="text" id="checklistSearch" placeholder="РџРѕРёСЃРє..." style="margin-bottom: 10px; font-size: 14px;" />
+      <h3 style="margin: 0 0 10px 0; font-size: 18px;">Выбрать актеров/клиентов</h3>
+      <input type="text" id="checklistSearch" placeholder="Поиск..." style="margin-bottom: 10px; font-size: 14px;" />
       <div id="checklistItems" class="checklist-container">
         <!-- Items populated by JS -->
       </div>
       <div class="actions" style="margin-top: 20px;">
-        <button type="button" onclick="closeActorChecklist()">РћС‚РјРµРЅР°</button>
-        <button type="button" class="primary" onclick="confirmActorChecklist()">Р“РѕС‚РѕРІРѕ</button>
+        <button type="button" onclick="closeActorChecklist()">Отмена</button>
+        <button type="button" class="primary" onclick="confirmActorChecklist()">Готово</button>
       </div>
     </div>
   </div>
 
   <script>
-    // 1. РљРћРќР¤РР“РЈР РђР¦РРЇ SUPABASE
+    // 1. КОНФИГУРАЦИЯ SUPABASE
     const S_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
     const S_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
     const supabaseClient = window.supabase.createClient(S_URL, S_KEY);
@@ -1451,7 +1451,7 @@
     const tg = window?.Telegram?.WebApp;
     if (tg) tg.expand();
 
-    // РџР•Р Р•РњР•РќРќР«Р•
+    // ПЕРЕМЕННЫЕ
     let allEvents = [];
     let allTasks = []; // New
     let currentTab = 'calendar'; // 'calendar' or 'tasks'
@@ -1525,8 +1525,6 @@
 
       setCache(CACHE_KEYS.SYNC, remaining);
       if (remaining.length === 0) console.log("Sync complete!");
-    }
-
     window.addEventListener('online', processSyncQueue);
     setInterval(processSyncQueue, 30000); // Heartbeat sync
 
@@ -1556,20 +1554,12 @@
       report_link: document.getElementById("report_link"),
     };
 
-    // --- TABS LOGIC REMOVED (Unified View) ---
-    // function switchTab(tab) { ... }
-
-    // --- TASK LOGIC ---
-
-
     async function toggleTaskStatus(id, status) {
-      // 1. Optimistic
       const t = allTasks.find(x => x.id === id);
       if (t) t.status = status;
       setCache(CACHE_KEYS.TASKS, allTasks);
       render();
 
-      // 2. Cloud or Queue
       if (navigator.onLine) {
         const { error } = await supabaseClient.from('tasks').update({ status }).eq('id', id);
         if (!error) return;
@@ -1578,7 +1568,7 @@
     }
 
     async function deleteTask(id) {
-      if (!confirm('РЈРґР°Р»РёС‚СЊ Р·Р°РґР°С‡Сѓ?')) return;
+      if (!confirm('Удалить задачу?')) return;
       // 1. Optimistic
       allTasks = allTasks.filter(x => x.id !== id);
       setCache(CACHE_KEYS.TASKS, allTasks);
@@ -1604,15 +1594,12 @@
       const deleteBtn = document.getElementById('taskDeleteBtn');
       const copyBtn = document.getElementById('taskCopyBtn');
 
-      // console.log('Open Task Form. Task:', task); // Debug
-
       if (task) {
-        selectedTaskId = task.id; // Global Variable Mode
+        selectedTaskId = task.id; 
 
-        form.style.borderColor = '#ffcc00'; // Yellow/Red border for EDIT
-        document.querySelector('#taskForm h3').textContent = 'Р Р•Р”РђРљРўРР РћР’РђРќРР• Р—РђР”РђР§Р';
-        // document.getElementById('debug_id_disp').textContent = 'ID: ' + task.id; // Visible Debug
-        if (btn) btn.textContent = 'РЎРѕС…СЂР°РЅРёС‚СЊ';
+        form.style.borderColor = '#ffcc00'; 
+        document.querySelector('#taskForm h3').textContent = 'РЕДАКТИРОВАНИЕ ЗАДАЧИ';
+        if (btn) btn.textContent = 'Сохранить';
         if (deleteBtn) {
           deleteBtn.style.display = 'block';
           deleteBtn.onclick = () => deleteTask(task.id);
@@ -1631,11 +1618,52 @@
         document.getElementById('t_actors').value = task.actors || '';
         document.getElementById('t_assignees').value = (task.assignee_ids || []).join(', ');
       } else {
+        selectedTaskId = null; 
+
+        form.style.borderColor = 'rgba(255, 204, 0, 0.3)'; 
+        document.querySelector('#taskForm h3').textContent = 'НОВАЯ ЗАДАЧА';
+        if (btn) btn.textContent = 'Создать';
+        if (deleteBtn) deleteBtn.style.display = 'none';
+        if (copyBtn) copyBtn.style.display = 'none';
+
+        // Reset form
+        document.getElementById('t_project').value = '';
+        document.getElementById('t_title').value = '';
+        document.getElementById('t_desc').value = '';
+        document.getElementById('t_deadline').value = toISO(selectedDate);
+        document.getElementById('t_type').value = 'general';
+        document.getElementById('t_assignees').value = '';
+        document.getElementById('t_casting_project').value = '';
+        document.getElementById('t_actors').value = '';
+      }
+      renderAssigneeTags();
+      renderActorsTags();
+      renderTaskActorsTags();
+      renderTaskProjects();
+      renderTaskCastingProjects();
+    }
+
+    function copyTask(task) {
+      const txt = `📌 **${task.title}**\n` +
+        `📅 Дедлайн: ${task.deadline}\n` +
+        `📂 Проект: ${task.project_id || '-'}\n` +
+        `📝 Описание: ${task.description || '-'}\n` +
+        `👥 Исполнители: ${(task.assignee_ids || []).join(', ')}`;
+
+      navigator.clipboard.writeText(txt);
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+      const copyBtn = document.getElementById('taskCopyBtn');
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = "Скопировано!";
+      setTimeout(() => copyBtn.textContent = originalText, 1500);
+    }ument.getElementById('t_assignees').value = (task.assignee_ids || []).join(', ');
+      } else {
         selectedTaskId = null; // Clear Global ID
 
         form.style.borderColor = 'rgba(255, 204, 0, 0.3)'; // Default border
-        document.querySelector('#taskForm h3').textContent = 'РќРћР’РђРЇ Р—РђР”РђР§Рђ';
-        if (btn) btn.textContent = 'РЎРѕР·РґР°С‚СЊ';
+        document.querySelector('#taskForm h3').textContent = 'НОВАЯ ЗАДАЧА';
+        if (btn) btn.textContent = 'Создать';
         if (deleteBtn) deleteBtn.style.display = 'none';
         if (copyBtn) copyBtn.style.display = 'none';
 
@@ -1668,7 +1696,7 @@
 
       const copyBtn = document.getElementById('taskCopyBtn');
       const originalText = copyBtn.textContent;
-      copyBtn.textContent = "РЎРєРѕРїРёСЂРѕРІР°РЅРѕ!";
+      copyBtn.textContent = "Скопировано!";
       setTimeout(() => copyBtn.textContent = originalText, 1500);
     }
 
@@ -1738,7 +1766,7 @@
           if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
           document.getElementById('taskForm').style.display = 'none';
           selectedTaskId = null;
-          if (btn) btn.innerHTML = 'РЎРѕС…СЂР°РЅРёС‚СЊ';
+          if (btn) btn.innerHTML = 'Сохранить';
           return;
         }
       }
@@ -1746,7 +1774,7 @@
       addToSyncQueue('tasks', payload);
       document.getElementById('taskForm').style.display = 'none';
       selectedTaskId = null;
-      if (btn) btn.innerHTML = 'РЎРѕС…СЂР°РЅРёС‚СЊ';
+      if (btn) btn.innerHTML = 'Сохранить';
     };
 
     // --- PROJECT LOGIC ---
@@ -2012,7 +2040,7 @@
         div.style.justifyContent = 'space-between';
 
         const isBuilding = res.address && (res.address.house_number || res.type === 'house' || res.class === 'building');
-        const icon = isBuilding ? 'рџЏ ' : 'рџ“Ќ';
+        const icon = isBuilding ? '🏠' : '📍';
 
         div.innerHTML = `<span>${icon} ${res.display_name}</span>`;
 
@@ -2061,7 +2089,7 @@
         const mainLocLC = mainLoc.toLowerCase();
         const mainProjName = (mainProjInput.value || '').trim();
 
-        const studioRooms = ["Р‘Р°Р»Рё", "Р­РєСЃРїРµСЂС‚РЅС‹Р№ РєР°Р±РёРЅРµС‚", "РљР»Р°СЃСЃРёС‡РµСЃРєРёР№", "Р’Р°РЅРЅР°СЏ РєРѕРјРЅР°С‚Р°", "РљСѓС…РЅСЏ", "РљРѕС„РµР№РЅСЏ", "Minimalistic", "Р¦РёРєР»РѕСЂР°РјР°", "Р›РµСЃС‚РЅРёС†Р°", "РЎС‚СѓРґРёСЏ Campot"];
+        const studioRooms = ["Бали", "Экспертный кабинет", "Классический", "Ванная комната", "Кухня", "Кофейня", "Minimalistic", "Циклорама", "Лестница", "Студия Campot"];
         const studioRoomsLC = studioRooms.map(r => r.toLowerCase());
 
         let filtered = [];
@@ -2143,7 +2171,7 @@
         if (fieldId === 'actors' || fieldId === 't_actors') {
           const exists = teamData.some(t => (t.full_name || '').toLowerCase() === name.toLowerCase());
           if (!exists) {
-            const record = { full_name: name, roles: ['actor'], position: 'РђРєС‚РµСЂ' };
+            const record = { full_name: name, roles: ['actor'], position: 'Актер' };
             teamData.push(record);
             setCache(CACHE_KEYS.TEAM, teamData);
             addToSyncQueue('team', record);
@@ -2152,7 +2180,7 @@
           const exists = teamData.some(t => (t.full_name || '').toLowerCase() === name.toLowerCase());
           if (!exists) {
             const role = fieldId === 'crew' ? 'production' : (fieldId === 'post_production' ? 'post' : null);
-            const record = { full_name: name, roles: role ? [role] : [], position: 'РљРѕРјР°РЅРґР°' };
+            const record = { full_name: name, roles: role ? [role] : [], position: 'Команда' };
             teamData.push(record);
             setCache(CACHE_KEYS.TEAM, teamData);
             addToSyncQueue('team', record);
@@ -2265,7 +2293,7 @@
         const mainActors = document.getElementById("actors").value;
         pool = mainActors ? mainActors.split(",").map(s => s.trim()).filter(s => s) : [];
         if (!pool.length) {
-          container.innerHTML = "<div style='padding:10px; opacity:0.6; text-align:center;'>РЎРЅР°С‡Р°Р»Р° РґРѕР±Р°РІСЊС‚Рµ Р°РєС‚РµСЂРѕРІ РІ РѕР±С‰СѓСЋ СЏС‡РµР№РєСѓ 'РђРєС‚РµСЂС‹'</div>";
+          container.innerHTML = "<div style='padding:10px; opacity:0.6; text-align:center;'>Сначала добавьте актеров в общую ячейку 'Актеры'</div>";
           return;
         }
       } else {
@@ -2401,7 +2429,7 @@
       navigator.clipboard.writeText(txt);
       if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
       const originalBtnText = document.getElementById('copyBtn').textContent;
-      document.getElementById('copyBtn').textContent = "РЎРєРѕРїРёСЂРѕРІР°РЅРѕ!";
+      document.getElementById('copyBtn').textContent = "Скопировано!";
       setTimeout(() => document.getElementById('copyBtn').textContent = originalBtnText, 1500);
     };
 
@@ -2438,10 +2466,10 @@
 
 
 
-    // 2. Р—РђР“Р РЈР—РљРђ РР— РћР‘Р›РђРљРђ
+    // 2. ЗАГРУЗКА ИЗ ОБЛАКА
     async function loadFromCloud() {
       const syncBtn = document.getElementById("syncBtn");
-      if (syncBtn) syncBtn.textContent = "вЊ›";
+      if (syncBtn) syncBtn.textContent = "⌛";
 
       // 1. Start with Cache (Instant UI)
       allEvents = getCache(CACHE_KEYS.EVENTS);
@@ -2451,7 +2479,7 @@
       await fetchAutocompleteData();
 
       if (!navigator.onLine) {
-        if (syncBtn) { syncBtn.textContent = "рџ“Ў"; setTimeout(() => syncBtn.textContent = "вЃпёЏ", 2000); }
+        if (syncBtn) { syncBtn.textContent = "📡"; setTimeout(() => syncBtn.textContent = "вЃпёЏ", 2000); }
         return;
       }
 

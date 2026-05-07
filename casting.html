@@ -4,1412 +4,350 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>АНКЕТА УЧАСТНИКА КАСТИНГА</title>
-    <!-- Version: 3.0.0 (No-Supabase) -->
-    <link rel="icon" type="image/png" href="favicon.png">
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <link href="https://fonts.googleapis.com" rel="preconnect" />
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
+    <title>Casting Form | GULYWOOD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #000;
-            --card-bg: rgba(255, 255, 255, 0.05);
+            --bg: #000000;
+            --card: #111111;
             --accent: #f45925;
-            --text: rgba(255, 255, 255, 0.92);
+            --text: #ffffff;
             --muted: rgba(255, 255, 255, 0.6);
-            --stroke: rgba(255, 255, 255, 0.15);
-            --error: #ff3b30;
-            --success: #4cd964;
+            --stroke: rgba(255, 255, 255, 0.1);
             --radius: 20px;
+            --error: #ff3b30;
         }
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
             margin: 0;
             padding: 0;
             background: var(--bg);
-            background-image: radial-gradient(circle at 50% -20%, #1a1a2e 0%, #000 70%);
             color: var(--text);
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
             line-height: 1.5;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            position: relative;
-        }
-
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: repeating-linear-gradient(0deg,
-                    rgba(255, 255, 255, 0.015) 0px,
-                    rgba(255, 255, 255, 0.015) 1px,
-                    transparent 1px,
-                    transparent 2px);
-            background-size: 100% 2px;
-            pointer-events: none;
-            z-index: 0;
         }
 
         .container {
-            position: relative;
-            z-index: 10;
-            width: 100%;
-            max-width: 500px;
-            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 24px;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 32px;
-            padding: 0 10px;
+            margin-bottom: 40px;
+            padding-top: 20px;
         }
 
         .header h1 {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 700;
-            margin: 0 0 8px;
             letter-spacing: -0.5px;
+            margin: 0 0 8px;
             text-transform: uppercase;
-            text-shadow: 0 0 20px rgba(244, 89, 37, 0.4);
         }
 
         .header p {
-            font-size: 13px;
             color: var(--muted);
+            font-size: 13px;
             margin: 0;
+            letter-spacing: 1px;
         }
 
-        .welcome-screen {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .welcome-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: var(--radius);
-            padding: 24px;
-            backdrop-filter: blur(25px) saturate(1.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            position: relative;
-        }
-
-        .welcome-card::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.02);
-            pointer-events: none;
-        }
-
-        .welcome-text {
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
-
-        .welcome-instruction {
-            background: rgba(122, 162, 255, 0.08);
-            border-left: 3px solid var(--accent);
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 24px;
-        }
-
-        .option-btn {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 16px;
-            text-align: left;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-            margin-bottom: 12px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .option-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .option-btn:active {
-            transform: scale(0.98);
-        }
-
-        .option-btn i {
-            font-size: 20px;
-            opacity: 0.8;
-        }
-
-        .option-btn .label {
-            font-weight: 600;
-            font-size: 15px;
-        }
-
-        /* Form Blocks */
         .block {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: var(--card);
+            border: 1px solid var(--stroke);
             border-radius: var(--radius);
             padding: 24px;
-            margin-bottom: 16px;
-            backdrop-filter: blur(25px) saturate(1.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            margin-bottom: 24px;
+            animation: slideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
+
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         .block-title {
             font-size: 11px;
             font-weight: 700;
             color: var(--accent);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 1.5px;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
             gap: 8px;
         }
+        .block-title::after { content: ""; flex: 1; height: 1px; background: var(--stroke); }
 
-        .block-title::after {
-            content: '';
-            height: 1px;
-            background: linear-gradient(to right, var(--accent), transparent);
-            flex: 1;
-            opacity: 0.5;
-        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+        .form-group label span { color: var(--accent); margin-left: 4px; }
 
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        label span {
-            color: var(--error);
-            margin-left: 2px;
-        }
-
-        input[type="text"],
-        input[type="date"],
-        input[type="tel"],
-        input[type="number"],
-        textarea,
-        select {
+        input[type="text"], input[type="tel"], input[type="number"], input[type="date"], select, textarea {
             width: 100%;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #000;
+            border: 1px solid var(--stroke);
             border-radius: 12px;
             padding: 14px 16px;
             color: #fff;
             font-size: 15px;
+            font-family: inherit;
             outline: none;
             transition: all 0.2s;
-            backdrop-filter: blur(10px);
         }
 
-        input:focus,
-        textarea:focus,
-        select:focus {
-            border-color: var(--accent);
-            background: rgba(255, 255, 255, 0.05);
-            box-shadow: 0 0 0 4px rgba(244, 89, 37, 0.1);
-        }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(244, 89, 37, 0.1); }
 
-        .radio-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
+        .radio-group { display: flex; flex-direction: column; gap: 10px; }
         .radio-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            cursor: pointer;
+            gap: 12px;
+            padding: 14px 16px;
             background: rgba(255, 255, 255, 0.03);
-            padding: 14px;
+            border: 1px solid var(--stroke);
             border-radius: 12px;
-            border: 1px solid transparent;
+            cursor: pointer;
             transition: all 0.2s;
         }
-
-        .radio-item input {
-            display: none;
+        .radio-item input { display: none; }
+        .radio-mark { width: 18px; height: 18px; border: 2px solid var(--stroke); border-radius: 50%; position: relative; }
+        .radio-item input:checked + .radio-mark { border-color: var(--accent); }
+        .radio-item input:checked + .radio-mark::after {
+            content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 10px; height: 10px; background: var(--accent); border-radius: 50%;
         }
 
-        .radio-item:has(input:checked) {
-            background: rgba(244, 89, 37, 0.1);
-            border-color: var(--accent);
-        }
-
-        .radio-mark {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            position: relative;
-            transition: all 0.2s;
-        }
-
-        input:checked+.radio-mark {
-            border-color: var(--accent);
-            background: var(--accent);
-        }
-
-        input:checked+.radio-mark::after {
-            content: '';
-            width: 8px;
-            height: 8px;
-            background: #fff;
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        /* Upload Area */
         .upload-area {
-            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border: 2px dashed var(--stroke);
             border-radius: 16px;
-            padding: 30px 20px;
+            padding: 30px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
-            position: relative;
-            overflow: hidden;
-            background: rgba(255, 255, 255, 0.02);
         }
+        .upload-area:hover { border-color: var(--accent); background: rgba(244, 89, 37, 0.05); }
+        .upload-area i { font-size: 24px; display: block; margin-bottom: 10px; opacity: 0.5; }
+        .upload-area span { font-size: 13px; color: var(--muted); }
 
-        .upload-area:hover {
-            border-color: var(--accent);
-            background: rgba(244, 89, 37, 0.05);
-        }
-
-        .upload-area i {
-            display: block;
-            font-size: 24px;
-            margin-bottom: 8px;
-            opacity: 0.5;
-            color: var(--accent);
-        }
-
-        .upload-area span {
-            font-size: 12px;
-            color: var(--muted);
-        }
-
-        .file-list {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .file-item {
-            aspect-ratio: 1;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.1);
-            position: relative;
-            background-size: cover;
-            background-position: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-        }
-
-        .file-item.video::before {
-            content: '🎥';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 20px;
-        }
-
-        .file-item .remove {
-            position: absolute;
-            top: -6px;
-            right: -6px;
-            background: var(--error);
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: white;
-            cursor: pointer;
-            z-index: 2;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-        }
-
-        .progress-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 4px;
-            background: var(--accent);
-            width: 0%;
-            transition: width 0.3s;
-        }
+        .file-list { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 10px; }
+        .file-item { width: 80px; height: 80px; border-radius: 8px; position: relative; background-size: cover; background-position: center; border: 1px solid var(--stroke); }
+        .file-remove { position: absolute; top: -5px; right: -5px; width: 20px; height: 20px; background: var(--error); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; }
 
         .submit-btn {
             width: 100%;
             background: var(--accent);
-            color: #fff;
+            color: #000;
             border: none;
-            border-radius: 16px;
             padding: 18px;
+            border-radius: 16px;
             font-size: 16px;
             font-weight: 700;
             cursor: pointer;
             margin-top: 20px;
             transition: all 0.2s;
-            box-shadow: 0 10px 30px rgba(244, 89, 37, 0.3);
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .submit-btn:active {
-            transform: scale(0.98);
-            opacity: 0.9;
-        }
+        .welcome-screen { text-align: center; animation: fadeIn 1s; }
+        .welcome-card { background: var(--card); border: 1px solid var(--stroke); padding: 30px; border-radius: var(--radius); margin-bottom: 20px; }
+        .option-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--stroke); padding: 20px; border-radius: 16px; margin-bottom: 12px; cursor: pointer; display: flex; align-items: center; gap: 15px; text-align: left; transition: 0.2s; }
+        .option-btn:hover { border-color: var(--accent); transform: scale(1.02); }
+        .option-btn i { font-size: 24px; }
 
-        .submit-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background: #333;
-            box-shadow: none;
-        }
-
-        .fetch-status {
-            font-size: 11px;
-            margin-top: 8px;
-            display: none;
-        }
-
-        .fetch-status.loading {
-            color: var(--accent);
-            display: block;
-        }
-
-        .fetch-status.error {
-            color: var(--error);
-            display: block;
-        }
-
-        .fetch-status.success {
-            color: var(--success);
-            display: block;
-        }
-
-        .checklist-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: 250px;
-            overflow-y: auto;
-            background: rgba(255, 255, 255, 0.03);
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid var(--stroke);
-        }
-
-        .check-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 14px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid var(--stroke);
-            color: #fff;
-            font-size: 14px;
-        }
-
-        .check-item:hover {
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        .check-item input {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--accent);
-            cursor: pointer;
-            filter: grayscale(0);
-        }
-
-        .check-item.active {
-            background: rgba(122, 162, 255, 0.2);
-            border-color: var(--accent);
-            color: #fff;
-        }
-
-        .multi-warning {
-            display: none;
-            background: rgba(255, 59, 48, 0.1);
-            border: 1px solid var(--error);
-            color: var(--error);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 11px;
-            margin-top: 8px;
-            animation: fadeIn 0.3s ease;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(10px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            padding: 20px;
-        }
-
-        .modal-card {
-            background: #15171f;
-            border: 1px solid var(--accent);
-            border-radius: 20px;
-            padding: 24px;
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-card h3 {
-            color: #ff3b30;
-            margin: 0 0 16px;
-        }
-
-        .modal-card p {
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 24px;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .modal-btns {
-            display: flex;
-            gap: 12px;
-        }
-
-        .modal-btn {
-            flex: 1;
-            padding: 14px;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: opacity 0.2s;
-        }
-
-        .btn-confirm {
-            background: var(--accent);
-            color: #000;
-        }
-
-        .btn-back {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-        }
-
-        .modal-btn:hover {
-            opacity: 0.8;
-        }
-
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 16px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .success-screen {
-            display: none;
-            text-align: center;
-            padding: 60px 20px;
-            position: relative;
-            z-index: 10;
-        }
-
-        .success-screen p {
-            color: var(--muted);
-            margin-bottom: 32px;
-        }
-        /* Modal Styles */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px);
-            z-index: 10000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .modal-content {
-            background: #111;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: var(--radius);
-            padding: 32px;
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
-            animation: modalShow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-
-        @keyframes modalShow {
-            from { transform: scale(0.9); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        .modal-content h2 {
-            font-size: 20px;
-            margin: 0 0 16px;
-            color: #fff;
-        }
-
-        .modal-content p {
-            font-size: 14px;
-            color: var(--muted);
-            line-height: 1.6;
-            margin-bottom: 24px;
-        }
-
-        .modal-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .modal-btn {
-            padding: 14px;
-            border-radius: 12px;
-            border: none;
-            font-weight: 600;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .modal-btn.primary {
-            background: var(--accent);
-            color: #fff;
-        }
-
-        .modal-btn.secondary {
-            background: rgba(255, 255, 255, 0.05);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .modal-btn:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-
-        .modal-btn:active {
-            transform: translateY(0);
-        }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #fff; color: #000; padding: 12px 24px; border-radius: 30px; font-weight: 600; font-size: 14px; z-index: 10000; display: none; }
+        
+        .supplement-mode .block:not(.media-block) { opacity: 0.6; pointer-events: none; }
+        .supplement-mode .block-title::after { background: var(--accent); }
     </style>
 </head>
-
 <body>
-    <!-- Welcome Container -->
     <div class="container" id="welcomeContainer">
         <div class="header">
-            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА <span
-                    style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v.2.2.2</span></h1>
-            <p>Sklad Productions • Casting Management</p>
+            <h1>АНКЕТА GULYWOOD</h1>
+            <p>Casting Management System v2.0</p>
         </div>
-
         <div class="welcome-screen">
             <div class="welcome-card">
-                <div class="welcome-text">
-                    Вы заполняете анкету на кастинг.
-                </div>
-                <div class="welcome-instruction">
-                    ⚡️ <b>Важно:</b> Ваши шансы значительно увеличатся, если вы загрузите актуальные фото (сделайте их
-                    прямо сейчас на телефон) и видеовизитку (до 1 минуты) с отыгрышем персонажа, на которого вы
-                    претендуете.
-                </div>
-                <div class="welcome-text" style="color: var(--error); font-weight: 600;">
-                    ⚠️ Анкеты с неактуальными фото или снимками, не имеющими отношения к кастингу, рассматриваться не
-                    будут.
-                </div>
-            </div>
-
-            <div class="welcome-card">
-                <div class="option-btn" id="startNewBtn">
-                    <i>📝</i>
-                    <div class="label">Я заполняю первый раз</div>
-                </div>
-
-                <div class="option-btn" id="reentryStartBtn">
-                    <i>🔄</i>
-                    <div class="label">Я уже заполнял(а) анкету ранее</div>
-                </div>
-
-                <div id="reentryInputGroup"
-                    style="display:none; margin-top: 16px; border-top: 1px solid var(--stroke); padding-top: 16px;">
-                    <label style="font-size: 12px; margin-bottom: 8px;">Введите номер телефона (который указывали
-                        ранее):</label>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="tel" id="reentryPhone" placeholder="+7 777 000 00 00"
-                            style="flex: 1; padding: 12px;">
-                        <button type="button" id="reentryFetchBtn"
-                            style="min-height: auto; padding: 0 16px; font-size: 12px; background: var(--accent); color: #000; border-radius: 10px; border: none; font-weight: 700;">НАЙТИ</button>
-                    </div>
-                    <div id="fetchStatus" class="fetch-status"></div>
-                </div>
+                <div class="option-btn" id="startNewBtn"><i>📝</i> <div><b>Новая анкета</b><br><small>Я заполняю первый раз</small></div></div>
+                <div class="option-btn" onclick="location.href='index.html'"><i>🏠</i> <div><b>На главную</b><br><small>Вернуться в ERP</small></div></div>
             </div>
         </div>
     </div>
 
-    <!-- Form Container (Hidden by default) -->
-    <div class="container" id="formContainer" style="display: none;">
+    <div class="container" id="formContainer" style="display:none">
         <div class="header">
-            <h1>АНКЕТА УЧАСТНИКА КАСТИНГА</h1>
-            <p>Sklad Productions • Casting Management</p>
+            <h1 id="formTitle">АНКЕТА УЧАСТНИКА</h1>
+            <p id="formSubtitle">Пожалуйста, заполните все поля</p>
         </div>
 
         <form id="castingForm">
-            <!-- Блок 1 -->
             <div class="block">
-                <div class="block-title">Проект и Роль</div>
+                <div class="block-title">Проект</div>
                 <div class="form-group">
-                    <label>На какой кастинг вы подаетесь?<span>*</span></label>
-                    <div style="font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.3;">
-                        Выбирайте точно тот проект, на который видели объявление. Анкеты, отправленные без соответствия
-                        кастингу, будут удалены.
-                    </div>
-                    <div class="checklist-group" id="castingChecklist">
-                        <!-- Сюда будут грузиться чекбоксы -->
-                        <div style="padding: 10px; font-size: 12px; color: var(--muted);">Загрузка проектов...</div>
-                    </div>
-                    <div class="multi-warning" id="multiWarning">
-                        ⚠️ Вы выбрали несколько кастингов. Убедитесь, что вы подходите под критерии всех выбранных
-                        проектов!
-                    </div>
-                    <input type="hidden" name="casting_target" id="casting_target_hidden" required>
+                    <label>Выберите проект<span>*</span></label>
+                    <select name="project_name" id="projectSelect" required></select>
                 </div>
                 <div class="form-group">
-                    <label>На какого персонажа вы подаетесь?<span>*</span></label>
-                    <input type="text" name="character_name" required
-                        placeholder="например: «Главный герой», «Отец», «Прохожий»">
-                </div>
-                <div class="form-group">
-                    <label>Ваше полное имя (Фамилия Имя)<span>*</span></label>
-                    <input type="text" name="full_name" required placeholder="Иванов Иван">
-                </div>
-                <div class="form-group">
-                    <label>Ваш гендер<span>*</span></label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" name="gender" value="Мужчина" required>
-                            <div class="radio-mark"></div>
-                            <span>Мужчина</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="gender" value="Женщина">
-                            <div class="radio-mark"></div>
-                            <span>Женщина</span>
-                        </label>
-                    </div>
+                    <label>Полное имя<span>*</span></label>
+                    <input type="text" name="full_name" id="fullName" required placeholder="Иванов Иван">
                 </div>
             </div>
 
-            <!-- Блок 2 -->
-            <div class="block">
-                <div class="block-title">Контакты</div>
+            <div class="block personal-block">
+                <div class="block-title">Данные</div>
                 <div class="form-group">
-                    <label>Город проживания<span>*</span></label>
-                    <select name="city_select" id="citySelect" required style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;">
-                        <option style="color: #000;" value="" disabled selected>Выберите город...</option>
-                        <option style="color: #000;" value="Алматы">Алматы</option>
-                        <option style="color: #000;" value="Астана">Астана</option>
-                        <option style="color: #000;" value="Шымкент">Шымкент</option>
-                        <option style="color: #000;" value="Караганда">Караганда</option>
-                        <option style="color: #000;" value="Атырау">Атырау</option>
-                        <option style="color: #000;" value="Другой">Другой</option>
-                    </select>
-                    <input type="text" name="city_manual" id="cityManual" placeholder="Введите ваш город" style="display: none; margin-top: 12px;">
+                    <label>Возраст</label>
+                    <input type="number" name="age">
                 </div>
                 <div class="form-group">
-                    <label>Возраст (лет)<span>*</span></label>
-                    <input type="number" name="dob" required placeholder="например: 25" min="0" max="120">
+                    <label>Город</label>
+                    <input type="text" name="city">
                 </div>
                 <div class="form-group">
-                    <label>Тип внешности<span>*</span></label>
-                    <select name="appearance_type" required style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;">
-                        <option style="color: #000;" value="" disabled selected>Выберите тип...</option>
-                        <option style="color: #000;" value="Азиатский">Азиатский</option>
-                        <option style="color: #000;" value="Европейский">Европейский</option>
-                        <option style="color: #000;" value="Африканский">Африканский</option>
-                        <option style="color: #000;" value="Ближневосточный">Ближневосточный</option>
-                        <option style="color: #000;" value="Латино">Латино</option>
-                        <option style="color: #000;" value="Смешанный">Смешанный</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Цвет волос<span>*</span></label>
-                    <select name="hair_color" required style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;">
-                        <option style="color: #000;" value="" disabled selected>Выберите цвет...</option>
-                        <option style="color: #000;" value="Брюнет">Брюнет</option>
-                        <option style="color: #000;" value="Шатен">Шатен</option>
-                        <option style="color: #000;" value="Блондин">Блондин</option>
-                        <option style="color: #000;" value="Рыжий">Рыжий</option>
-                        <option style="color: #000;" value="Седой">Седой</option>
-                        <option style="color: #000;" value="Лысый">Лысый</option>
-                        <option style="color: #000;" value="Другой">Другой</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Цвет глаз и детальное описание внешности<span>*</span></label>
-                    <input type="text" name="appearance_details" required
-                        placeholder="Цвет глаз, усы, борода, шрамы и т.д.">
-                </div>
-                <div class="form-group">
-                    <label>Необычные приметы внешности</label>
-                    <input type="text" name="unusual_features" placeholder="шрамы, татуировки, родимые пятна (если есть)">
-                </div>
-                <div class="form-group">
-                    <label>Хронические заболевания / Аллергии</label>
-                    <input type="text" name="diseases" placeholder="укажите, если есть">
-                </div>
-                <div class="form-group">
-                    <label>Почта или Telegram ник<span>*</span></label>
-                    <input type="text" name="email_tg" required placeholder="example@mail.com или @username">
-                </div>
-                <div class="form-group">
-                    <label>Номер телефона (WhatsApp)<span>*</span></label>
-                    <input type="tel" id="phoneInput" name="phone" required placeholder="+7 777 000 00 00" inputmode="numeric" onblur="handlePhoneBlur()">
-                    <div id="phoneHint" style="font-size: 11px; margin-top: 6px; display: none;"></div>
-                </div>
-                <div class="form-group">
-                    <label>Инстаграм или ссылка на соцсеть</label>
-                    <input type="text" name="instagram" placeholder="instagram.com/username или @username">
+                    <label>Телефон<span>*</span></label>
+                    <input type="tel" name="phone" id="phone" required placeholder="+7 707 ...">
                 </div>
             </div>
 
-            <!-- Блок 3 -->
-            <div class="block">
-                <div class="block-title">Параметры и Опыт</div>
+            <div class="block media-block">
+                <div class="block-title">Медиа (Дозагрузка)</div>
                 <div class="form-group">
-                    <label>Параметры тела<span>*</span></label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <input type="number" name="height" required placeholder="Рост (см)" min="50" max="250">
-                        <input type="number" name="weight" required placeholder="Вес (кг)" min="20" max="250">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Размеры<span>*</span></label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <input type="text" name="cloth_size" required placeholder="Одежда (S/48)">
-                        <input type="number" name="shoe_size" required placeholder="Обувь (42)">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Опыт в кино / Образование<span>*</span></label>
-                    <textarea name="experience" rows="3" required
-                        placeholder="Кратко опишите работы или укажите «нет»"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Навыки и таланты<span>*</span></label>
-                    <textarea name="skills" rows="3" required
-                        placeholder="вокал, танцы, владение инструментами и т.д."></textarea>
-                </div>
-            </div>
-
-            <!-- Блок 4 -->
-            <div class="block">
-                <div class="block-title">Бюджет</div>
-                <div class="form-group">
-                    <label>Ваш гонорар (Вилка за смену, ₸)<span>*</span></label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <input type="number" name="fee_from" required placeholder="От" min="0" step="1000">
-                        <input type="number" name="fee_to" required placeholder="До" min="0" step="1000">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Готовы к съемкам в белье / купальниках?<span>*</span></label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" name="underwear_ok" value="Да" required>
-                            <div class="radio-mark"></div>
-                            <span>Да</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="underwear_ok" value="Нет">
-                            <div class="radio-mark"></div>
-                            <span>Нет</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="underwear_ok" value="Зависит от гонорара">
-                            <div class="radio-mark"></div>
-                            <span>Зависит от суммы</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Готовы участвовать в массовке / эпизодах?<span>*</span></label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" name="extras_ok" value="Да" required>
-                            <div class="radio-mark"></div>
-                            <span>Да</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" name="extras_ok" value="Нет">
-                            <div class="radio-mark"></div>
-                            <span>Нет</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Блок 5 -->
-            <div class="block">
-                <div class="block-title">Медиа-материалы</div>
-
-                <div class="form-group">
-                    <label>Фотографии (минимум 3 шт)<span>*</span></label>
-                    <p style="font-size:11px; color:var(--muted); margin-bottom:10px">Анфас, профиль, в полный рост. Без
-                        фильтров. <b>Max 50MB/файл.</b></p>
-                    <div class="upload-area" id="photoUpload">
+                    <label>Фотографии (До 5 шт)</label>
+                    <div class="upload-area" onclick="document.getElementById('photoInput').click()">
                         <i>📸</i>
-                        <span>Нажмите для выбора фото (JPG, PNG)</span>
+                        <span>Нажмите для выбора фото</span>
                         <input type="file" id="photoInput" multiple accept="image/*" style="display:none">
                     </div>
                     <div class="file-list" id="photoList"></div>
                 </div>
-
                 <div class="form-group">
-                    <label>Видео-визитка (Актерский этюд)<span>*</span></label>
-                    <p style="font-size:11px; color:var(--muted); margin-bottom:10px">
-                        До 1 минуты. Эмоции и подача в кадре. <b>Лимит 50MB.</b><br>
-                        <i>Если прикрепить новое видео до минуты с визиткой именно по персонажу, на которого подаетесь,
-                            шансов больше или можете добавить ссылку на портфолио ниже.</i>
-                    </p>
-                    <div class="upload-area" id="videoUpload">
+                    <label>Видео-визитка (Ссылка или файл)</label>
+                    <input type="text" name="portfolio_url" placeholder="Ссылка на YouTube/Drive">
+                    <p style="font-size:10px; color:var(--muted); margin-top:5px">Или выберите файл (до 50МБ):</p>
+                    <div class="upload-area" onclick="document.getElementById('videoInput').click()">
                         <i>🎬</i>
-                        <span>Нажмите для выбора видео (MP4, MOV)</span>
+                        <span>Выбрать видео-файл</span>
                         <input type="file" id="videoInput" accept="video/*" style="display:none">
                     </div>
                     <div class="file-list" id="videoList"></div>
                 </div>
-
                 <div class="form-group">
-                    <label>Ссылка на видео-визитку / портфолио</label>
-                    <input type="text" name="portfolio_url" placeholder="YouTube, Vimeo или Google Диск">
-                </div>    <script>
-        // --- Configuration ---
-        const API_BASE = "https://media.sijic13.workers.dev";
-        let phoneStatus = { status: 'new' };
-        let isUpdateMode = false;
-        
-        async function handlePhoneBlur() {
-            const phoneInput = document.getElementById('phoneInput');
-            const phone = phoneInput.value;
-            const selectedProjects = getSelectedProjectNames();
-            const project = selectedProjects.length > 0 ? selectedProjects[0] : "General Casting";
-            const hint = document.getElementById('phoneHint');
-            
-            if (phone.length < 5) return;
-
-            try {
-                const res = await fetch(`${API_BASE}/api/check-phone?phone=${encodeURIComponent(phone)}&project=${encodeURIComponent(project)}`);
-                const data = await res.json();
-                phoneStatus = data;
-                
-                if (data.status === 'blocked') {
-                    hint.style.display = 'block';
-                    hint.style.color = '#ff3b30';
-                    hint.textContent = '⚠ Этот номер заблокирован системой.';
-                } else if (data.status === 'already_applied') {
-                    hint.style.display = 'block';
-                    hint.style.color = '#f45925';
-                    hint.textContent = 'ℹ Вы уже подавались на этот проект.';
-                } else if (data.status === 'exists_other_project') {
-                    hint.style.display = 'block';
-                    hint.style.color = '#7aa2ff';
-                    hint.textContent = 'ℹ Ваша анкета уже есть в нашей базе.';
-                } else {
-                    hint.style.display = 'none';
-                }
-            } catch (e) {}
-        }
-
-        function getSelectedProjectNames() {
-            return Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => i.value);
-        }
-
-        function showModal(config) {
-            const modal = document.getElementById('duplicateModal');
-            document.getElementById('modalTitle').textContent = config.title;
-            document.getElementById('modalBody').textContent = config.body;
-            
-            const pBtn = document.getElementById('modalPrimaryBtn');
-            const sBtn = document.getElementById('modalSecondaryBtn');
-            
-            pBtn.textContent = config.primaryText;
-            pBtn.onclick = () => {
-                modal.style.display = 'none';
-                config.onPrimary();
-            };
-            
-            sBtn.textContent = config.secondaryText;
-            sBtn.onclick = () => {
-                modal.style.display = 'none';
-                config.onSecondary();
-            };
-            
-            modal.style.display = 'flex';
-        }
-        const VERCEL_URL = "https://media-seven-eta.vercel.app";
-        
-        const params = new URLSearchParams(window.location.search);
-        const cid = params.get('cid');
-        const tid = params.get('tid');
-        const proj = params.get('proj');
-        const lock = params.get('lock');
-        const cParam = params.get('c');
-
-        let uploadedPhotos = []; 
-        let uploadedVideoFile = null; 
-        let pendingUploads = 0;
-
-        const welcomeContainer = document.getElementById('welcomeContainer');
-        const formContainer = document.getElementById('formContainer');
-        const successScreen = document.getElementById('successScreen');
-        const startNewBtn = document.getElementById('startNewBtn');
-        const reentryStartBtn = document.getElementById('reentryStartBtn');
-
-        startNewBtn.onclick = () => {
-            welcomeContainer.style.display = 'none';
-            formContainer.style.display = 'block';
-            window.scrollTo(0, 0);
-        };
-
-        reentryStartBtn.onclick = () => {
-            alert("Поиск анкет временно недоступен в версии без базы данных. Пожалуйста, заполните анкету заново.");
-        };
-
-        async function loadCastingProjects() {
-            const container = document.getElementById('castingChecklist');
-            try {
-                const response = await fetch(`${VERCEL_URL}/api/casting/topics`);
-                const projects = await response.json();
-                container.innerHTML = '';
-                
-                let targetProj = null;
-                if (cParam) {
-                    targetProj = projects.find(p => p.id == cParam);
-                } else if (proj) {
-                    targetProj = projects.find(p => p.name === proj);
-                } else if (cid && tid) {
-                    targetProj = projects.find(p => p.chat_id == cid && p.thread_id == tid);
-                }
-
-                let sortedProjects = projects;
-                const isLocked = lock || cParam;
-                
-                if (targetProj && isLocked) {
-                    sortedProjects = [targetProj];
-                } else if (proj && cid) {
-                    const fallbackProj = { name: proj, chat_id: cid, thread_id: tid };
-                    if (!projects.find(p => p.name === proj)) {
-                        sortedProjects = isLocked ? [fallbackProj] : [fallbackProj, ...projects];
-                    }
-                }
-                
-                // Фильтруем тестовые кастинги в общей ссылке
-                if (!isLocked) {
-                    sortedProjects = sortedProjects.filter(p => !p.name.toLowerCase().includes("тестов"));
-                }
-
-                // Вспомогательная функция для обновления поля персонажей
-                function updateCharacterInput() {
-                    const selectedCheckboxes = Array.from(container.querySelectorAll('input:checked'));
-                    let allRoles = [];
-                    let hasRolelessProject = false;
-                    
-                    if (selectedCheckboxes.length === 0) {
-                        hasRolelessProject = true; // По умолчанию текстовое поле
-                    } else {
-                        selectedCheckboxes.forEach(cb => {
-                            const r = cb.getAttribute('data-roles');
-                            if (r) {
-                                allRoles.push(...r.split(','));
-                            } else {
-                                hasRolelessProject = true;
-                            }
-                        });
-                    }
-                    
-                    const charInputGroup = document.querySelector('[name="character_name"]').parentNode;
-                    
-                    if (!hasRolelessProject && allRoles.length > 0) {
-                        const uniqueRoles = [...new Set(allRoles)];
-                        charInputGroup.innerHTML = `
-                            <label>На какого персонажа вы подаетесь?<span>*</span></label>
-                            <select name="character_name" required style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;">
-                                <option style="color: #000;" value="" disabled selected>Выберите персонажа...</option>
-                                ${uniqueRoles.map(r => `<option style="color: #000;" value="${r}">${r}</option>`).join('')}
-                                <option style="color: #000;" value="Другое (Массовка)">Другое (Массовка)</option>
-                            </select>
-                        `;
-                    } else {
-                        charInputGroup.innerHTML = `
-                            <label>На какого персонажа вы подаетесь?<span>*</span></label>
-                            <input type="text" name="character_name" required placeholder="например: «Главный герой», «Отец», «Прохожий»">
-                        `;
-                    }
-                }
-
-                sortedProjects.forEach(p => {
-                    const label = document.createElement('label');
-                    label.className = 'check-item';
-                    const isActive = (targetProj && p.name === targetProj.name) || p.name === proj || (p.chat_id == cid && p.thread_id == tid);
-                    if (isActive) label.classList.add('active');
-
-                    let rolesAttr = "";
-                    if (p.category && p.category.startsWith("casting|")) {
-                        const rStr = p.category.substring(8);
-                        if (rStr) rolesAttr = `data-roles="${rStr}"`;
-                    }
-
-                    label.innerHTML = `
-                        <input type="checkbox" value="${p.name}" ${isActive ? 'checked' : ''} 
-                               data-cid="${p.chat_id}" data-tid="${p.thread_id || ''}" ${rolesAttr}>
-                        <span>${p.name}</span>
-                    `;
-
-                    label.querySelector('input').onchange = (e) => {
-                        const checkedCount = container.querySelectorAll('input:checked').length;
-                        if (e.target.checked) label.classList.add('active');
-                        else label.classList.remove('active');
-                        if (e.target.checked && checkedCount > 1) {
-                            const cm = document.getElementById('confirmModal');
-                            if (cm) cm.style.display = 'flex';
-                        }
-                        updateCharacterInput();
-                    };
-                    container.appendChild(label);
-                });
-                
-                // Инициализация при загрузке
-                updateCharacterInput();
-
-                const modalBack = document.getElementById('modalBack');
-                const modalConfirm = document.getElementById('modalConfirm');
-                if (modalBack) modalBack.onclick = () => document.getElementById('confirmModal').style.display = 'none';
-                if (modalConfirm) modalConfirm.onclick = () => document.getElementById('confirmModal').style.display = 'none';
-            } catch (err) {
-                console.error("Error loading projects:", err);
-                container.innerHTML = '<div style="color:var(--error)">Ошибка загрузки проектов</div>';
-            }
-        }
-        loadCastingProjects();
-
-        function updateSubmitButton() {
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = pendingUploads > 0;
-            btn.textContent = pendingUploads > 0 ? "⏳ ОБРАБОТКА МЕДИА..." : "ОТПРАВИТЬ АНКЕТУ";
-        }
-
-        function createMediaItem(id, file, isVideo = false) {
-            const div = document.createElement('div');
-            div.className = 'file-item' + (isVideo ? ' video' : '');
-            div.id = 'media-' + id;
-            div.innerHTML = `<div class="remove">×</div><div class="progress-bar" style="width:100%"></div>`;
-            div.querySelector('.remove').onclick = (e) => {
-                e.stopPropagation();
-                div.remove();
-                if (isVideo) uploadedVideo = null;
-                else uploadedPhotos = uploadedPhotos.filter(p => p.id !== id);
-            };
-            return div;
-        }
-
-        async function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
-        }
-
-        async function compressImage(file) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.src = URL.createObjectURL(file);
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_SIZE = 800;
-                    let width = img.width, height = img.height;
-                    if (width > height) {
-                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
-                    } else {
-                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
-                    }
-                    canvas.width = width; canvas.height = height;
-                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                    canvas.toBlob(blob => resolve(new File([blob], file.name, { type: 'image/jpeg' })), 'image/jpeg', 0.6);
-                };
-            });
-        }
-
-        document.getElementById('photoUpload').onclick = () => document.getElementById('photoInput').click();
-        document.getElementById('photoInput').onchange = async (e) => {
-            const files = Array.from(e.target.files);
-            for (const file of files) {
-                pendingUploads++; updateSubmitButton();
-                const id = Math.random().toString(36).substr(2, 9);
-                const item = createMediaItem(id, file);
-                document.getElementById('photoList').appendChild(item);
-                
-                // Сжатие оставляем для скорости, но сохраняем как Blob/File
-                const compressed = await compressImage(file);
-                uploadedPhotos.push({ id, file: compressed });
-                
-                const b64 = await fileToBase64(compressed);
-                item.style.backgroundImage = `url(${b64})`;
-                pendingUploads--; updateSubmitButton();
-            }
-        };
-
-        document.getElementById('videoUpload').onclick = () => document.getElementById('videoInput').click();
-        document.getElementById('videoInput').onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            if (file.size > 100 * 1024 * 1024) return alert("Видео слишком большое (max 100MB).");
-            pendingUploads++; updateSubmitButton();
-            const id = Math.random().toString(36).substr(2, 9);
-            const item = createMediaItem(id, file, true);
-            document.getElementById('videoList').innerHTML = '';
-            document.getElementById('videoList').appendChild(item);
-            uploadedVideoFile = file;
-            pendingUploads--; updateSubmitButton();
-        };
-
-        document.getElementById('citySelect').addEventListener('change', function(e) {
-            const manualInput = document.getElementById('cityManual');
-            if (this.value === 'Другой') {
-                manualInput.style.display = 'block';
-                manualInput.required = true;
-            } else {
-                manualInput.style.display = 'none';
-                manualInput.required = false;
-            }
-        });
-
-        document.getElementById('castingForm').onsubmit = async (e) => {
-            e.preventDefault();
-            
-            // Проверка статуса (дубликаты/блокировка)
-            if (phoneStatus.status === 'blocked') {
-                alert("Ваша анкета заблокирована системой модерации.");
-                return;
-            }
-
-            if (phoneStatus.status === 'already_applied' && !isUpdateMode) {
-                showModal({
-                    title: "Заявка уже подана",
-                    body: "Ваши данные уже у кастинг-директора. Если вы хотите изменить информацию (фото, опыт, контакт), нажмите «Обновить».",
-                    primaryText: "Обновить данные",
-                    secondaryText: "Все верно, не менять",
-                    onPrimary: () => {
-                        isUpdateMode = true;
-                        document.getElementById('castingForm').dispatchEvent(new Event('submit'));
-                    },
-                    onSecondary: () => {
-                        document.getElementById('formContainer').style.display = 'none';
-                        document.getElementById('successScreen').style.display = 'block';
-                        document.querySelector('#successScreen p').textContent = "Ваши данные уже у кастинг-директора. С вами свяжутся, если вы подходите. Пожалуйста, не дублируйте заявки.";
-                        window.scrollTo(0, 0);
-                    }
-                });
-                return;
-            }
-
-            if (phoneStatus.status === 'exists_other_project' && !isUpdateMode) {
-                showModal({
-                    title: "Внимание: Строгая модерация",
-                    body: "Ваша анкета уже есть в нашей базе. Если вы подадите заявку на проект, под критерии которого вы явно не подходите (рост, возраст, типаж), ваша анкета может быть заблокирована навсегда. Продолжить?",
-                    primaryText: "Да, я подхожу",
-                    secondaryText: "Отмена",
-                    onPrimary: () => {
-                        isUpdateMode = true;
-                        document.getElementById('castingForm').dispatchEvent(new Event('submit'));
-                    },
-                    onSecondary: () => {}
-                });
-                return;
-            }
-
-            const selected = Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => ({
-                name: i.value,
-                chat_id: i.getAttribute('data-cid'),
-                thread_id: i.getAttribute('data-tid')
-            }));
-            
-            if (selected.length === 0) return alert("Выберите кастинг.");
-            if (uploadedPhotos.length < 3) return alert("Минимум 3 фото.");
-            
-            const overlay = document.getElementById('loadingOverlay');
-            overlay.style.display = 'flex';
-            
-            try {
-                const baseFormData = new FormData(e.target);
-                
-                // --- Склейка полей для бэкенда ---
-                const citySelect = baseFormData.get('city_select');
-                const cityManual = baseFormData.get('city_manual');
-                baseFormData.set('city', (citySelect === 'Другой') ? (cityManual || 'Не указан') : (citySelect || 'Не указан'));
-                
-                const height = baseFormData.get('height') || '?';
-                const weight = baseFormData.get('weight') || '?';
-                baseFormData.set('height_weight', `${height} см / ${weight} кг`);
-                
-                const feeFrom = baseFormData.get('fee_from') || '?';
-                const feeTo = baseFormData.get('fee_to') || '?';
-                baseFormData.set('fee_range', `${feeFrom} - ${feeTo}`);
-
-                const appType = baseFormData.get('appearance_type') || '—';
-                const hairColor = baseFormData.get('hair_color') || '—';
-                const appDetails = baseFormData.get('appearance_details') || '—';
-                const clothSize = baseFormData.get('cloth_size') || '—';
-                const shoeSize = baseFormData.get('shoe_size') || '—';
-                
-                let expText = baseFormData.get('experience') || 'Нет';
-                expText = `Типаж: ${appType}\nВолосы: ${hairColor}\nДетали: ${appDetails}\nОдежда/Обувь: ${clothSize} / ${shoeSize}\n\n${expText}`;
-                
-                const diseases = baseFormData.get('diseases');
-                const features = baseFormData.get('unusual_features');
-                if (diseases && diseases.trim()) expText += `\nБолезни: ${diseases}`;
-                if (features && features.trim()) expText += `\nПриметы: ${features}`;
-                baseFormData.set('experience', expText);
-
-                const emailTg = baseFormData.get('email_tg') || '—';
-                const instagram = baseFormData.get('instagram') || '—';
-                baseFormData.set('instagram', `Inst: ${instagram}\nEmail/TG: ${emailTg}`);
-                
-                if (isUpdateMode) baseFormData.set('update', 'true');
-
-                for (const p of selected) {
-                    document.getElementById('loadingText').textContent = `Отправка в ${p.name}...`;
-                    
-                    const finalFormData = new FormData();
-                    for (let [key, value] of baseFormData.entries()) {
-                        finalFormData.append(key, value);
-                    }
-                    
-                    finalFormData.set('casting_target', p.name);
-                    finalFormData.set('chat_id', p.chat_id);
-                    if (p.thread_id) finalFormData.set('thread_id', p.thread_id);
-                    
-                    uploadedPhotos.forEach(ph => finalFormData.append('photos', ph.file));
-                    if (uploadedVideoFile) finalFormData.append('video', uploadedVideoFile);
-
-                    const res = await fetch(`${API_BASE}`, {
-                        method: 'POST',
-                        body: finalFormData
-                    });
-                    
-                    if (!res.ok) throw new Error(await res.text());
-                }
-                
-                document.getElementById('formContainer').style.display = 'none';
-                document.getElementById('successScreen').style.display = 'block';
-                window.scrollTo(0, 0);
-            } catch (err) { 
-                alert("Ошибка: " + err.message); 
-            } finally { 
-                overlay.style.display = 'none'; 
-                isUpdateMode = false;
-            }
-        };
-    </script>
-    <div id="duplicateModal" class="modal-overlay">
-        <div class="modal-content">
-            <h2 id="modalTitle">Заявка уже подана</h2>
-            <p id="modalBody">Вы уже подавали анкету на этот проект. Хотите обновить данные?</p>
-            <div class="modal-actions">
-                <button id="modalPrimaryBtn" class="modal-btn primary">Обновить данные</button>
-                <button id="modalSecondaryBtn" class="modal-btn secondary">Все верно, не менять</button>
+                    <label>Дополнительная информация</label>
+                    <textarea name="experience_summary" rows="4" placeholder="Напишите здесь то, что просил кастинг-директор..."></textarea>
+                </div>
             </div>
-        </div>
-    </div>
-</body>
 
+            <button type="submit" class="submit-btn" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
+        </form>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = "https://media.sijic13.workers.dev";
+        const form = document.getElementById('castingForm');
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token') || params.get('id');
+        let isSupplementMode = false;
+        let photos = [];
+        let videoFile = null;
+
+        // Init
+        async function init() {
+            // Load projects
+            const pRes = await fetch(`${API_BASE}/api/projects`);
+            const projects = await pRes.json();
+            const sel = document.getElementById('projectSelect');
+            projects.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p; opt.textContent = p;
+                sel.appendChild(opt);
+            });
+
+            if (token) {
+                isSupplementMode = true;
+                document.body.classList.add('supplement-mode');
+                document.getElementById('formTitle').textContent = 'ДОЗАГРУЗКА МАТЕРИАЛОВ';
+                document.getElementById('formSubtitle').textContent = 'Режим дополнения анкеты';
+                document.getElementById('welcomeContainer').style.display = 'none';
+                document.getElementById('formContainer').style.display = 'block';
+
+                const aRes = await fetch(`${API_BASE}/api/applications/by-token?token=${token}`);
+                const data = await aRes.json();
+                if (data.full_name) {
+                    document.getElementById('fullName').value = data.full_name;
+                    document.getElementById('phone').value = data.phone || '';
+                    document.getElementById('projectSelect').value = data.project_name || '';
+                    showToast(`Привет, ${data.full_name}!`);
+                }
+            }
+        }
+
+        document.getElementById('startNewBtn').onclick = () => {
+            document.getElementById('welcomeContainer').style.display = 'none';
+            document.getElementById('formContainer').style.display = 'block';
+        };
+
+        // File handling (Simplified for demonstration - real upload would need S3/TG Bot API)
+        // Since we are building a prototype, we'll simulate the "photo_tg_ids" logic
+        document.getElementById('photoInput').onchange = (e) => {
+            const files = Array.from(e.target.files);
+            files.forEach(f => {
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    const id = Math.random().toString(36).substr(2, 9);
+                    photos.push(id); // Simulation
+                    const div = document.createElement('div');
+                    div.className = 'file-item';
+                    div.style.backgroundImage = `url(${re.target.result})`;
+                    div.innerHTML = `<div class="file-remove" onclick="this.parentElement.remove()">✕</div>`;
+                    document.getElementById('photoList').appendChild(div);
+                };
+                reader.readAsDataURL(f);
+            });
+        };
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = "ОТПРАВКА...";
+
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            data.photo_tg_ids = photos;
+            data.age_num = parseInt(data.age) || 0;
+
+            const method = isSupplementMode ? 'PUT' : 'POST';
+            const endpoint = isSupplementMode ? '/api/applications/additional' : '/api/applications/submit';
+            if (isSupplementMode) data.token = token;
+
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    alert("Успешно! Ваши данные обновлены.");
+                    location.href = "index.html";
+                } else { throw new Error(); }
+            } catch (err) {
+                alert("Ошибка при отправке. Попробуйте позже.");
+                btn.disabled = false;
+                btn.textContent = "ОТПРАВИТЬ АНКЕТУ";
+            }
+        };
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        init();
+    </script>
+</body>
 </html>
