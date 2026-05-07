@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>АНКЕТА УЧАСТНИКА КАСТИНГА</title>
-    <!-- Version: 2.2.2 (Glass UI) -->
+    <!-- Version: 3.0.0 (No-Supabase) -->
     <link rel="icon" type="image/png" href="favicon.png">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link href="https://fonts.googleapis.com" rel="preconnect" />
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
@@ -838,71 +838,26 @@
                 <div class="form-group">
                     <label>Ссылка на видео-визитку / портфолио</label>
                     <input type="text" name="portfolio_url" placeholder="YouTube, Vimeo или Google Диск">
-                </div>
-            </div>
-
-            <button type="submit" class="submit-btn" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
-        </form>
-    </div>
-
-    <!-- Success Screen -->
-    <div class="container success-screen" id="successScreen">
-        <div style="font-size:60px; margin-bottom:20px">✨</div>
-        <h2>СПАСИБО ЗА ВАШУ АНКЕТУ!</h2>
-        <p>Ваши данные успешно отправлены и скоро будут рассмотрены.<br>За новыми кастингами следите в нашем Instagram:
-        </p>
-        <a href="https://instagram.com/Sklad.productions" target="_blank"
-            style="color:var(--accent); font-weight:700; text-decoration:none; font-size:18px">@Sklad.productions</a>
-    </div>
-
-    <!-- Modals -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="spinner"></div>
-        <div id="loadingText" style="font-size:14px; color:white">Загрузка данных...</div>
-    </div>
-
-    <div class="modal-overlay" id="confirmModal">
-        <div class="modal-card">
-            <h3>⚠️ ВНИМАНИЕ</h3>
-            <p>Вы выбрали несколько кастингов. Вы подтверждаете, что подходите под критерии <b>всех</b> выбранных
-                проектов? <br><br> Если вы просто решили отправлять анкету на все подряд кастинги без разбору — ваша
-                анкета будет удалена.</p>
-            <div class="modal-btns">
-                <button class="modal-btn btn-back" id="modalBack">НАЗАД</button>
-                <button class="modal-btn btn-confirm" id="modalConfirm">ПОДТВЕРЖДАЮ</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Logic Script -->
-    <script>
-        // --- Initialization ---
-        const SUPABASE_URL = "https://waekzofajzqcpoeldhkt.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V";
-        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+                </div>    <script>
+        // --- Configuration ---
+        const API_BASE = "https://media-seven-eta.vercel.app/api"; 
+        
         const params = new URLSearchParams(window.location.search);
         const cid = params.get('cid');
         const tid = params.get('tid');
         const proj = params.get('proj');
         const lock = params.get('lock');
 
-        let uploadedPhotos = [];
-        let uploadedVideo = null;
+        let uploadedPhotos = []; 
+        let uploadedVideo = null; 
         let pendingUploads = 0;
 
-        // --- DOM Elements ---
         const welcomeContainer = document.getElementById('welcomeContainer');
         const formContainer = document.getElementById('formContainer');
         const successScreen = document.getElementById('successScreen');
         const startNewBtn = document.getElementById('startNewBtn');
         const reentryStartBtn = document.getElementById('reentryStartBtn');
-        const reentryInputGroup = document.getElementById('reentryInputGroup');
-        const reentryPhone = document.getElementById('reentryPhone');
-        const reentryFetchBtn = document.getElementById('reentryFetchBtn');
-        const fetchStatus = document.getElementById('fetchStatus');
 
-        // --- Navigation / Mode Switching ---
         startNewBtn.onclick = () => {
             welcomeContainer.style.display = 'none';
             formContainer.style.display = 'block';
@@ -910,111 +865,56 @@
         };
 
         reentryStartBtn.onclick = () => {
-            reentryInputGroup.style.display = 'block';
-            reentryPhone.focus();
+            alert("Поиск анкет временно недоступен в версии без базы данных. Пожалуйста, заполните анкету заново.");
         };
 
-        // --- Fetch Projects ---
         async function loadCastingProjects() {
             const container = document.getElementById('castingChecklist');
-            const hiddenInput = document.getElementById('casting_target_hidden');
-
             try {
-                const { data, error } = await sb.from('clients')
-                    .select('name, chat_id, thread_id')
-                    .eq('category', 'casting')
-                    .eq('is_hidden', false)
-                    .order('name');
-
-                if (error) throw error;
-
+                const response = await fetch(`${API_BASE}/casting/topics`);
+                const projects = await response.json();
                 container.innerHTML = '';
-                const projects = data || [];
-
-                // --- CRITICAL FIX ---
-                // Find the actual DB object for 'proj' if it exists.
-                // Do NOT create a dummy {name: proj} because it lacks chat_id/thread_id!
+                
                 let targetProj = proj ? projects.find(p => p.name === proj) : null;
-
-                // If not found by name, try finding by chat_id and thread_id if available
                 if (!targetProj && cid && tid) {
                     targetProj = projects.find(p => p.chat_id == cid && p.thread_id == tid);
                 }
 
-                const otherProjects = projects.filter(p => p !== targetProj);
-
-                // If target found in DB, put it first. If not found (renamed?), just list others.
-                // If proj was passed but not found, we can't force-select it correctly without ID.
-                // Fallback: If proj not found, maybe add it as a "custom" option using URL cid/tid?
-                let sortedProjects = otherProjects;
-
-                if (targetProj) {
-                    if (lock) {
-                        sortedProjects = [targetProj];
-                    } else {
-                        sortedProjects = [targetProj, ...otherProjects];
-                    }
-                } else if (proj && cid && tid) {
-                    // Fallback for renamed project where we have IDs in URL
-                    if (lock) {
-                        sortedProjects = [{ name: proj, chat_id: cid, thread_id: tid }];
-                    } else {
-                        sortedProjects = [{ name: proj, chat_id: cid, thread_id: tid }, ...otherProjects];
+                let sortedProjects = projects;
+                if (targetProj && lock) {
+                    sortedProjects = [targetProj];
+                } else if (proj && cid) {
+                    const fallbackProj = { name: proj, chat_id: cid, thread_id: tid };
+                    if (!projects.find(p => p.name === proj)) {
+                        sortedProjects = lock ? [fallbackProj] : [fallbackProj, ...projects];
                     }
                 }
-
-                const activeProjName = targetProj ? targetProj.name : proj;
 
                 sortedProjects.forEach(p => {
                     const label = document.createElement('label');
                     label.className = 'check-item';
-                    if (p.name === activeProjName) label.classList.add('active');
-
-                    const isChecked = p.name === activeProjName ? 'checked' : '';
-
-                    // Store IDs directly in data attributes
-                    const cidAttr = p.chat_id ? `data-cid="${p.chat_id}"` : '';
-                    const tidAttr = p.thread_id ? `data-tid="${p.thread_id}"` : '';
+                    const isActive = p.name === proj || (p.chat_id == cid && p.thread_id == tid);
+                    if (isActive) label.classList.add('active');
 
                     label.innerHTML = `
-                        <input type="checkbox" value="${p.name}" ${isChecked} ${cidAttr} ${tidAttr}>
+                        <input type="checkbox" value="${p.name}" ${isActive ? 'checked' : ''} 
+                               data-cid="${p.chat_id}" data-tid="${p.thread_id || ''}">
                         <span>${p.name}</span>
                     `;
 
                     label.querySelector('input').onchange = (e) => {
                         const checkedCount = container.querySelectorAll('input:checked').length;
+                        if (e.target.checked) label.classList.add('active');
+                        else label.classList.remove('active');
                         if (e.target.checked && checkedCount > 1) {
-                            const modal = document.getElementById('confirmModal');
-                            modal.style.display = 'flex';
-                            document.getElementById('modalBack').onclick = () => {
-                                modal.style.display = 'none';
-                                e.target.checked = false;
-                                label.classList.remove('active');
-                                updateHiddenInput();
-                            };
-                            document.getElementById('modalConfirm').onclick = () => {
-                                modal.style.display = 'none';
-                                label.classList.add('active');
-                                updateHiddenInput();
-                            };
-                        } else {
-                            if (e.target.checked) label.classList.add('active');
-                            else label.classList.remove('active');
-                            updateHiddenInput();
+                            document.getElementById('confirmModal').style.display = 'flex';
                         }
                     };
                     container.appendChild(label);
                 });
 
-                function updateHiddenInput() {
-                    const checked = Array.from(container.querySelectorAll('input:checked')).map(i => i.value);
-                    hiddenInput.value = checked.join(', ');
-                    const warning = document.getElementById('multiWarning');
-                    warning.style.display = checked.length > 1 ? 'block' : 'none';
-                }
-
-                if (proj) hiddenInput.value = proj;
-
+                document.getElementById('modalBack').onclick = () => document.getElementById('confirmModal').style.display = 'none';
+                document.getElementById('modalConfirm').onclick = () => document.getElementById('confirmModal').style.display = 'none';
             } catch (err) {
                 console.error("Error loading projects:", err);
                 container.innerHTML = '<div style="color:var(--error)">Ошибка загрузки проектов</div>';
@@ -1022,116 +922,17 @@
         }
         loadCastingProjects();
 
-        // --- Re-entry Logic (Find User) ---
-        reentryFetchBtn.onclick = async () => {
-            const rawPhone = reentryPhone.value.trim();
-            const digits = rawPhone.replace(/\D/g, '');
-
-            if (digits.length < 10) return alert("Введите минимум 10 цифр номера телефона");
-
-            const last10 = digits.slice(-10);
-            const fuzzyPattern = '%' + last10.split('').join('%') + '%';
-
-            fetchStatus.textContent = "🔍 Ищем анкету...";
-            fetchStatus.className = "fetch-status loading";
-            reentryFetchBtn.disabled = true;
-
-            try {
-                const { data, error } = await sb.from('casting_applications')
-                    .select('*')
-                    .or(`phone.ilike.${fuzzyPattern}`)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-
-                if (error) throw error;
-
-                if (!data || data.length === 0) {
-                    fetchStatus.textContent = "❌ Номер не найден. Пожалуйста, проверьте ввод или нажмите 'Я заполняю первый раз'";
-                    fetchStatus.className = "fetch-status error";
-                    return;
-                }
-
-                const app = data[0];
-                const form = document.getElementById('castingForm');
-
-                // Fill fields
-                const fields = [
-                    'full_name', 'gender', 'city', 'dob', 'nationality', 'phone',
-                    'instagram', 'height_weight', 'sizes', 'experience', 'skills',
-                    'fee_range', 'underwear_ok', 'extras_ok', 'portfolio_url'
-                ];
-
-                fields.forEach(f => {
-                    const input = form.querySelector(`[name="${f}"]`);
-                    if (input) {
-                        if (input.type === 'radio') {
-                            const radio = form.querySelector(`[name="${f}"][value="${app[f]}"]`);
-                            if (radio) radio.checked = true;
-                        } else {
-                            input.value = app[f] || '';
-                        }
-                    }
-                });
-
-                // Fill media
-                if (app.photo_urls && Array.from(app.photo_urls).length > 0) {
-                    uploadedPhotos = app.photo_urls.map((url, index) => {
-                        const id = Math.random().toString(36).substr(2, 9);
-                        const fileItem = createMediaItem(id, { name: `Old_Photo_${index}` });
-                        document.getElementById('photoList').appendChild(fileItem);
-                        fileItem.style.backgroundImage = `url(${url})`;
-                        fileItem.querySelector('.progress-bar').style.width = '100%';
-                        return { id, url };
-                    });
-                }
-
-                if (app.video_audition_url) {
-                    const id = Math.random().toString(36).substr(2, 9);
-                    const fileItem = createMediaItem(id, { name: 'Old_Video' }, true);
-                    document.getElementById('videoList').innerHTML = '';
-                    document.getElementById('videoList').appendChild(fileItem);
-                    fileItem.querySelector('.progress-bar').style.width = '100%';
-                    uploadedVideo = app.video_audition_url;
-                }
-
-                fetchStatus.textContent = "✅ Данные найдены! Вы можете обновить фото и видео для этого проекта";
-                fetchStatus.className = "fetch-status success";
-
-                setTimeout(() => {
-                    welcomeContainer.style.display = 'none';
-                    formContainer.style.display = 'block';
-                    window.scrollTo(0, 0);
-                }, 1500);
-
-            } catch (err) {
-                console.error(err);
-                fetchStatus.textContent = "❌ Ошибка при поиске: " + err.message;
-                fetchStatus.className = "fetch-status error";
-            } finally {
-                reentryFetchBtn.disabled = false;
-            }
-        };
-
-        // --- Helper: Submit Button State ---
         function updateSubmitButton() {
             const btn = document.getElementById('submitBtn');
-            if (pendingUploads > 0) {
-                btn.disabled = true;
-                btn.textContent = "⏳ ЗАГРУЗКА МЕДИА (" + pendingUploads + ")...";
-                btn.style.background = "var(--muted)";
-            } else {
-                btn.disabled = false;
-                btn.textContent = "ОТПРАВИТЬ АНКЕТУ";
-                btn.style.background = "var(--accent)";
-            }
+            btn.disabled = pendingUploads > 0;
+            btn.textContent = pendingUploads > 0 ? "⏳ ОБРАБОТКА МЕДИА..." : "ОТПРАВИТЬ АНКЕТУ";
         }
 
-        // --- Media Upload Logic ---
         function createMediaItem(id, file, isVideo = false) {
             const div = document.createElement('div');
             div.className = 'file-item' + (isVideo ? ' video' : '');
             div.id = 'media-' + id;
-            div.innerHTML = `<div class="remove">×</div><div class="progress-bar"></div>`;
+            div.innerHTML = `<div class="remove">×</div><div class="progress-bar" style="width:100%"></div>`;
             div.querySelector('.remove').onclick = (e) => {
                 e.stopPropagation();
                 div.remove();
@@ -1141,231 +942,92 @@
             return div;
         }
 
-        // Client-Side Compression
-        async function compressImage(file) {
-            return new Promise((resolve) => {
+        async function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.src = event.target.result;
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800;
-                        const MAX_HEIGHT = 800;
-                        let width = img.width;
-                        let height = img.height;
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
 
-                        if (width > height) {
-                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                        } else {
-                            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
-                        }
-
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-
-                        // Compress to JPEG 0.6
-                        canvas.toBlob((blob) => {
-                            resolve(new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' }));
-                        }, 'image/jpeg', 0.5);
-                    };
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 800;
+                    let width = img.width, height = img.height;
+                    if (width > height) {
+                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                    } else {
+                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                    }
+                    canvas.width = width; canvas.height = height;
+                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                    canvas.toBlob(blob => resolve(new File([blob], file.name, { type: 'image/jpeg' })), 'image/jpeg', 0.6);
                 };
             });
         }
 
-        // Photo Upload Handler
+        document.getElementById('photoUpload').onclick = () => document.getElementById('photoInput').click();
         document.getElementById('photoInput').onchange = async (e) => {
             const files = Array.from(e.target.files);
-            document.getElementById('photoUpload').value = ''; // Reset input
-
             for (const file of files) {
-                pendingUploads++;
-                updateSubmitButton();
-
+                pendingUploads++; updateSubmitButton();
                 const id = Math.random().toString(36).substr(2, 9);
-                const fileItem = createMediaItem(id, file);
-                document.getElementById('photoList').appendChild(fileItem);
-
-                try {
-                    let uploadFile = file;
-                    if (file.type.match(/image.*/)) {
-                        uploadFile = await compressImage(file);
-                    }
-
-                    const ext = uploadFile.name.split('.').pop();
-                    const path = `photos/${Date.now()}_${id}.${ext}`;
-
-                    const { error } = await sb.storage.from('casting_media').upload(path, uploadFile, {
-                        onUploadProgress: (progress) => {
-                            const percent = (progress.loaded / progress.total) * 100;
-                            fileItem.querySelector('.progress-bar').style.width = percent + '%';
-                        }
-                    });
-
-                    if (error) throw error;
-
-                    const { data: { publicUrl } } = sb.storage.from('casting_media').getPublicUrl(path);
-                    uploadedPhotos.push({ id, url: publicUrl });
-                    fileItem.style.backgroundImage = `url(${publicUrl})`;
-                } catch (err) {
-                    console.error(err);
-                    alert(`Ошибка загрузки ${file.name}: ${err.message}`);
-                } finally {
-                    pendingUploads--;
-                    updateSubmitButton();
-                }
+                const item = createMediaItem(id, file);
+                document.getElementById('photoList').appendChild(item);
+                const compressed = await compressImage(file);
+                const b64 = await fileToBase64(compressed);
+                uploadedPhotos.push({ id, b64 });
+                item.style.backgroundImage = `url(${b64})`;
+                pendingUploads--; updateSubmitButton();
             }
         };
 
-        // Video Upload Handler
         document.getElementById('videoUpload').onclick = () => document.getElementById('videoInput').click();
         document.getElementById('videoInput').onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
-            const MAX_SIZE = 50 * 1024 * 1024; // 50MB
-            if (file.size > MAX_SIZE) {
-                alert(`Видео слишком тяжелое (${(file.size / 1024 / 1024).toFixed(1)}MB). Максимум — 50MB.`);
-                e.target.value = '';
-                return;
-            }
-
-            pendingUploads++;
-            updateSubmitButton();
-
+            if (file.size > 5 * 1024 * 1024) return alert("Видео слишком большое (max 5MB).");
+            pendingUploads++; updateSubmitButton();
             const id = Math.random().toString(36).substr(2, 9);
-            const fileItem = createMediaItem(id, file, true);
+            const item = createMediaItem(id, file, true);
             document.getElementById('videoList').innerHTML = '';
-            document.getElementById('videoList').appendChild(fileItem);
-
-            try {
-                const ext = file.name.split('.').pop();
-                const path = `videos/${id}.${ext}`;
-                const { error } = await sb.storage.from('casting_media').upload(path, file, {
-                    onUploadProgress: (p) => {
-                        const pct = (p.loaded / p.total) * 100;
-                        fileItem.querySelector('.progress-bar').style.width = pct + '%';
-                    }
-                });
-                if (error) throw error;
-                const { data: { publicUrl } } = sb.storage.from('casting_media').getPublicUrl(path);
-                uploadedVideo = publicUrl;
-            } catch (err) {
-                console.error(err);
-                fileItem.remove();
-                alert("Ошибка загрузки видео: " + err.message);
-            } finally {
-                pendingUploads--;
-                updateSubmitButton();
-            }
+            document.getElementById('videoList').appendChild(item);
+            uploadedVideo = await fileToBase64(file);
+            pendingUploads--; updateSubmitButton();
         };
 
-        document.getElementById('photoUpload').onclick = () => document.getElementById('photoInput').click();
-
-        // --- Form Submission ---
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
-
-            // Collect selected projects with their IDs
-            const selectedItems = Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => ({
+            const selected = Array.from(document.querySelectorAll('#castingChecklist input:checked')).map(i => ({
                 name: i.value,
                 chat_id: i.getAttribute('data-cid'),
                 thread_id: i.getAttribute('data-tid')
             }));
-
-            if (selectedItems.length === 0) {
-                return alert("Пожалуйста, выберите хотя бы один кастинг.");
-            }
-
-            if (pendingUploads > 0) {
-                return alert("Пожалуйста, дождитесь завершения загрузки всех медиа-файлов.");
-            }
-
-            processSubmit(e.target, selectedItems);
-        };
-
-        async function processSubmit(formElement, selectedProjects) {
-            const formData = new FormData(formElement);
-            const results = Object.fromEntries(formData.entries());
-
-            if (uploadedPhotos.length < 3) return alert("Пожалуйста, загрузите минимум 3 фотографии.");
-            if (!uploadedVideo && !results.portfolio_url) {
-                return alert("Пожалуйста, загрузите видео-пробу ИЛИ укажите ссылку на ваше портфолио/видео ниже.");
-            }
-
+            if (selected.length === 0) return alert("Выберите кастинг.");
+            if (uploadedPhotos.length < 3) return alert("Минимум 3 фото.");
             const overlay = document.getElementById('loadingOverlay');
-            const submitBtn = document.getElementById('submitBtn');
             overlay.style.display = 'flex';
-            submitBtn.disabled = true;
-
             try {
-                document.getElementById('loadingText').textContent = "Сохранение данных...";
-
-                for (const p of selectedProjects) {
-                    const pName = p.name;
-
-                    // Use IDs from the checkbox if available, otherwise fallback to URL params
-                    // This fixes issues where project name lookup might fail or return wrong record
-                    const targetCid = p.chat_id ? parseInt(p.chat_id) : (cid ? parseInt(cid) : null);
-                    const targetTid = p.thread_id ? parseInt(p.thread_id) : (tid ? parseInt(tid) : null);
-
-                    console.log(`Submitting to: ${pName}, CID: ${targetCid}, TID: ${targetTid}`);
-
-                    if (!targetCid) {
-                        throw new Error("Не указан ID чата проекта (chat_id). Пожалуйста, откройте ссылку из нужного Telegram-канала или чата.");
-                    }
-
-                    const finalData = {
-                        ...results,
-                        casting_target: pName,
-                        project_name: pName,
-                        chat_id: targetCid,
-                        thread_id: targetTid,
-                        photo_urls: uploadedPhotos.map(p => p.url),
-                        video_audition_url: uploadedVideo
-                    };
-
-                    // Save to DB
-                    const { data: insertedData, error } = await sb.from('casting_applications').insert([finalData]).select();
-                    if (error) throw error;
-
-                    const newAppId = insertedData && insertedData[0] ? insertedData[0].id : null;
-
-                    // Notify Bot
-                    try {
-                        const resp = await fetch('https://media-seven-eta.vercel.app/api/casting', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ ...finalData, application_id: newAppId })
-                        });
-
-                        if (!resp.ok) {
-                            const errJson = await resp.json().catch(() => ({}));
-                            console.error("Bot Notify Failed:", errJson);
-                            // Show alert but continue to Success Screen since data is IN Supabase
-                            alert("⚠️ ВНИМАНИЕ: Анкета сохранена в базу, но бот не смог отправить уведомление в Telegram.\n\nОшибка: " + (errJson.error || "Неизвестная ошибка сервера"));
-                        }
-                    } catch (botErr) {
-                        console.error("Bot Notify connection error:", botErr);
-                        alert("⚠️ Ошибка связи с ботом. Данные в базе, но уведомление может задержаться.");
-                    }
+                const baseData = Object.fromEntries(new FormData(e.target).entries());
+                for (const p of selected) {
+                    document.getElementById('loadingText').textContent = `Отправка в ${p.name}...`;
+                    const res = await fetch(`${API_BASE}/casting/submit_no_sb`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...baseData, casting_target: p.name, chat_id: p.chat_id, thread_id: p.thread_id, photos: uploadedPhotos.map(ph => ph.b64), video: uploadedVideo })
+                    });
+                    if (!res.ok) throw new Error(await res.text());
                 }
-
                 formContainer.style.display = 'none';
                 successScreen.style.display = 'block';
                 window.scrollTo(0, 0);
-            } catch (err) {
-                console.error(err);
-                alert("Ошибка при сохранении: " + err.message);
-            } finally {
-                overlay.style.display = 'none';
-                submitBtn.disabled = false;
-                updateSubmitButton();
-            }
-        }
+            } catch (err) { alert("Ошибка: " + err.message); } finally { overlay.style.display = 'none'; }
+        };
     </script>
 </body>
 
