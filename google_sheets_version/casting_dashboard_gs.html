@@ -40,18 +40,28 @@
         let actors = [];
 
         async function fetchData() {
+            const grid = document.getElementById('actorGrid');
             try {
-                // Google Scripts требуют обработки редиректов (follow)
-                const res = await fetch(SCRIPT_URL, {
+                grid.innerText = "⏳ Загрузка данных из Google Таблицы...";
+                // Добавляем timestamp для обхода кэша
+                const urlWithCacheBuster = SCRIPT_URL + "?t=" + Date.now();
+                
+                const res = await fetch(urlWithCacheBuster, {
                     method: 'GET',
                     redirect: 'follow'
                 });
-                if (!res.ok) throw new Error('Network response was not ok');
+                
+                if (!res.ok) throw new Error('Ошибка сервера Google: ' + res.status);
+                
                 actors = await res.json();
-                render();
+                if (actors.length === 0) {
+                    grid.innerText = "📭 В таблице пока нет ни одной анкеты.";
+                } else {
+                    render();
+                }
             } catch (err) {
-                console.error(err);
-                document.getElementById('actorGrid').innerText = "Ошибка загрузки. Убедитесь, что в Google Script выбран доступ 'Anyone'.";
+                console.error("FETCH ERROR:", err);
+                grid.innerHTML = `<div style="color:#ff3b30">❌ Ошибка загрузки: ${err.message}<br><small>Убедитесь, что в Google Script сделано 'Новое развертывание' с доступом 'Anyone'.</small></div>`;
             }
         }
 
