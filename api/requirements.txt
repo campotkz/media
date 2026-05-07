@@ -1,7 +1,0 @@
-pyTelegramBotAPI==4.16.1
-flask
-supabase
-openpyxl
-pandas
-Pillow>=11.0.0
-python-docx
