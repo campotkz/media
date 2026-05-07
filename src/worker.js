@@ -81,18 +81,42 @@ export default {
       const gender = p.get('gender');
       const ageMin = p.get('age_min');
       const ageMax = p.get('age_max');
+      const heightMin = p.get('height_min');
+      const heightMax = p.get('height_max');
+      const weightMin = p.get('weight_min');
+      const weightMax = p.get('weight_max');
+      const appearance = p.get('appearance');
+      const hairColor = p.get('hair_color');
+      const clothingSize = p.get('clothing_size');
+      const shoeSizeMin = p.get('shoe_min');
+      const shoeSizeMax = p.get('shoe_max');
+      const character = p.get('character');
       const search = p.get('search');
-      const approved = p.get('approved');
       const status = p.get('status');
 
       if (project && project !== 'Все') query += `&project_name=eq.${encodeURIComponent(project)}`;
       if (city && city !== 'Все') query += `&city=eq.${encodeURIComponent(city)}`;
       if (gender && gender !== 'Все') query += `&gender=eq.${encodeURIComponent(gender)}`;
+      
       if (ageMin) query += `&age_num=gte.${ageMin}`;
       if (ageMax) query += `&age_num=lte.${ageMax}`;
+      
+      if (heightMin) query += `&height_num=gte.${heightMin}`;
+      if (heightMax) query += `&height_num=lte.${heightMax}`;
+      
+      if (weightMin) query += `&weight_num=gte.${weightMin}`;
+      if (weightMax) query += `&weight_num=lte.${weightMax}`;
+      
+      if (appearance && appearance !== 'Все') query += `&appearance=eq.${encodeURIComponent(appearance)}`;
+      if (hairColor && hairColor !== 'Все') query += `&hair_color=eq.${encodeURIComponent(hairColor)}`;
+      
+      if (clothingSize) query += `&clothing_size=ilike.*${encodeURIComponent(clothingSize)}*`;
+      if (shoeSizeMin) query += `&shoe_size=gte.${shoeSizeMin}`;
+      if (shoeSizeMax) query += `&shoe_size=lte.${shoeSizeMax}`;
+      
+      if (character) query += `&character_name=ilike.*${encodeURIComponent(character)}*`;
       if (search) query += `&full_name=ilike.*${encodeURIComponent(search)}*`;
       if (status) query += `&status=eq.${status}`;
-      if (approved === 'true') query += `&status=eq.approved`;
       
       try {
           const res = await fetch(query, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } });

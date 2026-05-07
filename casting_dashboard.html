@@ -278,8 +278,22 @@
         <h2>Фильтры 2.0</h2>
         
         <div class="filter-group">
-            <label>Поиск</label>
-            <input type="text" id="filterSearch" placeholder="ФИО...">
+            <label>Поиск по ФИО</label>
+            <input type="text" id="filterSearch" placeholder="Имя...">
+        </div>
+
+        <div class="filter-group">
+            <label>Поиск по Роли</label>
+            <input type="text" id="filterCharacter" placeholder="Персонаж...">
+        </div>
+
+        <div class="filter-group">
+            <label>Гендер</label>
+            <select id="filterGender">
+                <option value="Все">Все</option>
+                <option value="МУЖЧИНА">Мужчина</option>
+                <option value="ЖЕНЩИНА">Женщина</option>
+            </select>
         </div>
 
         <div class="filter-group">
@@ -310,14 +324,71 @@
         </div>
 
         <div class="filter-group">
-            <label>Возраст</label>
+            <label>Возраст (лет)</label>
             <div class="range-inputs">
                 <input type="number" id="filterAgeMin" placeholder="От">
                 <input type="number" id="filterAgeMax" placeholder="До">
             </div>
         </div>
 
+        <div class="filter-group">
+            <label>Рост (см)</label>
+            <div class="range-inputs">
+                <input type="number" id="filterHeightMin" placeholder="От">
+                <input type="number" id="filterHeightMax" placeholder="До">
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label>Вес (кг)</label>
+            <div class="range-inputs">
+                <input type="number" id="filterWeightMin" placeholder="От">
+                <input type="number" id="filterWeightMax" placeholder="До">
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label>Тип внешности</label>
+            <select id="filterAppearance">
+                <option value="Все">Все типы</option>
+                <option value="Азиатский">Азиатский</option>
+                <option value="Европейский">Европейский</option>
+                <option value="Славянский">Славянский</option>
+                <option value="Кавказский">Кавказский</option>
+                <option value="Африканский">Африканский</option>
+                <option value="Смешанный">Смешанный</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Цвет волос</label>
+            <select id="filterHair">
+                <option value="Все">Все цвета</option>
+                <option value="Шатен">Шатен</option>
+                <option value="Блондин">Блондин</option>
+                <option value="Брюнет">Брюнет</option>
+                <option value="Рыжий">Рыжий</option>
+                <option value="Русый">Русый</option>
+                <option value="Седой">Седой</option>
+                <option value="Лысый">Лысый</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Размер одежды</label>
+            <input type="text" id="filterClothing" placeholder="S, 44...">
+        </div>
+
+        <div class="filter-group">
+            <label>Размер обуви</label>
+            <div class="range-inputs">
+                <input type="number" id="filterShoeMin" placeholder="От">
+                <input type="number" id="filterShoeMax" placeholder="До">
+            </div>
+        </div>
+
         <button class="btn" style="background: var(--accent); color: #fff; padding: 15px; margin-top: 10px;" onclick="fetchApplications()">Применить фильтры</button>
+        <p style="font-size: 10px; color: var(--muted); text-align: center; margin-top: 10px;">Обновление каждые 30с</p>
     </div>
 
     <div class="main">
@@ -376,18 +447,29 @@
             } catch (e) { console.error(e); }
         }
 
-        async function fetchApplications() {
+        async function fetchApplications(silent = false) {
             const grid = document.getElementById('appsGrid');
             const stats = document.getElementById('statsText');
             const overlay = document.getElementById('loadingOverlay');
-            overlay.style.display = 'flex';
+            if (!silent) overlay.style.display = 'flex';
             
             const params = new URLSearchParams();
             params.append('project', document.getElementById('filterProject').value);
             params.append('city', document.getElementById('filterCity').value);
+            params.append('gender', document.getElementById('filterGender').value);
             params.append('status', document.getElementById('filterStatus').value);
             params.append('age_min', document.getElementById('filterAgeMin').value);
             params.append('age_max', document.getElementById('filterAgeMax').value);
+            params.append('height_min', document.getElementById('filterHeightMin').value);
+            params.append('height_max', document.getElementById('filterHeightMax').value);
+            params.append('weight_min', document.getElementById('filterWeightMin').value);
+            params.append('weight_max', document.getElementById('filterWeightMax').value);
+            params.append('appearance', document.getElementById('filterAppearance').value);
+            params.append('hair_color', document.getElementById('filterHair').value);
+            params.append('clothing_size', document.getElementById('filterClothing').value);
+            params.append('shoe_min', document.getElementById('filterShoeMin').value);
+            params.append('shoe_max', document.getElementById('filterShoeMax').value);
+            params.append('character', document.getElementById('filterCharacter').value);
             params.append('search', document.getElementById('filterSearch').value);
 
             try {
@@ -397,9 +479,9 @@
                 stats.textContent = `База: ${data.length} анкет`;
                 data.forEach(app => grid.appendChild(createCard(app)));
             } catch (e) {
-                grid.innerHTML = '<div style="color: red;">Ошибка сети</div>';
+                if (!silent) grid.innerHTML = '<div style="color: red;">Ошибка сети</div>';
             } finally {
-                overlay.style.display = 'none';
+                if (!silent) overlay.style.display = 'none';
             }
         }
 
@@ -484,6 +566,11 @@
 
         fetchProjects();
         fetchApplications();
+
+        // Auto-refresh every 30 seconds (silent)
+        setInterval(() => {
+            fetchApplications(true);
+        }, 30000);
     </script>
 </body>
 </html>
