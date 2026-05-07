@@ -8,7 +8,7 @@
   "observability": { "enabled": true },
   "vars": {
     "SUPABASE_URL": "https://waekzofajzqcpoeldhkt.supabase.co",
-    "CHAT_ID": "-1003893557217"
+    "CHAT_ID": "-1003738942785"
   },
   "workers_dev": true,
   "routes": []
