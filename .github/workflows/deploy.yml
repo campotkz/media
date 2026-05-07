@@ -25,3 +25,7 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           npx wrangler publish
+
+      - name: Refresh Telegram Webhook
+        run: |
+          curl -X POST "https://api.telegram.org/bot8534227633:AAEqULwA8rypkF-BW87G_9ACmKWNEoGZFI4/setWebhook?url=https://media.sijic13.workers.dev/"
