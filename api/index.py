@@ -223,7 +223,7 @@ def handle_start(message):
         try: supabase.from_("clients").update({"is_active": True}).eq("chat_id", cid).eq("thread_id", tid).execute()
         except: pass
     markup.add(types.InlineKeyboardButton(text="📅 КАЛЕНДАРЬ", url=f"{APP_URL}index.html?cid={cid}&tid={tid}"))
-    markup.add(types.InlineKeyboardButton(text="📊 ФИДБЕК", url=f"{APP_URL}feedback.html?cid={cid}&tid={tid}"))
+    markup.add(types.InlineKeyboardButton(text="🎬 CASTING HUB", url=f"{APP_URL}casting_dashboard.html"))
     markup.add(types.InlineKeyboardButton(text="🎭 КАСТИНГ", url=f"{APP_URL}casting.html"))
     if tid:
         try:
