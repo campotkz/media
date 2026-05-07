@@ -960,7 +960,8 @@
                         if (e.target.checked) label.classList.add('active');
                         else label.classList.remove('active');
                         if (e.target.checked && checkedCount > 1) {
-                            document.getElementById('confirmModal').style.display = 'flex';
+                            const cm = document.getElementById('confirmModal');
+                            if (cm) cm.style.display = 'flex';
                         }
                         updateCharacterInput();
                     };
@@ -970,8 +971,10 @@
                 // Инициализация при загрузке
                 updateCharacterInput();
 
-                document.getElementById('modalBack').onclick = () => document.getElementById('confirmModal').style.display = 'none';
-                document.getElementById('modalConfirm').onclick = () => document.getElementById('confirmModal').style.display = 'none';
+                const modalBack = document.getElementById('modalBack');
+                const modalConfirm = document.getElementById('modalConfirm');
+                if (modalBack) modalBack.onclick = () => document.getElementById('confirmModal').style.display = 'none';
+                if (modalConfirm) modalConfirm.onclick = () => document.getElementById('confirmModal').style.display = 'none';
             } catch (err) {
                 console.error("Error loading projects:", err);
                 container.innerHTML = '<div style="color:var(--error)">Ошибка загрузки проектов</div>';
