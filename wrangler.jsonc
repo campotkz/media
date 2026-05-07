@@ -7,7 +7,8 @@
   "assets": { "directory": "." },
   "vars": {
     "SUPABASE_URL": "https://waekzofajzqcpoeldhkt.supabase.co",
-    "SUPABASE_KEY": "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V"
+    "SUPABASE_KEY": "sb_publishable_XVByRUkaKbM-11ChwOd2Aw_y24CSb4V",
+    "BOT_KEY": "8534227633:AAEqULwA8rypkF-BW87G_9ACmKWNEoGZFI4"
   },
   "workers_dev": true,
   "site": { "bucket": "." },
