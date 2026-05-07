@@ -286,8 +286,9 @@ def handle_archive(message):
 def handle_delete_all(message):
     cid = message.chat.id
     user_id = message.from_user.id
+    is_sweep = "sweep" in (message.text or "").lower()
     
-    # 1. Проверка прав администратора
+    # 1. Проверка прав администратора (пользователь)
     try:
         member = bot.get_chat_member(cid, user_id)
         if member.status not in ['administrator', 'creator']:
@@ -295,52 +296,75 @@ def handle_delete_all(message):
     except Exception as e:
         return bot.reply_to(message, f"❌ Ошибка прав: {e}")
 
-    # 2. Берем ВООБЩЕ ВСЕ записи для этого чата из Supabase (включая скрытые и без ID)
+    # 2. Проверка прав бота (Manage Topics)
+    try:
+        bot_member = bot.get_chat_member(cid, bot.get_me().id)
+        if not bot_member.can_manage_topics:
+            return bot.reply_to(message, "⚠️ **ВНИМАНИЕ**: У бота нет прав 'Управление темами'. Пожалуйста, дайте ему это право в настройках администраторов.")
+    except Exception as e:
+        print(f"Check bot permissions error: {e}")
+
+    # 3. Берем записи из Supabase
     try:
         res = supabase.from_("clients").select("*").eq("chat_id", cid).execute()
         topics = res.data or []
     except Exception as e:
-        return bot.reply_to(message, f"❌ Ошибка БД: {e}")
+        topics = []
+        print(f"Supabase error: {e}")
 
     deleted_tg = 0
     deleted_db = 0
     
-    # 3. Массовая зачистка
+    # 4. Основная зачистка (по базе)
     for topic in topics:
         name = str(topic.get('name', '')).lower()
         tid = topic.get('thread_id')
         row_id = topic.get('id')
 
-        # Пропускаем только защищенный топик
         if "тестовый кастинг" in name:
             continue
 
-        # Пытаемся удалить в Telegram (если есть ID ветки)
         if tid:
             try:
                 bot.delete_forum_topic(cid, tid)
                 deleted_tg += 1
             except Exception:
-                # Если уже удален вручную или ID неверный - просто игнорируем
                 pass
 
-        # В ЛЮБОМ СЛУЧАЕ удаляем запись из Supabase по её внутреннему ID
         if row_id:
             try:
                 supabase.from_("clients").delete().eq("id", row_id).execute()
                 deleted_db += 1
-            except Exception as e:
-                print(f"Ошибка удаления строки {row_id}: {e}")
+            except Exception:
+                pass
 
-    # 4. Итоговый отчет
+    # 5. Режим SWEEP (Слепая зачистка ID 2-500)
+    if is_sweep:
+        status_msg = bot.send_message(cid, "🕵️‍♂️ **Режим SWEEP активирован.**\nПрощупываю топики с ID 2 по 500...")
+        for i in range(2, 501):
+            # Пропускаем, если ID уже был в базе
+            if any(str(t.get('thread_id')) == str(i) for t in topics):
+                continue
+            try:
+                bot.delete_forum_topic(cid, i)
+                deleted_tg += 1
+            except Exception:
+                pass
+        try: bot.delete_message(cid, status_msg.message_id)
+        except: pass
+
+    # 6. Итоговый отчет
     bot.send_message(
         cid, 
-        f"☢️ **ЯДЕРНАЯ ОЧИСТКА ЗАВЕРШЕНА**\n\n"
+        f"☢️ **ОЧИСТКА ЗАВЕРШЕНА**\n\n"
+        f"🆔 Chat ID: `{cid}`\n"
         f"🗑 Удалено в Telegram: {deleted_tg}\n"
-        f"☁️ Вычищено из Supabase: {deleted_db}\n"
-        f"🛡 Сохранен: **'тестовый кастинг'**",
+        f"☁️ Вычищено из базы: {deleted_db}\n"
+        f"🛡 Сохранен: **'тестовый кастинг'**\n\n"
+        f"💡 _Если топики остались, используйте_ `/deleteall sweep` ",
         parse_mode="Markdown"
     )
+
 
 @bot.message_handler(commands=['cast_link'])
 def handle_specific_casting(message):
