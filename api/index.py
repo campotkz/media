@@ -282,6 +282,65 @@ def handle_archive(message):
     supabase.from_("clients").update({"is_hidden": True, "is_active": False}).eq("chat_id", cid).eq("thread_id", tid).execute()
     bot.reply_to(message, "🗄️ **АРХИВИРОВАНО**")
 
+@bot.message_handler(commands=['deleteall'])
+def handle_delete_all(message):
+    cid = message.chat.id
+    user_id = message.from_user.id
+    
+    # 1. Проверка прав администратора
+    try:
+        member = bot.get_chat_member(cid, user_id)
+        if member.status not in ['administrator', 'creator']:
+            return bot.reply_to(message, "❌ У вас нет прав администратора для этой команды.")
+    except Exception as e:
+        return bot.reply_to(message, f"❌ Ошибка проверки прав: {e}")
+
+    # 2. Запрос списка топиков из Supabase
+    try:
+        res = supabase.from_("clients").select("name, thread_id").eq("chat_id", cid).execute()
+        topics = res.data or []
+    except Exception as e:
+        return bot.reply_to(message, f"❌ Ошибка при чтении базы данных: {e}")
+
+    deleted_count = 0
+    
+    # 3. Цикл массового удаления
+    for topic in topics:
+        name = topic.get('name', '')
+        tid = topic.get('thread_id')
+        
+        if not tid: continue
+        
+        # Исключение: Пропускаем "тестовый кастинг"
+        if name.lower() == "тестовый кастинг":
+            continue
+
+        # Удаление в Telegram
+        try:
+            bot.delete_forum_topic(cid, tid)
+        except ApiTelegramException as e:
+            # Если топик уже удален или не найден, просто идем дальше
+            print(f"Telegram Topic {tid} delete skip: {e.description}")
+        except Exception as e:
+            print(f"Unexpected Telegram Error for topic {tid}: {e}")
+
+        # Синхронизация с БД: Удаляем запись из Supabase
+        try:
+            supabase.from_("clients").delete().eq("chat_id", cid).eq("thread_id", tid).execute()
+            deleted_count += 1
+        except Exception as e:
+            print(f"Supabase Delete Error for topic {tid}: {e}")
+
+    # 4. Финальный отчет
+    bot.send_message(
+        cid, 
+        f"✅ **ОПЕРАЦИЯ ЗАВЕРШЕНА**\n\n"
+        f"🗑 Удалено топиков: {deleted_count}\n"
+        f"☁️ База Supabase очищена.\n"
+        f"🛡 Оставлен только: **'тестовый кастинг'**.",
+        parse_mode="Markdown"
+    )
+
 @bot.message_handler(commands=['cast_link'])
 def handle_specific_casting(message):
     cid, tid = message.chat.id, message.message_thread_id
