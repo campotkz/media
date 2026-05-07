@@ -5,4 +5,4 @@ openpyxl
 pandas
 Pillow
 python-docx
-Pillow==10.3.0
+Pillow>=11.0.0
