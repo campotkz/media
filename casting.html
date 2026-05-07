@@ -562,17 +562,6 @@
                     </div>
                 </div>
 
-                <div style="margin-top: 20px; border-top: 1px solid var(--stroke); padding-top: 20px;">
-                    <a href="https://campotkz.github.io/media/launcher.html" class="btn-hub" style="margin-bottom: 0;">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
-                        </svg>
-                        CASTING HUB
-                    </a>
-                </div>
             </div>
         </div>
     </div>
@@ -889,7 +878,7 @@
                         const unique = [...new Set(allRoles)];
                         group.innerHTML = `
                             <label>На какого персонажа вы подаетесь?<span>*</span></label>
-                            <select name="character_name" required>
+                            <select name="character_name" required style="color: #000;">
                                 <option value="" disabled selected>Выберите персонажа...</option>
                                 ${unique.map(r => `<option value="${r}">${r}</option>`).join('')}
                                 <option value="Другое (Массовка)">Другое (Массовка)</option>
