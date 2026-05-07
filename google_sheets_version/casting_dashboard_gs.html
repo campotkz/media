@@ -41,11 +41,17 @@
 
         async function fetchData() {
             try {
-                const res = await fetch(SCRIPT_URL);
+                // Google Scripts требуют обработки редиректов (follow)
+                const res = await fetch(SCRIPT_URL, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                if (!res.ok) throw new Error('Network response was not ok');
                 actors = await res.json();
                 render();
             } catch (err) {
-                document.getElementById('actorGrid').innerText = "Ошибка загрузки. Проверьте URL скрипта.";
+                console.error(err);
+                document.getElementById('actorGrid').innerText = "Ошибка загрузки. Убедитесь, что в Google Script выбран доступ 'Anyone'.";
             }
         }
 
