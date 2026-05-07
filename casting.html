@@ -3,577 +3,625 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GULYWOOD | CASTING HUB</title>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>╨Р╨Э╨Ъ╨Х╨в╨Р ╨г╨з╨Р╨б╨в╨Э╨Ш╨Ъ╨Р ╨Ъ╨Р╨б╨в╨Ш╨Э╨У╨Р | GULYWOOD</title>
+    <!-- Version: 2.3.0 (Gold Standard Sync) -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <style>
         :root {
-            --bg: #0a0a0a;
-            --accent: #ff3b3b;
-            --card: #151515;
+            --bg: #0d0e12;
+            --card-bg: #15161c;
+            --input-bg: #0d0e12;
+            --accent: #ff3b30;
+            --accent-glow: rgba(255, 59, 48, 0.2);
             --text: #ffffff;
-            --text-dim: #a0a0a0;
+            --muted: #8e8e93;
+            --stroke: rgba(255, 255, 255, 0.08);
+            --radius: 16px;
+            --font: 'Space Grotesk', sans-serif;
         }
 
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Space Grotesk', sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
 
         body {
+            margin: 0;
             background: var(--bg);
             color: var(--text);
-            overflow-x: hidden;
-            padding-bottom: 50px;
-        }
-
-        .header {
-            padding: 40px 20px;
-            text-align: center;
-            background: linear-gradient(to bottom, #1a1a1a, var(--bg));
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            letter-spacing: -1px;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
-
-        .header p {
-            color: var(--accent);
-            font-size: 0.9rem;
-            margin-top: 5px;
-            letter-spacing: 2px;
+            font-family: var(--font);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
         }
 
         .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        .step-card {
-            background: var(--card);
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 20px;
-            border: 1px solid #222;
-        }
-
-        .step-title {
-            font-size: 1.2rem;
-            margin-bottom: 20px;
+            width: 100%;
+            max-width: 500px;
             display: flex;
-            align-items: center;
-            gap: 10px;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid var(--stroke);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .welcome-screen {
+            text-align: center;
+        }
+
+        .welcome-logo {
+            font-size: 40px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin: 0 0 12px;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .welcome-text {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .announcement {
+            background: rgba(255, 59, 48, 0.05);
+            border: 1px solid var(--accent);
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 13px;
             color: var(--text);
+            margin-bottom: 30px;
+            text-align: left;
         }
 
-        .step-title span {
-            background: var(--accent);
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
+        .option-btn {
+            width: 100%;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--stroke);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 0.8rem;
-            font-weight: bold;
+            gap: 15px;
         }
 
-        .form-group {
-            margin-bottom: 20px;
+        .option-btn:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .option-btn i { font-size: 20px; opacity: 0.8; }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 32px 0 20px;
+        }
+
+        .section-header h2 {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        .section-header .line {
+            height: 1px;
+            background: var(--stroke);
+            flex: 1;
         }
 
         label {
             display: block;
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
         }
 
-        input,
-        select,
-        textarea {
+        label .req { color: var(--accent); margin-left: 2px; }
+
+        .form-group { margin-bottom: 24px; }
+
+        input, select, textarea {
             width: 100%;
-            background: #202020;
-            border: 1px solid #333;
-            padding: 15px;
-            border-radius: 12px;
+            background: var(--input-bg);
+            border: 1px solid var(--stroke);
+            border-radius: 16px;
+            padding: 16px 20px;
             color: white;
-            font-size: 1rem;
-            transition: 0.3s;
-        }
-
-        input:focus,
-        select:focus,
-        textarea:focus {
+            font-family: var(--font);
+            font-size: 16px;
+            transition: all 0.2s;
             outline: none;
+        }
+
+        input:focus, select:focus, textarea:focus {
             border-color: var(--accent);
-            background: #252525;
+            box-shadow: 0 0 0 4px var(--accent-glow);
         }
 
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-        .project-item {
-            background: #202020;
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 10px;
+        .option-grid { display: grid; gap: 12px; margin-bottom: 24px; }
+
+        .option-item {
+            position: relative;
+            background: var(--input-bg);
+            border: 1px solid var(--stroke);
+            border-radius: 16px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
             gap: 12px;
-            cursor: pointer;
-            border: 1px solid transparent;
-            transition: 0.2s;
         }
 
-        .project-item.selected {
-            border-color: var(--accent);
-            background: #2a1a1a;
-        }
+        .option-item:hover { border-color: rgba(255, 255, 255, 0.2); }
+        .option-item.selected { border-color: var(--accent); background: rgba(255, 59, 48, 0.05); }
+        .option-item input { position: absolute; opacity: 0; width: 0; height: 0; }
 
-        .project-item input {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--accent);
-        }
-
-        .media-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .media-box {
-            aspect-ratio: 1;
-            background: #202020;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border: 2px dashed #333;
-            position: relative;
-            overflow: hidden;
-            text-align: center;
-            padding: 5px;
-        }
-
-        .media-box span {
-            font-size: 0.6rem;
-            color: var(--text-dim);
-            margin-top: 5px;
-        }
-
-        .media-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .remove-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            width: 20px;
-            height: 20px;
+        .radio-circle {
+            width: 20px; height: 20px;
+            border: 2px solid var(--stroke);
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .option-item.selected .radio-circle { border-color: var(--accent); }
+        .option-item.selected .radio-circle::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px; height: 10px;
+            background: var(--accent); border-radius: 50%;
+        }
+
+        .option-label { font-weight: 700; font-size: 16px; text-transform: uppercase; }
+
+        .photo-upload-zone {
+            border: 2px dashed var(--stroke);
+            border-radius: 20px;
+            padding: 40px 20px;
+            text-align: center;
             cursor: pointer;
-            z-index: 10;
+            transition: all 0.2s;
+            background: var(--input-bg);
+        }
+
+        .photo-upload-zone:hover { border-color: var(--accent); background: rgba(255, 59, 48, 0.02); }
+
+        .photo-previews {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 12px; margin-top: 16px;
+        }
+
+        .photo-thumb {
+            width: 100%; aspect-ratio: 1; object-fit: cover;
+            border-radius: 12px; border: 1px solid var(--stroke);
         }
 
         .submit-btn {
-            width: 100%;
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 20px;
-            border-radius: 15px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-            margin-top: 20px;
-            box-shadow: 0 10px 20px rgba(255, 59, 59, 0.2);
+            width: 100%; background: var(--accent); color: white;
+            border: none; border-radius: 16px; padding: 20px;
+            font-size: 18px; font-weight: 800; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 10px 30px rgba(255, 59, 48, 0.3);
+            text-transform: uppercase; letter-spacing: 1px; margin-top: 20px;
         }
 
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.95);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            padding: 20px;
-            text-align: center;
+        .submit-btn:active { transform: scale(0.98); }
+
+        #loadingOverlay {
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px);
+            display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
         }
 
         .loader {
-            width: 64px;
-            height: 64px;
-            border: 5px solid #333;
-            border-bottom-color: var(--accent);
+            width: 50px; height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--accent);
             border-radius: 50%;
-            animation: rotation 1s linear infinite;
-            margin-bottom: 25px;
+            animation: spin 1s linear infinite;
         }
 
-        @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        #progressContainer {
-            width: 100%;
-            max-width: 300px;
-            background: #222;
-            height: 10px;
-            border-radius: 5px;
-            overflow: hidden;
-            margin: 15px 0;
-        }
-
-        #progressBar {
-            height: 100%;
-            background: var(--accent);
-            width: 0%;
-            transition: width 0.3s;
-            box-shadow: 0 0 15px var(--accent);
-        }
-
-        #loadingStatus {
-            font-weight: bold;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: var(--text);
-        }
-
-        #progressPercent {
-            color: var(--accent);
-            font-weight: bold;
-            margin-top: 5px;
-        }
-
-        .success-screen {
-            display: none;
-            text-align: center;
-            padding: 60px 20px;
-        }
-
-        .success-icon {
-            font-size: 5rem;
-            margin-bottom: 20px;
-            animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        @keyframes pop {
-            0% { transform: scale(0); }
-            100% { transform: scale(1); }
-        }
+        #successScreen, #formContainer, #reentryScreen { display: none; }
     </style>
 </head>
 
 <body>
-    <div id="formContainer">
-        <div class="header">
-            <h1>GULYWOOD</h1>
-            <p>DRIVE & TELEGRAM SYNC</p>
+    <div class="container">
+        <!-- WELCOME SCREEN -->
+        <div id="welcomeScreen" class="welcome-screen">
+            <div class="card">
+                <span class="welcome-logo">ЁЯОм</span>
+                <h1 class="welcome-title">╨Ъ╨░╤Б╤В╨╕╨╜╨│-╨┐╨╗╨░╤В╤Д╨╛╤А╨╝╨░ GULYWOOD</h1>
+                <p class="welcome-text">╨Ф╨╛╨▒╤А╨╛ ╨┐╨╛╨╢╨░╨╗╨╛╨▓╨░╤В╤М! ╨Я╨╛╨╢╨░╨╗╤Г╨╣╤Б╤В╨░, ╨▓╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡ ╨┤╨╗╤П ╨┐╤А╨╛╨┤╨╛╨╗╨╢╨╡╨╜╨╕╤П.</p>
+                
+                <div class="announcement">
+                    <strong>ЁЯУв ╨Ю╨С╨к╨п╨Т╨Ы╨Х╨Э╨Ш╨Х:</strong><br>
+                    ╨Ь╤Л ╨╕╤Й╨╡╨╝ ╨╜╨╛╨▓╤Л╨╡ ╨╗╨╕╤Ж╨░ ╨┤╨╗╤П ╨║╤А╤Г╨┐╨╜╨╛╨│╨╛ ╨┐╤А╨╛╨╡╨║╤В╨░. ╨Х╤Б╨╗╨╕ ╨▓╤Л ╤Г╨╢╨╡ ╨╖╨░╨┐╨╛╨╗╨╜╤П╨╗╨╕ ╨░╨╜╨║╨╡╤В╤Г ╤А╨░╨╜╨╡╨╡, ╨┐╤А╨╛╤Б╤В╨╛ ╨╛╨▒╨╜╨╛╨▓╨╕╤В╨╡ ╤Б╨▓╨╛╨╕ ╨┤╨░╨╜╨╜╤Л╨╡.
+                </div>
+
+                <button class="option-btn" onclick="showForm('new')">
+                    <span>ЁЯЖХ</span>
+                    <div class="label">╨п ╨╖╨░╨┐╨╛╨╗╨╜╤П╤О ╨┐╨╡╤А╨▓╤Л╨╣ ╤А╨░╨╖</div>
+                </button>
+
+                <button class="option-btn" onclick="showReentry()">
+                    <span>ЁЯФД</span>
+                    <div class="label">╨п ╤Г╨╢╨╡ ╨╖╨░╨┐╨╛╨╗╨╜╤П╨╗ (╨╛╨▒╨╜╨╛╨▓╨╕╤В╤М)</div>
+                </button>
+            </div>
         </div>
 
-        <div class="container">
+        <!-- RE-ENTRY SCREEN -->
+        <div id="reentryScreen">
+            <div class="card">
+                <h2 class="welcome-title">╨б ╨▓╨╛╨╖╨▓╤А╨░╤Й╨╡╨╜╨╕╨╡╨╝!</h2>
+                <p class="welcome-text">╨Т╨▓╨╡╨┤╨╕╤В╨╡ ╨╜╨╛╨╝╨╡╤А ╤В╨╡╨╗╨╡╤Д╨╛╨╜╨░, ╨║╨╛╤В╨╛╤А╤Л╨╣ ╨▓╤Л ╤Г╨║╨░╨╖╤Л╨▓╨░╨╗╨╕ ╨┐╤А╨╕ ╤А╨╡╨│╨╕╤Б╤В╤А╨░╤Ж╨╕╨╕.</p>
+                
+                <div class="form-group">
+                    <label>╨Э╨╛╨╝╨╡╤А ╤В╨╡╨╗╨╡╤Д╨╛╨╜╨░</label>
+                    <input type="tel" id="checkPhone" placeholder="+7 (___) ___-__-__">
+                </div>
+
+                <button class="submit-btn" onclick="checkUser()">╨Э╨░╨╣╤В╨╕ ╨░╨╜╨║╨╡╤В╤Г</button>
+                <button class="option-btn" style="margin-top: 15px; border: none; background: transparent; justify-content: center;" onclick="showWelcome()">
+                    ╨Т╨╡╤А╨╜╤Г╤В╤М╤Б╤П ╨╜╨░╨╖╨░╨┤
+                </button>
+            </div>
+        </div>
+
+        <!-- FORM CONTAINER -->
+        <div id="formContainer">
             <form id="castingForm">
-                <!-- STEP 1 -->
-                <div class="step-card">
-                    <div class="step-title"><span>1</span> ВЫБЕРИТЕ ПРОЕКТЫ</div>
-                    <div id="projectsList">
-                        <div style="text-align:center; padding:20px; color:var(--text-dim);">Загрузка активных кастингов...</div>
+                <input type="hidden" id="is_update" value="false">
+                
+                <div class="card">
+                    <label>╨Я╤А╨╛╨╡╨║╤В<span class="req">*</span></label>
+                    <div class="option-grid" id="projectOptions">
+                        <div class="option-item" onclick="selectOption(this, 'project_name', '╨Я╨а╨Ю╨С╨Р')">
+                            <div class="radio-circle"></div>
+                            <span class="option-label">╨Я╨а╨Ю╨С╨Р</span>
+                            <input type="radio" name="project_name" value="╨Я╨а╨Ю╨С╨Р" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>╨Я╨╡╤А╤Б╨╛╨╜╨░╨╢ / ╨а╨╛╨╗╤М<span class="req">*</span></label>
+                        <input type="text" id="character_name" placeholder="╨╜╨░╨┐╤А╨╕╨╝╨╡╤А: ┬л╨У╨╗╨░╨▓╨╜╤Л╨╣ ╨│╨╡╤А╨╛╨╣┬╗" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>╨Я╨╛╨╗╨╜╨╛╨╡ ╨╕╨╝╤П<span class="req">*</span></label>
+                        <input type="text" id="full_name" placeholder="╨Ш╨╝╤П ╨д╨░╨╝╨╕╨╗╨╕╤П" required>
+                    </div>
+
+                    <label>╨У╨╡╨╜╨┤╨╡╤А<span class="req">*</span></label>
+                    <div class="option-grid">
+                        <div class="option-item" onclick="selectOption(this, 'gender', '╨Ь╨г╨Ц╨з╨Ш╨Э╨Р')">
+                            <div class="radio-circle"></div>
+                            <span class="option-label">╨Ь╨г╨Ц╨з╨Ш╨Э╨Р</span>
+                            <input type="radio" name="gender" value="╨Ь╨г╨Ц╨з╨Ш╨Э╨Р" required>
+                        </div>
+                        <div class="option-item" onclick="selectOption(this, 'gender', '╨Ц╨Х╨Э╨й╨Ш╨Э╨Р')">
+                            <div class="radio-circle"></div>
+                            <span class="option-label">╨Ц╨Х╨Э╨й╨Ш╨Э╨Р</span>
+                            <input type="radio" name="gender" value="╨Ц╨Х╨Э╨й╨Ш╨Э╨Р" required>
+                        </div>
                     </div>
                 </div>
 
-                <!-- STEP 2 -->
-                <div class="step-card">
-                    <div class="step-title"><span>2</span> ОСНОВНАЯ ИНФОРМАЦИЯ</div>
-                    <div class="form-group">
-                        <label>ФИО</label>
-                        <input type="text" name="full_name" required placeholder="Иванов Иван Иванович">
+                <div class="card">
+                    <div class="section-header">
+                        <h2>╨Ъ╨╛╨╜╤В╨░╨║╤В╤Л</h2>
+                        <div class="line"></div>
                     </div>
-                    <div class="grid">
+
+                    <div class="form-group">
+                        <label>╨У╨╛╤А╨╛╨┤<span class="req">*</span></label>
+                        <select id="city" required>
+                            <option value="" disabled selected>╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨│╨╛╤А╨╛╨┤</option>
+                            <option value="╨Р╨╗╨╝╨░╤В╤Л">╨Р╨╗╨╝╨░╤В╤Л</option>
+                            <option value="╨Р╤Б╤В╨░╨╜╨░">╨Р╤Б╤В╨░╨╜╨░</option>
+                            <option value="╨и╤Л╨╝╨║╨╡╨╜╤В">╨и╤Л╨╝╨║╨╡╨╜╤В</option>
+                            <option value="╨Ф╤А╤Г╨│╨╛╨╣">╨Ф╤А╤Г╨│╨╛╨╣</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>╨в╨╡╨╗╨╡╤Д╨╛╨╜<span class="req">*</span></label>
+                        <input type="tel" id="phone" placeholder="+7" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Instagram / TG<span class="req">*</span></label>
+                        <input type="text" id="contact_method" placeholder="@username" required>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2>╨Я╨░╤А╨░╨╝╨╡╤В╤А╤Л</h2>
+                        <div class="line"></div>
+                    </div>
+
+                    <div class="row">
                         <div class="form-group">
-                            <label>ПОЛ</label>
-                            <select name="gender" required>
-                                <option value="Мужской">Мужской</option>
-                                <option value="Женский">Женский</option>
+                            <label>╨Т╨╛╨╖╤А╨░╤Б╤В<span class="req">*</span></label>
+                            <input type="number" id="age" required>
+                        </div>
+                        <div class="form-group">
+                            <label>╨а╨╛╤Б╤В (╤Б╨╝)<span class="req">*</span></label>
+                            <input type="number" id="height" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>╨Т╨╡╤Б (╨║╨│)<span class="req">*</span></label>
+                            <input type="number" id="weight" required>
+                        </div>
+                        <div class="form-group">
+                            <label>╨в╨╕╨┐ ╨▓╨╜╨╡╤И╨╜╨╛╤Б╤В╨╕<span class="req">*</span></label>
+                            <select id="appearance" required>
+                                <option value="" disabled selected>╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡</option>
+                                <option value="╨Р╨╖╨╕╨░╤В╤Б╨║╨╕╨╣">╨Р╨╖╨╕╨░╤В╤Б╨║╨╕╨╣</option>
+                                <option value="╨Х╨▓╤А╨╛╨┐╨╡╨╣╤Б╨║╨╕╨╣">╨Х╨▓╤А╨╛╨┐╨╡╨╣╤Б╨║╨╕╨╣</option>
+                                <option value="╨б╨╗╨░╨▓╤П╨╜╤Б╨║╨╕╨╣">╨б╨╗╨░╨▓╤П╨╜╤Б╨║╨╕╨╣</option>
+                                <option value="╨Ъ╨░╨▓╨║╨░╨╖╤Б╨║╨╕╨╣">╨Ъ╨░╨▓╨║╨░╨╖╤Б╨║╨╕╨╣</option>
+                                <option value="╨Р╤Д╤А╨╕╨║╨░╨╜╤Б╨║╨╕╨╣">╨Р╤Д╤А╨╕╨║╨░╨╜╤Б╨║╨╕╨╣</option>
+                                <option value="╨б╨╝╨╡╤И╨░╨╜╨╜╤Л╨╣">╨б╨╝╨╡╤И╨░╨╜╨╜╤Л╨╣</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>╨ж╨▓╨╡╤В ╨▓╨╛╨╗╨╛╤Б<span class="req">*</span></label>
+                            <select id="hair_color" required>
+                                <option value="" disabled selected>╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡</option>
+                                <option value="╨С╤А╤О╨╜╨╡╤В">╨С╤А╤О╨╜╨╡╤В</option>
+                                <option value="╨и╨░╤В╨╡╨╜">╨и╨░╤В╨╡╨╜</option>
+                                <option value="╨а╤Г╤Б╤Л╨╣">╨а╤Г╤Б╤Л╨╣</option>
+                                <option value="╨С╨╗╨╛╨╜╨┤╨╕╨╜">╨С╨╗╨╛╨╜╨┤╨╕╨╜</option>
+                                <option value="╨а╤Л╨╢╨╕╨╣">╨а╤Л╨╢╨╕╨╣</option>
+                                <option value="╨б╨╡╨┤╨╛╨╣">╨б╨╡╨┤╨╛╨╣</option>
+                                <option value="╨Ы╤Л╤Б╤Л╨╣">╨Ы╤Л╤Б╤Л╨╣</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>ДАТА РОЖДЕНИЯ</label>
-                            <input type="date" name="birth_date" required>
+                            <!-- empty spacer for grid -->
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>ГОРОД</label>
-                        <input type="text" name="city" required placeholder="Алматы, Астана...">
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>╨а╨░╨╖╨╝╨╡╤А ╨╛╨┤╨╡╨╢╨┤╤Л<span class="req">*</span></label>
+                            <input type="text" id="clothing_size" placeholder="S / 44" required>
+                        </div>
+                        <div class="form-group">
+                            <label>╨а╨░╨╖╨╝╨╡╤А ╨╛╨▒╤Г╨▓╨╕<span class="req">*</span></label>
+                            <input type="number" id="shoe_size" placeholder="42" required>
+                        </div>
                     </div>
                 </div>
 
-                <!-- STEP 3 -->
-                <div class="step-card">
-                    <div class="step-title"><span>3</span> ПАРАМЕТРЫ И ВНЕШНОСТЬ</div>
-                    <div class="grid">
-                        <div class="form-group">
-                            <label>РОСТ (СМ)</label>
-                            <input type="number" name="height" required placeholder="180">
-                        </div>
-                        <div class="form-group">
-                            <label>ВЕС (КГ)</label>
-                            <input type="number" name="weight" required placeholder="75">
-                        </div>
+                <div class="card">
+                    <div class="section-header">
+                        <h2>╨Ь╨╡╨┤╨╕╨░</h2>
+                        <div class="line"></div>
                     </div>
-                    <div class="grid">
-                        <div class="form-group">
-                            <label>ОДЕЖДА</label>
-                            <input type="text" name="cloth_size" required placeholder="M / 48">
-                        </div>
-                        <div class="form-group">
-                            <label>ОБУВЬ</label>
-                            <input type="number" name="shoe_size" required placeholder="42">
-                        </div>
-                    </div>
+
                     <div class="form-group">
-                        <label>ТИП ВНЕШНОСТИ</label>
-                        <select name="appearance_type" required>
-                            <option value="Азиатский">Азиатский</option>
-                            <option value="Европейский">Европейский</option>
-                            <option value="Метис">Метис</option>
-                            <option value="Другой">Другой</option>
-                        </select>
+                        <label>╨Ю╨┐╤Л╤В ╤А╨░╨▒╨╛╤В╤Л / ╨Ю ╤Б╨╡╨▒╨╡</label>
+                        <textarea id="experience_summary" rows="3"></textarea>
                     </div>
+
+                    <div class="form-group">
+                        <label>╨д╨╛╤В╨╛╨│╤А╨░╤Д╨╕╨╕ (╨┤╨╛ 5)<span class="req">*</span></label>
+                        <div class="photo-upload-zone" onclick="document.getElementById('photoInput').click()">
+                            <span>ЁЯУ╕ ╨Э╨░╨╢╨╝╨╕╤В╨╡ ╨┤╨╗╤П ╨▓╤Л╨▒╨╛╤А╨░</span>
+                        </div>
+                        <input type="file" id="photoInput" multiple accept="image/*" style="display:none" onchange="handlePhotos(event)">
+                        <div class="photo-previews" id="photoPreview"></div>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submitBtn">╨Ю╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨Р╨╜╨║╨╡╤В╤Г</button>
                 </div>
-
-                <!-- STEP 4 -->
-                <div class="step-card">
-                    <div class="step-title"><span>4</span> КОНТАКТЫ И РОЛЬ</div>
-                    <div class="form-group">
-                        <label>ТЕЛЕФОН (WHATSAPP)</label>
-                        <input type="tel" name="phone" required placeholder="+7 777 000 00 00">
-                    </div>
-                    <div class="form-group">
-                        <label>ПЕРСОНАЖ / РОЛЬ</label>
-                        <input type="text" name="character_name" placeholder="На какую роль претендуете?" required>
-                    </div>
-                    <div class="form-group">
-                        <label>SOCIAL / PORTFOLIO</label>
-                        <input type="text" name="social_links" placeholder="Instagram, YouTube...">
-                    </div>
-                    <div class="form-group">
-                        <label>ОПЫТ / О СЕБЕ</label>
-                        <textarea name="experience" rows="3" placeholder="Опишите ваши проекты..."></textarea>
-                    </div>
-                </div>
-
-                <!-- STEP 5 -->
-                <div class="step-card">
-                    <div class="step-title"><span>5</span> МЕДИА</div>
-                    <label>ФОТОГРАФИИ (ДО 6 ШТ)</label>
-                    <div class="media-grid" id="photoGrid"></div>
-                    <input type="file" id="photoInput" multiple accept="image/*" style="display:none;">
-
-                    <div class="form-group" style="margin-top:20px;">
-                        <label>ВИДЕОВИЗИТКА (ОБЯЗАТЕЛЬНО)</label>
-                        <div class="media-box" style="width:100%; aspect-ratio:16/9; border-style: solid; border-width: 1px;" id="videoDropZone">
-                            <div id="videoStatus">🎬 НАЖМИТЕ ДЛЯ ВЫБОРА ВИДЕО</div>
-                            <video id="videoPreview" style="display:none; width:100%; height:100%;" controls></video>
-                        </div>
-                        <input type="file" id="videoInput" accept="video/*" style="display:none;">
-                    </div>
-                </div>
-
-                <button type="submit" class="submit-btn" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
             </form>
         </div>
-    </div>
 
-    <div id="successScreen" class="success-screen">
-        <div class="success-icon">✨</div>
-        <h2>УСПЕШНО!</h2>
-        <p style="color:var(--text-dim); margin-top:10px;">Анкета отправлена. Видео загружается в облако.</p>
-        <button onclick="location.reload()" class="submit-btn" style="width:auto; padding:15px 40px; margin-top:30px;">НОВАЯ АНКЕТА</button>
-    </div>
-
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loader"></div>
-        <div id="loadingStatus">ИНИЦИАЛИЗАЦИЯ...</div>
-        <div id="progressContainer">
-            <div id="progressBar"></div>
+        <!-- SUCCESS SCREEN -->
+        <div id="successScreen" class="welcome-screen">
+            <div class="card">
+                <span style="font-size: 64px; display: block; margin-bottom: 24px;">тЬЕ</span>
+                <h1 class="welcome-title">╨У╨╛╤В╨╛╨▓╨╛!</h1>
+                <p class="welcome-text">╨Т╨░╤И╨░ ╨░╨╜╨║╨╡╤В╨░ ╤Г╤Б╨┐╨╡╤И╨╜╨╛ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜╨░ ╨▓ ╤Б╨╕╤Б╤В╨╡╨╝╤Г GULYWOOD. ╨Ь╤Л ╤Б╨▓╤П╨╢╨╡╨╝╤Б╤П ╤Б ╨▓╨░╨╝╨╕, ╨╡╤Б╨╗╨╕ ╨▓╤Л ╨┐╤А╨╛╨╣╨┤╨╡╤В╨╡ ╨╛╤В╨▒╨╛╤А.</p>
+                <button class="submit-btn" onclick="location.reload()">╨Т╨╡╤А╨╜╤Г╤В╤М╤Б╤П ╨▓ ╨╜╨░╤З╨░╨╗╨╛</button>
+            </div>
         </div>
-        <div id="progressPercent">0%</div>
+    </div>
+
+    <div id="loadingOverlay">
+        <div class="loader"></div>
+        <p style="color: white; margin-top: 20px; font-weight: 700;" id="loadingText">╨Ю╨▒╤А╨░╨▒╨╛╤В╨║╨░...</p>
     </div>
 
     <script>
-        const CF_WORKER = "https://media.sijic13.workers.dev";
-        const TOPICS_API = "https://media-seven-eta.vercel.app/api/casting/topics";
+        const API_BASE = "https://media.sijic13.workers.dev";
+        let uploadedPhotos = [];
 
-        let photos = [];
-        let videoFile = null;
+        function showWelcome() {
+            document.getElementById('welcomeScreen').style.display = 'block';
+            document.getElementById('reentryScreen').style.display = 'none';
+            document.getElementById('formContainer').style.display = 'none';
+        }
 
-        const photoInput = document.getElementById('photoInput');
-        const videoInput = document.getElementById('videoInput');
-        const photoGrid = document.getElementById('photoGrid');
-        const videoDropZone = document.getElementById('videoDropZone');
+        function showReentry() {
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('reentryScreen').style.display = 'block';
+        }
 
-        function renderPhotos() {
-            photoGrid.innerHTML = '';
-            for (let i = 0; i < 6; i++) {
-                const box = document.createElement('div');
-                box.className = 'media-box';
-                if (photos[i]) {
-                    box.innerHTML = `<img src="${URL.createObjectURL(photos[i])}"><div class="remove-btn" onclick="removePhoto(${i}, event)">×</div>`;
-                } else {
-                    box.innerHTML = `<span>+</span><span>ФОТО</span>`;
-                    box.onclick = () => photoInput.click();
-                }
-                photoGrid.appendChild(box);
+        function showForm(mode) {
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('reentryScreen').style.display = 'none';
+            document.getElementById('formContainer').style.display = 'block';
+            document.getElementById('is_update').value = (mode === 'update');
+            if (mode === 'update') {
+                document.getElementById('submitBtn').textContent = "╨Ю╨▒╨╜╨╛╨▓╨╕╤В╤М ╨░╨╜╨║╨╡╤В╤Г";
             }
         }
 
-        function removePhoto(idx, e) { e.stopPropagation(); photos.splice(idx, 1); renderPhotos(); }
-
-        photoInput.onchange = (e) => {
-            const files = Array.from(e.target.files);
-            photos = [...photos, ...files].slice(0, 6);
-            renderPhotos();
-        };
-
-        videoDropZone.onclick = () => videoInput.click();
-        videoInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                videoFile = file;
-                const preview = document.getElementById('videoPreview');
-                preview.src = URL.createObjectURL(file);
-                preview.style.display = 'block';
-                document.getElementById('videoStatus').style.display = 'none';
-            }
-        };
-
-        async function loadTopics() {
+        async function checkUser() {
+            const phone = document.getElementById('checkPhone').value;
+            if (!phone) return alert("╨Т╨▓╨╡╨┤╨╕╤В╨╡ ╨╜╨╛╨╝╨╡╤А");
+            
+            document.getElementById('loadingOverlay').style.display = 'flex';
             try {
-                const res = await axios.get(TOPICS_API);
-                const list = document.getElementById('projectsList');
-                list.innerHTML = '';
-                res.data.forEach(p => {
-                    const item = document.createElement('div');
-                    item.className = 'project-item';
-                    item.innerHTML = `<input type="checkbox" data-cid="${p.chat_id}" data-tid="${p.thread_id || ''}" data-name="${p.name}"><div><b>${p.name}</b></div>`;
-                    item.onclick = () => {
-                        const cb = item.querySelector('input');
-                        cb.checked = !cb.checked;
-                        item.classList.toggle('selected', cb.checked);
-                    };
-                    list.appendChild(item);
-                });
-            } catch (err) { console.error(err); }
-        }
-
-        const toBase64 = file => new Promise((res, rej) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => res(reader.result.split(',')[1]);
-            reader.onerror = rej;
-        });
-
-        document.getElementById('castingForm').onsubmit = async function(e) {
-            e.preventDefault();
-            const selected = Array.from(document.querySelectorAll('#projectsList input:checked')).map(i => ({
-                cid: i.dataset.cid, tid: i.dataset.tid, name: i.dataset.name
-            }));
-            if (!selected.length) return alert("Выберите кастинг!");
-            if (photos.length < 1) return alert("Нужно фото!");
-            if (!videoFile) return alert("Нужно видео!");
-
-            const overlay = document.getElementById('loadingOverlay');
-            const status = document.getElementById('loadingStatus');
-            const progressBar = document.getElementById('progressBar');
-            const progressPercent = document.getElementById('progressPercent');
-            overlay.style.display = 'flex';
-
-            try {
-                const fd = new FormData(this);
+                const res = await fetch(`${API_BASE}/api/check-phone?phone=${encodeURIComponent(phone)}`);
+                const data = await res.json();
                 
-                status.textContent = "ПОДГОТОВКА ФОТО (1/6)...";
-                progressBar.style.width = "10%";
-                const photoB64Array = await Promise.all(photos.map(p => toBase64(p)));
+                if (data.status === 'blocked') {
+                    alert("╨Т╨░╤И ╨╜╨╛╨╝╨╡╤А ╨╖╨░╨▒╨╗╨╛╨║╨╕╤А╨╛╨▓╨░╨╜.");
+                } else if (data.status === 'new') {
+                    alert("╨Р╨╜╨║╨╡╤В╨░ ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜╨░. ╨Ч╨░╨┐╨╛╨╗╨╜╨╕╤В╨╡ ╨║╨░╨║ ╨╜╨╛╨▓╤Л╨╣ ╤Г╤З╨░╤Б╤В╨╜╨╕╨║.");
+                    showForm('new');
+                } else {
+                    alert("╨Р╨╜╨║╨╡╤В╨░ ╨╜╨░╨╣╨┤╨╡╨╜╨░! ╨в╨╡╨┐╨╡╤А╤М ╨╛╨▒╨╜╨╛╨▓╨╕╤В╨╡ ╨┤╨░╨╜╨╜╤Л╨╡.");
+                    document.getElementById('phone').value = phone;
+                    showForm('update');
+                }
+            } catch (e) { alert("╨Ю╤И╨╕╨▒╨║╨░ ╤Б╨▓╤П╨╖╨╕"); }
+            finally { document.getElementById('loadingOverlay').style.display = 'none'; }
+        }
 
-                status.textContent = "ПОДГОТОВКА ВИДЕО (ЭТО МОЖЕТ ЗАНЯТЬ ВРЕМЯ)...";
-                progressBar.style.width = "30%";
-                const videoB64 = await toBase64(videoFile);
+        function selectOption(el, name, value) {
+            const grid = el.parentElement;
+            grid.querySelectorAll('.option-item').forEach(item => item.classList.remove('selected'));
+            el.classList.add('selected');
+            el.querySelector('input').checked = true;
+        }
 
-                const payload = {
-                    projects: selected,
-                    full_name: fd.get('full_name'),
-                    gender: fd.get('gender'),
-                    birth_date: fd.get('birth_date'),
-                    city: fd.get('city'),
-                    height: fd.get('height'),
-                    weight: fd.get('weight'),
-                    cloth_size: fd.get('cloth_size'),
-                    shoe_size: fd.get('shoe_size'),
-                    appearance_type: fd.get('appearance_type'),
-                    phone: fd.get('phone'),
-                    character_name: fd.get('character_name'),
-                    social_links: fd.get('social_links'),
-                    experience: fd.get('experience'),
-                    photos: photoB64Array,
-                    video: videoB64,
-                    drive_folder_id: "1hTpIgv5AWAiCETPfqkjUig_yIkjzWTAS"
+        async function loadProjects() {
+            try {
+                const res = await fetch(`${API_BASE}/api/projects`);
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    const container = document.getElementById('projectOptions');
+                    container.innerHTML = '';
+                    data.forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'option-item';
+                        div.onclick = () => selectOption(div, 'project_name', p);
+                        div.innerHTML = `<div class="radio-circle"></div><span class="option-label">${p}</span><input type="radio" name="project_name" value="${p}" required>`;
+                        container.appendChild(div);
+                    });
+                }
+            } catch (e) {}
+        }
+        loadProjects();
+
+        function handlePhotos(event) {
+            const files = Array.from(event.target.files);
+            const preview = document.getElementById('photoPreview');
+            files.forEach(file => {
+                if (uploadedPhotos.length >= 5) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result; img.className = 'photo-thumb';
+                    preview.appendChild(img);
+                    uploadedPhotos.push(file);
                 };
+                reader.readAsDataURL(file);
+            });
+        }
 
-                status.textContent = "ОТПРАВКА В ТЕЛЕГРАМ И НА ДИСК...";
-                progressBar.style.width = "60%";
-                progressPercent.textContent = "60%";
+        document.getElementById('castingForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = 'flex';
+            
+            const formData = new FormData();
+            const proj = document.querySelector('input[name="project_name"]:checked')?.value;
+            const gender = document.querySelector('input[name="gender"]:checked')?.value;
+            
+            formData.append('casting_target', proj);
+            formData.append('character_name', document.getElementById('character_name').value);
+            formData.append('full_name', document.getElementById('full_name').value);
+            formData.append('gender', gender);
+            formData.append('city', document.getElementById('city').value);
+            formData.append('phone', document.getElementById('phone').value);
+            formData.append('contact_method', document.getElementById('contact_method').value);
+            formData.append('age', document.getElementById('age').value);
+            formData.append('height', document.getElementById('height').value);
+            formData.append('weight', document.getElementById('weight').value);
+            formData.append('appearance', document.getElementById('appearance').value);
+            formData.append('hair_color', document.getElementById('hair_color').value || 'тАФ');
+            formData.append('clothing_size', document.getElementById('clothing_size').value);
+            formData.append('shoe_size', document.getElementById('shoe_size').value);
+            formData.append('experience_summary', document.getElementById('experience_summary').value);
+            formData.append('update', document.getElementById('is_update').value);
 
-                await axios.post(CF_WORKER, payload);
+            uploadedPhotos.forEach(file => formData.append('photos', file));
 
-                progressBar.style.width = "100%";
-                document.getElementById('formContainer').style.display = 'none';
-                document.getElementById('successScreen').style.display = 'block';
-                window.scrollTo(0,0);
-
-            } catch (err) {
-                console.error(err);
-                alert("Ошибка: " + err.message);
-            } finally {
-                overlay.style.display = 'none';
-            }
+            try {
+                const res = await fetch(API_BASE, { method: 'POST', body: formData });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    document.getElementById('formContainer').style.display = 'none';
+                    document.getElementById('successScreen').style.display = 'block';
+                } else {
+                    alert("╨Ю╤И╨╕╨▒╨║╨░: " + (result.message || "╨Э╨╡╨╕╨╖╨▓╨╡╤Б╤В╨╜╨░╤П ╨╛╤И╨╕╨▒╨║╨░"));
+                }
+            } catch (err) { alert("╨Ю╤И╨╕╨▒╨║╨░ ╤Б╨╡╤В╨╕: " + err.message); }
+            finally { overlay.style.display = 'none'; }
         };
 
-        window.onload = loadTopics;
+        // Initialize view
+        showWelcome();
     </script>
 </body>
+
 </html>
