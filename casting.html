@@ -727,9 +727,34 @@
                     <input type="number" name="dob" required placeholder="например: 25" min="0" max="120">
                 </div>
                 <div class="form-group">
-                    <label>Внешность (Типаж)<span>*</span></label>
-                    <input type="text" name="nationality" required
-                        placeholder="азиат, европеец, глаза карие, стройный...">
+                    <label>Тип внешности<span>*</span></label>
+                    <select name="appearance_type" required style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;">
+                        <option style="color: #000;" value="" disabled selected>Выберите тип...</option>
+                        <option style="color: #000;" value="Азиатский">Азиатский</option>
+                        <option style="color: #000;" value="Европейский">Европейский</option>
+                        <option style="color: #000;" value="Африканский">Африканский</option>
+                        <option style="color: #000;" value="Ближневосточный">Ближневосточный</option>
+                        <option style="color: #000;" value="Латино">Латино</option>
+                        <option style="color: #000;" value="Смешанный">Смешанный</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Цвет волос<span>*</span></label>
+                    <select name="hair_color" required style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: #fff; font-size: 15px; outline: none;">
+                        <option style="color: #000;" value="" disabled selected>Выберите цвет...</option>
+                        <option style="color: #000;" value="Брюнет">Брюнет</option>
+                        <option style="color: #000;" value="Шатен">Шатен</option>
+                        <option style="color: #000;" value="Блондин">Блондин</option>
+                        <option style="color: #000;" value="Рыжий">Рыжий</option>
+                        <option style="color: #000;" value="Седой">Седой</option>
+                        <option style="color: #000;" value="Лысый">Лысый</option>
+                        <option style="color: #000;" value="Другой">Другой</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Цвет глаз и детальное описание внешности<span>*</span></label>
+                    <input type="text" name="appearance_details" required
+                        placeholder="Цвет глаз, усы, борода, шрамы и т.д.">
                 </div>
                 <div class="form-group">
                     <label>Необычные приметы внешности</label>
@@ -740,12 +765,16 @@
                     <input type="text" name="diseases" placeholder="укажите, если есть">
                 </div>
                 <div class="form-group">
+                    <label>Почта или Telegram ник<span>*</span></label>
+                    <input type="text" name="email_tg" required placeholder="example@mail.com или @username">
+                </div>
+                <div class="form-group">
                     <label>Номер телефона (WhatsApp)<span>*</span></label>
                     <input type="tel" name="phone" required placeholder="+7 777 000 00 00" inputmode="numeric">
                 </div>
                 <div class="form-group">
-                    <label>Ссылка на Instagram<span>*</span></label>
-                    <input type="text" name="instagram" required placeholder="@username">
+                    <label>Инстаграм или ссылка на соцсеть</label>
+                    <input type="text" name="instagram" placeholder="instagram.com/username или @username">
                 </div>
             </div>
 
@@ -760,8 +789,11 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Размер одежды / Обуви<span>*</span></label>
-                    <input type="text" name="sizes" required placeholder="L / 43">
+                    <label>Размеры<span>*</span></label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <input type="text" name="cloth_size" required placeholder="Одежда (S/48)">
+                        <input type="number" name="shoe_size" required placeholder="Обувь (42)">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Опыт в кино / Образование<span>*</span></label>
@@ -1128,12 +1160,26 @@
                 const feeTo = baseFormData.get('fee_to') || '?';
                 baseFormData.set('fee_range', `${feeFrom} - ${feeTo}`);
 
+                // Новые поля: Внешность и Размеры
+                const appType = baseFormData.get('appearance_type') || '—';
+                const hairColor = baseFormData.get('hair_color') || '—';
+                const appDetails = baseFormData.get('appearance_details') || '—';
+                const clothSize = baseFormData.get('cloth_size') || '—';
+                const shoeSize = baseFormData.get('shoe_size') || '—';
+                
                 let expText = baseFormData.get('experience') || 'Нет';
+                expText = `Типаж: ${appType}\nВолосы: ${hairColor}\nДетали: ${appDetails}\nОдежда/Обувь: ${clothSize} / ${shoeSize}\n\n${expText}`;
+                
                 const diseases = baseFormData.get('diseases');
                 const features = baseFormData.get('unusual_features');
                 if (diseases && diseases.trim()) expText += `\nБолезни: ${diseases}`;
                 if (features && features.trim()) expText += `\nПриметы: ${features}`;
                 baseFormData.set('experience', expText);
+
+                // Контакты
+                const emailTg = baseFormData.get('email_tg') || '—';
+                const instagram = baseFormData.get('instagram') || '—';
+                baseFormData.set('instagram', `Inst: ${instagram}\nEmail/TG: ${emailTg}`);
                 
                 for (const p of selected) {
                     document.getElementById('loadingText').textContent = `Отправка в ${p.name}...`;
