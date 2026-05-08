@@ -34,13 +34,13 @@
 
         /* Filters Panel */
         .filters-panel { 
-            background: var(--card); border-radius: 16px; border: 1px solid var(--border); padding: 20px; 
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px;
+            background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 12px; 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 20px;
         }
-        .filter-group { display: flex; flex-direction: column; gap: 6px; }
-        .filter-group label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-group label { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
         input, select { 
-            background: #1e2029; border: 1px solid var(--border); padding: 10px; color: white; border-radius: 8px; font-size: 13px; outline: none; transition: 0.2s;
+            background: #1e2029; border: 1px solid var(--border); padding: 6px 10px; color: white; border-radius: 6px; font-size: 12px; outline: none; transition: 0.2s;
         }
         input:focus { border-color: var(--accent); background: #252833; }
         
@@ -464,6 +464,8 @@
         } catch(e) { alert("Ошибка сети"); btn.disabled = false; }
     }
 
+    // Авто-синхронизация каждые 5 минут
+    setInterval(syncAll, 5 * 60 * 1000);
     syncAll();
 </script>
 </body>
