@@ -123,6 +123,7 @@
             <div class="tab" data-tab="all">Общая база</div>
             <div class="tab" data-tab="interest">Интересные</div>
             <div class="tab" data-tab="selected">Отобранные</div>
+            <div class="tab" data-tab="sent">В Телеграме</div>
             <div class="tab" data-tab="archive">Архив</div>
             <div class="tab" data-tab="trash">Трэш</div>
         </div>
@@ -248,19 +249,23 @@
             const val = cloudData[id] || "0";
             const score = parseInt(val) || 0;
             const status = val.includes(":") ? val.split(":")[1].replace("_SENT", "") : "Новая";
+            const isSent = val.includes("_SENT");
             
-            // СТРОГАЯ ФИЛЬТРАЦИЯ ПО ТАБАМ
+            // ПРАВИЛА ВКАЛАДОК
             if (currentTab === "new") {
                 if (status !== "Новая") return false;
             } else if (currentTab === "interest") {
                 if (status !== "Interesting") return false;
             } else if (currentTab === "selected") {
                 if (status !== "Selected") return false;
+            } else if (currentTab === "sent") {
+                if (!isSent) return false;
             } else if (currentTab === "archive") {
                 if (status !== "Archive") return false;
             } else if (currentTab === "trash") {
                 if (status !== "Trash") return false;
             } else if (currentTab === "all") {
+                // Общая база: всё кроме Архива и Трэша
                 if (status === "Trash" || status === "Archive") return false;
             }
 
