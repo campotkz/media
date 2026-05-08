@@ -419,15 +419,16 @@
             const status = statusRaw.replace("_SENT", "");
             const isSent = statusRaw.includes("_SENT");
 
-            // УМНЫЙ РАСЧЕТ ВОЗРАСТА
+            // УМНЫЙ РАСЧЕТ ВОЗРАСТА (С ЗАЩИТОЙ ОТ ОШИБОК)
             let ageVal = "?";
-            const birthDateStr = a["Дата рождения"] || a[Object.keys(a)[13]] || ""; // Ячейка N (14-я)
-            const timestamp = a["Отметка времени"] || a[Object.keys(a)[0]] || "";
-            const staticAge = a["Возраст (полных лет)"] || a["Возраст"] || "";
-            
-            if (birthDateStr && birthDateStr.length > 5) {
-                try {
-                    const birthDate = new Date(birthDateStr.split('.').reverse().join('-')); // Поддержка DD.MM.YYYY
+            try {
+                const birthDateStr = a["Дата рождения"] || a[Object.keys(a)[13]] || ""; 
+                const timestamp = a["Отметка времени"] || a[Object.keys(a)[0]] || "";
+                const staticAge = a["Возраст (полных лет)"] || a["Возраст"] || "";
+                
+                if (birthDateStr && String(birthDateStr).length > 5) {
+                    const parts = String(birthDateStr).split(/[./-]/);
+                    const birthDate = new Date(parts.reverse().join('-'));
                     if (!isNaN(birthDate)) {
                         const today = new Date();
                         let age = today.getFullYear() - birthDate.getFullYear();
@@ -435,16 +436,16 @@
                         if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
                         ageVal = age;
                     }
-                } catch(e) {}
-            }
-            
-            if (ageVal === "?" && staticAge) {
-                const year = timestamp ? new Date(timestamp).getFullYear() : "";
-                ageVal = year ? `${staticAge} <span style="font-size:9px; opacity:0.6;">(${year}г)</span>` : staticAge;
-            }
+                }
+                
+                if (ageVal === "?" && staticAge) {
+                    const year = timestamp ? new Date(timestamp).getFullYear() : "";
+                    ageVal = year ? `${staticAge} <span style="font-size:9px; opacity:0.6;">(${year}г)</span>` : staticAge;
+                }
+            } catch(e) { ageVal = a["Возраст (полных лет)"] || "?"; }
 
-            const heightVal = a["Рост (в сантиметрах)"] || a["Рост (см)"] || a["Рост"] || "?";
-            const weightVal = a["Вес (в килограммах)"] || a["Вес (кг)"] || a["Вес"] || "?";
+            const heightVal = a["Рост (в сантиметрах)"] || a["Рост (см)"] || "?";
+            const weightVal = a["Вес (в килограммах)"] || a["Вес (кг)"] || "?";
 
             const name = a["ФИО (Полностью)"] || a["ФИО"] || "Без имени";
             
