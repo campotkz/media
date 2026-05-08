@@ -226,7 +226,10 @@
             </div>
         </div>
 
-        <button class="btn btn-primary" onclick="toggleFilters()" style="margin-top:5px; width:100%; padding:10px; font-size:13px; font-weight:700;">ПРИМЕНИТЬ</button>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+            <button class="btn btn-outline" onclick="resetFilters()" style="padding:10px; font-size:13px; font-weight:700;">СБРОСИТЬ</button>
+            <button class="btn btn-primary" onclick="toggleFilters()" style="padding:10px; font-size:13px; font-weight:700;">ГОТОВО</button>
+        </div>
     </div>
 
     <div id="actorGrid" class="grid"></div>
@@ -248,6 +251,12 @@
 
     function toggleFilters() {
         document.getElementById('filtersPanel').classList.toggle('filters-active');
+    }
+
+    function resetFilters() {
+        ['sQuery','fAgeMin','fAgeMax','fHMin','fHMax','fWMin','fWMax'].forEach(id => document.getElementById(id).value = '');
+        ['fPrj','fRole','fGen','fCity','fEth'].forEach(id => document.getElementById(id).value = '');
+        render();
     }
 
     // Инициализация табов
