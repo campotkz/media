@@ -320,14 +320,19 @@
             
             const name = a["ФИО (Полностью)"] || a["ФИО"] || "Без имени";
             
-            let photosRaw = "";
-            let video = "";
-            for (let k in a) {
-                if (k.toLowerCase().includes("фото")) photosRaw = a[k];
-                if (k.toLowerCase().includes("видео")) video = a[k];
+            // Фиксированные столбцы K и L (11-й и 12-й по счету в CSV)
+            const keys = Object.keys(a);
+            let photosRaw = a[keys[10]] || ""; // K
+            let video = a[keys[11]] || "";    // L
+            
+            // Фоллбек если K/L не те
+            if (!photosRaw.includes("http")) {
+                for (let k in a) if (k.toLowerCase().includes("фото")) photosRaw = a[k];
+            }
+            if (!video.includes("http")) {
+                for (let k in a) if (k.toLowerCase().includes("видео")) video = a[k];
             }
 
-            // Обработка нескольких фото через запятую
             const photoList = photosRaw.split(',').map(p => p.trim()).filter(p => p.length > 5);
             const mainPhoto = getDirectLink(photoList[0]);
             const extraPhotos = photoList.slice(1);
@@ -340,7 +345,7 @@
                     <div class="badge badge-status">${status}</div>
                     <img class="card-photo" src="${mainPhoto}" onclick="zoomImg('${mainPhoto}')" onerror="this.src='https://via.placeholder.com/300x400'">
                 </div>
-                <div class="card-body">
+                <div class="card-body" ondblclick="showFullResume('${id}')" title="Двойной клик для полного резюме">
                     ${extraPhotos.length > 0 ? `
                         <div style="display:flex; gap:5px; margin-bottom:10px; overflow-x:auto; padding-bottom:5px;">
                             ${extraPhotos.map(p => {
@@ -411,6 +416,29 @@
     function zoomImg(src) {
         if (!src || src.includes('placeholder')) return;
         document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:2000;display:flex;align-items:center;justify-content:center;" onclick="this.remove()"><div style="width:90%;height:90%;display:flex;justify-content:center;align-items:center;" onclick="event.stopPropagation()"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:20px;right:20px;color:white;background:none;border:none;font-size:40px;cursor:pointer;z-index:2001;">&times;</button><img src="${src}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; box-shadow:0 0 50px rgba(0,0,0,0.8);"></div></div>`);
+    }
+
+    function showFullResume(rowId) {
+        const a = actors.find(act => act._row == rowId);
+        if (!a) return;
+        
+        let content = `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">`;
+        for (let k in a) {
+            if (k === "_row" || k.toLowerCase().includes("фото") || k.toLowerCase().includes("видео")) continue;
+            if (!a[k]) continue;
+            content += `<div style="border-bottom:1px solid #333; padding:8px 0;"><span style="color:var(--muted); font-size:11px; display:block; text-transform:uppercase;">${k}</span><span style="color:white; font-size:15px; font-weight:500;">${a[k]}</span></div>`;
+        }
+        content += `</div>`;
+
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:2000;display:flex;align-items:center;justify-content:center;" onclick="this.remove()">
+                <div style="width:90%; max-width:800px; max-height:90vh; background:#111218; border:1px solid var(--border); border-radius:20px; padding:30px; position:relative; overflow-y:auto; cursor:default;" onclick="event.stopPropagation()">
+                    <button onclick="this.parentElement.parentElement.remove()" style="position:absolute; top:20px; right:20px; color:var(--muted); background:none; border:none; font-size:30px; cursor:pointer;">&times;</button>
+                    <h2 style="color:white; margin-top:0; margin-bottom:20px; border-bottom:2px solid var(--accent); padding-bottom:10px;">📄 Полная анкета: ${a["ФИО (Полностью)"] || a["ФИО"]}</h2>
+                    ${content}
+                </div>
+            </div>
+        `);
     }
 
     async function sendFull(rowId) {
