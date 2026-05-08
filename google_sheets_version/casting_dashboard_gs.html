@@ -121,12 +121,15 @@
                    age >= ageMin && weight >= wMin && weight <= wMax;
         });
 
+        // СТРОГАЯ СОРТИРОВКА: Сначала 10 звезд, потом 9... потом 0
         filtered.sort((a, b) => {
             const idA = ((a["Отметка времени"]||"")+(a["ФИО"]||"")).replace(/\s/g, '');
             const idB = ((b["Отметка времени"]||"")+(b["ФИО"]||"")).replace(/\s/g, '');
             const rA = parseInt(cloudData[idA] || 0);
             const rB = parseInt(cloudData[idB] || 0);
-            return rB - rA;
+            
+            if (rB !== rA) return rB - rA; // Больше звезд = выше
+            return 0; // При равных звездах оставляем как есть
         });
 
         grid.innerHTML = filtered.map(a => {
