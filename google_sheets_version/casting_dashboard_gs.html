@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GULYWOOD CASTING PRO</title>
+    <title>GULYWOOD CASTING ULTIMATE</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #050608; --card: #111218; --accent: #ff5722; --text: #eee; --muted: #888; --border: rgba(255,255,255,0.1); }
@@ -58,14 +58,13 @@
         const btn = document.getElementById('syncBtn');
         btn.innerText = "⏳ ЗАГРУЗКА...";
         try {
-            const cloudResp = await fetch(RATINGS_API + "?action=get&nocache=" + Date.now());
-            const text = await cloudResp.text();
-            try { cloudData = JSON.parse(text); } catch(e) { cloudData = {}; }
-            
+            const r = await fetch(RATINGS_API + "?action=get&t=" + Date.now());
+            cloudData = await r.json();
             Papa.parse(CSV_URL + "&cb=" + Date.now(), {
-                download: true, header: true, skipEmptyLines: true,
-                complete: function(results) {
-                    actors = results.data.filter(a => Object.values(a).some(v => v && v.length > 0));
+                download: true, header: true,
+                complete: function(res) {
+                    // Добавляем индекс каждой строке для 100% точности
+                    actors = res.data.filter(a => Object.values(a).some(v => v)).map((a, i) => ({...a, _row: i + 2}));
                     render();
                     btn.innerText = "ОБНОВИТЬ ВСЁ";
                 }
@@ -74,26 +73,15 @@
     }
 
     function setCloudValue(id, val) {
-        if (!id) return;
-        cloudData[id] = val;
-        render();
-        const url = `${RATINGS_API}?action=set&id=${encodeURIComponent(id)}&score=${encodeURIComponent(val)}&t=${Date.now()}`;
-        new Image().src = url;
-        fetch(url, { mode: 'no-cors' });
+        cloudData[id] = val; render();
+        const url = `${RATINGS_API}?action=set&id=${id}&score=${encodeURIComponent(val)}&t=${Date.now()}`;
+        new Image().src = url; fetch(url, { mode: 'no-cors' });
     }
 
     function getDirectLink(url) {
         if (!url || typeof url !== 'string') return "";
         let id = (url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/) || [])[1];
         return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
-    }
-
-    function getActorId(a) {
-        // Собираем всё что можем для уникальности
-        const name = (a["ФИО (Полностью)"] || a["ФИО"] || a["Ваше ФИО"] || "").toString().trim();
-        const phone = (a["Контактный телефон"] || a["Телефон"] || "").toString().trim();
-        const time = (a["Отметка времени"] || a["Timestamp"] || "").toString().trim();
-        return (name + phone + time).replace(/[^а-яА-Яa-zA-Z0-9]/g, ''); 
     }
 
     function render() {
@@ -107,8 +95,8 @@
         const filtered = actors.filter(a => {
             let n = "", g = "", pr = "", w = 0;
             for (let k in a) {
-                const key = k.toLowerCase().trim();
-                const v = (a[k] || "").toString().trim();
+                const key = k.toLowerCase();
+                const v = (a[k]||"").toString().trim();
                 if (key.includes("фио")) n = v.toLowerCase();
                 if (key === "пол") g = v;
                 if (key.includes("проект")) pr = v.toLowerCase();
@@ -117,39 +105,38 @@
             return n.includes(fName) && (!fGen || g === fGen) && pr.includes(fPrj) && w >= fWMin && w <= fWMax;
         });
 
-        filtered.sort((a, b) => (parseInt(cloudData[getActorId(b)]) || 0) - (parseInt(cloudData[getActorId(a)]) || 0));
+        filtered.sort((a,b) => (parseInt(cloudData[b._row])||0) - (parseInt(cloudData[a._row])||0));
 
         grid.innerHTML = filtered.map(a => {
+            const id = a._row;
             const name = a["ФИО (Полностью)"] || a["ФИО"] || a["Ваше ФИО"] || "Без имени";
-            const id = getActorId(a);
             const val = cloudData[id] || "0";
-            const rating = parseInt(val) || 0;
-            const isSent = val.includes("_SENT");
+            const r = parseInt(val) || 0;
+            const sent = val.includes("_SENT");
             
-            let photoRaw = "", videoUrl = "";
+            let photo = "", video = "";
             for (let k in a) {
-                if (k.toLowerCase().includes("фото")) photoRaw = a[k];
-                if (k.toLowerCase().includes("видео")) videoUrl = a[k];
+                if (k.toLowerCase().includes("фото")) photo = a[k];
+                if (k.toLowerCase().includes("видео")) video = a[k];
             }
 
-            return `
-            <div class="card">
+            return `<div class="card">
                 <div class="photo-container">
-                    ${rating > 0 ? `<div class="rating-badge">★ ${rating}</div>` : ''}
-                    ${isSent ? `<div class="sent-badge">В ЧАТЕ ✅</div>` : ''}
-                    <img class="photo" src="${getDirectLink(photoRaw)}" onerror="this.src='https://via.placeholder.com/300x400'">
+                    ${r > 0 ? `<div class="rating-badge">★ ${r}</div>` : ''}
+                    ${sent ? `<div class="sent-badge">В ЧАТЕ ✅</div>` : ''}
+                    <img class="photo" src="${getDirectLink(photo)}" onerror="this.src='https://via.placeholder.com/300x400'">
                 </div>
                 <div class="info">
                     <div class="name">${name}</div>
                     <div class="meta"><span class="tag">${a["Пол"]}</span><span class="tag">${a["Возраст"]}л</span><span class="tag">${a["Рост"]}см</span></div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                        <label style="font-size:10px;color:#888">Оценка:</label>
-                        <select style="width:60px" onchange="setCloudValue('${id}', this.value + '${isSent ? "_SENT" : ""}')">
-                            ${[...Array(11).keys()].map(n => `<option value="${n}" ${rating == n ? 'selected' : ''}>${n || '—'}</option>`).join('')}
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                        <label>Оценка:</label>
+                        <select style="width:60px" onchange="setCloudValue('${id}', this.value + '${sent ? "_SENT" : ""}')">
+                            ${[...Array(11).keys()].map(n => `<option value="${n}" ${r == n ? 'selected' : ''}>${n || '—'}</option>`).join('')}
                         </select>
                     </div>
-                    ${videoUrl ? `<button onclick="playVideo('${videoUrl}')" class="btn-action btn-video">📺 ВИДЕО</button>` : ''}
-                    <button class="btn-action btn-tg" onclick="sendFull('${id}', '${name}')">В ЧАТ</button>
+                    <button class="btn-action btn-tg" onclick="sendFull('${id}')">В ТЕЛЕГРАМ</button>
+                    ${video ? `<button onclick="playVideo('${video}')" class="btn-action btn-video">📺 ВИДЕО</button>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -160,49 +147,18 @@
         document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;display:flex;align-items:center;justify-content:center;"><div style="width:95%;max-width:800px;position:relative;"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-45px;right:0;color:white;background:none;border:none;font-size:40px;cursor:pointer;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="450"></iframe></div></div>`);
     }
 
-    async function sendFull(id, name) {
-        const a = actors.find(act => getActorId(act) === id);
-        if (!a) { alert("Актер не найден"); return; }
-        
+    async function sendFull(rowId) {
+        const a = actors.find(act => act._row == rowId);
         const btn = event.target; btn.disabled = true; btn.innerText = "⏳...";
-        
-        let p = "", v = ""; 
-        for (let k in a) { 
-            if (k.toLowerCase().includes("фото")) p = getDirectLink(a[k]); 
-            if (k.toLowerCase().includes("видео")) v = a[k]; 
-        }
-
-        const r = parseInt(cloudData[id] || 0);
-        const cap = `🎭 *GULYWOOD*\n👤 *${name}*\n⭐️ *Рейтинг:* ${r}/10\n🎬 *Проект:* ${a["Проект"] || '—'}\n🚻 *Параметры:* ${a["Возраст"] || '?'}л, ${a["Рост"] || '?'}см, ${a["Вес"] || '?'}кг\n\n🎬 [СМОТРЕТЬ ВИДЕО](${v || '#'})`;
-        
+        let p = "", v = ""; for (let k in a) { if (k.toLowerCase().includes("фото")) p = getDirectLink(a[k]); if (k.toLowerCase().includes("видео")) v = a[k]; }
+        const r = parseInt(cloudData[rowId] || 0);
+        const cap = `🎭 *GULYWOOD*\n👤 *${a["ФИО (Полностью)"] || a["ФИО"] || "Без имени"}*\n⭐️ *Рейтинг:* ${r}/10\n🎬 *Проект:* ${a["Проект"] || '—'}\n🚻 *Параметры:* ${a["Возраст"]}л, ${a["Рост"]}см, ${a["Вес"]}кг\n\n🎬 [ВИДЕО](${v || '#'})`;
         try {
-            let res;
-            if (p && p.length > 10) {
-                // Если есть фото - шлем фото
-                res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { 
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ chat_id: CHAT_ID, photo: p, caption: cap, parse_mode: 'Markdown' }) 
-                });
-            } else {
-                // Если фото нет - шлем текстом
-                res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { 
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ chat_id: CHAT_ID, text: cap, parse_mode: 'Markdown' }) 
-                });
-            }
-
-            if (res.ok) {
-                setCloudValue(id, r + "_SENT");
-                btn.innerText = "В ЧАТЕ ✅";
-            } else {
-                const err = await res.json();
-                alert("Ошибка ТГ: " + (err.description || "Неизвестно"));
-                btn.disabled = false; btn.innerText = "В ЧАТ";
-            }
-        } catch(e) { 
-            alert("Ошибка сети при отправке в ТГ"); 
-            btn.disabled = false; btn.innerText = "В ЧАТ"; 
-        }
+            const method = (p && p.length > 10) ? 'sendPhoto' : 'sendMessage';
+            const body = (p && p.length > 10) ? { chat_id: CHAT_ID, photo: p, caption: cap, parse_mode: 'Markdown' } : { chat_id: CHAT_ID, text: cap, parse_mode: 'Markdown' };
+            const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            if (res.ok) { setCloudValue(rowId, r + "_SENT"); btn.innerText = "В ЧАТЕ ✅"; } else { alert("Ошибка ТГ"); btn.disabled = false; btn.innerText = "В ТЕЛЕГРАМ"; }
+        } catch(e) { alert("Ошибка сети"); btn.disabled = false; }
     }
 
     syncAll();
