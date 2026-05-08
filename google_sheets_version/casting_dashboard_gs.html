@@ -59,11 +59,17 @@
 
     async function syncAll() {
         const btn = document.getElementById('syncBtn');
-        btn.innerText = "⏳ СИНХРОНИЗАЦИЯ...";
+        const grid = document.getElementById('actorGrid');
+        btn.innerText = "⏳ ЗАГРУЗКА...";
+        
         try {
-            const resp = await fetch(RATINGS_API + "?action=get");
+            // 1. Сначала ВСЕГДА берем свежие звезды из облака
+            const resp = await fetch(RATINGS_API + "?action=get&t=" + Date.now());
             cloudData = await resp.json();
-            Papa.parse(CSV_URL + "&cb=" + Math.random(), {
+            console.log("Cloud Data Loaded:", cloudData);
+            
+            // 2. Потом берем анкеты
+            Papa.parse(CSV_URL + "&cb=" + Date.now(), {
                 download: true, header: true,
                 complete: function(results) {
                     actors = results.data.filter(a => Object.values(a).some(v => v && v.length > 1));
@@ -71,7 +77,10 @@
                     btn.innerText = "ОБНОВИТЬ ВСЁ";
                 }
             });
-        } catch(e) { btn.innerText = "ОШИБКА"; }
+        } catch(e) { 
+            console.error("Sync Error:", e);
+            btn.innerText = "ОШИБКА";
+        }
     }
 
     async function setCloudValue(id, val) {
