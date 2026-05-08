@@ -47,10 +47,10 @@
         }
         .filters-active { display: grid !important; }
         
-        .filter-group { display: flex; flex-direction: column; gap: 6px; }
-        .filter-group label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-group label { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
         input, select { 
-            background: #1e2029; border: 1px solid var(--border); padding: 10px; color: white; border-radius: 8px; font-size: 13px; outline: none; transition: 0.2s;
+            background: #1e2029; border: 1px solid var(--border); padding: 6px 10px; color: white; border-radius: 6px; font-size: 12px; outline: none; transition: 0.2s;
         }
         input:focus { border-color: var(--accent); background: #252833; }
         
@@ -197,7 +197,7 @@
             </div>
         </div>
 
-        <button class="btn btn-primary" onclick="toggleFilters()" style="margin-top:10px; width:100%;">Применить и закрыть</button>
+        <button class="btn btn-primary" onclick="toggleFilters()" style="margin-top:5px; width:100%; padding:8px; font-size:12px;">Применить и закрыть</button>
     </div>
 
     <div id="actorGrid" class="grid"></div>
