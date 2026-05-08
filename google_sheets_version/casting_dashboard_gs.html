@@ -162,14 +162,47 @@
 
     async function sendFull(id, name) {
         const a = actors.find(act => getActorId(act) === id);
-        const btn = event.target; btn.disabled = true;
-        let p = "", v = ""; for (let k in a) { if (k.toLowerCase().includes("фото")) p = a[k]; if (k.toLowerCase().includes("видео")) v = a[k]; }
+        if (!a) { alert("Актер не найден"); return; }
+        
+        const btn = event.target; btn.disabled = true; btn.innerText = "⏳...";
+        
+        let p = "", v = ""; 
+        for (let k in a) { 
+            if (k.toLowerCase().includes("фото")) p = getDirectLink(a[k]); 
+            if (k.toLowerCase().includes("видео")) v = a[k]; 
+        }
+
         const r = parseInt(cloudData[id] || 0);
-        const cap = `🎭 *GULYWOOD*\n👤 *${name}*\n⭐️ *Рейтинг:* ${r}/10\n🎬 *Проект:* ${a["Проект"]}\n🚻 *Параметры:* ${a["Возраст"]}л, ${a["Рост"]}см, ${a["Вес"]}кг\n\n🎬 [ВИДЕО](${v})`;
+        const cap = `🎭 *GULYWOOD*\n👤 *${name}*\n⭐️ *Рейтинг:* ${r}/10\n🎬 *Проект:* ${a["Проект"] || '—'}\n🚻 *Параметры:* ${a["Возраст"] || '?'}л, ${a["Рост"] || '?'}см, ${a["Вес"] || '?'}кг\n\n🎬 [СМОТРЕТЬ ВИДЕО](${v || '#'})`;
+        
         try {
-            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CHAT_ID, photo: getDirectLink(p), caption: cap, parse_mode: 'Markdown' }) });
-            setCloudValue(id, r + "_SENT");
-        } catch(e) { alert("ТГ Ошибка"); btn.disabled = false; }
+            let res;
+            if (p && p.length > 10) {
+                // Если есть фото - шлем фото
+                res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { 
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ chat_id: CHAT_ID, photo: p, caption: cap, parse_mode: 'Markdown' }) 
+                });
+            } else {
+                // Если фото нет - шлем текстом
+                res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { 
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ chat_id: CHAT_ID, text: cap, parse_mode: 'Markdown' }) 
+                });
+            }
+
+            if (res.ok) {
+                setCloudValue(id, r + "_SENT");
+                btn.innerText = "В ЧАТЕ ✅";
+            } else {
+                const err = await res.json();
+                alert("Ошибка ТГ: " + (err.description || "Неизвестно"));
+                btn.disabled = false; btn.innerText = "В ЧАТ";
+            }
+        } catch(e) { 
+            alert("Ошибка сети при отправке в ТГ"); 
+            btn.disabled = false; btn.innerText = "В ЧАТ"; 
+        }
     }
 
     syncAll();
