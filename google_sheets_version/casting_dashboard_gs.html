@@ -329,32 +329,21 @@
         const ethSel = document.getElementById('fEth');
         const fmtSel = document.getElementById('fFormat');
 
-        // Умный поиск колонки по частичному совпадению
-        const findCol = (search) => {
-            if (!actors.length) return null;
-            return Object.keys(actors[0]).find(k => k.toLowerCase().includes(search.toLowerCase()));
-        };
-
-        const prjCol = findCol("Название проекта") || "Проект";
-        const roleCol = findCol("На какую роль") || "Роль";
-        const cityCol = findCol("Город проживания") || "Город";
-        const ethCol = findCol("Типаж") || findCol("Этнос") || "Типаж";
-        const fmtCol = findCol("В каких форматах") || "Формат";
-
-        const getVals = (colName) => {
+        const getVals = (idx) => {
             const set = new Set();
             actors.forEach(a => {
-                const val = a[colName] || "";
+                const keys = Object.keys(a);
+                const val = a[keys[idx]] || "";
                 val.split(',').forEach(s => { if(s.trim()) set.add(s.trim()); });
             });
             return [...set].sort();
         };
 
-        const prjs = getVals(prjCol);
-        const roles = getVals(roleCol);
-        const cities = getVals(cityCol);
-        const types = getVals(ethCol);
-        const formats = getVals(fmtCol);
+        const prjs = getVals(2);   // C: Проект
+        const roles = getVals(12); // M: Роль
+        const cities = getVals(5);  // F: Город
+        const types = getVals(14);  // O: Типаж
+        const formats = getVals(19); // T: Формат
 
         if (prjSel) prjSel.innerHTML = '<option value="">Все проекты</option>' + prjs.map(p => `<option value="${p}">${p}</option>`).join('');
         if (roleSel) roleSel.innerHTML = '<option value="">Все роли</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
@@ -396,28 +385,22 @@
         const fWMin = parseInt(document.getElementById('fWMin').value) || 0;
         const fWMax = parseInt(document.getElementById('fWMax').value) || 300;
 
-        // Динамические имена колонок для фильтрации
-        const findCol = (search) => Object.keys(actors[0] || {}).find(k => k.toLowerCase().includes(search.toLowerCase()));
-        const prjCol = findCol("Название проекта") || "Проект";
-        const roleCol = findCol("На какую роль") || "Роль";
-        const cityCol = findCol("Город проживания") || "Город";
-        const ethCol = findCol("Типаж") || findCol("Этнос") || "Типаж";
-        const fmtCol = findCol("В каких форматах") || "Формат";
-
         let filtered = actors.filter(a => {
             if (!a || !a._row) return false;
             const id = a._row;
-            const name = (a["ФИО (Полностью)"] || a["ФИО"] || "").toLowerCase();
-            if (name.length < 1 && !(a["Фото"] || a["Фото (Портрет)"])) return false; 
+            const keys = Object.keys(a);
+            
+            const name = (a[keys[1]] || "").toLowerCase(); // B
+            if (name.length < 1 && !(a[keys[10]])) return false; // K: Фото
 
-            if (fPrjVal && a[prjCol] !== fPrjVal) return false;
-            if (fRoleVal && a[roleCol] !== fRoleVal) return false;
-            if (fFmtVal && !(a[fmtCol] || "").includes(fFmtVal)) return false;
+            if (fPrjVal && a[keys[2]] !== fPrjVal) return false; // C
+            if (fRoleVal && a[keys[12]] !== fRoleVal) return false; // M
+            if (fFmtVal && !(a[keys[19]] || "").includes(fFmtVal)) return false; // T
             
-            if (fGenVal && a["Пол"] !== fGenVal) return false;
-            if (fCityVal && a[cityCol] !== fCityVal) return false;
+            if (fGenVal && a[keys[3]] !== fGenVal) return false; // D
+            if (fCityVal && a[keys[5]] !== fCityVal) return false; // F
             
-            if (fEthVal && !(a[ethCol] || "").includes(fEthVal)) return false;
+            if (fEthVal && !(a[keys[14]] || "").includes(fEthVal)) return false; // O
             
             const val = cloudData[id] || "0";
             const score = parseInt(val) || 0;
@@ -441,9 +424,9 @@
 
             // Глобальный поиск и фильтры
             const allText = JSON.stringify(a).toLowerCase();
-            const age = parseInt(a["Возраст"]) || 0;
-            const height = parseInt(a["Рост (см)"] || a["Рост"]) || 0;
-            const weight = parseInt(a["Вес (кг)"] || a["Вес"]) || 0;
+            const age = parseInt(a[keys[4]]) || 0; // E
+            const height = parseInt(a[keys[6]]) || 0; // G
+            const weight = parseInt(a[keys[7]]) || 0; // H
 
             if (sQ && !allText.includes(sQ)) return false;
             
@@ -463,25 +446,23 @@
         });
 
         grid.innerHTML = filtered.map(a => {
+            const keys = Object.keys(a);
             const id = a._row;
             const val = cloudData[id] || "0";
             const score = parseInt(val) || 0;
             const statusRaw = val.includes(":") ? val.split(":")[1] : "Новая";
             const status = statusRaw.replace("_SENT", "");
-            const isSent = statusRaw.includes("_SENT");
+            const isSent = val.includes("_SENT");
 
+            const video = a[keys[11]] || ""; // L: Видео
+            
             // УМНЫЙ РАСЧЕТ ВОЗРАСТА (С ЗАЩИТОЙ ОТ ОШИБОК)
             let ageVal = "?";
             try {
-                const findKey = (str) => Object.keys(a).find(k => k.toLowerCase().includes(str.toLowerCase()));
-                const dobKey = findKey("Дата рождения");
-                const tsKey = findKey("Отметка времени");
-                const ageKey = findKey("Возраст");
+                const dobStr = a[keys[13]] || ""; // N: Дата рождения
+                const tsStr = a[keys[0]] || "";  // A: Отметка времени
+                const staticAge = a[keys[4]] || ""; // E: Возраст
                 
-                const dobStr = a[dobKey] || "";
-                const timestamp = a[tsKey] || "";
-                const staticAge = a[ageKey] || "";
-
                 if (dobStr && String(dobStr).includes('.')) {
                     const parts = String(dobStr).split('.');
                     if (parts.length === 3) {
@@ -493,21 +474,18 @@
                         if (age > 0 && age < 100) ageVal = age;
                     }
                 }
-                
                 if (ageVal === "?" && staticAge) {
-                    const year = timestamp ? timestamp.split('.')[2]?.split(' ')[0] : "";
-                    ageVal = year ? `${staticAge} <span style="font-size:9px; opacity:0.6;">(${year}г)</span>` : staticAge;
+                    const year = tsStr.split('.')[2]?.split(' ')[0];
+                    if (year && year.length === 4) ageVal = `${staticAge} <span style="font-size:9px; opacity:0.6;">(${year}г)</span>`;
+                    else ageVal = staticAge;
                 }
-            } catch(e) { ageVal = a["Возраст"] || "?"; }
+            } catch(e) { ageVal = a[keys[4]] || "?"; }
 
-            const heightVal = a[Object.keys(a).find(k => k.toLowerCase() === "рост")] || a["Рост"] || "?";
-            const weightVal = a[Object.keys(a).find(k => k.toLowerCase() === "вес")] || a["Вес"] || "?";
-
-            const name = a["ФИО"] || a["ФИО (Полностью)"] || "Без имени";
+            const heightVal = a[keys[6]] || "?"; // G
+            const weightVal = a[keys[7]] || "?"; // H
+            const name = a[keys[1]] || "Без имени"; // B
             
-            let photosRaw = a["Фото (Портрет/Полный рост)"] || a["Фото"] || "";
-            let video = a["Видеовизитка"] || a["Видео"] || "";
-
+            let photosRaw = a[keys[10]] || ""; // K: Фото
             const photoList = photosRaw.split(',').map(p => p.trim()).filter(p => p.length > 5);
             const photo = getDirectLink(photoList[0]);
             const otherPhotos = photoList.slice(1);
