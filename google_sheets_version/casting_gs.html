@@ -6,250 +6,115 @@
     <title>АНКЕТА УЧАСТНИКА КАСТИНГА</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #0a0b10;
-            --card-bg: rgba(20, 22, 30, 0.6);
-            --accent: #7aa2ff;
-            --text: rgba(255, 255, 255, 0.92);
-            --muted: rgba(255, 255, 255, 0.6);
-            --stroke: rgba(255, 255, 255, 0.1);
-            --radius: 16px;
-        }
-
-        body {
-            margin: 0;
-            padding: 20px;
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 500px;
-            animation: fadeIn 0.8s ease-out;
-        }
-
+        :root { --bg: #0a0b10; --card-bg: rgba(20, 22, 30, 0.6); --accent: #ff5722; --text: rgba(255, 255, 255, 0.92); --muted: rgba(255, 255, 255, 0.6); --stroke: rgba(255, 255, 255, 0.1); --radius: 16px; }
+        body { margin: 0; padding: 20px; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; justify-content: center; min-height: 100vh; }
+        .container { width: 100%; max-width: 500px; animation: fadeIn 0.8s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .card {
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--stroke);
-            border-radius: var(--radius);
-            padding: 32px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-        }
-
-        h2 { margin: 0 0 8px 0; font-size: 24px; font-weight: 700; text-align: center; letter-spacing: -0.5px; }
+        .card { background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid var(--stroke); border-radius: var(--radius); padding: 32px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        h2 { margin: 0 0 8px 0; font-size: 24px; font-weight: 700; text-align: center; color: var(--accent); }
         .subtitle { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 32px; }
-
         .form-group { margin-bottom: 20px; }
-        label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 8px; margin-left: 4px; }
-
-        input, select, textarea {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--stroke);
-            border-radius: 12px;
-            padding: 14px 16px;
-            color: white;
-            font-size: 15px;
-            font-family: inherit;
-            transition: all 0.2s;
-            box-sizing: border-box;
-        }
-
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--accent);
-            background: rgba(255, 255, 255, 0.06);
-            box-shadow: 0 0 0 4px rgba(122, 162, 255, 0.1);
-        }
-
-        .file-input-wrapper {
-            position: relative;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px dashed var(--stroke);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .file-input-wrapper:hover { border-color: var(--accent); background: rgba(255, 255, 255, 0.05); }
-        .file-input-wrapper input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-
-        button {
-            width: 100%;
-            padding: 16px;
-            background: var(--accent);
-            border: none;
-            border-radius: 12px;
-            color: #000;
-            font-weight: 600;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-top: 12px;
-        }
-
-        button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(122, 162, 255, 0.3); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-        .status { margin-top: 20px; text-align: center; font-size: 14px; min-height: 20px; }
+        label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 8px; }
+        input, select, textarea { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--stroke); border-radius: 12px; padding: 14px; color: white; font-size: 15px; box-sizing: border-box; }
+        .file-box { border: 1px dashed var(--stroke); border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; background: rgba(255,255,255,0.02); }
+        .file-box input { display: none; }
+        button { width: 100%; padding: 16px; background: var(--accent); border: none; border-radius: 12px; color: #fff; font-weight: 700; cursor: pointer; transition: 0.2s; margin-top: 15px; }
+        button:hover { transform: scale(1.02); background: #ff7043; }
+        #status { margin-top: 20px; text-align: center; font-size: 14px; line-height: 1.4; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
-            <h2>АНКЕТА УЧАСТНИКА</h2>
-            <div class="subtitle">GULYWOOD CASTING • Powered by Google</div>
+            <h2>АНКЕТА КАСТИНГА</h2>
+            <div class="subtitle">GULYWOOD CASTING • ВЕРСИЯ 2.0</div>
             
             <form id="castingForm">
-                <div class="form-group">
-                    <label>ФИО</label>
-                    <input type="text" name="full_name" placeholder="Иван Иванов" required>
+                <div class="form-group"><label>ФИО</label><input type="text" name="full_name" required></div>
+                <div class="form-group"><label>Проект</label><input type="text" name="project_name" required></div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group"><label>Пол</label><select name="gender"><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select></div>
+                    <div class="form-group"><label>Возраст</label><input type="number" name="age"></div>
                 </div>
+
+                <div class="form-group"><label>Телефон</label><input type="tel" name="phone" placeholder="+7..." required></div>
+                <div class="form-group"><label>Опыт / Ссылки</label><textarea name="experience" rows="2"></textarea></div>
 
                 <div class="form-group">
-                    <label>Проект</label>
-                    <input type="text" name="project_name" placeholder="Название фильма/ролика" required>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div class="form-group">
-                        <label>Пол</label>
-                        <select name="gender">
-                            <option value="Мужской">Мужской</option>
-                            <option value="Женский">Женский</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Возраст</label>
-                        <input type="number" name="age" placeholder="25">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Город проживания</label>
-                    <input type="text" name="city" placeholder="Алматы">
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div class="form-group">
-                        <label>Рост (см)</label>
-                        <input type="number" name="height" placeholder="180">
-                    </div>
-                    <div class="form-group">
-                        <label>Вес (кг)</label>
-                        <input type="number" name="weight" placeholder="75">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Телефон</label>
-                    <input type="tel" name="phone" placeholder="+7 (___) ___ __ __" required>
-                </div>
-
-                <div class="form-group">
-                    <label>Опыт работы и ссылки</label>
-                    <textarea name="experience" placeholder="Расскажите о себе..." rows="3"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label>Фото (портрет)</label>
-                    <div class="file-input-wrapper">
-                        <span id="photoLabel">Нажмите для выбора фото</span>
+                    <label>Фотография</label>
+                    <label class="file-box">
+                        <span id="photoLabel">Выбрать фото</span>
                         <input type="file" id="photoFile" accept="image/*">
-                    </div>
+                    </label>
                 </div>
 
                 <div class="form-group">
                     <label>Видеовизитка (макс 20МБ)</label>
-                    <div class="file-input-wrapper">
-                        <span id="videoLabel">Нажмите для выбора видео</span>
+                    <label class="file-box">
+                        <span id="videoLabel">Выбрать видео</span>
                         <input type="file" id="videoFile" accept="video/*">
-                    </div>
+                    </label>
                 </div>
 
-                <button type="submit" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
-                <div id="status" class="status"></div>
+                <button type="submit" id="submitBtn">ОТПРАВИТЬ ДАННЫЕ</button>
+                <div id="status"></div>
             </form>
         </div>
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz8G_EgPlaQdnoh1DEgUuLNIYYJrFE6njL5fw6HceD1hE-TKJmitnlNmd3EtQU8pH8/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzyiIyhnsxnj_TYDP_MlUQVJP8ABcjG9b81foHwA/exec";
 
-        document.getElementById('photoFile').onchange = (e) => {
-            document.getElementById('photoLabel').innerText = e.target.files[0].name;
-        };
-
-        document.getElementById('videoFile').onchange = (e) => {
-            document.getElementById('videoLabel').innerText = e.target.files[0].name;
-        };
+        document.getElementById('photoFile').onchange = e => document.getElementById('photoLabel').innerText = e.target.files[0].name;
+        document.getElementById('videoFile').onchange = e => document.getElementById('videoLabel').innerText = e.target.files[0].name;
 
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             const status = document.getElementById('status');
             btn.disabled = true;
-            status.style.color = "var(--accent)";
-            status.innerText = "⏳ Обработка данных...";
+            status.innerHTML = "⏳ Подготовка файлов...";
 
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
+            const data = Object.fromEntries(new FormData(e.target).entries());
 
-            const toBase64 = file => new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
+            const readFile = file => new Promise(res => {
+                const r = new FileReader();
+                r.onload = () => res(r.result);
+                r.readAsDataURL(file);
             });
 
-            const photo = document.getElementById('photoFile').files[0];
-            if (photo) {
-                status.innerText = "📸 Загрузка фото...";
-                data.photoBase64 = await toBase64(photo);
-                data.photoName = photo.name;
-            }
-
-            const video = document.getElementById('videoFile').files[0];
-            if (video) {
-                if (video.size > 25 * 1024 * 1024) {
-                    alert("Видео слишком большое! Макс 25 МБ. Сожмите видео или загрузите на YouTube.");
-                    btn.disabled = false; status.innerText = ""; return;
-                }
-                status.innerText = "🎥 Загрузка видео...";
-                data.videoBase64 = await toBase64(video);
-                data.videoName = video.name;
-            }
-
             try {
-                // Используем обычную форму для обхода CORS
-                const response = await fetch(SCRIPT_URL, {
+                const photo = document.getElementById('photoFile').files[0];
+                if (photo) {
+                    status.innerHTML = "📸 Сжатие фото...";
+                    data.photoBase64 = await readFile(photo);
+                    data.photoName = photo.name;
+                }
+
+                const video = document.getElementById('videoFile').files[0];
+                if (video) {
+                    if (video.size > 25*1024*1024) { alert("Видео слишком большое!"); btn.disabled = false; return; }
+                    status.innerHTML = "🎥 Обработка видео...";
+                    data.videoBase64 = await readFile(video);
+                    data.videoName = video.name;
+                }
+
+                status.innerHTML = "🚀 Отправка в Google Таблицу...";
+                
+                // Используем текстовый метод отправки для стабильности
+                await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
-                    cache: 'no-cache',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-                
-                // Google Scripts при no-cors всегда возвращает непрозрачный ответ, 
-                // поэтому мы просто считаем, что если нет ошибки в сети, то всё ок.
-                status.style.color = "#4cd964";
-                status.innerText = "✅ Анкета успешно отправлена! Проверьте таблицу.";
+
+                status.innerHTML = "<b style='color:#4cd964'>✅ АНКЕТА ПРИНЯТА!</b><br>Данные появятся в таблице через пару секунд.";
                 e.target.reset();
-                document.getElementById('photoLabel').innerText = "Нажмите для выбора фото";
+                document.getElementById('photoLabel').innerText = "Выбрать фото";
+                document.getElementById('videoLabel').innerText = "Выбрать видео";
             } catch (err) {
-                status.style.color = "#ff3b30";
-                status.innerText = "❌ Ошибка. Проверьте интернет.";
+                status.innerHTML = "<b style='color:#ff3b30'>❌ ОШИБКА</b><br>" + err.message;
             }
             btn.disabled = false;
         };
