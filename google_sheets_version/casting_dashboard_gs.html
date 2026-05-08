@@ -282,7 +282,8 @@
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOZprF0d6DAsO50Vng0OOnuPw-ZS79sVIOe3ZqlX9r7RKm4eWX5u6AA5gHQ8xb30vT28kQr2F8WRxm/pub?gid=1424975507&single=true&output=csv";
     const RATINGS_API = "https://script.google.com/macros/s/AKfycbxA3xs799pc5MHjgbVAxXc1uPqLyF9k_XLLUoCfEiLx30OOvqA4xv7SrnQP3OEVF-k/exec";
     const BOT_TOKEN = "8534227633:AAEqULwA8rypkF-BW87G_9ACmKWNEoGZFI4";
-    const CHAT_ID = "-1003738942785";
+    const CHAT_ID = "-1003842243687";
+    const THREAD_ID = 2;
 
     let actors = [];
     let cloudData = {};
@@ -712,14 +713,19 @@
             const hasPhoto = photoUrl && photoUrl.length > 20;
 
             if (hasPhoto) {
-                res = await post('sendPhoto', { chat_id: CHAT_ID, photo: photoUrl, caption: cap, parse_mode: 'HTML' });
+                res = await post('sendPhoto', { 
+                    chat_id: CHAT_ID, 
+                    message_thread_id: THREAD_ID,
+                    photo: photoUrl, 
+                    caption: cap, 
+                    parse_mode: 'HTML' 
+                });
                 let data = await res.json();
                 
-                // Если ошибка "wrong type" (Google Drive глючит), пробуем отправить ПРОСТО ТЕКСТ
                 if (!data.ok && (data.description || "").includes("wrong type")) {
-                    console.warn("Photo failed, falling back to text...");
                     res = await post('sendMessage', { 
                         chat_id: CHAT_ID, 
+                        message_thread_id: THREAD_ID,
                         text: cap + `\n\n🖼 <a href="${photoUrl}">ФОТО КАНДИДАТА</a>`, 
                         parse_mode: 'HTML', 
                         disable_web_page_preview: false 
@@ -736,7 +742,12 @@
                     btn.disabled = false; btn.innerText = oldText;
                 }
             } else {
-                res = await post('sendMessage', { chat_id: CHAT_ID, text: cap, parse_mode: 'HTML' });
+                res = await post('sendMessage', { 
+                    chat_id: CHAT_ID, 
+                    message_thread_id: THREAD_ID,
+                    text: cap, 
+                    parse_mode: 'HTML' 
+                });
                 const data = await res.json();
                 if (data.ok) {
                     updateCloud(rowId, score, status + "_SENT");
