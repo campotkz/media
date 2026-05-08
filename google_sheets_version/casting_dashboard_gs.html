@@ -65,10 +65,13 @@
         try {
             // 1. Сначала ВСЕГДА берем свежие звезды из облака с обходом кэша
             const cloudResp = await fetch(RATINGS_API + "?action=get&nocache=" + Date.now());
-            const newData = await cloudResp.json();
-            if (newData && Object.keys(newData).length > 0) {
-                cloudData = newData;
+            const text = await cloudResp.text();
+            try {
+                cloudData = JSON.parse(text);
                 console.log("Cloud Data Updated:", cloudData);
+            } catch(e) {
+                console.warn("Could not parse cloud data, using empty. Response was:", text);
+                cloudData = {};
             }
             
             // 2. Потом берем анкеты
