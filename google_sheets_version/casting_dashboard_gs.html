@@ -32,23 +32,36 @@
         .tab:hover { background: rgba(255,255,255,0.1); }
         .tab.active { background: var(--accent); color: white; border-color: var(--accent); }
 
-        /* Filters Panel */
-        .filters-panel { 
-            background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 12px; 
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 20px;
+        .header { 
+            background: var(--bg); padding: 15px 20px; border-bottom: 1px solid var(--border); 
+            position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(10px);
         }
-        .filter-group { display: flex; flex-direction: column; gap: 4px; }
-        .filter-group label { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+
+        /* Filters Popup */
+        .filters-panel { 
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 600px;
+            background: #111218; border: 1px solid var(--accent); border-radius: 16px; 
+            padding: 20px; z-index: 1100; box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+            display: none; grid-template-columns: 1fr; gap: 15px;
+        }
+        .filters-active { display: grid !important; }
+        
+        .filter-group { display: flex; flex-direction: column; gap: 6px; }
+        .filter-group label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
         input, select { 
-            background: #1e2029; border: 1px solid var(--border); padding: 6px 10px; color: white; border-radius: 6px; font-size: 12px; outline: none; transition: 0.2s;
+            background: #1e2029; border: 1px solid var(--border); padding: 10px; color: white; border-radius: 8px; font-size: 13px; outline: none; transition: 0.2s;
         }
         input:focus { border-color: var(--accent); background: #252833; }
         
-        .search-box { grid-column: 1 / -1; margin-bottom: 5px; }
-        .search-box input { width: 100%; font-size: 15px; padding: 12px 15px; background: var(--glass); }
+        .btn-filter-toggle { 
+            background: var(--glass); color: white; border: 1px solid var(--border); 
+            padding: 8px 15px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
+        }
+        .btn-filter-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
         /* Grid */
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; padding-top: 20px; }
 
         /* Card */
         .card { 
@@ -124,7 +137,7 @@
 
 <div class="container">
     <div class="header">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
             <div class="logo">GULYWOOD <span>CRM</span></div>
             
             <div class="tabs" id="mainTabs" style="margin-top:0; flex-grow:1; justify-content:center;">
@@ -137,44 +150,54 @@
                 <div class="tab" data-tab="trash">Трэш</div>
             </div>
 
-            <div style="font-size: 10px; color: var(--muted); text-align:right;">v2.0 PRO<br>IP PROOF</div>
+            <button class="btn-filter-toggle" onclick="toggleFilters()">🔍 Фильтры и Поиск</button>
         </div>
     </div>
 
-    <div class="filters-panel">
-        <div class="filter-group search-box">
+    <div class="filters-panel" id="filtersPanel">
+        <h3 style="margin:0 0 10px 0; color:var(--accent);">🔍 Настройка фильтров</h3>
+        
+        <div class="filter-group">
             <label>Глобальный поиск</label>
             <input type="text" id="sQuery" placeholder="Имя, город, опыт, приметы..." oninput="render()">
         </div>
-        <div class="filter-group">
-            <label>Проект</label>
-            <select id="fPrj" onchange="render()"><option value="">Все проекты</option></select>
-        </div>
-        <div class="filter-group">
-            <label>Пол</label>
-            <select id="fGen" onchange="render()"><option value="">Все</option><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select>
-        </div>
-        <div class="filter-group">
-            <label>Возраст (от - до)</label>
-            <div style="display:flex; gap:5px;">
-                <input type="number" id="fAgeMin" placeholder="От" oninput="render()">
-                <input type="number" id="fAgeMax" placeholder="До" oninput="render()">
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div class="filter-group">
+                <label>Проект</label>
+                <select id="fPrj" onchange="render()"><option value="">Все проекты</option></select>
+            </div>
+            <div class="filter-group">
+                <label>Пол</label>
+                <select id="fGen" onchange="render()"><option value="">Все</option><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select>
             </div>
         </div>
-        <div class="filter-group">
-            <label>Рост (см)</label>
-            <div style="display:flex; gap:5px;">
-                <input type="number" id="fHMin" placeholder="От" oninput="render()">
-                <input type="number" id="fHMax" placeholder="До" oninput="render()">
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+            <div class="filter-group">
+                <label>Возраст</label>
+                <div style="display:flex; gap:4px;">
+                    <input type="number" id="fAgeMin" placeholder="От" oninput="render()" style="padding:6px; font-size:11px;">
+                    <input type="number" id="fAgeMax" placeholder="До" oninput="render()" style="padding:6px; font-size:11px;">
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Рост</label>
+                <div style="display:flex; gap:4px;">
+                    <input type="number" id="fHMin" placeholder="От" oninput="render()" style="padding:6px; font-size:11px;">
+                    <input type="number" id="fHMax" placeholder="До" oninput="render()" style="padding:6px; font-size:11px;">
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Вес</label>
+                <div style="display:flex; gap:4px;">
+                    <input type="number" id="fWMin" placeholder="От" oninput="render()" style="padding:6px; font-size:11px;">
+                    <input type="number" id="fWMax" placeholder="До" oninput="render()" style="padding:6px; font-size:11px;">
+                </div>
             </div>
         </div>
-        <div class="filter-group">
-            <label>Вес (кг)</label>
-            <div style="display:flex; gap:5px;">
-                <input type="number" id="fWMin" placeholder="От" oninput="render()">
-                <input type="number" id="fWMax" placeholder="До" oninput="render()">
-            </div>
-        </div>
+
+        <button class="btn btn-primary" onclick="toggleFilters()" style="margin-top:10px; width:100%;">Применить и закрыть</button>
     </div>
 
     <div id="actorGrid" class="grid"></div>
@@ -193,6 +216,10 @@
     let actors = [];
     let cloudData = {};
     let currentTab = "new";
+
+    function toggleFilters() {
+        document.getElementById('filtersPanel').classList.toggle('filters-active');
+    }
 
     // Инициализация табов
     document.querySelectorAll('.tab').forEach(tab => {
