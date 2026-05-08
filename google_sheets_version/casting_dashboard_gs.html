@@ -58,9 +58,17 @@
 
     // Преобразование ссылки Google Drive для прямого показа фото
     function getDirectLink(url) {
-        if (!url || !url.includes('id=')) return url;
-        const id = url.split('id=')[1].split('&')[0];
-        return `https://docs.google.com/uc?export=view&id=${id}`;
+        if (!url) return "";
+        if (url.includes('drive.google.com')) {
+            let id = "";
+            if (url.includes('id=')) {
+                id = url.split('id=')[1].split('&')[0];
+            } else if (url.includes('/file/d/')) {
+                id = url.split('/file/d/')[1].split('/')[0];
+            }
+            if (id) return `https://lh3.googleusercontent.com/d/${id}`;
+        }
+        return url;
     }
 
     async function fetchData() {
