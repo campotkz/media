@@ -412,7 +412,22 @@
             const statusRaw = val.includes(":") ? val.split(":")[1] : "Новая";
             const status = statusRaw.replace("_SENT", "");
             const isSent = statusRaw.includes("_SENT");
-            
+
+            // Умный поиск параметров (если колонки называются иначе)
+            let ageVal = a["Возраст"] || a["Лет"] || "?";
+            let heightVal = a["Рост (см)"] || a["Рост"] || "?";
+            let weightVal = a["Вес (кг)"] || a["Вес"] || "?";
+
+            if (ageVal === "?") {
+                for (let k in a) if (k.toLowerCase().includes("возраст") || k.toLowerCase().includes("лет")) ageVal = a[k];
+            }
+            if (heightVal === "?") {
+                for (let k in a) if (k.toLowerCase().includes("рост")) heightVal = a[k];
+            }
+            if (weightVal === "?") {
+                for (let k in a) if (k.toLowerCase().includes("вес")) weightVal = a[k];
+            }
+
             const name = a["ФИО (Полностью)"] || a["ФИО"] || "Без имени";
             
             let photosRaw = a["Фото (Портрет)"] || a["Фото"] || "";
@@ -443,9 +458,9 @@
                     ` : ''}
                     <div class="actor-name">${name}</div>
                     <div class="actor-main-params">
-                        <div class="param-item"><span class="param-val">${a["Рост (см)"]||a["Рост"]||'?'}</span><span class="param-label">Рост</span></div>
-                        <div class="param-item"><span class="param-val">${a["Вес (кг)"]||a["Вес"]||'?'}</span><span class="param-label">Вес</span></div>
-                        <div class="param-item"><span class="param-val">${a["Возраст"]||'?'}</span><span class="param-label">Лет</span></div>
+                        <div class="param-item"><span class="param-val">${heightVal}</span><span class="param-label">Рост</span></div>
+                        <div class="param-item"><span class="param-val">${weightVal}</span><span class="param-label">Вес</span></div>
+                        <div class="param-item"><span class="param-val">${ageVal}</span><span class="param-label">Лет</span></div>
                     </div>
                     
                     <div class="actor-details">
