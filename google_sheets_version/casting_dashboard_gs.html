@@ -371,20 +371,15 @@
             const isSent = val.includes("_SENT");
             
             // ПРАВИЛА ВКЛАДОК
-            if (currentTab === "new") {
-                if (status !== "Новая") return false;
-            } else if (currentTab === "interest") {
-                if (status !== "Interesting") return false;
-            } else if (currentTab === "selected") {
-                if (status !== "Selected") return false;
-            } else if (currentTab === "sent") {
-                if (!isSent) return false;
-            } else if (currentTab === "archive") {
-                if (status !== "Archive") return false;
-            } else if (currentTab === "trash") {
-                if (status !== "Trash") return false;
-            } else if (currentTab === "all") {
+            if (currentTab === "new") { if (status !== "Новая") return false; }
+            else if (currentTab === "interest") { if (status !== "Interesting") return false; }
+            else if (currentTab === "selected") { if (status !== "Selected") return false; }
+            else if (currentTab === "sent") { if (!isSent) return false; }
+            else if (currentTab === "archive") { if (status !== "Archive") return false; }
+            else if (currentTab === "trash") { if (status !== "Trash") return false; }
+            else if (currentTab === "all") {
                 if (status === "Trash") return false;
+                if (status === "Archive" && !q) return false;
             }
 
             // Глобальный поиск и фильтры
