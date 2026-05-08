@@ -88,6 +88,7 @@
         const lines = csv.split("\n");
         if (lines.length < 2) return [];
         const headers = lines[0].split(",").map(h => h.trim().replace(/"/g, ''));
+        console.log("TABLE HEADERS:", headers); // ОТЛАДКА: смотрим заголовки
         
         return lines.slice(1).map(line => {
             // Умный сплит по запятым, игнорируя запятые внутри кавычек (для ссылок)
