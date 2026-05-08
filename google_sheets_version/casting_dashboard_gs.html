@@ -3,45 +3,170 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GULYWOOD CASTING ULTIMATE</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>GULYWOOD CASTING CRM PRO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #050608; --card: #111218; --accent: #ff5722; --text: #eee; --muted: #888; --border: rgba(255,255,255,0.1); }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 25px; background: #0f1016; padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
-        input, select { background: #1a1b23; border: 1px solid var(--border); padding: 8px; color: white; border-radius: 6px; font-size: 12px; width: 100%; box-sizing: border-box; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
-        .card { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); transition: 0.3s; position: relative; display: flex; flex-direction: column; }
-        .photo-container { width: 100%; height: 380px; background: #222; position: relative; }
-        .photo { width: 100%; height: 100%; object-fit: cover; }
-        .rating-badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85); padding: 4px 10px; border-radius: 20px; color: #ffd700; font-weight: bold; border: 1px solid #ffd700; font-size: 14px; }
-        .sent-badge { position: absolute; top: 10px; right: 10px; background: #24A1DE; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
-        .info { padding: 15px; flex-grow: 1; }
-        .name { font-size: 17px; font-weight: 700; color: var(--accent); margin-bottom: 5px; }
-        .meta { font-size: 11px; color: var(--muted); display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
-        .tag { background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; }
-        .btn-action { display: block; width: 100%; padding: 10px; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; margin-top: 8px; text-decoration: none; text-align: center; font-size: 12px; }
-        .btn-tg { background: #24A1DE; }
-        .btn-video { background: #ff0000; }
+        :root { 
+            --bg: #090a0f; --card: #15161e; --accent: #ff5722; --text: #f0f0f0; 
+            --muted: #8e92a2; --border: rgba(255,255,255,0.08); --glass: rgba(255,255,255,0.03);
+            --new: #4caf50; --trash: #f44336; --archive: #9e9e9e; --interest: #ffeb3b;
+        }
+        
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        
+        /* Layout */
+        .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+        
+        /* Header & Tabs */
+        .header { display: flex; flex-direction: column; gap: 20px; margin-bottom: 30px; position: sticky; top: 0; z-index: 100; background: var(--bg); padding-bottom: 10px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 24px; font-weight: 800; letter-spacing: -1px; }
+        .logo span { color: var(--accent); }
+        
+        .tabs { display: flex; gap: 10px; overflow-x: auto; padding: 5px 0; scrollbar-width: none; }
+        .tab { 
+            padding: 10px 20px; background: var(--glass); border: 1px solid var(--border); border-radius: 30px; 
+            cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; transition: 0.2s; color: var(--muted);
+        }
+        .tab:hover { background: rgba(255,255,255,0.1); }
+        .tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+        /* Filters Panel */
+        .filters-panel { 
+            background: var(--card); border-radius: 16px; border: 1px solid var(--border); padding: 20px; 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px;
+        }
+        .filter-group { display: flex; flex-direction: column; gap: 6px; }
+        .filter-group label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+        input, select { 
+            background: #1e2029; border: 1px solid var(--border); padding: 10px; color: white; border-radius: 8px; font-size: 13px; outline: none; transition: 0.2s;
+        }
+        input:focus { border-color: var(--accent); background: #252833; }
+        
+        .search-box { grid-column: 1 / -1; margin-bottom: 5px; }
+        .search-box input { width: 100%; font-size: 15px; padding: 12px 15px; background: var(--glass); }
+
+        /* Grid */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+
+        /* Card */
+        .card { 
+            background: var(--card); border-radius: 20px; overflow: hidden; border: 1px solid var(--border); 
+            display: flex; flex-direction: column; position: relative; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card:hover { transform: translateY(-5px); border-color: rgba(255,87,34,0.4); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        .card-photo-wrap { width: 100%; height: 420px; background: #1a1b23; position: relative; cursor: pointer; }
+        .card-photo { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Badges */
+        .badge { position: absolute; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; z-index: 10; }
+        .badge-new { top: 15px; left: 15px; background: var(--new); color: white; }
+        .badge-rating { top: 15px; right: 15px; background: rgba(0,0,0,0.8); color: #ffd700; border: 1px solid #ffd700; }
+        .badge-status { bottom: 15px; left: 15px; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); color: white; border: 1px solid var(--border); }
+
+        /* Content */
+        .card-body { padding: 20px; flex-grow: 1; }
+        .actor-name { font-size: 20px; font-weight: 800; color: white; margin-bottom: 8px; }
+        .actor-main-params { display: flex; gap: 15px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+        .param-item { display: flex; flex-direction: column; }
+        .param-val { font-size: 16px; font-weight: 700; color: var(--accent); }
+        .param-label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+
+        .actor-details { font-size: 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .detail-row { display: flex; flex-direction: column; gap: 2px; }
+        .detail-label { font-size: 10px; color: var(--muted); }
+        .detail-val { color: #ccc; overflow: hidden; text-overflow: ellipsis; }
+
+        .tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; }
+        .tag { background: var(--glass); padding: 4px 8px; border-radius: 6px; font-size: 10px; border: 1px solid var(--border); }
+
+        .text-block { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 12px; line-height: 1.4; color: #bbb; white-space: pre-line; margin-bottom: 15px; max-height: 80px; overflow-y: auto; }
+
+        /* Actions */
+        .card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
+        .btn { 
+            padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-size: 11px; font-weight: 700; 
+            display: flex; align-items: center; justify-content: center; gap: 5px; transition: 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-tg { background: #24A1DE; color: white; }
+        .btn-video { background: #ff0000; color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+        .btn-outline:hover { background: var(--glass); color: white; border-color: white; }
+        
+        .status-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; grid-column: 1 / -1; }
+        
+        /* Floating Sync */
+        .sync-btn { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 30px; background: var(--accent); color: white; border: none; cursor: pointer; box-shadow: 0 5px 20px rgba(255,87,34,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; }
+        .sync-btn:active { transform: scale(0.9); }
+
+        @media (max-width: 600px) {
+            .container { padding: 10px; }
+            .grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1 style="margin:0; font-size: 20px;">GULYWOOD <span style="color:var(--accent)">CASTING</span></h1>
-    <button onclick="syncAll()" id="syncBtn" style="padding:8px 15px; background:var(--accent); border:none; border-radius:6px; color:white; cursor:pointer; font-weight:bold;">ОБНОВИТЬ ВСЁ</button>
+<div class="container">
+    <div class="header">
+        <div class="header-top">
+            <div class="logo">GULYWOOD <span>CRM</span></div>
+            <div style="font-size: 12px; color: var(--muted);">IP PROOF OF CARE • v2.0 PRO</div>
+        </div>
+        
+        <div class="tabs" id="mainTabs">
+            <div class="tab active" data-tab="new">Входящие</div>
+            <div class="tab" data-tab="all">Общая база</div>
+            <div class="tab" data-tab="interest">Интересные</div>
+            <div class="tab" data-tab="selected">Отобранные</div>
+            <div class="tab" data-tab="archive">Архив</div>
+            <div class="tab" data-tab="trash">Трэш</div>
+        </div>
+    </div>
+
+    <div class="filters-panel">
+        <div class="filter-group search-box">
+            <label>Глобальный поиск</label>
+            <input type="text" id="sQuery" placeholder="Имя, город, опыт, приметы..." oninput="render()">
+        </div>
+        <div class="filter-group">
+            <label>Проект</label>
+            <select id="fPrj" onchange="render()"><option value="">Все проекты</option></select>
+        </div>
+        <div class="filter-group">
+            <label>Пол</label>
+            <select id="fGen" onchange="render()"><option value="">Все</option><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select>
+        </div>
+        <div class="filter-group">
+            <label>Возраст (от - до)</label>
+            <div style="display:flex; gap:5px;">
+                <input type="number" id="fAgeMin" placeholder="От" oninput="render()">
+                <input type="number" id="fAgeMax" placeholder="До" oninput="render()">
+            </div>
+        </div>
+        <div class="filter-group">
+            <label>Рост (см)</label>
+            <div style="display:flex; gap:5px;">
+                <input type="number" id="fHMin" placeholder="От" oninput="render()">
+                <input type="number" id="fHMax" placeholder="До" oninput="render()">
+            </div>
+        </div>
+        <div class="filter-group">
+            <label>Вес (кг)</label>
+            <div style="display:flex; gap:5px;">
+                <input type="number" id="fWMin" placeholder="От" oninput="render()">
+                <input type="number" id="fWMax" placeholder="До" oninput="render()">
+            </div>
+        </div>
+    </div>
+
+    <div id="actorGrid" class="grid"></div>
 </div>
 
-<div class="controls">
-    <div><label style="font-size:10px;color:#888">Вес (от)</label><input type="number" id="fWMin" oninput="render()"></div>
-    <div><label style="font-size:10px;color:#888">Вес (до)</label><input type="number" id="fWMax" oninput="render()"></div>
-    <div><label style="font-size:10px;color:#888">ФИО</label><input type="text" id="fName" oninput="render()"></div>
-    <div><label style="font-size:10px;color:#888">Пол</label><select id="fGen" onchange="render()"><option value="">Все</option><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select></div>
-    <div><label style="font-size:10px;color:#888">Проект</label><input type="text" id="fPrj" oninput="render()"></div>
-</div>
-
-<div id="actorGrid" class="grid"></div>
+<button class="sync-btn" id="syncBtn" onclick="syncAll()">🔄</button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
@@ -53,36 +178,50 @@
 
     let actors = [];
     let cloudData = {};
+    let currentTab = "new";
+
+    // Инициализация табов
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.onclick = () => {
+            document.querySelector('.tab.active').classList.remove('active');
+            tab.classList.add('active');
+            currentTab = tab.dataset.tab;
+            render();
+        }
+    });
 
     async function syncAll() {
         const btn = document.getElementById('syncBtn');
-        btn.innerText = "⏳ ЗАГРУЗКА...";
-        
-        // 1. Сначала пробуем звезды
+        btn.innerText = "⏳";
         try {
             const r = await fetch(RATINGS_API + "?action=get&cb=" + Math.random());
             const text = await r.text();
-            try { cloudData = JSON.parse(text); } catch(e) { console.log("Stars empty"); cloudData = {}; }
-        } catch(e) { console.error("Cloud error", e); }
+            try { cloudData = JSON.parse(text); } catch(e) { cloudData = {}; }
 
-        // 2. Всегда грузим анкеты, даже если звезды упали
-        Papa.parse(CSV_URL + "&cb=" + Date.now(), {
-            download: true, header: true, skipEmptyLines: true,
-            complete: function(res) {
-                actors = res.data.filter(a => Object.values(a).some(v => v)).map((a, i) => ({...a, _row: i + 2}));
-                render();
-                btn.innerText = "ОБНОВИТЬ ВСЁ";
-            },
-            error: function() { 
-                btn.innerText = "ОШИБКА CSV"; 
-            }
-        });
+            Papa.parse(CSV_URL + "&cb=" + Date.now(), {
+                download: true, header: true, skipEmptyLines: true,
+                complete: function(res) {
+                    actors = res.data.filter(a => Object.values(a).some(v => v)).map((a, i) => ({...a, _row: i + 2}));
+                    updateProjectFilter();
+                    render();
+                    btn.innerText = "🔄";
+                }
+            });
+        } catch(e) { btn.innerText = "❌"; }
     }
 
     function setCloudValue(id, val) {
-        cloudData[id] = val; render();
+        cloudData[id] = val;
+        render();
         const url = `${RATINGS_API}?action=set&id=${id}&score=${encodeURIComponent(val)}&t=${Date.now()}`;
-        new Image().src = url; fetch(url, { mode: 'no-cors' });
+        new Image().src = url;
+        fetch(url, { mode: 'no-cors' });
+    }
+
+    function updateProjectFilter() {
+        const sel = document.getElementById('fPrj');
+        const prjs = [...new Set(actors.map(a => a["Проект"] || a["Название проекта, в котором вы участвуете"] || "Не указан"))];
+        sel.innerHTML = '<option value="">Все проекты</option>' + prjs.map(p => `<option value="${p}">${p}</option>`).join('');
     }
 
     function getDirectLink(url) {
@@ -93,78 +232,174 @@
 
     function render() {
         const grid = document.getElementById('actorGrid');
-        const fName = document.getElementById('fName').value.toLowerCase();
+        const q = document.getElementById('sQuery').value.toLowerCase();
+        const fPrj = document.getElementById('fPrj').value;
         const fGen = document.getElementById('fGen').value;
-        const fPrj = document.getElementById('fPrj').value.toLowerCase();
+        const fAMin = parseInt(document.getElementById('fAgeMin').value) || 0;
+        const fAMax = parseInt(document.getElementById('fAgeMax').value) || 99;
+        const fHMin = parseInt(document.getElementById('fHMin').value) || 0;
+        const fHMax = parseInt(document.getElementById('fHMax').value) || 250;
         const fWMin = parseInt(document.getElementById('fWMin').value) || 0;
-        const fWMax = parseInt(document.getElementById('fWMax').value) || 999;
+        const fWMax = parseInt(document.getElementById('fWMax').value) || 300;
 
-        const filtered = actors.filter(a => {
-            let n = "", g = "", pr = "", w = 0;
-            for (let k in a) {
-                const key = k.toLowerCase();
-                const v = (a[k]||"").toString().trim();
-                if (key.includes("фио")) n = v.toLowerCase();
-                if (key === "пол") g = v;
-                if (key.includes("проект")) pr = v.toLowerCase();
-                if (key.includes("вес")) w = parseInt(v) || 0;
-            }
-            return n.includes(fName) && (!fGen || g === fGen) && pr.includes(fPrj) && w >= fWMin && w <= fWMax;
+        let filtered = actors.filter(a => {
+            const id = a._row;
+            const val = cloudData[id] || "0";
+            const score = parseInt(val) || 0;
+            const status = val.includes(":") ? val.split(":")[1] : "Новая"; // Дефолтный статус
+            
+            // Фильтр по табам
+            if (currentTab === "new" && status !== "Новая") return false;
+            if (currentTab === "interest" && status !== "Interesting" && score <= 3) return false;
+            if (currentTab === "selected" && status !== "Selected") return false;
+            if (currentTab === "archive" && status !== "Archive") return false;
+            if (currentTab === "trash" && status !== "Trash") return false;
+            if (currentTab === "all" && (status === "Trash" || status === "Archive")) return false;
+
+            // Глобальный поиск и фильтры
+            const name = (a["ФИО (Полностью)"] || a["ФИО"] || "").toLowerCase();
+            const city = (a["Город проживания"] || "").toLowerCase();
+            const experience = (a["Опыт съемок"] || "").toLowerCase();
+            const allText = JSON.stringify(a).toLowerCase();
+            
+            const age = parseInt(a["Возраст"]) || 0;
+            const height = parseInt(a["Рост"]) || 0;
+            const weight = parseInt(a["Вес"]) || 0;
+            const gender = a["Пол"] || "";
+            const prj = a["Проект"] || a["Название проекта, в котором вы участвуете"] || "";
+
+            return (allText.includes(q)) &&
+                   (!fPrj || prj === fPrj) &&
+                   (!fGen || gender === fGen) &&
+                   (age >= fAMin && age <= fAMax) &&
+                   (height >= fHMin && height <= fHMax) &&
+                   (weight >= fWMin && weight <= fWMax);
         });
 
-        filtered.sort((a,b) => (parseInt(cloudData[b._row])||0) - (parseInt(cloudData[a._row])||0));
+        // Умная сортировка: Новые -> Рейтинг -> Индекс (как дата)
+        filtered.sort((a, b) => {
+            const vA = cloudData[a._row] || "0";
+            const vB = cloudData[b._row] || "0";
+            const sA = vA.split(":")[1] || "Новая";
+            const sB = vB.split(":")[1] || "Новая";
+            
+            if (sA === "Новая" && sB !== "Новая") return -1;
+            if (sA !== "Новая" && sB === "Новая") return 1;
+            
+            const rA = parseInt(vA) || 0;
+            const rB = parseInt(vB) || 0;
+            if (rA !== rB) return rB - rA;
+            
+            return b._row - a._row; // По дате (строке)
+        });
 
         grid.innerHTML = filtered.map(a => {
             const id = a._row;
-            const name = a["ФИО (Полностью)"] || a["ФИО"] || a["Ваше ФИО"] || "Без имени";
             const val = cloudData[id] || "0";
-            const r = parseInt(val) || 0;
-            const sent = val.includes("_SENT");
+            const score = parseInt(val) || 0;
+            const status = val.includes(":") ? val.split(":")[1] : "Новая";
+            const isSent = val.includes("_SENT");
             
-            let photo = "", video = "";
-            for (let k in a) {
-                if (k.toLowerCase().includes("фото")) photo = a[k];
-                if (k.toLowerCase().includes("видео")) video = a[k];
-            }
+            const name = a["ФИО (Полностью)"] || a["ФИО"] || "Без имени";
+            const phone = a["Контактный телефон"] || a["Телефон"] || "—";
+            const social = a["Ваш ник в Инстаграм / Telegram"] || "—";
+            const photo = getDirectLink(a["Фото (Портрет)"] || a["Фото"]);
+            const video = a["Видеовизитка (ссылка на диск)"] || a["Видео"];
+            const city = a["Город проживания"] || "—";
+            const eth = a["Типаж / Национальность"] || "—";
+            const experience = a["Опыт съемок"] || "Нет данных";
+            const features = a["Особые приметы"] || "Нет";
 
-            return `<div class="card">
-                <div class="photo-container">
-                    ${r > 0 ? `<div class="rating-badge">★ ${r}</div>` : ''}
-                    ${sent ? `<div class="sent-badge">В ЧАТЕ ✅</div>` : ''}
-                    <img class="photo" src="${getDirectLink(photo)}" onerror="this.src='https://via.placeholder.com/300x400'">
+            return `
+            <div class="card" id="card-${id}">
+                <div class="card-photo-wrap" onclick="playVideo('${video}')">
+                    ${status === 'Новая' ? `<div class="badge badge-new">НОВАЯ</div>` : ''}
+                    <div class="badge badge-rating">★ ${score}</div>
+                    <div class="badge badge-status">${status}</div>
+                    <img class="card-photo" src="${photo}" onerror="this.src='https://via.placeholder.com/300x400'">
                 </div>
-                <div class="info">
-                    <div class="name">${name}</div>
-                    <div class="meta"><span class="tag">${a["Пол"]}</span><span class="tag">${a["Возраст"]}л</span><span class="tag">${a["Рост"]}см</span></div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
-                        <label>Оценка:</label>
-                        <select style="width:60px" onchange="setCloudValue('${id}', this.value + '${sent ? "_SENT" : ""}')">
-                            ${[...Array(11).keys()].map(n => `<option value="${n}" ${r == n ? 'selected' : ''}>${n || '—'}</option>`).join('')}
+                <div class="card-body">
+                    <div class="actor-name">${name}</div>
+                    <div class="actor-main-params">
+                        <div class="param-item"><span class="param-val">${a["Рост"]||'?'}</span><span class="param-label">Рост</span></div>
+                        <div class="param-item"><span class="param-val">${a["Вес"]||'?'}</span><span class="param-label">Вес</span></div>
+                        <div class="param-item"><span class="param-val">${a["Возраст"]||'?'}</span><span class="param-label">Лет</span></div>
+                    </div>
+                    
+                    <div class="actor-details">
+                        <div class="detail-row"><span class="detail-label">Пол</span><span class="detail-val">${a["Пол"]}</span></div>
+                        <div class="detail-row"><span class="detail-label">Город</span><span class="detail-val">${city}</span></div>
+                        <div class="detail-row"><span class="detail-label">Телефон</span><span class="detail-val">${phone}</span></div>
+                        <div class="detail-row"><span class="detail-label">Соцсети</span><span class="detail-val">${social}</span></div>
+                        <div class="detail-row" style="grid-column: 1/-1;"><span class="detail-label">Типаж</span><span class="detail-val">${eth}</span></div>
+                    </div>
+
+                    <div class="detail-label">Опыт / Приметы:</div>
+                    <div class="text-block">${experience}\n---\n${features}</div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <span class="detail-label">Звезды:</span>
+                        <select style="width:70px" onchange="updateCloud('${id}', this.value, '${status}')">
+                            ${[...Array(11).keys()].map(n => `<option value="${n}" ${score == n ? 'selected' : ''}>${n || '—'}</option>`).join('')}
                         </select>
                     </div>
-                    <button class="btn-action btn-tg" onclick="sendFull('${id}')">В ТЕЛЕГРАМ</button>
-                    ${video ? `<button onclick="playVideo('${video}')" class="btn-action btn-video">📺 ВИДЕО</button>` : ''}
+
+                    <div class="card-actions">
+                        <button class="btn btn-tg" onclick="sendFull('${id}')">${isSent ? '✅ В ЧАТЕ' : '✈️ В ЧАТ'}</button>
+                        <button class="btn btn-video" onclick="playVideo('${video}')">📺 ВИДЕО</button>
+                        
+                        <div class="status-buttons">
+                            <button class="btn btn-outline" title="Главная" onclick="updateCloud('${id}', ${score}, 'Main')">👀</button>
+                            <button class="btn btn-outline" title="Интересно" onclick="updateCloud('${id}', ${score}, 'Interesting')">⭐</button>
+                            <button class="btn btn-outline" title="Отобран" onclick="updateCloud('${id}', ${score}, 'Selected')">🏆</button>
+                            <button class="btn btn-outline" title="В архив" onclick="updateCloud('${id}', ${score}, 'Archive')">📂</button>
+                            <button class="btn btn-outline" title="В трэш" style="color:var(--trash)" onclick="updateCloud('${id}', ${score}, 'Trash')">🗑️</button>
+                        </div>
+                    </div>
                 </div>
             </div>`;
         }).join('');
     }
 
+    function updateCloud(id, score, status) {
+        const val = score + ":" + status;
+        setCloudValue(id, val);
+        // Анимация исчезновения при смене статуса (если мы не в "Общей базе")
+        if (currentTab !== "all") {
+            const card = document.getElementById('card-' + id);
+            card.style.opacity = "0";
+            card.style.transform = "scale(0.8)";
+            setTimeout(render, 300);
+        }
+    }
+
     function playVideo(url) {
+        if (!url || url === '#') { alert("Видео не загружено"); return; }
         let id = (url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/) || [])[1];
-        document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;display:flex;align-items:center;justify-content:center;"><div style="width:95%;max-width:800px;position:relative;"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-45px;right:0;color:white;background:none;border:none;font-size:40px;cursor:pointer;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="450"></iframe></div></div>`);
+        if (!id) { window.open(url, '_blank'); return; }
+        document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:2000;display:flex;align-items:center;justify-content:center;"><div style="width:95%;max-width:900px;position:relative;"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-50px;right:0;color:white;background:none;border:none;font-size:40px;cursor:pointer;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="500" frameborder="0" allowfullscreen></iframe></div></div>`);
     }
 
     async function sendFull(rowId) {
         const a = actors.find(act => act._row == rowId);
-        const btn = event.target; btn.disabled = true; btn.innerText = "⏳...";
-        let p = "", v = ""; for (let k in a) { if (k.toLowerCase().includes("фото")) p = getDirectLink(a[k]); if (k.toLowerCase().includes("видео")) v = a[k]; }
-        const r = parseInt(cloudData[rowId] || 0);
-        const cap = `🎭 *GULYWOOD*\n👤 *${a["ФИО (Полностью)"] || a["ФИО"] || "Без имени"}*\n⭐️ *Рейтинг:* ${r}/10\n🎬 *Проект:* ${a["Проект"] || '—'}\n🚻 *Параметры:* ${a["Возраст"]}л, ${a["Рост"]}см, ${a["Вес"]}кг\n\n🎬 [ВИДЕО](${v || '#'})`;
+        const btn = event.target; btn.disabled = true; btn.innerText = "...";
+        const val = cloudData[rowId] || "0";
+        const score = parseInt(val) || 0;
+        const status = val.includes(":") ? val.split(":")[1] : "Новая";
+        
+        let p = getDirectLink(a["Фото (Портрет)"] || a["Фото"]);
+        let v = a["Видеовизитка (ссылка на диск)"] || a["Видео"];
+        
+        const cap = `🎭 *GULYWOOD CASTING*\n👤 *${a["ФИО (Полностью)"] || a["ФИО"]}*\n\n⭐ *Рейтинг:* ${score}/10\n📊 *Статус:* ${status}\n\n🚻 *Параметры:* ${a["Пол"]}, ${a["Возраст"]}л, ${a["Рост"]}см / ${a["Вес"]}кг\n📍 *Город:* ${a["Город проживания"]}\n📱 *Тел:* ${a["Контактный телефон"]}\n\n🎬 [ВИДЕОВИЗИТКА](${v || '#'})`;
+        
         try {
-            const method = (p && p.length > 10) ? 'sendPhoto' : 'sendMessage';
-            const body = (p && p.length > 10) ? { chat_id: CHAT_ID, photo: p, caption: cap, parse_mode: 'Markdown' } : { chat_id: CHAT_ID, text: cap, parse_mode: 'Markdown' };
+            const method = (p && p.length > 20) ? 'sendPhoto' : 'sendMessage';
+            const body = (p && p.length > 20) ? { chat_id: CHAT_ID, photo: p, caption: cap, parse_mode: 'Markdown' } : { chat_id: CHAT_ID, text: cap, parse_mode: 'Markdown' };
             const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            if (res.ok) { setCloudValue(rowId, r + "_SENT"); btn.innerText = "В ЧАТЕ ✅"; } else { alert("Ошибка ТГ"); btn.disabled = false; btn.innerText = "В ТЕЛЕГРАМ"; }
+            if (res.ok) { 
+                updateCloud(rowId, score, status + "_SENT"); 
+                btn.innerText = "В ЧАТЕ ✅"; 
+            } else { alert("Ошибка ТГ"); btn.disabled = false; btn.innerText = "В ЧАТ"; }
         } catch(e) { alert("Ошибка сети"); btn.disabled = false; }
     }
 
