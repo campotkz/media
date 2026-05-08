@@ -87,15 +87,17 @@
     }
 
     async function setCloudValue(id, val) {
-        cloudData[id] = val; // Сразу обновляем локально
-        render(); // Перерисовываем
+        cloudData[id] = val;
+        render();
         
-        const url = `${RATINGS_API}?action=set&id=${encodeURIComponent(id)}&score=${encodeURIComponent(val)}`;
+        const url = `${RATINGS_API}?action=set&id=${encodeURIComponent(id)}&score=${encodeURIComponent(val)}&t=${Date.now()}`;
         
-        // Используем <img> для отправки запроса - это самый надежный способ обойти CORS в Google Apps Script
+        // Посылаем запрос двумя способами для надежности
+        fetch(url, { mode: 'no-cors' }); 
         const img = new Image();
         img.src = url;
-        console.log("Saving to cloud:", id, val);
+        
+        console.log("Saving...", id, val);
     }
 
     function getDirectLink(url) {
