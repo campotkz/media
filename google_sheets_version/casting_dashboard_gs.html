@@ -342,7 +342,9 @@
             actors.forEach(a => {
                 const keys = Object.keys(a);
                 const val = a[keys[idx]] || "";
-                val.split(',').forEach(s => { if(s.trim()) set.add(s.trim()); });
+                // Умное разделение: только запятые ВНЕ скобок
+                const parts = val.split(/,(?![^(]*\))/);
+                parts.forEach(s => { if(s.trim()) set.add(s.trim()); });
             });
             return [...set].sort();
         };
