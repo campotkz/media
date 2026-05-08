@@ -35,12 +35,13 @@
 </div>
 
 <div class="controls">
+    <div><label>Вес (от)</label><input type="number" id="fWMin" placeholder="кг" oninput="render()"></div>
+    <div><label>Вес (до)</label><input type="number" id="fWMax" placeholder="кг" oninput="render()"></div>
     <div><label>ФИО</label><input type="text" id="fName" oninput="render()"></div>
-    <div><label>Проект</label><input type="text" id="fPrj" oninput="render()"></div>
     <div><label>Пол</label><select id="fGen" onchange="render()"><option value="">Все</option><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select></div>
-    <div><label>Возраст от</label><input type="number" id="fAgeMin" oninput="render()"></div>
-    <div><label>Возраст до</label><input type="number" id="fAgeMax" oninput="render()"></div>
-    <div><label>Рост от</label><input type="number" id="fHMin" oninput="render()"></div>
+    <div><label>Возраст (от)</label><input type="number" id="fAgeMin" oninput="render()"></div>
+    <div><label>Рост (от)</label><input type="number" id="fHMin" oninput="render()"></div>
+    <div><label>Проект</label><input type="text" id="fPrj" placeholder="Название..." oninput="render()"></div>
 </div>
 
 <div id="actorGrid" class="grid"></div>
@@ -93,10 +94,11 @@
         const project = document.getElementById('fPrj').value.toLowerCase();
         const gender = document.getElementById('fGen').value;
         const ageMin = parseInt(document.getElementById('fAgeMin').value) || 0;
-        const ageMax = parseInt(document.getElementById('fAgeMax').value) || 999;
+        const wMin = parseInt(document.getElementById('fWMin').value) || 0;
+        const wMax = parseInt(document.getElementById('fWMax').value) || 999;
 
         const filtered = actors.filter(a => {
-            let n = "", p = "", g = "", age = 0;
+            let n = "", p = "", g = "", age = 0, weight = 0;
             for (let k in a) {
                 const key = k.toLowerCase().trim();
                 const v = (a[k] || "").toString().trim();
@@ -104,8 +106,10 @@
                 if (key.includes("проект")) p = v.toLowerCase();
                 if (key === "пол") g = v;
                 if (key.includes("возраст")) age = parseInt(v) || 0;
+                if (key.includes("вес")) weight = parseInt(v) || 0;
             }
-            return n.includes(search) && p.includes(project) && (!gender || g === gender) && age >= ageMin && age <= ageMax;
+            return n.includes(search) && p.includes(project) && (!gender || g === gender) && 
+                   age >= ageMin && weight >= wMin && weight <= wMax;
         });
 
         filtered.sort((a, b) => {
