@@ -60,7 +60,9 @@
             download: true,
             header: true,
             complete: function(results) {
-                actors = results.data.filter(a => Object.values(a).some(v => v && v.length > 2));
+                console.log("RAW HEADERS:", Object.keys(results.data[0] || {}));
+                console.log("FIRST ROW:", results.data[0]);
+                actors = results.data.filter(a => Object.values(a).some(v => v && v.length > 1));
                 render();
             }
         });
@@ -68,25 +70,25 @@
 
     function render() {
         const grid = document.getElementById('actorGrid');
-        const search = document.getElementById('searchInput').value.toLowerCase();
-        const project = document.getElementById('projectInput').value.toLowerCase();
-        const genderFilter = document.getElementById('genderSelect').value.toLowerCase();
+        const search = document.getElementById('searchInput').value.toLowerCase().trim();
+        const project = document.getElementById('projectInput').value.toLowerCase().trim();
+        const genderFilter = document.getElementById('genderSelect').value.toLowerCase().trim();
 
         const filtered = actors.filter(a => {
-            // Берем значения напрямую по вероятным ключам Google Формы
-            const name = (a["ФИО"] || a["Ваше ФИО"] || a["Имя"] || "").toString().toLowerCase();
-            const prj = (a["Проект"] || a["Название проекта"] || "").toString().toLowerCase();
+            let name = "", prj = "", gen = "";
             
-            // Ищем колонку "Пол" среди всех ключей
-            let gen = "";
-            for (let k in a) {
-                if (k.toLowerCase().includes("пол")) {
-                    gen = a[k].toString().toLowerCase().trim();
-                    break;
-                }
+            // Ищем данные, перебирая все ключи объекта (названия колонок)
+            for (let key in a) {
+                const k = key.toLowerCase().trim();
+                const val = (a[key] || "").toString().trim();
+                
+                if (k === "пол") gen = val.toLowerCase();
+                if (k.includes("фио") || k.includes("имя")) name = val.toLowerCase();
+                if (k.includes("проект")) prj = val.toLowerCase();
             }
 
             const matchGender = !genderFilter || gen.startsWith(genderFilter.substring(0,3));
+            
             return name.includes(search) && prj.includes(project) && matchGender;
         });
 
