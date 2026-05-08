@@ -541,6 +541,9 @@
     }
 
     async function sendFull(rowId) {
+        const confirmSend = confirm("⚠️ ВНИМАНИЕ!\n\nВы собираетесь отправить данные кандидата в ОБЩИЙ ЧАТ ГРУППЫ ПРОЕКТА для обсуждения.\n\nЕсли вы не Режиссер или Шоураннер, пожалуйста, не нажимайте ПОДТВЕРДИТЬ.\n\nОтправить анкету?");
+        if (!confirmSend) return;
+
         const a = actors.find(act => act._row == rowId);
         const btn = event.target; btn.disabled = true; btn.innerText = "...";
         const val = cloudData[rowId] || "0";
@@ -559,8 +562,9 @@
             if (res.ok) { 
                 updateCloud(rowId, score, status + "_SENT"); 
                 btn.innerText = "В ЧАТЕ ✅"; 
-            } else { alert("Ошибка ТГ"); btn.disabled = false; btn.innerText = "В ЧАТ"; }
-        } catch(e) { alert("Ошибка сети"); btn.disabled = false; }
+                btn.classList.add('active-status');
+            } else { alert("Ошибка ТГ"); btn.disabled = false; btn.innerText = "✈️ В ЧАТ"; }
+        } catch(e) { alert("Ошибка сети"); btn.disabled = false; btn.innerText = "✈️ В ЧАТ"; }
     }
 
     // Авто-синхронизация каждые 5 минут
