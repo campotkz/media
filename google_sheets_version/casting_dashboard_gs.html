@@ -319,18 +319,36 @@
             const isSent = val.includes("_SENT");
             
             const name = a["ФИО (Полностью)"] || a["ФИО"] || "Без имени";
-            const photo = getDirectLink(a["Фото (Портрет)"] || a["Фото"]);
-            const video = a["Видеовизитка (ссылка на диск)"] || a["Видео"];
+            
+            let photosRaw = "";
+            let video = "";
+            for (let k in a) {
+                if (k.toLowerCase().includes("фото")) photosRaw = a[k];
+                if (k.toLowerCase().includes("видео")) video = a[k];
+            }
+
+            // Обработка нескольких фото через запятую
+            const photoList = photosRaw.split(',').map(p => p.trim()).filter(p => p.length > 5);
+            const mainPhoto = getDirectLink(photoList[0]);
+            const extraPhotos = photoList.slice(1);
 
             return `
             <div class="card" id="card-${id}">
-                <div class="card-photo-wrap" onclick="playVideo('${video}')">
+                <div class="card-photo-wrap">
                     ${status === 'Новая' ? `<div class="badge badge-new">НОВАЯ</div>` : ''}
                     <div class="badge badge-rating">★ ${score}</div>
                     <div class="badge badge-status">${status}</div>
-                    <img class="card-photo" src="${photo}" onerror="this.src='https://via.placeholder.com/300x400'">
+                    <img class="card-photo" src="${mainPhoto}" onclick="zoomImg('${mainPhoto}')" onerror="this.src='https://via.placeholder.com/300x400'">
                 </div>
                 <div class="card-body">
+                    ${extraPhotos.length > 0 ? `
+                        <div style="display:flex; gap:5px; margin-bottom:10px; overflow-x:auto; padding-bottom:5px;">
+                            ${extraPhotos.map(p => {
+                                const link = getDirectLink(p);
+                                return `<img src="${link}" onclick="zoomImg('${link}')" style="width:50px; height:50px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid var(--border);">`
+                            }).join('')}
+                        </div>
+                    ` : ''}
                     <div class="actor-name">${name}</div>
                     <div class="actor-main-params">
                         <div class="param-item"><span class="param-val">${a["Рост"]||'?'}</span><span class="param-label">Рост</span></div>
@@ -387,7 +405,12 @@
         if (!url || url === '#') { alert("Видео не загружено"); return; }
         let id = (url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/) || [])[1];
         if (!id) { window.open(url, '_blank'); return; }
-        document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:2000;display:flex;align-items:center;justify-content:center;"><div style="width:95%;max-width:900px;position:relative;"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-50px;right:0;color:white;background:none;border:none;font-size:40px;cursor:pointer;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="500" frameborder="0" allowfullscreen></iframe></div></div>`);
+        document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:2000;display:flex;align-items:center;justify-content:center;" onclick="this.remove()"><div style="width:95%;max-width:900px;position:relative;" onclick="event.stopPropagation()"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-50px;right:0;color:white;background:none;border:none;font-size:40px;cursor:pointer;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="500" frameborder="0" allowfullscreen></iframe></div></div>`);
+    }
+
+    function zoomImg(src) {
+        if (!src || src.includes('placeholder')) return;
+        document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:2000;display:flex;align-items:center;justify-content:center;" onclick="this.remove()"><div style="width:90%;height:90%;display:flex;justify-content:center;align-items:center;" onclick="event.stopPropagation()"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:20px;right:20px;color:white;background:none;border:none;font-size:40px;cursor:pointer;z-index:2001;">&times;</button><img src="${src}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; box-shadow:0 0 50px rgba(0,0,0,0.8);"></div></div>`);
     }
 
     async function sendFull(rowId) {
