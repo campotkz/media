@@ -140,15 +140,19 @@
         .status-buttons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 10px; grid-column: 1 / -1; position: relative; }
         
         .rating-picker {
-            position: absolute; bottom: 45px; left: 0; right: 0; background: #1a1b23; border: 1px solid var(--accent);
+        .status-buttons { display: flex; gap: 4px; justify-content: flex-end; flex-grow: 1; position: relative; }
+        .rating-picker, .storage-picker { 
+            position: absolute; bottom: 35px; right: 0; background: #252833; border: 1px solid var(--border); 
             border-radius: 8px; display: none; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 6px; z-index: 100;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
-        .rating-picker span { 
-            padding: 5px; background: #252833; color: white; border-radius: 4px; font-size: 10px; 
-            text-align: center; cursor: pointer; transition: 0.2s; 
+        .storage-picker { grid-template-columns: 1fr 1fr; width: 140px; }
+        .rating-picker span, .storage-picker span { 
+            width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; 
+            font-size: 11px; font-weight: 700; color: white; cursor: pointer; border-radius: 4px; transition: 0.2s;
         }
-        .rating-picker span:hover { background: var(--accent); }
+        .storage-picker span { width: auto; height: 30px; font-size: 10px; }
+        .rating-picker span:hover, .storage-picker span:hover { background: var(--accent); }
 
         /* Floating Sync */
         .sync-btn { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 30px; background: var(--accent); color: white; border: none; cursor: pointer; box-shadow: 0 5px 20px rgba(255,87,34,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; }
@@ -413,20 +417,10 @@
             const status = statusRaw.replace("_SENT", "");
             const isSent = statusRaw.includes("_SENT");
 
-            // Умный поиск параметров (если колонки называются иначе)
-            let ageVal = a["Возраст"] || a["Лет"] || "?";
-            let heightVal = a["Рост (см)"] || a["Рост"] || "?";
-            let weightVal = a["Вес (кг)"] || a["Вес"] || "?";
-
-            if (ageVal === "?") {
-                for (let k in a) if (k.toLowerCase().includes("возраст") || k.toLowerCase().includes("лет")) ageVal = a[k];
-            }
-            if (heightVal === "?") {
-                for (let k in a) if (k.toLowerCase().includes("рост")) heightVal = a[k];
-            }
-            if (weightVal === "?") {
-                for (let k in a) if (k.toLowerCase().includes("вес")) weightVal = a[k];
-            }
+            // ТОЧНЫЙ МАППИНГ ИЗ ТАБЛИЦЫ
+            const ageVal = a["Возраст (полных лет)"] || a["Возраст"] || a["Лет"] || "?";
+            const heightVal = a["Рост (в сантиметрах)"] || a["Рост (см)"] || a["Рост"] || "?";
+            const weightVal = a["Вес (в килограммах)"] || a["Вес (кг)"] || a["Вес"] || "?";
 
             const name = a["ФИО (Полностью)"] || a["ФИО"] || "Без имени";
             
@@ -476,11 +470,14 @@
                             <div class="rating-picker" id="picker-${id}">
                                 ${[...Array(11).keys()].map(n => `<span onclick="updateCloud('${id}', ${n}, 'Interesting')">${n}</span>`).join('')}
                             </div>
+                            <div class="storage-picker" id="storage-${id}">
+                                <span onclick="updateCloud('${id}', ${score}, 'Archive')">📂 АРХИВ</span>
+                                <span onclick="updateCloud('${id}', ${score}, 'Trash')" style="color:var(--trash)">🗑️ ТРЭШ</span>
+                            </div>
                             <button class="btn btn-outline ${status === 'Main' ? 'active-status' : ''}" title="Просмотрен" onclick="updateCloud('${id}', ${score}, 'Main')">👀</button>
                             <button class="btn btn-outline ${status === 'Interesting' ? 'active-status' : ''}" title="Рейтинг" onclick="toggleRating('${id}')">⭐</button>
                             <button class="btn btn-outline ${status === 'Selected' ? 'active-status' : ''}" title="Отобран" onclick="updateCloud('${id}', ${score}, 'Selected')">🏆</button>
-                            <button class="btn btn-outline" title="В архив" onclick="updateCloud('${id}', ${score}, 'Archive')">📂</button>
-                            <button class="btn btn-outline" style="color:var(--trash)" title="В трэш" onclick="updateCloud('${id}', ${score}, 'Trash')">🗑️</button>
+                            <button class="btn btn-outline ${status === 'Archive' || status === 'Trash' ? 'active-status' : ''}" title="В архив / Трэш" onclick="toggleStorage('${id}')">📂</button>
                         </div>
                     </div>
                 </div>
@@ -514,7 +511,14 @@
     function toggleRating(id) {
         const p = document.getElementById('picker-' + id);
         const isShown = p.style.display === 'grid';
-        document.querySelectorAll('.rating-picker').forEach(x => x.style.display = 'none');
+        document.querySelectorAll('.rating-picker, .storage-picker').forEach(x => x.style.display = 'none');
+        p.style.display = isShown ? 'none' : 'grid';
+    }
+
+    function toggleStorage(id) {
+        const p = document.getElementById('storage-' + id);
+        const isShown = p.style.display === 'grid';
+        document.querySelectorAll('.rating-picker, .storage-picker').forEach(x => x.style.display = 'none');
         p.style.display = isShown ? 'none' : 'grid';
     }
 
