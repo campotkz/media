@@ -73,15 +73,20 @@
         const genderFilter = document.getElementById('genderSelect').value.toLowerCase();
 
         const filtered = actors.filter(a => {
-            let name = "", prj = "", gen = "";
-            for (let key in a) {
-                let k = key.toLowerCase();
-                let v = (a[key] || "").toString().toLowerCase();
-                if (k.includes("фио") || k.includes("имя")) name = v;
-                if (k.includes("проект")) prj = v;
-                if (k.includes("пол")) gen = v;
+            // Берем значения напрямую по вероятным ключам Google Формы
+            const name = (a["ФИО"] || a["Ваше ФИО"] || a["Имя"] || "").toString().toLowerCase();
+            const prj = (a["Проект"] || a["Название проекта"] || "").toString().toLowerCase();
+            
+            // Ищем колонку "Пол" среди всех ключей
+            let gen = "";
+            for (let k in a) {
+                if (k.toLowerCase().includes("пол")) {
+                    gen = a[k].toString().toLowerCase().trim();
+                    break;
+                }
             }
-            const matchGender = !genderFilter || gen.startsWith(genderFilter);
+
+            const matchGender = !genderFilter || gen.startsWith(genderFilter.substring(0,3));
             return name.includes(search) && prj.includes(project) && matchGender;
         });
 
