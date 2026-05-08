@@ -140,18 +140,20 @@
         .status-buttons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 10px; grid-column: 1 / -1; position: relative; }
         
         .rating-picker {
-        .status-buttons { display: flex; gap: 4px; justify-content: flex-end; flex-grow: 1; position: relative; }
+        .status-buttons { display: flex; gap: 4px; justify-content: flex-end; position: relative; width: 100%; }
         .rating-picker, .storage-picker { 
-            position: absolute; bottom: 35px; right: 0; background: #252833; border: 1px solid var(--border); 
-            border-radius: 8px; display: none; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 6px; z-index: 100;
+            position: absolute; bottom: 35px; right: 0; background: #252833; border: 1px solid var(--accent); 
+            border-radius: 8px; display: none; padding: 6px; z-index: 100;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
-        .storage-picker { grid-template-columns: 1fr 1fr; width: 140px; }
+        .rating-picker { grid-template-columns: repeat(5, 1fr); gap: 4px; }
+        .storage-picker { flex-direction: column; gap: 5px; width: 100px; }
         .rating-picker span, .storage-picker span { 
-            width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; 
+            display: flex; align-items: center; justify-content: center; 
             font-size: 11px; font-weight: 700; color: white; cursor: pointer; border-radius: 4px; transition: 0.2s;
         }
-        .storage-picker span { width: auto; height: 30px; font-size: 10px; }
+        .rating-picker span { width: 26px; height: 26px; }
+        .storage-picker span { padding: 6px; font-size: 10px; justify-content: flex-start; }
         .rating-picker span:hover, .storage-picker span:hover { background: var(--accent); }
 
         /* Floating Sync */
@@ -539,9 +541,9 @@
 
     function toggleStorage(id) {
         const p = document.getElementById('storage-' + id);
-        const isShown = p.style.display === 'grid';
+        const isShown = p.style.display === 'flex';
         document.querySelectorAll('.rating-picker, .storage-picker').forEach(x => x.style.display = 'none');
-        p.style.display = isShown ? 'none' : 'grid';
+        p.style.display = isShown ? 'none' : 'flex';
     }
 
     function zoomImg(src) {
