@@ -10,17 +10,18 @@
         body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
         .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; background: #0f1016; padding: 20px; border-radius: 16px; border: 1px solid var(--border); }
-        input, select { background: #1a1b23; border: 1px solid var(--border); padding: 12px; color: white; border-radius: 8px; font-size: 14px; width: 100%; }
+        input, select { background: #1a1b23; border: 1px solid var(--border); padding: 12px; color: white; border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); transition: 0.3s; }
-        .card:hover { border-color: var(--accent); }
-        .photo-container { width: 100%; height: 400px; background: #222; position: relative; }
+        .card { background: var(--card); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); transition: 0.3s; position: relative; }
+        .card:hover { transform: translateY(-5px); border-color: var(--accent); }
+        .photo-container { width: 100%; height: 400px; background: #222; overflow: hidden; position: relative; }
         .photo { width: 100%; height: 100%; object-fit: cover; }
         .info { padding: 20px; }
-        .name { font-size: 20px; font-weight: 700; color: var(--accent); margin-bottom: 10px; }
-        .meta { font-size: 14px; color: var(--muted); margin-bottom: 15px; display: flex; gap: 8px; }
-        .tag { background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 6px; }
-        .btn-action { display: block; width: 100%; padding: 12px; border: none; border-radius: 10px; color: white; font-weight: 600; cursor: pointer; margin-top: 10px; text-decoration: none; text-align: center; }
+        .name { font-size: 20px; font-weight: 700; margin-bottom: 5px; color: var(--accent); }
+        .meta { font-size: 14px; color: var(--muted); margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .tag { background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+        .details { font-size: 13px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 15px; margin-top: 15px; }
+        .btn-action { display: block; width: 100%; padding: 12px; border: none; border-radius: 10px; color: white; font-weight: 600; cursor: pointer; margin-top: 10px; text-decoration: none; text-align: center; font-size: 14px; }
         .btn-tg { background: #24A1DE; }
         .btn-video { background: #ff0000; }
         .status-msg { text-align: center; padding: 60px; color: var(--muted); grid-column: 1 / -1; }
@@ -29,7 +30,7 @@
 <body>
 
 <div class="header">
-    <h1 style="margin:0">Кастинг GULYWOOD</h1>
+    <h1 style="margin:0">База GULYWOOD</h1>
     <button onclick="fetchData()" style="padding:10px 20px; background:var(--accent); border:none; border-radius:8px; color:white; cursor:pointer;">ОБНОВИТЬ</button>
 </div>
 
@@ -55,17 +56,21 @@
     let actors = [];
 
     async function fetchData() {
-        document.getElementById('actorGrid').innerHTML = "<div class='status-msg'>Загрузка...</div>";
         Papa.parse(CSV_URL + "&cache=" + Math.random(), {
-            download: true,
-            header: true,
+            download: true, header: true,
             complete: function(results) {
-                console.log("RAW HEADERS:", Object.keys(results.data[0] || {}));
-                console.log("FIRST ROW:", results.data[0]);
                 actors = results.data.filter(a => Object.values(a).some(v => v && v.length > 1));
                 render();
             }
         });
+    }
+
+    function getDirectLink(url) {
+        if (!url || typeof url !== 'string') return "";
+        let id = "";
+        if (url.includes('id=')) id = url.split('id=')[1].split('&')[0];
+        else if (url.includes('/file/d/')) id = url.split('/file/d/')[1].split('/')[0];
+        return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
     }
 
     function render() {
@@ -75,49 +80,36 @@
         const genderFilter = document.getElementById('genderSelect').value.toLowerCase().trim();
 
         const filtered = actors.filter(a => {
-            let name = "", prj = "", gen = "";
-            
-            // Ищем данные, перебирая все ключи объекта (названия колонок)
-            for (let key in a) {
-                const k = key.toLowerCase().trim();
-                const val = (a[key] || "").toString().trim();
-                
-                if (k === "пол") gen = val.toLowerCase();
-                if (k.includes("фио") || k.includes("имя")) name = val.toLowerCase();
-                if (k.includes("проект")) prj = val.toLowerCase();
+            let n = "", p = "", g = "";
+            for (let k in a) {
+                const key = k.toLowerCase().trim();
+                const v = (a[k] || "").toString().trim().toLowerCase();
+                if (key === "пол") g = v;
+                if (key.includes("фио") || key.includes("имя")) n = v;
+                if (key.includes("проект")) p = v;
             }
-
-            const matchGender = !genderFilter || gen.startsWith(genderFilter.substring(0,3));
-            
-            return name.includes(search) && prj.includes(project) && matchGender;
+            const mG = !genderFilter || g.startsWith(genderFilter.substring(0,3));
+            return n.includes(search) && p.includes(project) && mG;
         });
 
-        if (filtered.length === 0) {
-            grid.innerHTML = "<div class='status-msg'>Ничего не найдено</div>";
-            return;
-        }
+        if (filtered.length === 0) { grid.innerHTML = "<div class='status-msg'>Пусто</div>"; return; }
 
         grid.innerHTML = filtered.map((a, i) => {
             let p = "", v = "";
-            for (let key in a) {
-                if (key.toLowerCase().includes("фото")) p = a[key];
-                if (key.toLowerCase().includes("видео")) v = a[key];
+            for (let k in a) {
+                if (k.toLowerCase().includes("фото")) p = a[k];
+                if (k.toLowerCase().includes("видео")) v = a[k];
             }
-            const photoUrl = p.includes('id=') ? `https://lh3.googleusercontent.com/d/${p.split('id=')[1].split('&')[0]}` : 
-                           (p.includes('/file/d/') ? `https://lh3.googleusercontent.com/d/${p.split('/file/d/')[1].split('/')[0]}` : p);
-
+            const img = getDirectLink(p);
             return `
             <div class="card">
-                <div class="photo-container">
-                    <img class="photo" src="${photoUrl}" onerror="this.src='https://via.placeholder.com/400x500?text=НЕТ+ФОТО'">
-                    <a href="${p}" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.5); color:white; padding:4px 8px; border-radius:4px; font-size:11px; text-decoration:none;">🔍 Оригинал</a>
-                </div>
+                <div class="photo-container"><img class="photo" src="${img}" onerror="this.src='https://via.placeholder.com/400x500'"></div>
                 <div class="info">
                     <div class="name">${a["ФИО"] || a["Ваше ФИО"] || 'Кандидат'}</div>
-                    <div class="meta"><span class="tag">${a["Пол"] || '—'}</span><span class="tag">${a["Возраст"] || '—'} лет</span></div>
-                    <div style="font-size:13px; color:var(--muted); margin-bottom:15px;"><b>Проект:</b> ${a["Проект"] || '—'}<br><b>Тел:</b> ${a["Телефон"] || '—'}</div>
+                    <div class="meta"><span class="tag">${a["Пол"]}</span><span class="tag">${a["Возраст"]} лет</span></div>
+                    <div class="details"><b>Проект:</b> ${a["Проект"]}<br><b>Тел:</b> ${a["Телефон"]}</div>
                     ${v ? `<button onclick="playVideo('${v}')" class="btn-action btn-video">📺 ВИДЕО</button>` : ''}
-                    <button class="btn-action btn-tg" onclick="sendToTelegram('${i}')">В ЧАТ</button>
+                    <button class="btn-action btn-tg" onclick="sendToTelegram(${i})">ОТПРАВИТЬ В ЧАТ</button>
                 </div>
             </div>`;
         }).join('');
@@ -125,16 +117,35 @@
 
     function playVideo(url) {
         let id = url.includes('id=') ? url.split('id=')[1].split('&')[0] : (url.includes('/file/d/') ? url.split('/file/d/')[1].split('/')[0] : "");
-        if(!id) { window.open(url, '_blank'); return; }
-        document.body.insertAdjacentHTML('beforeend', `<div id="vModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; display:flex; align-items:center; justify-content:center;"><div style="width:90%; max-width:800px; position:relative;"><button onclick="document.getElementById('vModal').remove()" style="position:absolute; top:-40px; right:0; color:white; background:none; border:none; font-size:40px; cursor:pointer;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="450"></iframe></div></div>`);
+        document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:1000;display:flex;align-items:center;justify-content:center;"><div style="width:90%;max-width:800px;position:relative;"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-40px;right:0;color:white;background:none;border:none;font-size:40px;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="450"></iframe></div></div>`);
     }
 
     async function sendToTelegram(idx) {
-        const a = actors[idx]; const btn = event.target; btn.disabled = true;
+        const a = filteredActors()[idx]; 
+        const btn = event.target; 
+        btn.disabled = true; btn.innerText = "⏳...";
         let p = "", v = ""; for (let k in a) { if (k.toLowerCase().includes("фото")) p = a[k]; if (k.toLowerCase().includes("видео")) v = a[k]; }
-        const msg = `🎭 *АНКЕТА GULYWOOD*\n\n👤 *Имя:* ${a["ФИО"] || a["Ваше ФИО"]}\n🎬 *Проект:* ${a["Проект"]}\n📍 *Город:* ${a["Город"]}\n📞 *Тел:* ${a["Телефон"]}\n\n🖼 [ФОТО](${p})\n🎬 [ВИДЕО](${v})`;
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CHAT_ID, text: msg, parse_mode: 'Markdown' }) });
-        btn.innerText = "✅ ОТПРАВЛЕНО";
+        const cap = `🎭 *АНКЕТА GULYWOOD*\n\n👤 *Имя:* ${a["ФИО"] || a["Ваше ФИО"]}\n🎬 *Проект:* ${a["Проект"]}\n🚻 *Пол/Возраст:* ${a["Пол"]}, ${a["Возраст"]} лет\n📞 *Тел:* ${a["Телефон"]}\n\n🎬 [ВИДЕО](${v})`;
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CHAT_ID, photo: getDirectLink(p), caption: cap, parse_mode: 'Markdown' }) });
+        btn.innerText = "✅ В ЧАТЕ";
+    }
+    
+    function filteredActors() {
+        const s = document.getElementById('searchInput').value.toLowerCase().trim();
+        const pInput = document.getElementById('projectInput').value.toLowerCase().trim();
+        const gF = document.getElementById('genderSelect').value.toLowerCase().trim();
+        return actors.filter(a => {
+            let n = "", pr = "", g = "";
+            for (let k in a) {
+                const key = k.toLowerCase().trim();
+                const v = (a[k] || "").toString().trim().toLowerCase();
+                if (key === "пол") g = v;
+                if (key.includes("фио") || key.includes("имя")) n = v;
+                if (key.includes("проект")) pr = v;
+            }
+            const mG = !gF || g.startsWith(gF.substring(0,3));
+            return n.includes(s) && pr.includes(pInput) && mG;
+        });
     }
 
     fetchData();
