@@ -8,38 +8,35 @@
     <style>
         :root { --bg: #0a0b10; --card-bg: rgba(20, 22, 30, 0.6); --accent: #ff5722; --text: rgba(255, 255, 255, 0.92); --muted: rgba(255, 255, 255, 0.6); --stroke: rgba(255, 255, 255, 0.1); --radius: 16px; }
         body { margin: 0; padding: 20px; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; justify-content: center; min-height: 100vh; }
-        .container { width: 100%; max-width: 500px; animation: fadeIn 0.8s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .container { width: 100%; max-width: 500px; }
         .card { background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid var(--stroke); border-radius: var(--radius); padding: 32px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
         h2 { margin: 0 0 8px 0; font-size: 24px; font-weight: 700; text-align: center; color: var(--accent); }
         .subtitle { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 32px; }
         .form-group { margin-bottom: 20px; }
         label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 8px; }
         input, select, textarea { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--stroke); border-radius: 12px; padding: 14px; color: white; font-size: 15px; box-sizing: border-box; }
-        .file-box { border: 1px dashed var(--stroke); border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; background: rgba(255,255,255,0.02); }
+        .file-box { border: 1px dashed var(--stroke); border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; display: block; background: rgba(255,255,255,0.02); }
         .file-box input { display: none; }
         button { width: 100%; padding: 16px; background: var(--accent); border: none; border-radius: 12px; color: #fff; font-weight: 700; cursor: pointer; transition: 0.2s; margin-top: 15px; }
         button:hover { transform: scale(1.02); background: #ff7043; }
-        #status { margin-top: 20px; text-align: center; font-size: 14px; line-height: 1.4; }
+        #status { margin-top: 20px; text-align: center; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
             <h2>АНКЕТА КАСТИНГА</h2>
-            <div class="subtitle">GULYWOOD CASTING • ВЕРСИЯ 2.0</div>
+            <div class="subtitle">GULYWOOD CASTING • СТАБИЛЬНАЯ ВЕРСИЯ</div>
             
             <form id="castingForm">
                 <div class="form-group"><label>ФИО</label><input type="text" name="full_name" required></div>
                 <div class="form-group"><label>Проект</label><input type="text" name="project_name" required></div>
-                
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group"><label>Пол</label><select name="gender"><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select></div>
                     <div class="form-group"><label>Возраст</label><input type="number" name="age"></div>
                 </div>
-
-                <div class="form-group"><label>Телефон</label><input type="tel" name="phone" placeholder="+7..." required></div>
-                <div class="form-group"><label>Опыт / Ссылки</label><textarea name="experience" rows="2"></textarea></div>
+                <div class="form-group"><label>Телефон</label><input type="tel" name="phone" required></div>
+                <div class="form-group"><label>Опыт</label><textarea name="experience" rows="2"></textarea></div>
 
                 <div class="form-group">
                     <label>Фотография</label>
@@ -49,74 +46,65 @@
                     </label>
                 </div>
 
-                <div class="form-group">
-                    <label>Видеовизитка (макс 20МБ)</label>
-                    <label class="file-box">
-                        <span id="videoLabel">Выбрать видео</span>
-                        <input type="file" id="videoFile" accept="video/*">
-                    </label>
-                </div>
-
-                <button type="submit" id="submitBtn">ОТПРАВИТЬ ДАННЫЕ</button>
+                <button type="submit" id="submitBtn">ОТПРАВИТЬ АНКЕТУ</button>
                 <div id="status"></div>
             </form>
         </div>
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzyiIyhnsxnj_TYDP_MlUQVJP8ABcjG9b81foHwA/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz8G_EgPlaQdnoh1DEgUuLNIYYJrFE6njL5fw6HceD1hE-TKJmitnlNmd3EtQU8pH8/exec";
 
-        document.getElementById('photoFile').onchange = e => document.getElementById('photoLabel').innerText = e.target.files[0].name;
-        document.getElementById('videoFile').onchange = e => document.getElementById('videoLabel').innerText = e.target.files[0].name;
+        document.getElementById('photoFile').onchange = e => {
+            if(e.target.files[0]) document.getElementById('photoLabel').innerText = e.target.files[0].name;
+        };
 
         document.getElementById('castingForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             const status = document.getElementById('status');
             btn.disabled = true;
-            status.innerHTML = "⏳ Подготовка файлов...";
+            status.innerHTML = "⏳ Обработка...";
 
-            const data = Object.fromEntries(new FormData(e.target).entries());
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
 
-            const readFile = file => new Promise(res => {
-                const r = new FileReader();
-                r.onload = () => res(r.result);
-                r.readAsDataURL(file);
-            });
-
-            try {
-                const photo = document.getElementById('photoFile').files[0];
-                if (photo) {
-                    status.innerHTML = "📸 Обработка фото...";
-                    data.photoBase64 = await readFile(photo);
+            const photo = document.getElementById('photoFile').files[0];
+            if (photo) {
+                status.innerHTML = "📸 Чтение фото...";
+                const reader = new FileReader();
+                reader.readAsDataURL(photo);
+                reader.onload = async () => {
+                    data.photoBase64 = reader.result;
                     data.photoName = photo.name;
-                }
-
-                status.innerHTML = "🚀 Отправка данных...";
-                
-                // Используем URLSearchParams для имитации обычной формы
-                const formBody = [];
-                for (const property in data) {
-                    const encodedKey = encodeURIComponent(property);
-                    const encodedValue = encodeURIComponent(data[property]);
-                    formBody.push(encodedKey + "=" + encodedValue);
-                }
-
-                await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: formBody.join("&")
-                });
-
-                status.innerHTML = "<b style='color:#4cd964'>✅ АНКЕТА ПРИНЯТА!</b><br>Данные появятся в таблице через пару секунд.";
-                e.target.reset();
-                document.getElementById('photoLabel').innerText = "Выбрать фото";
-                document.getElementById('videoLabel').innerText = "Выбрать видео";
-            } catch (err) {
-                status.innerHTML = "<b style='color:#ff3b30'>❌ ОШИБКА</b><br>" + err.message;
+                    send(data);
+                };
+            } else {
+                send(data);
             }
-            btn.disabled = false;
+
+            async function send(payload) {
+                status.innerHTML = "🚀 Отправка в таблицу...";
+                try {
+                    // Используем URLSearchParams для совместимости с e.parameter
+                    const params = new URLSearchParams();
+                    for (const key in payload) params.append(key, payload[key]);
+
+                    await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        body: params.toString(),
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                    });
+
+                    status.innerHTML = "<b style='color:#4cd964'>✅ ОТПРАВЛЕНО!</b><br>Проверьте таблицу через 5 секунд.";
+                    e.target.reset();
+                    document.getElementById('photoLabel').innerText = "Выбрать фото";
+                } catch (err) {
+                    status.innerHTML = "<b style='color:#ff3b30'>❌ ОШИБКА</b>";
+                }
+                btn.disabled = false;
+            }
         };
     </script>
 </body>
