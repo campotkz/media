@@ -470,35 +470,40 @@
             // УМНЫЙ РАСЧЕТ ВОЗРАСТА (С ЗАЩИТОЙ ОТ ОШИБОК)
             let ageVal = "?";
             try {
-                const birthDateStr = a["Дата рождения"] || a[Object.keys(a)[13]] || ""; 
-                const timestamp = a["Отметка времени"] || a[Object.keys(a)[0]] || "";
-                const staticAge = a["Возраст (полных лет)"] || a["Возраст"] || "";
+                const findKey = (str) => Object.keys(a).find(k => k.toLowerCase().includes(str.toLowerCase()));
+                const dobKey = findKey("Дата рождения");
+                const tsKey = findKey("Отметка времени");
+                const ageKey = findKey("Возраст");
                 
-                if (birthDateStr && String(birthDateStr).length > 5) {
-                    const parts = String(birthDateStr).split(/[./-]/);
-                    const birthDate = new Date(parts.reverse().join('-'));
-                    if (!isNaN(birthDate)) {
+                const dobStr = a[dobKey] || "";
+                const timestamp = a[tsKey] || "";
+                const staticAge = a[ageKey] || "";
+
+                if (dobStr && String(dobStr).includes('.')) {
+                    const parts = String(dobStr).split('.');
+                    if (parts.length === 3) {
+                        const birthDate = new Date(parts[2], parts[1] - 1, parts[0]);
                         const today = new Date();
                         let age = today.getFullYear() - birthDate.getFullYear();
                         const m = today.getMonth() - birthDate.getMonth();
                         if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-                        ageVal = age;
+                        if (age > 0 && age < 100) ageVal = age;
                     }
                 }
                 
                 if (ageVal === "?" && staticAge) {
-                    const year = timestamp ? new Date(timestamp).getFullYear() : "";
+                    const year = timestamp ? timestamp.split('.')[2]?.split(' ')[0] : "";
                     ageVal = year ? `${staticAge} <span style="font-size:9px; opacity:0.6;">(${year}г)</span>` : staticAge;
                 }
-            } catch(e) { ageVal = a["Возраст (полных лет)"] || "?"; }
+            } catch(e) { ageVal = a["Возраст"] || "?"; }
 
-            const heightVal = a["Рост (в сантиметрах)"] || a["Рост (см)"] || "?";
-            const weightVal = a["Вес (в килограммах)"] || a["Вес (кг)"] || "?";
+            const heightVal = a[Object.keys(a).find(k => k.toLowerCase() === "рост")] || a["Рост"] || "?";
+            const weightVal = a[Object.keys(a).find(k => k.toLowerCase() === "вес")] || a["Вес"] || "?";
 
-            const name = a["ФИО (Полностью)"] || a["ФИО"] || "Без имени";
+            const name = a["ФИО"] || a["ФИО (Полностью)"] || "Без имени";
             
-            let photosRaw = a["Фото (Портрет)"] || a["Фото"] || "";
-            let video = a["Видеовизитка (ссылка на диск)"] || a["Видео"] || "";
+            let photosRaw = a["Фото (Портрет/Полный рост)"] || a["Фото"] || "";
+            let video = a["Видеовизитка"] || a["Видео"] || "";
 
             const photoList = photosRaw.split(',').map(p => p.trim()).filter(p => p.length > 5);
             const photo = getDirectLink(photoList[0]);
