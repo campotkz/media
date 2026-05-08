@@ -111,9 +111,18 @@
         // Определяем названия колонок (они могут меняться в зависимости от формы)
         // В Google формах обычно: Отметка времени, ФИО, Проект...
         const filtered = actors.filter(a => {
-            const name = (a["ФИО"] || a["Ваше ФИО"] || "").toLowerCase();
-            const prj = (a["Проект"] || a["Название проекта"] || "").toLowerCase();
-            const gen = a["Пол"] || "";
+            // Умный поиск полей для фильтрации
+            let name = "";
+            let prj = "";
+            let gen = "";
+            
+            for (let key in a) {
+                const k = key.toLowerCase();
+                if (k.includes("фио") || k.includes("имя")) name = a[key].toLowerCase();
+                if (k.includes("проект")) prj = a[key].toLowerCase();
+                if (k.includes("пол")) gen = a[key].trim();
+            }
+
             return name.includes(search) && prj.includes(project) && (!gender || gen === gender);
         });
 
