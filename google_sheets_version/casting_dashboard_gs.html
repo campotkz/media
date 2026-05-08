@@ -285,13 +285,29 @@
                    (weight >= fWMin && weight <= fWMax);
         });
 
-        // Умная сортировка
+        // Умная сортировка: Новые -> Отобранные -> Интересные -> Остальные
         filtered.sort((a, b) => {
             const vA = cloudData[a._row] || "0";
             const vB = cloudData[b._row] || "0";
+            const sA = vA.split(":")[1] || "Новая";
+            const sB = vB.split(":")[1] || "Новая";
+            
+            const getPriority = (s) => {
+                if (s.includes("Новая")) return 1;
+                if (s.includes("Selected")) return 2;
+                if (s.includes("Interesting")) return 3;
+                return 4; // Main и прочие
+            };
+
+            const pA = getPriority(sA);
+            const pB = getPriority(sB);
+
+            if (pA !== pB) return pA - pB;
+            
             const rA = parseInt(vA) || 0;
             const rB = parseInt(vB) || 0;
             if (rA !== rB) return rB - rA;
+            
             return b._row - a._row;
         });
 
