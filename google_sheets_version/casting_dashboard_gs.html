@@ -309,14 +309,6 @@
         } catch(e) { btn.innerText = "❌"; }
     }
 
-    function setCloudValue(id, val) {
-        cloudData[id] = val;
-        render();
-        const url = `${RATINGS_API}?action=set&id=${id}&score=${encodeURIComponent(val)}&t=${Date.now()}`;
-        new Image().src = url;
-        fetch(url, { mode: 'no-cors' });
-    }
-
     function updateDynamicFilters() {
         const prjSel = document.getElementById('fPrj');
         const roleSel = document.getElementById('fRole');
@@ -363,11 +355,21 @@
             const name = (a["ФИО (Полностью)"] || a["ФИО"] || "").toLowerCase();
             if (name.length < 1 && !(a["Фото"] || a["Фото (Портрет)"])) return false; // Пропуск пустых строк
 
-            if (fPrj && a["Проект"] !== fPrj) return false;
-            if (fRole && a["Роль"] !== fRole) return false;
+            const fPrj = document.getElementById("f-prj").value;
+            const fRole = document.getElementById("f-role").value;
+            const fGen = document.getElementById("f-gen").value;
+            const fCity = document.getElementById("f-city").value;
+            const fEth = document.getElementById("f-eth").value;
+            const fFormat = document.getElementById("f-format").value;
+
+            if (fPrj && (a["Название проекта (кастинга, из объявления:)"] || a["Проект"]) !== fPrj) return false;
+            if (fRole && (a["На какую роль подходите?"] || a["Роль"]) !== fRole) return false;
             if (fGen && a["Пол"] !== fGen) return false;
             if (fCity && a["Город проживания"] !== fCity) return false;
-            if (fEth && a["Национальность / Типаж"] !== fEth) return false;
+            
+            // Фильтры с поддержкой нескольких значений
+            if (fEth && !(a["Типаж (выберите из списка)"] || "").includes(fEth)) return false;
+            if (fFormat && !(a["В каких форматах готовы сниматься? (можно выбрать несколько)"] || "").includes(fFormat)) return false;
             
             const val = cloudData[id] || "0";
             const score = parseInt(val) || 0;
@@ -485,8 +487,10 @@
                     </div>
 
                     <div class="card-actions">
-                        <button class="btn btn-tg ${isSent ? 'active-status' : ''}" onclick="sendFull('${id}')">${isSent ? '✅ В ЧАТЕ' : '✈️ В ЧАТ'}</button>
-                        <button class="btn btn-video" onclick="playVideo('${video}')">📺</button>
+                        <div style="display:flex; gap:5px; flex-grow:1;">
+                            <button class="btn btn-tg ${isSent ? 'active-status' : ''}" onclick="sendFull('${id}')" style="flex-grow:1;">${isSent ? '✅ В ЧАТЕ' : '✈️ В ЧАТ'}</button>
+                            <button class="btn btn-video" onclick="playVideo('${video}')" title="Смотреть видео">📺</button>
+                        </div>
                         
                         <div class="status-buttons">
                             <div class="rating-picker" id="picker-${id}">
