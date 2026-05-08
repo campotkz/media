@@ -253,9 +253,9 @@
             </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-            <button class="btn btn-outline" onclick="resetFilters()" style="padding:10px; font-size:13px; font-weight:700;">СБРОСИТЬ</button>
-            <button class="btn btn-primary" onclick="toggleFilters()" style="padding:10px; font-size:13px; font-weight:700;">ГОТОВО</button>
+        <div style="display:flex; justify-content:center; gap:10px; margin-top:15px; padding-bottom:5px;">
+            <button class="btn btn-outline" onclick="resetFilters()" style="width:120px; height:36px; font-size:11px;">СБРОСИТЬ</button>
+            <button class="btn btn-primary" onclick="toggleFilters()" style="width:120px; height:36px; font-size:11px; background:var(--accent); color:white;">ГОТОВО</button>
         </div>
     </div>
 
@@ -281,8 +281,14 @@
     }
 
     function resetFilters() {
-        ['sQuery','fAgeMin','fAgeMax','fHMin','fHMax','fWMin','fWMax'].forEach(id => document.getElementById(id).value = '');
-        ['fPrj','fRole','fGen','fCity','fEth'].forEach(id => document.getElementById(id).value = '');
+        ['sQuery','fAgeMin','fAgeMax','fHMin','fHMax','fWMin','fWMax'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.value = '';
+        });
+        ['fPrj','fRole','fGen','fCity','fEth','fFormat'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.value = '';
+        });
         render();
     }
 
@@ -323,29 +329,31 @@
         const ethSel = document.getElementById('fEth');
         const fmtSel = document.getElementById('fFormat');
 
-        // Используем точные имена колонок
-        const prjs = [...new Set(actors.map(a => a["Название проекта (кастинга, из объявления:)"] || a["Проект"]).filter(v => v))].sort();
-        const roles = [...new Set(actors.map(a => a["На какую роль подходите?"] || a["Роль"]).filter(v => v))].sort();
-        const cities = [...new Set(actors.map(a => a["Город проживания"]).filter(v => v))].sort();
-        
-        // Для типажей и форматов разбиваем через запятую
-        const typesSet = new Set();
-        actors.forEach(a => {
-            const val = a["Типаж (выберите из списка)"] || "";
-            val.split(',').forEach(s => { if(s.trim()) typesSet.add(s.trim()); });
-        });
-        
-        const formatsSet = new Set();
-        actors.forEach(a => {
-            const val = a["В каких форматах готовы сниматься? (можно выбрать несколько)"] || "";
-            val.split(',').forEach(s => { if(s.trim()) formatsSet.add(s.trim()); });
-        });
+        // Умный поиск значений по колонкам (пробуем длинные, потом короткие)
+        const getVals = (keys) => {
+            const set = new Set();
+            actors.forEach(a => {
+                for(let k of keys) {
+                    if (a[k]) {
+                        a[k].split(',').forEach(s => { if(s.trim()) set.add(s.trim()); });
+                        break;
+                    }
+                }
+            });
+            return [...set].sort();
+        };
+
+        const prjs = getVals(["Название проекта (кастинга, из объявления:)", "Проект"]);
+        const roles = getVals(["На какую роль подходите?", "Роль"]);
+        const cities = getVals(["Город проживания", "Город"]);
+        const types = getVals(["Типаж (выберите из списка)", "Национальность / Типаж", "Типаж"]);
+        const formats = getVals(["В каких форматах готовы сниматься? (можно выбрать несколько)", "Формат"]);
 
         if (prjSel) prjSel.innerHTML = '<option value="">Все проекты</option>' + prjs.map(p => `<option value="${p}">${p}</option>`).join('');
         if (roleSel) roleSel.innerHTML = '<option value="">Все роли</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
         if (citySel) citySel.innerHTML = '<option value="">Все города</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('');
-        if (ethSel) ethSel.innerHTML = '<option value="">Все типажи</option>' + [...typesSet].sort().map(t => `<option value="${t}">${t}</option>`).join('');
-        if (fmtSel) fmtSel.innerHTML = '<option value="">Все форматы</option>' + [...formatsSet].sort().map(f => `<option value="${f}">${f}</option>`).join('');
+        if (ethSel) ethSel.innerHTML = '<option value="">Все типажи</option>' + types.map(t => `<option value="${t}">${t}</option>`).join('');
+        if (fmtSel) fmtSel.innerHTML = '<option value="">Все форматы</option>' + formats.map(f => `<option value="${f}">${f}</option>`).join('');
     }
 
     function getDirectLink(url) {
