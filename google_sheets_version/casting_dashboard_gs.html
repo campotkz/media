@@ -170,9 +170,14 @@
 <body>
 
 <div class="container">
-    <div class="header">
+    <header class="header">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
-            <div class="logo">GULYWOOD <span>CRM</span></div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <h1 style="margin:0; font-size: 24px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(135deg, #fff 0%, #aaa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">GULYWOOD <span>CRM</span></h1>
+                <button onclick="copyFormLink()" class="btn" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border); padding: 5px 12px; height: 32px; font-size: 11px; color: #fff; cursor: pointer;">
+                    🔗 Анкета
+                </button>
+            </div>
             
             <div class="tabs" id="mainTabs" style="margin-top:0; flex-grow:1; justify-content:center;">
                 <div class="tab active" data-tab="new">Входящие</div>
@@ -378,6 +383,22 @@
         fetch(url, { mode: 'no-cors' });
     }
 
+    function copyFormLink() {
+        const link = "https://docs.google.com/forms/d/e/1FAIpQLSe6KZFvQ555zu1TFVYVH53LXRZ2jskKfPXDPLjWEWYq9vyDlg/viewform";
+        navigator.clipboard.writeText(link).then(() => {
+            alert("Ссылка на форму скопирована!");
+        }).catch(err => {
+            console.error('Ошибка копирования:', err);
+            const input = document.createElement('input');
+            input.value = link;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            alert("Ссылка на форму скопирована!");
+        });
+    }
+
     function render() {
         const grid = document.getElementById('actorGrid');
         if (!grid) return;
@@ -414,6 +435,7 @@
             if (fCityVal && a[keys[5]] !== fCityVal) return false; // F
             
             if (fEthVal && !(a[keys[14]] || "").includes(fEthVal)) return false; // O
+            if (fNatVal && !(a[keys[15]] || "").includes(fNatVal)) return false; // P
             if (fNatVal && !(a[keys[15]] || "").includes(fNatVal)) return false; // P
             
             const val = cloudData[id] || "0";
@@ -630,30 +652,68 @@
     }
 
     async function sendFull(rowId) {
-        const confirmSend = confirm("⚠️ ВНИМАНИЕ!\n\nВы собираетесь отправить данные кандидата в ОБЩИЙ ЧАТ ГРУППЫ ПРОЕКТА для обсуждения.\n\nЕсли вы не Режиссер или Шоураннер, пожалуйста, не нажимайте ПОДТВЕРДИТЬ.\n\nОтправить анкету?");
+        const confirmSend = confirm("⚠️ ВНИМАНИЕ!\n\nВы собираетесь отправить данные кандидата в ОБЩИЙ ЧАТ ГРУППЫ ПРОЕКТА.\n\nОтправить анкету?");
         if (!confirmSend) return;
 
         const a = actors.find(act => act._row == rowId);
-        const btn = event.target; btn.disabled = true; btn.innerText = "...";
+        const keys = Object.keys(a);
+        const btn = event.target; 
+        const oldText = btn.innerText;
+        btn.disabled = true; btn.innerText = "...";
+        
         const val = cloudData[rowId] || "0";
         const score = parseInt(val) || 0;
-        const status = val.includes(":") ? val.split(":")[1] : "Новая";
+        const status = (val.includes(":") ? val.split(":")[1] : "Новая").replace("_SENT", "");
         
-        let p = getDirectLink(a["Фото (Портрет)"] || a["Фото"]);
-        let v = a["Видеовизитка (ссылка на диск)"] || a["Видео"];
+        const name = a[keys[1]] || "Без имени"; 
+        const gender = a[keys[3]] || "—";
+        const age = a[keys[4]] || "—";
+        const city = a[keys[5]] || "—";
+        const height = a[keys[6]] || "—";
+        const weight = a[keys[7]] || "—";
+        const phone = a[keys[8]] || "—";
+        const photoUrl = getDirectLink(a[keys[10]] || ""); 
+        const videoUrl = a[keys[11]] || "#";
+
+        // Используем HTML вместо Markdown - это НАМНОГО надежнее
+        let cap = `<b>🎭 GULYWOOD CASTING</b>\n` +
+                  `👤 <b>${name}</b>\n\n` +
+                  `⭐ <b>Рейтинг:</b> ${score}/10\n` +
+                  `📊 <b>Статус:</b> ${status}\n\n` +
+                  `🚻 <b>Параметры:</b> ${gender}, ${age}л, ${height}см / ${weight}кг\n` +
+                  `📍 <b>Город:</b> ${city}\n` +
+                  `📱 <b>Тел:</b> ${phone}\n\n` +
+                  `<a href="${videoUrl}">🎬 СМОТРЕТЬ ВИДЕО</a>`;
         
-        const cap = `🎭 *GULYWOOD CASTING*\n👤 *${a["ФИО (Полностью)"] || a["ФИО"]}*\n\n⭐ *Рейтинг:* ${score}/10\n📊 *Статус:* ${status}\n\n🚻 *Параметры:* ${a["Пол"]}, ${a["Возраст"]}л, ${a["Рост"]}см / ${a["Вес"]}кг\n📍 *Город:* ${a["Город проживания"]}\n📱 *Тел:* ${a["Контактный телефон"]}\n\n🎬 [ВИДЕОВИЗИТКА](${v || '#'})`;
-        
+        // Лимит 1024 символа
+        if (cap.length > 1000) cap = cap.substring(0, 950) + "... (текст обрублен)";
+
         try {
-            const method = (p && p.length > 20) ? 'sendPhoto' : 'sendMessage';
-            const body = (p && p.length > 20) ? { chat_id: CHAT_ID, photo: p, caption: cap, parse_mode: 'Markdown' } : { chat_id: CHAT_ID, text: cap, parse_mode: 'Markdown' };
-            const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            if (res.ok) { 
+            const hasPhoto = photoUrl && photoUrl.length > 20;
+            const method = hasPhoto ? 'sendPhoto' : 'sendMessage';
+            const body = hasPhoto 
+                ? { chat_id: CHAT_ID, photo: photoUrl, caption: cap, parse_mode: 'HTML' } 
+                : { chat_id: CHAT_ID, text: cap, parse_mode: 'HTML', disable_web_page_preview: false };
+
+            const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(body) 
+            });
+
+            const data = await res.json();
+            if (data.ok) { 
                 updateCloud(rowId, score, status + "_SENT"); 
                 btn.innerText = "В ЧАТЕ ✅"; 
                 btn.classList.add('active-status');
-            } else { alert("Ошибка ТГ"); btn.disabled = false; btn.innerText = "✈️ В ЧАТ"; }
-        } catch(e) { alert("Ошибка сети"); btn.disabled = false; btn.innerText = "✈️ В ЧАТ"; }
+            } else { 
+                alert("Ошибка ТГ: " + (data.description || "Неизвестно")); 
+                btn.disabled = false; btn.innerText = oldText; 
+            }
+        } catch(e) { 
+            alert("Ошибка сети"); 
+            btn.disabled = false; btn.innerText = oldText; 
+        }
     }
 
     // Авто-синхронизация каждые 5 минут
