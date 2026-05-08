@@ -371,8 +371,10 @@
 
     function getDirectLink(url) {
         if (!url || typeof url !== 'string') return "";
-        let id = (url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/) || [])[1];
-        return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
+        let id = (url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/) || url.match(/open\?id=([^&]+)/) || [])[1];
+        // Если это прямая ссылка или ID найден
+        if (id) return `https://lh3.googleusercontent.com/d/${id}`;
+        return url;
     }
 
     function setCloudValue(id, val) {
@@ -675,7 +677,6 @@
         const photoUrl = getDirectLink(a[keys[10]] || ""); 
         const videoUrl = a[keys[11]] || "#";
 
-        // Используем HTML вместо Markdown - это НАМНОГО надежнее
         let cap = `<b>🎭 GULYWOOD CASTING</b>\n` +
                   `👤 <b>${name}</b>\n\n` +
                   `⭐ <b>Рейтинг:</b> ${score}/10\n` +
@@ -685,30 +686,55 @@
                   `📱 <b>Тел:</b> ${phone}\n\n` +
                   `<a href="${videoUrl}">🎬 СМОТРЕТЬ ВИДЕО</a>`;
         
-        // Лимит 1024 символа
-        if (cap.length > 1000) cap = cap.substring(0, 950) + "... (текст обрублен)";
+        if (cap.length > 1000) cap = cap.substring(0, 950) + "...";
+
+        async function post(method, body) {
+            return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+        }
 
         try {
+            let res;
             const hasPhoto = photoUrl && photoUrl.length > 20;
-            const method = hasPhoto ? 'sendPhoto' : 'sendMessage';
-            const body = hasPhoto 
-                ? { chat_id: CHAT_ID, photo: photoUrl, caption: cap, parse_mode: 'HTML' } 
-                : { chat_id: CHAT_ID, text: cap, parse_mode: 'HTML', disable_web_page_preview: false };
 
-            const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify(body) 
-            });
-
-            const data = await res.json();
-            if (data.ok) { 
-                updateCloud(rowId, score, status + "_SENT"); 
-                btn.innerText = "В ЧАТЕ ✅"; 
-                btn.classList.add('active-status');
-            } else { 
-                alert("Ошибка ТГ: " + (data.description || "Неизвестно")); 
-                btn.disabled = false; btn.innerText = oldText; 
+            if (hasPhoto) {
+                res = await post('sendPhoto', { chat_id: CHAT_ID, photo: photoUrl, caption: cap, parse_mode: 'HTML' });
+                let data = await res.json();
+                
+                // Если ошибка "wrong type" (Google Drive глючит), пробуем отправить ПРОСТО ТЕКСТ
+                if (!data.ok && (data.description || "").includes("wrong type")) {
+                    console.warn("Photo failed, falling back to text...");
+                    res = await post('sendMessage', { 
+                        chat_id: CHAT_ID, 
+                        text: cap + `\n\n🖼 <a href="${photoUrl}">ФОТО КАНДИДАТА</a>`, 
+                        parse_mode: 'HTML', 
+                        disable_web_page_preview: false 
+                    });
+                    data = await res.json();
+                }
+                
+                if (data.ok) {
+                    updateCloud(rowId, score, status + "_SENT");
+                    btn.innerText = "В ЧАТЕ ✅";
+                    btn.classList.add('active-status');
+                } else {
+                    alert("Ошибка ТГ: " + (data.description || "Неизвестно"));
+                    btn.disabled = false; btn.innerText = oldText;
+                }
+            } else {
+                res = await post('sendMessage', { chat_id: CHAT_ID, text: cap, parse_mode: 'HTML' });
+                const data = await res.json();
+                if (data.ok) {
+                    updateCloud(rowId, score, status + "_SENT");
+                    btn.innerText = "В ЧАТЕ ✅";
+                    btn.classList.add('active-status');
+                } else {
+                    alert("Ошибка ТГ: " + (data.description || "Неизвестно"));
+                    btn.disabled = false; btn.innerText = oldText;
+                }
             }
         } catch(e) { 
             alert("Ошибка сети"); 
