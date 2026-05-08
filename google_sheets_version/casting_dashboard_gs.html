@@ -57,33 +57,26 @@
     async function syncAll() {
         const btn = document.getElementById('syncBtn');
         btn.innerText = "⏳ ЗАГРУЗКА...";
+        
+        // 1. Сначала пробуем звезды
         try {
-            // Кэш-бастинг (nocache) и заголовок чтобы гугл не врал
-            const r = await fetch(RATINGS_API + "?action=get&nocache=" + Date.now(), {
-                cache: "no-store",
-                headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
-            });
+            const r = await fetch(RATINGS_API + "?action=get&cb=" + Math.random());
             const text = await r.text();
-            try { 
-                cloudData = JSON.parse(text); 
-                console.log("Stars loaded:", cloudData);
-            } catch(e) { 
-                cloudData = {}; 
-                console.error("JSON parse error, check GAS output");
+            try { cloudData = JSON.parse(text); } catch(e) { console.log("Stars empty"); cloudData = {}; }
+        } catch(e) { console.error("Cloud error", e); }
+
+        // 2. Всегда грузим анкеты, даже если звезды упали
+        Papa.parse(CSV_URL + "&cb=" + Date.now(), {
+            download: true, header: true, skipEmptyLines: true,
+            complete: function(res) {
+                actors = res.data.filter(a => Object.values(a).some(v => v)).map((a, i) => ({...a, _row: i + 2}));
+                render();
+                btn.innerText = "ОБНОВИТЬ ВСЁ";
+            },
+            error: function() { 
+                btn.innerText = "ОШИБКА CSV"; 
             }
-            
-            Papa.parse(CSV_URL + "&cb=" + Date.now(), {
-                download: true, header: true,
-                complete: function(res) {
-                    actors = res.data.filter(a => Object.values(a).some(v => v)).map((a, i) => ({...a, _row: i + 2}));
-                    render();
-                    btn.innerText = "ОБНОВИТЬ ВСЁ";
-                }
-            });
-        } catch(e) { 
-            console.error("Sync error:", e);
-            btn.innerText = "ОШИБКА"; 
-        }
+        });
     }
 
     function setCloudValue(id, val) {
