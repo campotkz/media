@@ -34,8 +34,8 @@
 </div>
 
 <div class="controls">
-    <div><label style="font-size:10px;color:#888">Вес от</label><input type="number" id="fWMin" oninput="render()"></div>
-    <div><label style="font-size:10px;color:#888">Вес до</label><input type="number" id="fWMax" oninput="render()"></div>
+    <div><label style="font-size:10px;color:#888">Вес (от)</label><input type="number" id="fWMin" oninput="render()"></div>
+    <div><label style="font-size:10px;color:#888">Вес (до)</label><input type="number" id="fWMax" oninput="render()"></div>
     <div><label style="font-size:10px;color:#888">ФИО</label><input type="text" id="fName" oninput="render()"></div>
     <div><label style="font-size:10px;color:#888">Пол</label><select id="fGen" onchange="render()"><option value="">Все</option><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select></div>
     <div><label style="font-size:10px;color:#888">Проект</label><input type="text" id="fPrj" oninput="render()"></div>
@@ -74,11 +74,11 @@
     }
 
     function setCloudValue(id, val) {
-        if (!id || id.length < 5) return;
+        if (!id) return;
         cloudData[id] = val;
         render();
         const url = `${RATINGS_API}?action=set&id=${encodeURIComponent(id)}&score=${encodeURIComponent(val)}&t=${Date.now()}`;
-        const img = new Image(); img.src = url;
+        new Image().src = url;
         fetch(url, { mode: 'no-cors' });
     }
 
@@ -89,9 +89,11 @@
     }
 
     function getActorId(a) {
-        const name = (a["ФИО"] || a["Ваше ФИО"] || "").trim();
-        const phone = (a["Контактный телефон"] || a["Телефон"] || "").trim();
-        return (name + phone).replace(/[^а-яА-Яa-zA-Z0-9]/g, ''); // Только буквы и цифры
+        // Собираем всё что можем для уникальности
+        const name = (a["ФИО (Полностью)"] || a["ФИО"] || a["Ваше ФИО"] || "").toString().trim();
+        const phone = (a["Контактный телефон"] || a["Телефон"] || "").toString().trim();
+        const time = (a["Отметка времени"] || a["Timestamp"] || "").toString().trim();
+        return (name + phone + time).replace(/[^а-яА-Яa-zA-Z0-9]/g, ''); 
     }
 
     function render() {
@@ -118,7 +120,7 @@
         filtered.sort((a, b) => (parseInt(cloudData[getActorId(b)]) || 0) - (parseInt(cloudData[getActorId(a)]) || 0));
 
         grid.innerHTML = filtered.map(a => {
-            const name = a["ФИО"] || a["Ваше ФИО"] || "Без имени";
+            const name = a["ФИО (Полностью)"] || a["ФИО"] || a["Ваше ФИО"] || "Без имени";
             const id = getActorId(a);
             const val = cloudData[id] || "0";
             const rating = parseInt(val) || 0;
@@ -141,7 +143,7 @@
                     <div class="name">${name}</div>
                     <div class="meta"><span class="tag">${a["Пол"]}</span><span class="tag">${a["Возраст"]}л</span><span class="tag">${a["Рост"]}см</span></div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                        <label style="font-size:10px;color:#888">Балл:</label>
+                        <label style="font-size:10px;color:#888">Оценка:</label>
                         <select style="width:60px" onchange="setCloudValue('${id}', this.value + '${isSent ? "_SENT" : ""}')">
                             ${[...Array(11).keys()].map(n => `<option value="${n}" ${rating == n ? 'selected' : ''}>${n || '—'}</option>`).join('')}
                         </select>
