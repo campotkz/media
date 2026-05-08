@@ -357,7 +357,7 @@
             const status = val.includes(":") ? val.split(":")[1].replace("_SENT", "") : "Новая";
             const isSent = val.includes("_SENT");
             
-            // ПРАВИЛА ВКАЛАДОК
+            // ПРАВИЛА ВКЛАДОК
             if (currentTab === "new") {
                 if (status !== "Новая") return false;
             } else if (currentTab === "interest") {
@@ -371,75 +371,45 @@
             } else if (currentTab === "trash") {
                 if (status !== "Trash") return false;
             } else if (currentTab === "all") {
-                // Общая база: всё кроме Архива и Трэша
-                if (status === "Trash" || status === "Archive") return false;
+                // В общей базе НЕ показываем Трэш ни при каких условиях
+                if (status === "Trash") return false;
             }
 
             // Глобальный поиск и фильтры
             const allText = JSON.stringify(a).toLowerCase();
             const age = parseInt(a["Возраст"]) || 0;
-            const height = parseInt(a["Рост"]) || 0;
-            const weight = parseInt(a["Вес"]) || 0;
-            const gender = a["Пол"] || "";
-            const prj = a["Проект"] || a["Название проекта, в котором вы участвуете"] || "";
+            const height = parseInt(a["Рост (см)"] || a["Рост"]) || 0;
+            const weight = parseInt(a["Вес (кг)"] || a["Вес"]) || 0;
 
-            return (allText.includes(q)) &&
-                   (!fPrj || prj === fPrj) &&
-                   (!fGen || gender === fGen) &&
-                   (age >= fAMin && age <= fAMax) &&
+            if (q && !allText.includes(q)) return false;
+            
+            return (age >= fAMin && age <= fAMax) &&
                    (height >= fHMin && height <= fHMax) &&
                    (weight >= fWMin && weight <= fWMax);
         });
 
-        // Умная сортировка: Новые -> Отобранные -> Интересные -> Остальные
+        // Сортировка: Новые -> Отобранные -> Интересные -> Остальные
         filtered.sort((a, b) => {
             const vA = cloudData[a._row] || "0";
             const vB = cloudData[b._row] || "0";
             const sA = vA.split(":")[1] || "Новая";
             const sB = vB.split(":")[1] || "Новая";
-            
-            const getPriority = (s) => {
-                if (s.includes("Новая")) return 1;
-                if (s.includes("Selected")) return 2;
-                if (s.includes("Interesting")) return 3;
-                return 4; // Main и прочие
-            };
-
-            const pA = getPriority(sA);
-            const pB = getPriority(sB);
-
-            if (pA !== pB) return pA - pB;
-            
-            const rA = parseInt(vA) || 0;
-            const rB = parseInt(vB) || 0;
-            if (rA !== rB) return rB - rA;
-            
-            return b._row - a._row;
+            const priority = {"Selected": 1, "Interesting": 2, "Новая": 3, "Main": 4, "Archive": 5, "Trash": 6};
+            return (priority[sA.replace("_SENT","")] || 9) - (priority[sB.replace("_SENT","")] || 9);
         });
 
         grid.innerHTML = filtered.map(a => {
             const id = a._row;
             const val = cloudData[id] || "0";
             const score = parseInt(val) || 0;
-            const status = val.includes(":") ? val.split(":")[1].replace("_SENT", "") : "Новая";
-            const isSent = val.includes("_SENT");
+            const statusRaw = val.includes(":") ? val.split(":")[1] : "Новая";
+            const status = statusRaw.replace("_SENT", "");
+            const isSent = statusRaw.includes("_SENT");
             
             const name = a["ФИО (Полностью)"] || a["ФИО"] || "Без имени";
             
-            // Фиксированные столбцы K и L (11-й и 12-й по счету в CSV)
-            const keys = Object.keys(a);
-            let photosRaw = a[keys[10]] || ""; // K
-            let video = a[keys[11]] || "";    // L
-            
-            // Фоллбек если K/L не те
-            if (!photosRaw.includes("http")) {
-                for (let k in a) if (k.toLowerCase().includes("фото")) photosRaw = a[k];
             let photosRaw = a["Фото (Портрет)"] || a["Фото"] || "";
             let video = a["Видеовизитка (ссылка на диск)"] || a["Видео"] || "";
-
-            if (!video.includes("http")) {
-                for (let k in a) if (k.toLowerCase().includes("видео")) video = a[k];
-            }
 
             const photoList = photosRaw.split(',').map(p => p.trim()).filter(p => p.length > 5);
             const photo = getDirectLink(photoList[0]);
@@ -449,7 +419,9 @@
             <div class="card" id="card-${id}">
                 <div class="card-img-wrap" onclick="zoomImg('${photo}')">
                     <img src="${photo}" class="card-img" loading="lazy">
-                    <div class="badge badge-new">${status}</div>
+                    <div class="badge badge-new" style="${status === 'Archive' ? 'background:#555; color:white;' : ''}">
+                        ${status === 'Archive' ? '[АРХИВ]' : status}
+                    </div>
                     ${score > 0 ? `<div class="badge badge-rating">★ ${score}</div>` : ''}
                 </div>
                 
