@@ -417,8 +417,30 @@
             const status = statusRaw.replace("_SENT", "");
             const isSent = statusRaw.includes("_SENT");
 
-            // ТОЧНЫЙ МАППИНГ ИЗ ТАБЛИЦЫ
-            const ageVal = a["Возраст (полных лет)"] || a["Возраст"] || a["Лет"] || "?";
+            // УМНЫЙ РАСЧЕТ ВОЗРАСТА
+            let ageVal = "?";
+            const birthDateStr = a["Дата рождения"] || a[Object.keys(a)[13]] || ""; // Ячейка N (14-я)
+            const timestamp = a["Отметка времени"] || a[Object.keys(a)[0]] || "";
+            const staticAge = a["Возраст (полных лет)"] || a["Возраст"] || "";
+            
+            if (birthDateStr && birthDateStr.length > 5) {
+                try {
+                    const birthDate = new Date(birthDateStr.split('.').reverse().join('-')); // Поддержка DD.MM.YYYY
+                    if (!isNaN(birthDate)) {
+                        const today = new Date();
+                        let age = today.getFullYear() - birthDate.getFullYear();
+                        const m = today.getMonth() - birthDate.getMonth();
+                        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+                        ageVal = age;
+                    }
+                } catch(e) {}
+            }
+            
+            if (ageVal === "?" && staticAge) {
+                const year = timestamp ? new Date(timestamp).getFullYear() : "";
+                ageVal = year ? `${staticAge} <span style="font-size:9px; opacity:0.6;">(${year}г)</span>` : staticAge;
+            }
+
             const heightVal = a["Рост (в сантиметрах)"] || a["Рост (см)"] || a["Рост"] || "?";
             const weightVal = a["Вес (в килограммах)"] || a["Вес (кг)"] || a["Вес"] || "?";
 
