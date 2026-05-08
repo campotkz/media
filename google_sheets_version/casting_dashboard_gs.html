@@ -329,25 +329,32 @@
         const ethSel = document.getElementById('fEth');
         const fmtSel = document.getElementById('fFormat');
 
-        // Умный поиск значений по колонкам (пробуем длинные, потом короткие)
-        const getVals = (keys) => {
+        // Умный поиск колонки по частичному совпадению
+        const findCol = (search) => {
+            if (!actors.length) return null;
+            return Object.keys(actors[0]).find(k => k.toLowerCase().includes(search.toLowerCase()));
+        };
+
+        const prjCol = findCol("Название проекта") || "Проект";
+        const roleCol = findCol("На какую роль") || "Роль";
+        const cityCol = findCol("Город проживания") || "Город";
+        const ethCol = findCol("Типаж") || findCol("Этнос") || "Типаж";
+        const fmtCol = findCol("В каких форматах") || "Формат";
+
+        const getVals = (colName) => {
             const set = new Set();
             actors.forEach(a => {
-                for(let k of keys) {
-                    if (a[k]) {
-                        a[k].split(',').forEach(s => { if(s.trim()) set.add(s.trim()); });
-                        break;
-                    }
-                }
+                const val = a[colName] || "";
+                val.split(',').forEach(s => { if(s.trim()) set.add(s.trim()); });
             });
             return [...set].sort();
         };
 
-        const prjs = getVals(["Название проекта (кастинга, из объявления:)", "Проект"]);
-        const roles = getVals(["На какую роль подходите?", "Роль"]);
-        const cities = getVals(["Город проживания", "Город"]);
-        const types = getVals(["Типаж (выберите из списка)", "Национальность / Типаж", "Типаж"]);
-        const formats = getVals(["В каких форматах готовы сниматься? (можно выбрать несколько)", "Формат"]);
+        const prjs = getVals(prjCol);
+        const roles = getVals(roleCol);
+        const cities = getVals(cityCol);
+        const types = getVals(ethCol);
+        const formats = getVals(fmtCol);
 
         if (prjSel) prjSel.innerHTML = '<option value="">Все проекты</option>' + prjs.map(p => `<option value="${p}">${p}</option>`).join('');
         if (roleSel) roleSel.innerHTML = '<option value="">Все роли</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
@@ -389,20 +396,28 @@
         const fWMin = parseInt(document.getElementById('fWMin').value) || 0;
         const fWMax = parseInt(document.getElementById('fWMax').value) || 300;
 
+        // Динамические имена колонок для фильтрации
+        const findCol = (search) => Object.keys(actors[0] || {}).find(k => k.toLowerCase().includes(search.toLowerCase()));
+        const prjCol = findCol("Название проекта") || "Проект";
+        const roleCol = findCol("На какую роль") || "Роль";
+        const cityCol = findCol("Город проживания") || "Город";
+        const ethCol = findCol("Типаж") || findCol("Этнос") || "Типаж";
+        const fmtCol = findCol("В каких форматах") || "Формат";
+
         let filtered = actors.filter(a => {
             if (!a || !a._row) return false;
             const id = a._row;
             const name = (a["ФИО (Полностью)"] || a["ФИО"] || "").toLowerCase();
             if (name.length < 1 && !(a["Фото"] || a["Фото (Портрет)"])) return false; 
 
-            if (fPrjVal && (a["Название проекта (кастинга, из объявления:)"] || a["Проект"]) !== fPrjVal) return false;
-            if (fRoleVal && (a["На какую роль подходите?"] || a["Роль"]) !== fRoleVal) return false;
-            if (fFmtVal && !(a["В каких форматах готовы сниматься? (можно выбрать несколько)"] || "").includes(fFmtVal)) return false;
+            if (fPrjVal && a[prjCol] !== fPrjVal) return false;
+            if (fRoleVal && a[roleCol] !== fRoleVal) return false;
+            if (fFmtVal && !(a[fmtCol] || "").includes(fFmtVal)) return false;
             
             if (fGenVal && a["Пол"] !== fGenVal) return false;
-            if (fCityVal && a["Город проживания"] !== fCityVal) return false;
+            if (fCityVal && a[cityCol] !== fCityVal) return false;
             
-            if (fEthVal && !(a["Типаж (выберите из списка)"] || "").includes(fEthVal)) return false;
+            if (fEthVal && !(a[ethCol] || "").includes(fEthVal)) return false;
             
             const val = cloudData[id] || "0";
             const score = parseInt(val) || 0;
