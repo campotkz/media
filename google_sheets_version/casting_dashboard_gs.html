@@ -220,6 +220,10 @@
                 <label>Типаж</label>
                 <select id="fEth" onchange="render()"><option value="">Все типажи</option></select>
             </div>
+            <div class="filter-group">
+                <label>Формат</label>
+                <select id="fFormat" onchange="render()"><option value="">Все форматы</option></select>
+            </div>
         </div>
 
         <div class="filter-row" style="grid-template-columns: 1fr 1fr 1fr;">
@@ -314,22 +318,45 @@
         const roleSel = document.getElementById('fRole');
         const citySel = document.getElementById('fCity');
         const ethSel = document.getElementById('fEth');
+        const fmtSel = document.getElementById('fFormat');
 
-        const prjs = [...new Set(actors.map(a => a["Проект"]).filter(v => v && v.length > 0))].sort();
-        const roles = [...new Set(actors.map(a => a["Роль"]).filter(v => v && v.length > 0))].sort();
-        const cities = [...new Set(actors.map(a => a["Город проживания"]).filter(v => v && v.length > 0))].sort();
-        const types = [...new Set(actors.map(a => a["Национальность / Типаж"]).filter(v => v && v.length > 0))].sort();
+        // Используем точные имена колонок
+        const prjs = [...new Set(actors.map(a => a["Название проекта (кастинга, из объявления:)"] || a["Проект"]).filter(v => v))].sort();
+        const roles = [...new Set(actors.map(a => a["На какую роль подходите?"] || a["Роль"]).filter(v => v))].sort();
+        const cities = [...new Set(actors.map(a => a["Город проживания"]).filter(v => v))].sort();
+        
+        // Для типажей и форматов разбиваем через запятую
+        const typesSet = new Set();
+        actors.forEach(a => {
+            const val = a["Типаж (выберите из списка)"] || "";
+            val.split(',').forEach(s => { if(s.trim()) typesSet.add(s.trim()); });
+        });
+        
+        const formatsSet = new Set();
+        actors.forEach(a => {
+            const val = a["В каких форматах готовы сниматься? (можно выбрать несколько)"] || "";
+            val.split(',').forEach(s => { if(s.trim()) formatsSet.add(s.trim()); });
+        });
 
-        prjSel.innerHTML = '<option value="">Все проекты</option>' + prjs.map(p => `<option value="${p}">${p}</option>`).join('');
-        roleSel.innerHTML = '<option value="">Все роли</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
-        citySel.innerHTML = '<option value="">Все города</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('');
-        ethSel.innerHTML = '<option value="">Все типажи</option>' + types.map(t => `<option value="${t}">${t}</option>`).join('');
+        if (prjSel) prjSel.innerHTML = '<option value="">Все проекты</option>' + prjs.map(p => `<option value="${p}">${p}</option>`).join('');
+        if (roleSel) roleSel.innerHTML = '<option value="">Все роли</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
+        if (citySel) citySel.innerHTML = '<option value="">Все города</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('');
+        if (ethSel) ethSel.innerHTML = '<option value="">Все типажи</option>' + [...typesSet].sort().map(t => `<option value="${t}">${t}</option>`).join('');
+        if (fmtSel) fmtSel.innerHTML = '<option value="">Все форматы</option>' + [...formatsSet].sort().map(f => `<option value="${f}">${f}</option>`).join('');
     }
 
     function getDirectLink(url) {
         if (!url || typeof url !== 'string') return "";
         let id = (url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/) || [])[1];
         return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
+    }
+
+    function setCloudValue(id, val) {
+        cloudData[id] = val;
+        render();
+        const url = `${RATINGS_API}?action=set&id=${id}&score=${encodeURIComponent(val)}&t=${Date.now()}`;
+        new Image().src = url;
+        fetch(url, { mode: 'no-cors' });
     }
 
     function render() {
@@ -342,6 +369,10 @@
         const fGen = document.getElementById('fGen').value;
         const fCity = document.getElementById('fCity').value;
         const fEth = document.getElementById('fEth').value;
+        // Добавим fFormat если он есть в HTML
+        const fFormatEl = document.getElementById('fFormat');
+        const fFormat = fFormatEl ? fFormatEl.value : "";
+
         const fAMin = parseInt(document.getElementById('fAgeMin').value) || 0;
         const fAMax = parseInt(document.getElementById('fAgeMax').value) || 99;
         const fHMin = parseInt(document.getElementById('fHMin').value) || 0;
@@ -353,21 +384,13 @@
             if (!a || !a._row) return false;
             const id = a._row;
             const name = (a["ФИО (Полностью)"] || a["ФИО"] || "").toLowerCase();
-            if (name.length < 1 && !(a["Фото"] || a["Фото (Портрет)"])) return false; // Пропуск пустых строк
-
-            const fPrj = document.getElementById("f-prj").value;
-            const fRole = document.getElementById("f-role").value;
-            const fGen = document.getElementById("f-gen").value;
-            const fCity = document.getElementById("f-city").value;
-            const fEth = document.getElementById("f-eth").value;
-            const fFormat = document.getElementById("f-format").value;
+            if (name.length < 1 && !(a["Фото"] || a["Фото (Портрет)"])) return false; 
 
             if (fPrj && (a["Название проекта (кастинга, из объявления:)"] || a["Проект"]) !== fPrj) return false;
             if (fRole && (a["На какую роль подходите?"] || a["Роль"]) !== fRole) return false;
             if (fGen && a["Пол"] !== fGen) return false;
             if (fCity && a["Город проживания"] !== fCity) return false;
             
-            // Фильтры с поддержкой нескольких значений
             if (fEth && !(a["Типаж (выберите из списка)"] || "").includes(fEth)) return false;
             if (fFormat && !(a["В каких форматах готовы сниматься? (можно выбрать несколько)"] || "").includes(fFormat)) return false;
             
