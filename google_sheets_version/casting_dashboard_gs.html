@@ -42,26 +42,27 @@
         async function fetchData() {
             const grid = document.getElementById('actorGrid');
             try {
-                grid.innerText = "⏳ Загрузка данных из Google Таблицы...";
-                // Добавляем timestamp для обхода кэша
-                const urlWithCacheBuster = SCRIPT_URL + "?t=" + Date.now();
+                grid.innerText = "⏳ Обновление данных...";
+                // Максимальный обход кэша: случайный параметр + заголовок no-store
+                const freshUrl = SCRIPT_URL + "?cache=" + Math.random();
                 
-                const res = await fetch(urlWithCacheBuster, {
+                const res = await fetch(freshUrl, {
                     method: 'GET',
-                    redirect: 'follow'
+                    redirect: 'follow',
+                    cache: 'no-store'
                 });
                 
-                if (!res.ok) throw new Error('Ошибка сервера Google: ' + res.status);
+                if (!res.ok) throw new Error('Google вернул ' + res.status);
                 
                 actors = await res.json();
                 if (actors.length === 0) {
-                    grid.innerText = "📭 В таблице пока нет ни одной анкеты.";
+                    grid.innerHTML = "<div style='color:var(--muted)'>📭 В таблице пока пусто. Отправьте первую анкету!</div>";
                 } else {
                     render();
                 }
             } catch (err) {
-                console.error("FETCH ERROR:", err);
-                grid.innerHTML = `<div style="color:#ff3b30">❌ Ошибка загрузки: ${err.message}<br><small>Убедитесь, что в Google Script сделано 'Новое развертывание' с доступом 'Anyone'.</small></div>`;
+                console.error("DASHBOARD ERROR:", err);
+                grid.innerHTML = `<div style="color:#ff3b30">❌ Ошибка загрузки: ${err.message}<br><small>Если в браузере скрипт открывается, подождите 2 минуты, пока обновится GitHub.</small></div>`;
             }
         }
 
