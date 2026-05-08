@@ -87,26 +87,26 @@
             try {
                 const photo = document.getElementById('photoFile').files[0];
                 if (photo) {
-                    status.innerHTML = "📸 Сжатие фото...";
+                    status.innerHTML = "📸 Обработка фото...";
                     data.photoBase64 = await readFile(photo);
                     data.photoName = photo.name;
                 }
 
-                const video = document.getElementById('videoFile').files[0];
-                if (video) {
-                    if (video.size > 25*1024*1024) { alert("Видео слишком большое!"); btn.disabled = false; return; }
-                    status.innerHTML = "🎥 Обработка видео...";
-                    data.videoBase64 = await readFile(video);
-                    data.videoName = video.name;
+                status.innerHTML = "🚀 Отправка данных...";
+                
+                // Используем URLSearchParams для имитации обычной формы
+                const formBody = [];
+                for (const property in data) {
+                    const encodedKey = encodeURIComponent(property);
+                    const encodedValue = encodeURIComponent(data[property]);
+                    formBody.push(encodedKey + "=" + encodedValue);
                 }
 
-                status.innerHTML = "🚀 Отправка в Google Таблицу...";
-                
-                // Используем текстовый метод отправки для стабильности
                 await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
-                    body: JSON.stringify(data)
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formBody.join("&")
                 });
 
                 status.innerHTML = "<b style='color:#4cd964'>✅ АНКЕТА ПРИНЯТА!</b><br>Данные появятся в таблице через пару секунд.";
