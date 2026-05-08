@@ -58,13 +58,17 @@
 
     async function syncAll() {
         const btn = document.getElementById('syncBtn');
-        btn.innerText = "⏳ СИНХРОНИЗАЦИЯ...";
+        btn.innerText = "⏳ ЗАГРУЗКА...";
         
         try {
-            // 1. Звезды
-            const cloudResp = await fetch(RATINGS_API + "?action=get&nocache=" + Date.now());
+            // 1. Звезды (таймаут 3 сек чтобы не висеть вечно)
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), 3000);
+            
+            const cloudResp = await fetch(RATINGS_API + "?action=get&nocache=" + Date.now(), { signal: controller.signal });
             const text = await cloudResp.text();
-            try { cloudData = JSON.parse(text); } catch(e) { cloudData = {}; }
+            clearTimeout(id);
+            try { cloudData = JSON.parse(text); } catch(e) { console.warn("JSON error"); }
             
             // 2. Анкеты
             Papa.parse(CSV_URL + "&cb=" + Date.now(), {
@@ -76,16 +80,29 @@
                 },
                 error: function() { btn.innerText = "ОШИБКА CSV"; }
             });
-        } catch(e) { btn.innerText = "ОШИБКА API"; }
+        } catch(e) { 
+            console.error("Sync partial fail", e);
+            // Если API упало, всё равно пробуем загрузить анкеты
+            Papa.parse(CSV_URL, { download: true, header: true, complete: r => { actors = r.data; render(); btn.innerText = "ОБНОВИТЬ ВСЁ"; } });
+        }
     }
 
     function setCloudValue(id, val) {
         if (!id || id.includes("undefined")) return;
+        
+        // 1. Обновляем локально МГНОВЕННО
         cloudData[id] = val;
-        render();
+        render(); 
+        
+        // 2. Отправляем в облако "в фоновом режиме", не дожидаясь ответа
         const url = `${RATINGS_API}?action=set&id=${encodeURIComponent(id)}&score=${encodeURIComponent(val)}&t=${Date.now()}`;
-        fetch(url, { mode: 'no-cors' });
-        new Image().src = url;
+        
+        // Используем старый добрый Image beacon - он никогда не вешает поток
+        const img = new Image();
+        img.src = url;
+        
+        // Также кидаем fetch но не используем await
+        fetch(url, { mode: 'no-cors' }).catch(e => console.log("Bg save"));
     }
 
     function getDirectLink(url) {
