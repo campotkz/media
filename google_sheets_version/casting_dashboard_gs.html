@@ -95,8 +95,9 @@
         .btn-video { background: #ff0000; color: white; }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
         .btn-outline:hover { background: var(--glass); color: white; border-color: white; }
+        .btn-outline.active-status { background: var(--accent); color: white; border-color: var(--accent); }
         
-        .status-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; grid-column: 1 / -1; }
+        .status-buttons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 10px; grid-column: 1 / -1; }
         
         /* Floating Sync */
         .sync-btn { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 30px; background: var(--accent); color: white; border: none; cursor: pointer; box-shadow: 0 5px 20px rgba(255,87,34,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; }
@@ -246,22 +247,25 @@
             const id = a._row;
             const val = cloudData[id] || "0";
             const score = parseInt(val) || 0;
-            const status = val.includes(":") ? val.split(":")[1] : "Новая"; // Дефолтный статус
+            const status = val.includes(":") ? val.split(":")[1].replace("_SENT", "") : "Новая";
             
-            // Фильтр по табам
-            if (currentTab === "new" && status !== "Новая") return false;
-            if (currentTab === "interest" && status !== "Interesting" && score <= 3) return false;
-            if (currentTab === "selected" && status !== "Selected") return false;
-            if (currentTab === "archive" && status !== "Archive") return false;
-            if (currentTab === "trash" && status !== "Trash") return false;
-            if (currentTab === "all" && (status === "Trash" || status === "Archive")) return false;
+            // СТРОГАЯ ФИЛЬТРАЦИЯ ПО ТАБАМ
+            if (currentTab === "new") {
+                if (status !== "Новая") return false;
+            } else if (currentTab === "interest") {
+                if (status !== "Interesting") return false;
+            } else if (currentTab === "selected") {
+                if (status !== "Selected") return false;
+            } else if (currentTab === "archive") {
+                if (status !== "Archive") return false;
+            } else if (currentTab === "trash") {
+                if (status !== "Trash") return false;
+            } else if (currentTab === "all") {
+                if (status === "Trash" || status === "Archive") return false;
+            }
 
             // Глобальный поиск и фильтры
-            const name = (a["ФИО (Полностью)"] || a["ФИО"] || "").toLowerCase();
-            const city = (a["Город проживания"] || "").toLowerCase();
-            const experience = (a["Опыт съемок"] || "").toLowerCase();
             const allText = JSON.stringify(a).toLowerCase();
-            
             const age = parseInt(a["Возраст"]) || 0;
             const height = parseInt(a["Рост"]) || 0;
             const weight = parseInt(a["Вес"]) || 0;
@@ -276,39 +280,26 @@
                    (weight >= fWMin && weight <= fWMax);
         });
 
-        // Умная сортировка: Новые -> Рейтинг -> Индекс (как дата)
+        // Умная сортировка
         filtered.sort((a, b) => {
             const vA = cloudData[a._row] || "0";
             const vB = cloudData[b._row] || "0";
-            const sA = vA.split(":")[1] || "Новая";
-            const sB = vB.split(":")[1] || "Новая";
-            
-            if (sA === "Новая" && sB !== "Новая") return -1;
-            if (sA !== "Новая" && sB === "Новая") return 1;
-            
             const rA = parseInt(vA) || 0;
             const rB = parseInt(vB) || 0;
             if (rA !== rB) return rB - rA;
-            
-            return b._row - a._row; // По дате (строке)
+            return b._row - a._row;
         });
 
         grid.innerHTML = filtered.map(a => {
             const id = a._row;
             const val = cloudData[id] || "0";
             const score = parseInt(val) || 0;
-            const status = val.includes(":") ? val.split(":")[1] : "Новая";
+            const status = val.includes(":") ? val.split(":")[1].replace("_SENT", "") : "Новая";
             const isSent = val.includes("_SENT");
             
             const name = a["ФИО (Полностью)"] || a["ФИО"] || "Без имени";
-            const phone = a["Контактный телефон"] || a["Телефон"] || "—";
-            const social = a["Ваш ник в Инстаграм / Telegram"] || "—";
             const photo = getDirectLink(a["Фото (Портрет)"] || a["Фото"]);
             const video = a["Видеовизитка (ссылка на диск)"] || a["Видео"];
-            const city = a["Город проживания"] || "—";
-            const eth = a["Типаж / Национальность"] || "—";
-            const experience = a["Опыт съемок"] || "Нет данных";
-            const features = a["Особые приметы"] || "Нет";
 
             return `
             <div class="card" id="card-${id}">
@@ -328,32 +319,26 @@
                     
                     <div class="actor-details">
                         <div class="detail-row"><span class="detail-label">Пол</span><span class="detail-val">${a["Пол"]}</span></div>
-                        <div class="detail-row"><span class="detail-label">Город</span><span class="detail-val">${city}</span></div>
-                        <div class="detail-row"><span class="detail-label">Телефон</span><span class="detail-val">${phone}</span></div>
-                        <div class="detail-row"><span class="detail-label">Соцсети</span><span class="detail-val">${social}</span></div>
-                        <div class="detail-row" style="grid-column: 1/-1;"><span class="detail-label">Типаж</span><span class="detail-val">${eth}</span></div>
+                        <div class="detail-row"><span class="detail-label">Город</span><span class="detail-val">${a["Город проживания"]||'—'}</span></div>
                     </div>
 
-                    <div class="detail-label">Опыт / Приметы:</div>
-                    <div class="text-block">${experience}\n---\n${features}</div>
-
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                        <span class="detail-label">Звезды:</span>
-                        <select style="width:70px" onchange="updateCloud('${id}', this.value, '${status}')">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span class="detail-label">Оценка:</span>
+                        <select style="width:70px; background:#222; border-color:var(--accent);" onchange="updateCloud('${id}', this.value, 'Interesting')">
                             ${[...Array(11).keys()].map(n => `<option value="${n}" ${score == n ? 'selected' : ''}>${n || '—'}</option>`).join('')}
                         </select>
                     </div>
 
                     <div class="card-actions">
                         <button class="btn btn-tg" onclick="sendFull('${id}')">${isSent ? '✅ В ЧАТЕ' : '✈️ В ЧАТ'}</button>
-                        <button class="btn btn-video" onclick="playVideo('${video}')">📺 ВИДЕО</button>
+                        <button class="btn btn-video" onclick="playVideo('${video}')">📺</button>
                         
                         <div class="status-buttons">
-                            <button class="btn btn-outline" title="Главная" onclick="updateCloud('${id}', ${score}, 'Main')">👀</button>
-                            <button class="btn btn-outline" title="Интересно" onclick="updateCloud('${id}', ${score}, 'Interesting')">⭐</button>
-                            <button class="btn btn-outline" title="Отобран" onclick="updateCloud('${id}', ${score}, 'Selected')">🏆</button>
+                            <button class="btn btn-outline ${status === 'Main' ? 'active-status' : ''}" title="Просмотрен (в общую)" onclick="updateCloud('${id}', ${score}, 'Main')">👀</button>
+                            <button class="btn btn-outline ${status === 'Interesting' ? 'active-status' : ''}" title="Интересно" onclick="updateCloud('${id}', ${score}, 'Interesting')">⭐</button>
+                            <button class="btn btn-outline ${status === 'Selected' ? 'active-status' : ''}" title="Отобран" onclick="updateCloud('${id}', ${score}, 'Selected')">🏆</button>
                             <button class="btn btn-outline" title="В архив" onclick="updateCloud('${id}', ${score}, 'Archive')">📂</button>
-                            <button class="btn btn-outline" title="В трэш" style="color:var(--trash)" onclick="updateCloud('${id}', ${score}, 'Trash')">🗑️</button>
+                            <button class="btn btn-outline" style="color:var(--trash)" title="В трэш" onclick="updateCloud('${id}', ${score}, 'Trash')">🗑️</button>
                         </div>
                     </div>
                 </div>
@@ -362,11 +347,15 @@
     }
 
     function updateCloud(id, score, status) {
-        const val = score + ":" + status;
+        const currentVal = cloudData[id] || "0";
+        const isSent = currentVal.includes("_SENT") ? "_SENT" : "";
+        const val = score + ":" + status + isSent;
+        
         setCloudValue(id, val);
-        // Анимация исчезновения при смене статуса (если мы не в "Общей базе")
-        if (currentTab !== "all") {
-            const card = document.getElementById('card-' + id);
+        
+        // Визуальный эффект: если статус изменился и мы в специфичной вкладке - убираем карточку
+        const card = document.getElementById('card-' + id);
+        if (card && currentTab !== "all") {
             card.style.opacity = "0";
             card.style.transform = "scale(0.8)";
             setTimeout(render, 300);
