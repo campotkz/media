@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GULYWOOD CASTING • STABLE DASHBOARD</title>
+    <title>GULYWOOD CASTING • DASHBOARD</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #050608; --card: #111218; --accent: #ff5722; --text: #eee; --muted: #888; --border: rgba(255,255,255,0.1); }
@@ -20,7 +20,7 @@
         .name { font-size: 20px; font-weight: 700; margin-bottom: 5px; color: var(--accent); }
         .meta { font-size: 14px; color: var(--muted); margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap; }
         .tag { background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 6px; font-size: 12px; }
-        .details { font-size: 13px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--border); pt: 15px; margin-top: 15px; }
+        .details { font-size: 13px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 15px; margin-top: 15px; }
         .btn-action { display: block; width: 100%; padding: 12px; border: none; border-radius: 10px; color: white; font-weight: 600; cursor: pointer; margin-top: 10px; text-decoration: none; text-align: center; font-size: 14px; }
         .btn-tg { background: #24A1DE; }
         .btn-video { background: #ff0000; }
@@ -30,9 +30,7 @@
 <body>
 
 <div class="header">
-    <div>
-        <h1 style="margin:0; font-size: 26px;">Кастинг-база <span style="color:var(--accent)">GULYWOOD</span></h1>
-    </div>
+    <h1 style="margin:0; font-size: 26px;">Кастинг-база <span style="color:var(--accent)">GULYWOOD</span></h1>
     <button onclick="fetchData()" style="padding:12px 25px; background:var(--accent); border:none; border-radius:10px; color:white; cursor:pointer; font-weight:700;">ОБНОВИТЬ</button>
 </div>
 
@@ -48,7 +46,6 @@
 
 <div id="actorGrid" class="grid"></div>
 
-<!-- Используем PapaParse для идеального чтения CSV -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
 <script>
@@ -60,48 +57,39 @@
 
     async function fetchData() {
         const grid = document.getElementById('actorGrid');
-        grid.innerHTML = "<div class='status-msg'>⏳ Синхронизация данных...</div>";
-        
+        grid.innerHTML = "<div class='status-msg'>⏳ Обновление данных...</div>";
         Papa.parse(CSV_URL + "&cache=" + Math.random(), {
             download: true,
             header: true,
             complete: function(results) {
-                actors = results.data;
-                console.log("ACTORS DATA:", actors);
+                actors = results.data.filter(a => a["ФИО"] || a["Ваше ФИО"]); // Убираем пустые строки
                 render();
-            },
-            error: function() {
-                grid.innerHTML = "<div class='status-msg' style='color:#ff3b30'>❌ Ошибка загрузки CSV</div>";
             }
         });
     }
 
     function getDirectLink(url) {
         if (!url || typeof url !== 'string') return "";
-        if (url.includes('drive.google.com')) {
-            let id = "";
-            if (url.includes('id=')) id = url.split('id=')[1].split('&')[0];
-            else if (url.includes('/file/d/')) id = url.split('/file/d/')[1].split('/')[0];
-            if (id) return `https://lh3.googleusercontent.com/d/${id}`;
-        }
-        return url;
+        let id = "";
+        if (url.includes('id=')) id = url.split('id=')[1].split('&')[0];
+        else if (url.includes('/file/d/')) id = url.split('/file/d/')[1].split('/')[0];
+        return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
     }
 
     function render() {
         const grid = document.getElementById('actorGrid');
-        const search = document.getElementById('search').value.toLowerCase();
-        const project = document.getElementById('filterProject').value.toLowerCase();
-        const gender = document.getElementById('filterGender').value;
+        const search = document.getElementById('search').value.toLowerCase().trim();
+        const project = document.getElementById('filterProject').value.toLowerCase().trim();
+        const gender = document.getElementById('filterGender').value.toLowerCase().trim();
 
         const filtered = actors.filter(a => {
-            // Ищем нужные поля по ключевым словам в заголовках
             let name = "", prj = "", gen = "";
             for (let key in a) {
                 const k = key.toLowerCase();
-                const val = (a[key] || "").toString();
+                const val = (a[key] || "").toString().trim();
                 if (k.includes("фио") || k.includes("имя")) name = val.toLowerCase();
                 if (k.includes("проект")) prj = val.toLowerCase();
-                if (k.includes("пол")) gen = val.trim();
+                if (k.includes("пол")) gen = val.toLowerCase();
             }
             return name.includes(search) && prj.includes(project) && (!gender || gen === gender);
         });
@@ -118,13 +106,11 @@
                 if (k.includes("фото")) photoRaw = a[key];
                 if (k.includes("видео")) videoUrl = a[key];
             }
-            
-            const photoUrl = getDirectLink(photoRaw);
 
             return `
             <div class="card">
                 <div class="photo-container">
-                    <img class="photo" src="${photoUrl}" onerror="this.src='https://via.placeholder.com/400x500?text=ФОТО+НЕДОСТУПНО'">
+                    <img class="photo" src="${getDirectLink(photoRaw)}" onerror="this.src='https://via.placeholder.com/400x500?text=НЕТ+ФОТО'">
                     <a href="${photoRaw}" target="_blank" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.7); color:white; padding:5px 10px; border-radius:5px; font-size:12px; text-decoration:none;">🔍 Оригинал</a>
                 </div>
                 <div class="info">
@@ -148,62 +134,19 @@
         let id = "";
         if (url.includes('id=')) id = url.split('id=')[1].split('&')[0];
         else if (url.includes('/file/d/')) id = url.split('/file/d/')[1].split('/')[0];
-        
-        if (!id) { window.open(url, '_blank'); return; }
-
-        const playerHtml = `
-            <div id="videoModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; display:flex; align-items:center; justify-content:center;">
-                <div style="width:90%; max-width:900px; position:relative;">
-                    <button onclick="document.getElementById('videoModal').remove()" style="position:absolute; top:-40px; right:0; color:white; background:none; border:none; font-size:40px; cursor:pointer;">&times;</button>
-                    <iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="500"></iframe>
-                </div>
-            </div>`;
+        const playerHtml = `<div id="videoModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; display:flex; align-items:center; justify-content:center;"><div style="width:90%; max-width:900px; position:relative;"><button onclick="document.getElementById('videoModal').remove()" style="position:absolute; top:-40px; right:0; color:white; background:none; border:none; font-size:40px; cursor:pointer;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="500"></iframe></div></div>`;
         document.body.insertAdjacentHTML('beforeend', playerHtml);
     }
 
     async function sendToTelegram(index) {
         const a = actors[index];
         const btn = event.target;
-        btn.disabled = true;
-        btn.innerText = "⏳ Отправка...";
-
-        // Собираем ссылки на медиа
-        let photoUrl = "", videoUrl = "";
-        for (let key in a) {
-            const k = key.toLowerCase();
-            if (k.includes("фото")) photoUrl = a[key];
-            if (k.includes("видео")) videoUrl = a[key];
-        }
-
-        const msg = `🎭 *АНКЕТА ИЗ БАЗЫ GULYWOOD*\n\n` +
-                    `👤 *Имя:* ${a["ФИО"] || a["Ваше ФИО"] || '—'}\n` +
-                    `🎬 *Проект:* ${a["Проект"] || a["Название проекта"] || '—'}\n` +
-                    `📍 *Город:* ${a["Город"] || '—'}\n` +
-                    `🚻 *Пол/Возраст:* ${a["Пол"] || '—'}, ${a["Возраст"] || '—'} лет\n` +
-                    `📞 *Телефон:* ${a["Телефон"] || '—'}\n` +
-                    `📝 *Опыт:* ${a["Опыт"] || a["Опыт работы"] || '—'}\n\n` +
-                    `🖼 [ОТКРЫТЬ ФОТО](${photoUrl})\n` +
-                    `${videoUrl ? `🎬 [СМОТРЕТЬ ВИДЕО](${videoUrl})` : '🎬 *Видео не прикреплено*'}`;
-
-        try {
-            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: msg,
-                    parse_mode: 'Markdown',
-                    disable_web_page_preview: false // Чтобы ТГ показал превью фото
-                })
-            });
-            btn.innerText = "✅ В ЧАТЕ";
-            btn.style.background = "#4cd964";
-        } catch (err) {
-            console.error("TG ERROR:", err);
-            alert("Ошибка отправки в Телеграм");
-            btn.disabled = false;
-            btn.innerText = "ОТПРАВИТЬ В ЧАТ";
-        }
+        btn.disabled = true; btn.innerText = "⏳...";
+        let p = "", v = "";
+        for (let k in a) { if (k.toLowerCase().includes("фото")) p = a[k]; if (k.toLowerCase().includes("видео")) v = a[k]; }
+        const msg = `🎭 *АНКЕТА GULYWOOD*\n\n👤 *Имя:* ${a["ФИО"] || a["Ваше ФИО"]}\n🎬 *Проект:* ${a["Проект"] || a["Название проекта"]}\n📍 *Город:* ${a["Город"]}\n📞 *Тел:* ${a["Телефон"]}\n\n🖼 [ФОТО](${p})\n🎬 [ВИДЕО](${v})`;
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CHAT_ID, text: msg, parse_mode: 'Markdown' }) });
+        btn.innerText = "✅ В ЧАТЕ"; btn.style.background = "#4cd964";
     }
 
     fetchData();
