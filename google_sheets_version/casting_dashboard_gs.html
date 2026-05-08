@@ -3,128 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GULYWOOD - Дашборд Кастинга</title>
+    <title>GULYWOOD CASTING • DASHBOARD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; background: #0a0b10; color: white; padding: 20px; }
-        .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #14161e; padding: 15px; border-radius: 12px; }
-        select, input { padding: 8px; border-radius: 6px; background: #1c1f26; color: white; border: 1px solid #333; }
+        :root { --bg: #050608; --card: #111218; --accent: #ff5722; --text: #eee; --muted: #888; --border: rgba(255,255,255,0.1); }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; background: #0f1016; padding: 20px; border-radius: 16px; border: 1px solid var(--border); }
+        input, select { background: #1a1b23; border: 1px solid var(--border); padding: 12px; color: white; border-radius: 8px; font-size: 14px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: #14161e; padding: 20px; border-radius: 16px; border: 1px solid #222; }
-        .card img { width: 100%; border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
-        .btn-tg { width: 100%; padding: 12px; background: #0088cc; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .btn-tg:hover { background: #00aaff; }
+        .card { background: var(--card); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); transition: 0.3s; position: relative; }
+        .card:hover { transform: translateY(-5px); border-color: var(--accent); }
+        .photo { width: 100%; height: 350px; background: #222; object-fit: cover; }
+        .info { padding: 20px; }
+        .name { font-size: 20px; font-weight: 700; margin-bottom: 5px; }
+        .meta { font-size: 14px; color: var(--muted); margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .tag { background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+        .btn-tg { width: 100%; padding: 12px; background: #24A1DE; border: none; border-radius: 10px; color: white; font-weight: 600; cursor: pointer; margin-top: 10px; }
+        .btn-tg:hover { background: #2ea9e4; }
+        .status-msg { text-align: center; padding: 40px; color: var(--muted); }
     </style>
 </head>
 <body>
-    <h1>Дашборд Кастинга (Google Sheets)</h1>
-    
-    <div class="filters">
-        <input type="text" id="filterName" placeholder="Поиск по ФИО..." oninput="render()">
-        <input type="text" id="filterProject" placeholder="Проект..." oninput="render()">
-        <input type="text" id="filterCity" placeholder="Город..." oninput="render()">
-        <select id="filterGender" onchange="render()">
-            <option value="">Все полы</option>
-            <option value="Мужской">Мужской</option>
-            <option value="Женский">Женский</option>
-        </select>
-        <button onclick="fetchData()">Обновить данные</button>
-    </div>
 
-    <div class="grid" id="actorGrid">Загрузка данных из таблицы...</div>
+<div class="header">
+    <h1 style="margin:0; font-size: 24px;">Дашборд Кастинга <span style="color:var(--accent)">GULYWOOD</span></h1>
+    <button onclick="fetchData()" style="padding:10px 20px; background:var(--accent); border:none; border-radius:8px; color:white; cursor:pointer; font-weight:600;">ОБНОВИТЬ</button>
+</div>
 
-    <script>
-        const SCRIPT_URL = "ВСТАВЬТЕ_URL_ВАШЕГО_WEB_APP_ЗДЕСЬ";
-        const BOT_TOKEN = "ВСТАВЬТЕ_ВАШ_BOT_TOKEN_ЗДЕСЬ";
-        const CHAT_ID = "-1003738942785"; // Основной чат
+<div class="controls">
+    <input type="text" id="search" placeholder="Поиск по ФИО..." oninput="render()">
+    <input type="text" id="filterProject" placeholder="Проект..." oninput="render()">
+    <select id="filterGender" onchange="render()">
+        <option value="">Все полы</option>
+        <option value="Мужской">Мужской</option>
+        <option value="Женский">Женский</option>
+    </select>
+</div>
 
-        let actors = [];
+<div id="actorGrid" class="grid"></div>
 
-        async function fetchData() {
-            const grid = document.getElementById('actorGrid');
-            try {
-                grid.innerText = "⏳ Обновление данных...";
-                // Максимальный обход кэша: случайный параметр + заголовок no-store
-                const freshUrl = SCRIPT_URL + "?cache=" + Math.random();
-                
-                const res = await fetch(freshUrl, {
-                    method: 'GET',
-                    redirect: 'follow',
-                    cache: 'no-store'
-                });
-                
-                if (!res.ok) throw new Error('Google вернул ' + res.status);
-                
-                actors = await res.json();
-                if (actors.length === 0) {
-                    grid.innerHTML = "<div style='color:var(--muted)'>📭 В таблице пока пусто. Отправьте первую анкету!</div>";
-                } else {
-                    render();
-                }
-            } catch (err) {
-                console.error("DASHBOARD ERROR:", err);
-                grid.innerHTML = `<div style="color:#ff3b30">❌ Ошибка загрузки: ${err.message}<br><small>Если в браузере скрипт открывается, подождите 2 минуты, пока обновится GitHub.</small></div>`;
-            }
+<script>
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOZprF0d6DAsO50Vng0OOnuPw-ZS79sVIOe3ZqlX9r7RKm4eWX5u6AA5gHQ8xb30vT28kQr2F8WRxm/pub?gid=756356467&single=true&output=csv";
+    const BOT_TOKEN = "8534227633:AAEqULwA8rypkF-BW87G_9ACmKWNEoGZFI4";
+    const CHAT_ID = "-1003738942785";
+
+    let actors = [];
+
+    async function fetchData() {
+        const grid = document.getElementById('actorGrid');
+        grid.innerHTML = "<div class='status-msg'>⏳ Загрузка свежих анкет...</div>";
+        try {
+            const res = await fetch(CSV_URL + "&t=" + Math.random());
+            const text = await res.text();
+            actors = parseCSV(text);
+            render();
+        } catch (err) {
+            grid.innerHTML = "<div class='status-msg' style='color:#ff3b30'>❌ Ошибка загрузки данных</div>";
         }
+    }
 
-        function render() {
-            const grid = document.getElementById('actorGrid');
-            const nameF = document.getElementById('filterName').value.toLowerCase();
-            const projectF = document.getElementById('filterProject').value.toLowerCase();
-            const cityF = document.getElementById('filterCity').value.toLowerCase();
-            const genderF = document.getElementById('filterGender').value;
-
-            const filtered = actors.filter(a => {
-                return (String(a["ФИО"]).toLowerCase().includes(nameF)) &&
-                       (String(a["Проект"]).toLowerCase().includes(projectF)) &&
-                       (String(a["Город"]).toLowerCase().includes(cityF)) &&
-                       (!genderF || a["Пол"] === genderF);
+    function parseCSV(csv) {
+        const lines = csv.split("\n");
+        const headers = lines[0].split(",");
+        return lines.slice(1).map(line => {
+            const values = line.split(",");
+            let obj = {};
+            headers.forEach((h, i) => {
+                obj[h.trim()] = values[i] ? values[i].trim() : "";
             });
+            return obj;
+        });
+    }
 
-            grid.innerHTML = filtered.map(a => `
-                <div class="card">
-                    ${a["Фото Ссылка"] ? `<img src="${a["Фото Ссылка"]}" onclick="window.open('${a["Фото Ссылка"]}')">` : ''}
-                    <h3>${a["ФИО"]}</h3>
-                    <p>🎭 Роль: ${a["Роль"]}</p>
-                    <p>📍 ${a["Город"]} | ${a["Возраст"]} лет</p>
-                    <p>📏 ${a["Рост"]} см / ${a["Вес"]} кг</p>
-                    <p>📱 ${a["Телефон"]}</p>
-                    <button class="btn-tg" onclick="sendToTelegram('${encodeURIComponent(JSON.stringify(a))}')">ОТПРАВИТЬ В ЧАТ</button>
+    function render() {
+        const grid = document.getElementById('actorGrid');
+        const search = document.getElementById('search').value.toLowerCase();
+        const project = document.getElementById('filterProject').value.toLowerCase();
+        const gender = document.getElementById('filterGender').value;
+
+        const filtered = actors.filter(a => {
+            return (a["ФИО"] || "").toLowerCase().includes(search) &&
+                   (a["Проект"] || "").toLowerCase().includes(project) &&
+                   (!gender || a["Пол"] === gender);
+        });
+
+        if (filtered.length === 0) {
+            grid.innerHTML = "<div class='status-msg'>Ничего не найдено</div>";
+            return;
+        }
+
+        grid.innerHTML = filtered.map((a, i) => `
+            <div class="card">
+                <img class="photo" src="${a["Фото Ссылка"] || 'https://via.placeholder.com/400x500?text=НЕТ+ФОТО'}" onerror="this.src='https://via.placeholder.com/400x500?text=ОШИБКА+ФОТО'">
+                <div class="info">
+                    <div class="name">${a["ФИО"] || 'Без имени'}</div>
+                    <div class="meta">
+                        <span class="tag">${a["Пол"]}</span>
+                        <span class="tag">${a["Возраст"]} лет</span>
+                        <span class="tag">${a["Город"]}</span>
+                    </div>
+                    <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">
+                        <b>Проект:</b> ${a["Проект"]}<br>
+                        <b>Рост/Вес:</b> ${a["Рост"]}/${a["Вес"]}<br>
+                        <b>Тел:</b> ${a["Телефон"]}
+                    </div>
+                    <button class="btn-tg" onclick="sendToTelegram(${i})">ОТПРАВИТЬ В ЧАТ</button>
                 </div>
-            `).join('');
+            </div>
+        `).join('');
+    }
+
+    async function sendToTelegram(index) {
+        const a = actors[index];
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerText = "⏳ Отправка...";
+
+        const text = `🌟 *НОВАЯ АНКЕТА*\n\n` +
+                     `👤 *ФИО:* ${a["ФИО"]}\n` +
+                     `🎬 *Проект:* ${a["Проект"]}\n` +
+                     `📍 *Город:* ${a["Город"]}\n` +
+                     `🎭 *Пол/Возраст:* ${a["Пол"]}, ${a["Возраст"]}\n` +
+                     `📏 *Параметры:* ${a["Рост"]}см / ${a["Вес"]}кг\n` +
+                     `📞 *Телефон:* ${a["Телефон"]}\n\n` +
+                     `📝 *Опыт:* ${a["Опыт"]}\n\n` +
+                     `📸 [Фотография](${a["Фото Ссылка"]})`;
+
+        try {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: text,
+                    parse_mode: 'Markdown'
+                })
+            });
+            btn.innerText = "✅ ОТПРАВЛЕНО";
+            btn.style.background = "#4cd964";
+        } catch (err) {
+            alert("Ошибка отправки в Телеграм");
+            btn.disabled = false;
+            btn.innerText = "ОТПРАВИТЬ В ЧАТ";
         }
+    }
 
-        async function sendToTelegram(encodedData) {
-            const a = JSON.parse(decodeURIComponent(encodedData));
-            const text = `
-🌟 <b>АНКЕТА ИЗ ДАШБОРДА</b>
-👤 ФИО: <b>${a["ФИО"]}</b>
-🎯 Проект: ${a["Проект"]}
-🎭 Роль: ${a["Роль"]}
-📍 Город: ${a["Город"]}
-📏 Параметры: ${a["Возраст"]} лет, ${a["Рост"]} см
-📱 Тел: ${a["Телефон"]}
+    fetchData();
+</script>
 
-🖼 <a href="${a["Фото Ссылка"]}">Открыть Фото</a>
-🎥 <a href="${a["Видео Ссылка"]}">Смотреть Видеовизитку</a>
-            `.trim();
-
-            try {
-                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: CHAT_ID,
-                        text: text,
-                        parse_mode: 'HTML'
-                    })
-                });
-                alert("Отправлено в Телеграм!");
-            } catch (err) {
-                alert("Ошибка отправки в Телеграм.");
-            }
-        }
-
-        fetchData();
-    </script>
 </body>
 </html>
