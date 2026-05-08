@@ -529,9 +529,13 @@
 
     function updateCloud(id, score, status) {
         const currentVal = cloudData[id] || "0";
-        const isSent = currentVal.includes("_SENT") ? "_SENT" : "";
-        const val = score + ":" + status + isSent;
+        // Если переносим в Архив или Трэш - сбрасываем статус отправки в ТГ
+        let isSent = currentVal.includes("_SENT") ? "_SENT" : "";
+        if (status === "Archive" || status === "Trash") {
+            isSent = "";
+        }
         
+        const val = score + ":" + status + isSent;
         setCloudValue(id, val);
         
         // Визуальный эффект: если статус изменился и мы в специфичной вкладке - убираем карточку
