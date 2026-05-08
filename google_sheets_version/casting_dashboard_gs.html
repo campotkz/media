@@ -168,8 +168,23 @@
                 <select id="fPrj" onchange="render()"><option value="">Все проекты</option></select>
             </div>
             <div class="filter-group">
+                <label>Роль</label>
+                <select id="fRole" onchange="render()"><option value="">Все роли</option></select>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+            <div class="filter-group">
                 <label>Пол</label>
                 <select id="fGen" onchange="render()"><option value="">Все</option><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select>
+            </div>
+            <div class="filter-group">
+                <label>Город</label>
+                <select id="fCity" onchange="render()"><option value="">Все города</option></select>
+            </div>
+            <div class="filter-group">
+                <label>Типаж</label>
+                <select id="fEth" onchange="render()"><option value="">Все типажи</option></select>
             </div>
         </div>
 
@@ -243,7 +258,7 @@
                 download: true, header: true, skipEmptyLines: true,
                 complete: function(res) {
                     actors = res.data.filter(a => Object.values(a).some(v => v)).map((a, i) => ({...a, _row: i + 2}));
-                    updateProjectFilter();
+                    updateDynamicFilters();
                     render();
                     btn.innerText = "🔄";
                 }
@@ -259,10 +274,21 @@
         fetch(url, { mode: 'no-cors' });
     }
 
-    function updateProjectFilter() {
-        const sel = document.getElementById('fPrj');
-        const prjs = [...new Set(actors.map(a => a["Проект"] || a["Название проекта, в котором вы участвуете"] || "Не указан"))];
-        sel.innerHTML = '<option value="">Все проекты</option>' + prjs.map(p => `<option value="${p}">${p}</option>`).join('');
+    function updateDynamicFilters() {
+        const prjSel = document.getElementById('fPrj');
+        const roleSel = document.getElementById('fRole');
+        const citySel = document.getElementById('fCity');
+        const ethSel = document.getElementById('fEth');
+
+        const prjs = [...new Set(actors.map(a => a["Проект"]).filter(Boolean))].sort();
+        const roles = [...new Set(actors.map(a => a["Роль"]).filter(Boolean))].sort();
+        const cities = [...new Set(actors.map(a => a["Город проживания"]).filter(Boolean))].sort();
+        const types = [...new Set(actors.map(a => a["Национальность / Типаж"]).filter(Boolean))].sort();
+
+        prjSel.innerHTML = '<option value="">Все проекты</option>' + prjs.map(p => `<option value="${p}">${p}</option>`).join('');
+        roleSel.innerHTML = '<option value="">Все роли</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
+        citySel.innerHTML = '<option value="">Все города</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('');
+        ethSel.innerHTML = '<option value="">Все типажи</option>' + types.map(t => `<option value="${t}">${t}</option>`).join('');
     }
 
     function getDirectLink(url) {
@@ -275,7 +301,10 @@
         const grid = document.getElementById('actorGrid');
         const q = document.getElementById('sQuery').value.toLowerCase();
         const fPrj = document.getElementById('fPrj').value;
+        const fRole = document.getElementById('fRole').value;
         const fGen = document.getElementById('fGen').value;
+        const fCity = document.getElementById('fCity').value;
+        const fEth = document.getElementById('fEth').value;
         const fAMin = parseInt(document.getElementById('fAgeMin').value) || 0;
         const fAMax = parseInt(document.getElementById('fAgeMax').value) || 99;
         const fHMin = parseInt(document.getElementById('fHMin').value) || 0;
@@ -285,6 +314,11 @@
 
         let filtered = actors.filter(a => {
             const id = a._row;
+            if (fPrj && a["Проект"] !== fPrj) return false;
+            if (fRole && a["Роль"] !== fRole) return false;
+            if (fGen && a["Пол"] !== fGen) return false;
+            if (fCity && a["Город проживания"] !== fCity) return false;
+            if (fEth && a["Национальность / Типаж"] !== fEth) return false;
             const val = cloudData[id] || "0";
             const score = parseInt(val) || 0;
             const status = val.includes(":") ? val.split(":")[1].replace("_SENT", "") : "Новая";
