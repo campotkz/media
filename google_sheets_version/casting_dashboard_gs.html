@@ -16,12 +16,12 @@
         .photo-container { width: 100%; height: 380px; background: #222; position: relative; }
         .photo { width: 100%; height: 100%; object-fit: cover; }
         .rating-badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85); padding: 4px 10px; border-radius: 20px; color: #ffd700; font-weight: bold; border: 1px solid #ffd700; font-size: 14px; }
-        .sent-badge { position: absolute; top: 10px; right: 10px; background: #24A1DE; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; box-shadow: 0 0 15px rgba(36,161,222,0.5); }
+        .sent-badge { position: absolute; top: 10px; right: 10px; background: #24A1DE; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
         .info { padding: 15px; flex-grow: 1; }
-        .name { font-size: 18px; font-weight: 700; color: var(--accent); margin-bottom: 5px; }
+        .name { font-size: 17px; font-weight: 700; color: var(--accent); margin-bottom: 5px; }
         .meta { font-size: 11px; color: var(--muted); display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
         .tag { background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; }
-        .btn-action { display: block; width: 100%; padding: 10px; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; margin-top: 8px; text-decoration: none; text-align: center; font-size: 13px; }
+        .btn-action { display: block; width: 100%; padding: 10px; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; margin-top: 8px; text-decoration: none; text-align: center; font-size: 12px; }
         .btn-tg { background: #24A1DE; }
         .btn-video { background: #ff0000; }
         label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 2px; }
@@ -35,13 +35,12 @@
 </div>
 
 <div class="controls">
-    <div><label>Вес (от)</label><input type="number" id="fWMin" placeholder="кг" oninput="render()"></div>
-    <div><label>Вес (до)</label><input type="number" id="fWMax" placeholder="кг" oninput="render()"></div>
+    <div><label>Вес (от)</label><input type="number" id="fWMin" oninput="render()"></div>
+    <div><label>Вес (до)</label><input type="number" id="fWMax" oninput="render()"></div>
     <div><label>ФИО</label><input type="text" id="fName" oninput="render()"></div>
     <div><label>Пол</label><select id="fGen" onchange="render()"><option value="">Все</option><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select></div>
     <div><label>Возраст (от)</label><input type="number" id="fAgeMin" oninput="render()"></div>
     <div><label>Рост (от)</label><input type="number" id="fHMin" oninput="render()"></div>
-    <div><label>Проект</label><input type="text" id="fPrj" placeholder="Название..." oninput="render()"></div>
 </div>
 
 <div id="actorGrid" class="grid"></div>
@@ -59,101 +58,78 @@
 
     async function syncAll() {
         const btn = document.getElementById('syncBtn');
-        const grid = document.getElementById('actorGrid');
-        btn.innerText = "⏳ ЗАГРУЗКА...";
+        btn.innerText = "⏳ СИНХРОНИЗАЦИЯ...";
         
         try {
-            // 1. Сначала ВСЕГДА берем свежие звезды из облака с обходом кэша
+            // 1. Звезды
             const cloudResp = await fetch(RATINGS_API + "?action=get&nocache=" + Date.now());
             const text = await cloudResp.text();
-            try {
-                cloudData = JSON.parse(text);
-                console.log("Cloud Data Updated:", cloudData);
-            } catch(e) {
-                console.warn("Could not parse cloud data, using empty. Response was:", text);
-                cloudData = {};
-            }
+            try { cloudData = JSON.parse(text); } catch(e) { cloudData = {}; }
             
-            // 2. Потом берем анкеты
+            // 2. Анкеты
             Papa.parse(CSV_URL + "&cb=" + Date.now(), {
-                download: true, header: true,
+                download: true, header: true, skipEmptyLines: true,
                 complete: function(results) {
-                    actors = results.data.filter(a => Object.values(a).some(v => v && v.length > 1));
+                    actors = results.data.filter(a => Object.values(a).some(v => v && v.length > 0));
                     render();
                     btn.innerText = "ОБНОВИТЬ ВСЁ";
-                }
+                },
+                error: function() { btn.innerText = "ОШИБКА CSV"; }
             });
-        } catch(e) { 
-            console.error("Sync Error:", e);
-            btn.innerText = "ОШИБКА";
-        }
+        } catch(e) { btn.innerText = "ОШИБКА API"; }
     }
 
-    async function setCloudValue(id, val) {
+    function setCloudValue(id, val) {
+        if (!id || id.includes("undefined")) return;
         cloudData[id] = val;
         render();
-        
         const url = `${RATINGS_API}?action=set&id=${encodeURIComponent(id)}&score=${encodeURIComponent(val)}&t=${Date.now()}`;
-        
-        // Посылаем запрос двумя способами для надежности
-        fetch(url, { mode: 'no-cors' }); 
-        const img = new Image();
-        img.src = url;
-        
-        console.log("Saving...", id, val);
+        fetch(url, { mode: 'no-cors' });
+        new Image().src = url;
     }
 
     function getDirectLink(url) {
         if (!url || typeof url !== 'string') return "";
-        let id = "";
-        if (url.includes('id=')) id = url.split('id=')[1].split('&')[0];
-        else if (url.includes('/file/d/')) id = url.split('/file/d/')[1].split('/')[0];
+        let id = (url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/) || [])[1];
         return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
     }
 
     function render() {
         const grid = document.getElementById('actorGrid');
-        const search = document.getElementById('fName').value.toLowerCase();
-        const project = document.getElementById('fPrj').value.toLowerCase();
-        const gender = document.getElementById('fGen').value;
-        const ageMin = parseInt(document.getElementById('fAgeMin').value) || 0;
-        const wMin = parseInt(document.getElementById('fWMin').value) || 0;
-        const wMax = parseInt(document.getElementById('fWMax').value) || 999;
+        const fName = document.getElementById('fName').value.toLowerCase();
+        const fGen = document.getElementById('fGen').value;
+        const fWMin = parseInt(document.getElementById('fWMin').value) || 0;
+        const fWMax = parseInt(document.getElementById('fWMax').value) || 999;
+        const fAgeMin = parseInt(document.getElementById('fAgeMin').value) || 0;
 
         const filtered = actors.filter(a => {
-            let n = "", p = "", g = "", age = 0, weight = 0;
+            let name = "", gender = "", age = 0, weight = 0;
             for (let k in a) {
-                const key = k.toLowerCase().trim();
+                const key = k.toLowerCase();
                 const v = (a[k] || "").toString().trim();
-                if (key.includes("фио")) n = v.toLowerCase();
-                if (key.includes("проект")) p = v.toLowerCase();
-                if (key === "пол") g = v;
+                if (key.includes("фио")) name = v.toLowerCase();
+                if (key === "пол") gender = v;
                 if (key.includes("возраст")) age = parseInt(v) || 0;
                 if (key.includes("вес")) weight = parseInt(v) || 0;
             }
-            return n.includes(search) && p.includes(project) && (!gender || g === gender) && 
-                   age >= ageMin && weight >= wMin && weight <= wMax;
+            return name.includes(fName) && (!fGen || gender === fGen) && weight >= fWMin && weight <= fWMax && age >= fAgeMin;
         });
 
-        // СТРОГАЯ СОРТИРОВКА: Сначала 10 звезд, потом 9... потом 0
         filtered.sort((a, b) => {
-            const idA = ((a["Отметка времени"]||"")+(a["ФИО"]||"")).replace(/\s/g, '');
-            const idB = ((b["Отметка времени"]||"")+(b["ФИО"]||"")).replace(/\s/g, '');
-            const rA = parseInt(cloudData[idA] || 0);
-            const rB = parseInt(cloudData[idB] || 0);
-            
-            if (rB !== rA) return rB - rA; // Больше звезд = выше
-            return 0; // При равных звездах оставляем как есть
+            const idA = ((a["Отметка времени"]||a["Timestamp"]||"")+(a["ФИО"]||a["Ваше ФИО"]||"")).replace(/\s/g, '');
+            const idB = ((b["Отметка времени"]||b["Timestamp"]||"")+(b["ФИО"]||b["Ваше ФИО"]||"")).replace(/\s/g, '');
+            return (parseInt(cloudData[idB]) || 0) - (parseInt(cloudData[idA]) || 0);
         });
+
+        if (filtered.length === 0) { grid.innerHTML = "<div style='text-align:center;width:100%;padding:50px;color:#888;'>Никого не нашли</div>"; return; }
 
         grid.innerHTML = filtered.map(a => {
-            const actorName = a["ФИО"] || a["Ваше ФИО"];
-            const timestamp = a["Отметка времени"] || a["Timestamp"] || "";
-            const id = (timestamp + actorName).replace(/\s/g, ''); // УНИКАЛЬНЫЙ ID
-            
+            const name = a["ФИО"] || a["Ваше ФИО"] || "Без имени";
+            const time = a["Отметка времени"] || a["Timestamp"] || "";
+            const id = (time + name).replace(/\s/g, '');
             const val = cloudData[id] || "0";
-            const isSent = val.includes("_SENT");
             const rating = parseInt(val) || 0;
+            const isSent = val.includes("_SENT");
             
             let photoRaw = "", videoUrl = "";
             for (let k in a) {
@@ -165,39 +141,39 @@
             <div class="card">
                 <div class="photo-container">
                     ${rating > 0 ? `<div class="rating-badge">★ ${rating}</div>` : ''}
-                    ${isSent ? `<div class="sent-badge">В ЧАТЕ ✅</div>` : ''}
+                    ${isSent ? `<div class="sent-badge">ОТПРАВЛЕНО ✅</div>` : ''}
                     <img class="photo" src="${getDirectLink(photoRaw)}" onerror="this.src='https://via.placeholder.com/300x400'">
                 </div>
                 <div class="info">
-                    <div class="name">${actorName}</div>
+                    <div class="name">${name}</div>
                     <div class="meta"><span class="tag">${a["Пол"]}</span><span class="tag">${a["Возраст"]}л</span><span class="tag">${a["Рост"]}см</span></div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
                         <label>Оценка:</label>
                         <select style="width:60px" onchange="setCloudValue('${id}', this.value + '${isSent ? "_SENT" : ""}')">
                             ${[...Array(11).keys()].map(n => `<option value="${n}" ${rating == n ? 'selected' : ''}>${n || '—'}</option>`).join('')}
                         </select>
                     </div>
                     ${videoUrl ? `<button onclick="playVideo('${videoUrl}')" class="btn-action btn-video">📺 ВИДЕО</button>` : ''}
-                    <button class="btn-action btn-tg" onclick="sendFull('${id}', '${actorName}')">ОТПРАВИТЬ В ЧАТ</button>
+                    <button class="btn-action btn-tg" onclick="sendFull('${id}', '${name}')">В ТЕЛЕГРАМ</button>
                 </div>
             </div>`;
         }).join('');
     }
 
     function playVideo(url) {
-        let id = url.includes('id=') ? url.split('id=')[1].split('&')[0] : (url.includes('/file/d/') ? url.split('/file/d/')[1].split('/')[0] : "");
-        document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:1000;display:flex;align-items:center;justify-content:center;"><div style="width:90%;max-width:800px;position:relative;"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-40px;right:0;color:white;background:none;border:none;font-size:40px;cursor:pointer;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="450"></iframe></div></div>`);
+        let id = (url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/) || [])[1];
+        document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;display:flex;align-items:center;justify-content:center;"><div style="width:95%;max-width:800px;position:relative;"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-45px;right:0;color:white;background:none;border:none;font-size:40px;cursor:pointer;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="450"></iframe></div></div>`);
     }
 
     async function sendFull(id, name) {
-        const a = actors.find(act => ((act["Отметка времени"]||"")+(act["ФИО"]||"")).replace(/\s/g, '') === id);
+        const a = actors.find(act => ((act["Отметка времени"]||act["Timestamp"]||"")+(act["ФИО"]||act["Ваше ФИО"]||"")).replace(/\s/g, '') === id);
         const btn = event.target; btn.disabled = true;
         let p = "", v = ""; for (let k in a) { if (k.toLowerCase().includes("фото")) p = a[k]; if (k.toLowerCase().includes("видео")) v = a[k]; }
-        const rating = parseInt(cloudData[id] || 0);
-        const cap = `🎭 *АНКЕТА GULYWOOD*\n\n👤 *Имя:* ${name}\n⭐️ *Рейтинг:* ${rating}/10\n🎬 *Проект:* ${a["Проект"]}\n🚻 *Параметры:* ${a["Возраст"]}л, ${a["Рост"]}см, ${a["Вес"]}кг\n\n🎬 [ВИДЕО](${v})`;
+        const r = parseInt(cloudData[id] || 0);
+        const cap = `🎭 *АНКЕТА*\n\n👤 *Имя:* ${name}\n⭐️ *Рейтинг:* ${r}/10\n🎬 *Проект:* ${a["Проект"]}\n🚻 *Параметры:* ${a["Возраст"]}л, ${a["Рост"]}см, ${a["Вес"]}кг\n\n🎬 [ВИДЕО](${v})`;
         try {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CHAT_ID, photo: getDirectLink(p), caption: cap, parse_mode: 'Markdown' }) });
-            setCloudValue(id, rating + "_SENT");
+            setCloudValue(id, r + "_SENT");
         } catch(e) { alert("Ошибка ТГ"); btn.disabled = false; }
     }
 
