@@ -3,96 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GULYWOOD CASTING PRO</title>
+    <title>GULYWOOD CASTING ULTIMATE</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #050608; --card: #111218; --accent: #ff5722; --text: #eee; --muted: #888; --border: rgba(255,255,255,0.1); }
         body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        
-        .controls { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
-            gap: 10px; 
-            margin-bottom: 25px; 
-            background: #0f1016; 
-            padding: 15px; 
-            border-radius: 12px; 
-            border: 1px solid var(--border); 
-        }
-        
-        input, select { 
-            background: #1a1b23; 
-            border: 1px solid var(--border); 
-            padding: 10px; 
-            color: white; 
-            border-radius: 6px; 
-            font-size: 13px; 
-            width: 100%; 
-            box-sizing: border-box; 
-        }
-        
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 25px; background: #0f1016; padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
+        input, select { background: #1a1b23; border: 1px solid var(--border); padding: 8px; color: white; border-radius: 6px; font-size: 12px; width: 100%; box-sizing: border-box; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
-        
-        .card { 
-            background: var(--card); 
-            border-radius: 12px; 
-            overflow: hidden; 
-            border: 1px solid var(--border); 
-            transition: 0.3s; 
-            display: flex;
-            flex-direction: column;
-        }
-        .card:hover { border-color: var(--accent); }
-        
-        .photo-container { width: 100%; height: 350px; background: #222; position: relative; }
+        .card { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); transition: 0.3s; position: relative; display: flex; flex-direction: column; }
+        .photo-container { width: 100%; height: 380px; background: #222; position: relative; }
         .photo { width: 100%; height: 100%; object-fit: cover; }
-        
-        .rating-overlay {
-            position: absolute; top: 10px; left: 10px;
-            background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 20px;
-            color: #ffd700; font-weight: bold; border: 1px solid #ffd700;
-        }
-
+        .rating-badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85); padding: 4px 10px; border-radius: 20px; color: #ffd700; font-weight: bold; border: 1px solid #ffd700; font-size: 14px; }
+        .sent-badge { position: absolute; top: 10px; right: 10px; background: #24A1DE; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; box-shadow: 0 0 15px rgba(36,161,222,0.5); }
         .info { padding: 15px; flex-grow: 1; }
         .name { font-size: 18px; font-weight: 700; color: var(--accent); margin-bottom: 5px; }
-        .meta { font-size: 12px; color: var(--muted); display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
-        .tag { background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 4px; }
-        
-        .rating-select {
-            margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-
+        .meta { font-size: 11px; color: var(--muted); display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+        .tag { background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; }
         .btn-action { display: block; width: 100%; padding: 10px; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; margin-top: 8px; text-decoration: none; text-align: center; font-size: 13px; }
         .btn-tg { background: #24A1DE; }
         .btn-video { background: #ff0000; }
-        
-        .status-msg { text-align: center; padding: 60px; color: var(--muted); grid-column: 1 / -1; }
-        label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 3px; }
+        label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 2px; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="margin:0; font-size: 22px;">GULYWOOD <span style="color:var(--accent)">CASTING PRO</span></h1>
-    <button onclick="fetchData()" style="padding:8px 15px; background:var(--accent); border:none; border-radius:6px; color:white; cursor:pointer; font-weight:bold;">ОБНОВИТЬ БАЗУ</button>
+    <h1 style="margin:0; font-size: 20px;">GULYWOOD <span style="color:var(--accent)">CASTING HUB</span></h1>
+    <button onclick="syncAll()" id="syncBtn" style="padding:8px 15px; background:var(--accent); border:none; border-radius:6px; color:white; cursor:pointer; font-weight:bold;">ОБНОВИТЬ ВСЁ</button>
 </div>
 
 <div class="controls">
-    <div><label>ФИО</label><input type="text" id="sName" oninput="render()"></div>
-    <div><label>Проект</label><input type="text" id="sPrj" oninput="render()"></div>
-    <div><label>Пол</label>
-        <select id="sGen" onchange="render()">
-            <option value="">Все</option>
-            <option value="Мужской">Мужской</option>
-            <option value="Женский">Женский</option>
-        </select>
-    </div>
-    <div><label>Возраст (от)</label><input type="number" id="sAgeMin" placeholder="0" oninput="render()"></div>
-    <div><label>Возраст (до)</label><input type="number" id="sAgeMax" placeholder="99" oninput="render()"></div>
-    <div><label>Рост (от)</label><input type="number" id="sHeightMin" placeholder="100" oninput="render()"></div>
-    <div><label>Рост (до)</label><input type="number" id="sHeightMax" placeholder="220" oninput="render()"></div>
+    <div><label>ФИО</label><input type="text" id="fName" oninput="render()"></div>
+    <div><label>Проект</label><input type="text" id="fPrj" oninput="render()"></div>
+    <div><label>Пол</label><select id="fGen" onchange="render()"><option value="">Все</option><option value="Мужской">Мужской</option><option value="Женский">Женский</option></select></div>
+    <div><label>Возраст от</label><input type="number" id="fAgeMin" oninput="render()"></div>
+    <div><label>Возраст до</label><input type="number" id="fAgeMax" oninput="render()"></div>
+    <div><label>Рост от</label><input type="number" id="fHMin" oninput="render()"></div>
 </div>
 
 <div id="actorGrid" class="grid"></div>
@@ -101,103 +49,104 @@
 
 <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOZprF0d6DAsO50Vng0OOnuPw-ZS79sVIOe3ZqlX9r7RKm4eWX5u6AA5gHQ8xb30vT28kQr2F8WRxm/pub?gid=1424975507&single=true&output=csv";
+    const RATINGS_API = "https://script.google.com/macros/s/AKfycbxA3xs799pc5MHjgbVAxXc1uPqLyF9k_XLLUoCfEiLx30OOvqA4xv7SrnQP3OEVF-k/exec";
     const BOT_TOKEN = "8534227633:AAEqULwA8rypkF-BW87G_9ACmKWNEoGZFI4";
     const CHAT_ID = "-1003738942785";
 
     let actors = [];
-    let ratings = JSON.parse(localStorage.getItem('gulywood_ratings') || '{}');
+    let cloudData = {}; // Здесь будут и звезды, и отметки "sent"
 
-    async function fetchData() {
-        Papa.parse(CSV_URL + "&cache=" + Math.random(), {
-            download: true, header: true,
-            complete: function(results) {
-                actors = results.data.filter(a => Object.values(a).some(v => v && v.length > 1));
-                render();
-            }
-        });
+    async function syncAll() {
+        const btn = document.getElementById('syncBtn');
+        btn.innerText = "⏳ СИНХРОНИЗАЦИЯ...";
+        
+        try {
+            // 1. Загружаем данные из облака (звезды и отметки)
+            const resp = await fetch(RATINGS_API + "?action=get");
+            cloudData = await resp.json();
+            
+            // 2. Загружаем анкеты из CSV
+            Papa.parse(CSV_URL + "&cb=" + Math.random(), {
+                download: true, header: true,
+                complete: function(results) {
+                    actors = results.data.filter(a => Object.values(a).some(v => v && v.length > 1));
+                    render();
+                    btn.innerText = "ОБНОВИТЬ ВСЁ";
+                }
+            });
+        } catch(e) { 
+            console.error(e);
+            btn.innerText = "ОШИБКА";
+        }
     }
 
-    function saveRating(actorId, score) {
-        ratings[actorId] = score;
-        localStorage.setItem('gulywood_ratings', JSON.stringify(ratings));
-        render(); // Перерисовываем для сортировки
+    async function setCloudValue(id, val) {
+        // Сохраняем в таблицу через Apps Script
+        fetch(`${RATINGS_API}?action=set&id=${encodeURIComponent(id)}&score=${val}`, { mode: 'no-cors' });
+        cloudData[id] = val;
+        render();
     }
 
     function render() {
         const grid = document.getElementById('actorGrid');
-        
-        // Значения фильтров
-        const fName = document.getElementById('sName').value.toLowerCase();
-        const fPrj = document.getElementById('sPrj').value.toLowerCase();
-        const fGen = document.getElementById('sGen').value;
-        const fAgeMin = parseInt(document.getElementById('sAgeMin').value) || 0;
-        const fAgeMax = parseInt(document.getElementById('sAgeMax').value) || 999;
-        const fHMin = parseInt(document.getElementById('sHeightMin').value) || 0;
-        const fHMax = parseInt(document.getElementById('sHeightMax').value) || 999;
+        const search = document.getElementById('fName').value.toLowerCase();
+        const project = document.getElementById('fPrj').value.toLowerCase();
+        const gender = document.getElementById('fGen').value;
+        const ageMin = parseInt(document.getElementById('fAgeMin').value) || 0;
+        const ageMax = parseInt(document.getElementById('fAgeMax').value) || 999;
 
         const filtered = actors.filter(a => {
             let n = "", p = "", g = "", age = 0, h = 0;
             for (let k in a) {
                 const key = k.toLowerCase().trim();
-                const val = (a[k] || "").toString().trim();
-                if (key.includes("фио")) n = val.toLowerCase();
-                if (key.includes("проект")) p = val.toLowerCase();
-                if (key === "пол") g = val;
-                if (key.includes("возраст")) age = parseInt(val) || 0;
-                if (key.includes("рост")) h = parseInt(val) || 0;
+                const v = (a[k] || "").toString().trim();
+                if (key.includes("фио")) n = v.toLowerCase();
+                if (key.includes("проект")) p = v.toLowerCase();
+                if (key === "пол") g = v;
+                if (key.includes("возраст")) age = parseInt(v) || 0;
+                if (key.includes("рост")) h = parseInt(v) || 0;
             }
-
-            const matchGen = !fGen || g === fGen;
-            return n.includes(fName) && p.includes(fPrj) && matchGen &&
-                   age >= fAgeMin && age <= fAgeMax &&
-                   h >= fHMin && h <= fHMax;
+            return n.includes(search) && p.includes(project) && (!gender || g === gender) && age >= ageMin && age <= ageMax;
         });
 
-        // Сортировка по рейтингу
+        // Сортировка: Сначала по рейтингу (звездам)
         filtered.sort((a, b) => {
-            const rA = ratings[a["ФИО"]] || 0;
-            const rB = ratings[b["ФИО"]] || 0;
+            const rA = parseInt(cloudData[a["ФИО"] || a["Ваше ФИО"]] || 0);
+            const rB = parseInt(cloudData[b["ФИО"] || b["Ваше ФИО"]] || 0);
             return rB - rA;
         });
 
-        if (filtered.length === 0) { grid.innerHTML = "<div class='status-msg'>Никто не подходит под фильтры</div>"; return; }
-
-        grid.innerHTML = filtered.map((a, i) => {
-            const actorName = a["ФИО"] || a["Ваше ФИО"];
-            const currentRating = ratings[actorName] || 0;
+        grid.innerHTML = filtered.map(a => {
+            const id = a["ФИО"] || a["Ваше ФИО"];
+            const val = cloudData[id] || "0";
+            const isSent = val.includes("SENT");
+            const rating = parseInt(val) || 0;
             
             let photoRaw = "", videoUrl = "";
             for (let k in a) {
                 if (k.toLowerCase().includes("фото")) photoRaw = a[k];
                 if (k.toLowerCase().includes("видео")) videoUrl = a[k];
             }
-
             const img = photoRaw.includes('id=') ? `https://lh3.googleusercontent.com/d/${photoRaw.split('id=')[1].split('&')[0]}` : photoRaw;
 
             return `
             <div class="card">
                 <div class="photo-container">
-                    ${currentRating > 0 ? `<div class="rating-overlay">★ ${currentRating}</div>` : ''}
+                    ${rating > 0 ? `<div class="rating-badge">★ ${rating}</div>` : ''}
+                    ${isSent ? `<div class="sent-badge">В ЧАТЕ ✅</div>` : ''}
                     <img class="photo" src="${img}" onerror="this.src='https://via.placeholder.com/300x400'">
                 </div>
                 <div class="info">
-                    <div class="name">${actorName}</div>
-                    <div class="meta">
-                        <span class="tag">${a["Пол"]}</span>
-                        <span class="tag">${a["Возраст"]} лет</span>
-                        <span class="tag">${a["Рост"]} см</span>
-                        <span class="tag">${a["Вес"]} кг</span>
-                    </div>
-                    
-                    <div class="rating-select">
+                    <div class="name">${id}</div>
+                    <div class="meta"><span class="tag">${a["Пол"]}</span><span class="tag">${a["Возраст"]}л</span><span class="tag">${a["Рост"]}см</span></div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
                         <label>Оценка:</label>
-                        <select style="width:70px" onchange="saveRating('${actorName}', this.value)">
-                            ${[...Array(11).keys()].map(n => `<option value="${n}" ${n == currentRating ? 'selected' : ''}>${n || '—'}</option>`).join('')}
+                        <select style="width:60px" onchange="setCloudValue('${id}', this.value + '${isSent ? "_SENT" : ""}')">
+                            ${[...Array(11).keys()].map(n => `<option value="${n}" ${rating == n ? 'selected' : ''}>${n || '—'}</option>`).join('')}
                         </select>
                     </div>
-
                     ${videoUrl ? `<button onclick="playVideo('${videoUrl}')" class="btn-action btn-video">📺 ВИДЕО</button>` : ''}
-                    <button class="btn-action btn-tg" onclick="sendToTelegram('${actorName}')">ОТПРАВИТЬ В ЧАТ</button>
+                    <button class="btn-action btn-tg" onclick="sendFull('${id}')">ОТПРАВИТЬ В ЧАТ</button>
                 </div>
             </div>`;
         }).join('');
@@ -208,16 +157,22 @@
         document.body.insertAdjacentHTML('beforeend', `<div id="vM" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:1000;display:flex;align-items:center;justify-content:center;"><div style="width:90%;max-width:800px;position:relative;"><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-40px;right:0;color:white;background:none;border:none;font-size:40px;cursor:pointer;">&times;</button><iframe src="https://drive.google.com/file/d/${id}/preview" width="100%" height="450"></iframe></div></div>`);
     }
 
-    async function sendToTelegram(name) {
-        const a = actors.find(act => (act["ФИО"] || act["Ваше ФИО"]) === name);
+    async function sendFull(id) {
+        const a = actors.find(act => (act["ФИО"] || act["Ваше ФИО"]) === id);
         const btn = event.target; btn.disabled = true;
         let p = "", v = ""; for (let k in a) { if (k.toLowerCase().includes("фото")) p = a[k]; if (k.toLowerCase().includes("видео")) v = a[k]; }
-        const cap = `🎭 *АНКЕТА GULYWOOD*\n\n👤 *Имя:* ${name}\n⭐️ *Рейтинг:* ${ratings[name] || 0}/10\n🎬 *Проект:* ${a["Проект"]}\n🚻 *Параметры:* ${a["Возраст"]}л, ${a["Рост"]}см, ${a["Вес"]}кг\n📞 *Тел:* ${a["Телефон"]}\n\n🎬 [ВИДЕО](${v})`;
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CHAT_ID, photo: p.includes('id=') ? `https://lh3.googleusercontent.com/d/${p.split('id=')[1].split('&')[0]}` : p, caption: cap, parse_mode: 'Markdown' }) });
-        btn.innerText = "ОТПРАВЛЕНО";
+        
+        const rating = parseInt(cloudData[id] || 0);
+        const cap = `🎭 *АНКЕТА GULYWOOD*\n\n👤 *Имя:* ${id}\n⭐️ *Рейтинг:* ${rating}/10\n🎬 *Проект:* ${a["Проект"]}\n🚻 *Параметры:* ${a["Возраст"]}л, ${a["Рост"]}см, ${a["Вес"]}кг\n\n🎬 [ВИДЕО](${v})`;
+        
+        try {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: CHAT_ID, photo: p.includes('id=') ? `https://lh3.googleusercontent.com/d/${p.split('id=')[1].split('&')[0]}` : p, caption: cap, parse_mode: 'Markdown' }) });
+            // Сохраняем статус "отправлено" в облако
+            setCloudValue(id, rating + "_SENT");
+        } catch(e) { alert("Ошибка ТГ"); btn.disabled = false; }
     }
 
-    fetchData();
+    syncAll();
 </script>
 </body>
 </html>
