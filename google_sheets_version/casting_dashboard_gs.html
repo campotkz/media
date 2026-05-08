@@ -62,7 +62,7 @@
             download: true,
             header: true,
             complete: function(results) {
-                actors = results.data.filter(a => a["ФИО"] || a["Ваше ФИО"]); // Убираем пустые строки
+                actors = results.data.filter(a => Object.values(a).some(v => v));
                 render();
             }
         });
@@ -80,13 +80,22 @@
         const grid = document.getElementById('actorGrid');
         const search = document.getElementById('search').value.toLowerCase().trim();
         const project = document.getElementById('filterProject').value.toLowerCase().trim();
-        const gender = document.getElementById('filterGender').value.toLowerCase().trim();
+        const genderFilter = document.getElementById('filterGender').value.toLowerCase().trim();
 
-            // Фильтр пола: гибкое сравнение (Мужской/Мужчина)
-            let isGenderMatch = !gender;
-            if (gender) {
-                if (gender === "мужской" && (gen.startsWith("муж"))) isGenderMatch = true;
-                if (gender === "женский" && (gen.startsWith("жен"))) isGenderMatch = true;
+        const filtered = actors.filter(a => {
+            let name = "", prj = "", gen = "";
+            for (let key in a) {
+                const k = key.toLowerCase();
+                const val = (a[key] || "").toString().trim();
+                if (k.includes("фио") || k.includes("имя")) name = val.toLowerCase();
+                if (k.includes("проект")) prj = val.toLowerCase();
+                if (k.includes("пол")) gen = val.toLowerCase();
+            }
+
+            let isGenderMatch = !genderFilter;
+            if (genderFilter) {
+                if (genderFilter === "мужской" && gen.startsWith("муж")) isGenderMatch = true;
+                if (genderFilter === "женский" && gen.startsWith("жен")) isGenderMatch = true;
             }
 
             return name.includes(search) && prj.includes(project) && isGenderMatch;
