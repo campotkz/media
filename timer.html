@@ -1601,7 +1601,7 @@
             }
             // Button Timers
             for (let id in state.activeTimers) {
-                const el = document.getElementById('btn_' + id);
+                const el = document.getElementById('btn_' + id) || document.getElementById('btn_delay_' + id);
                 if (el) {
                     const timerEl = el.querySelector('.btn-timer');
                     if (!timerEl) continue; // Safety check
