@@ -122,9 +122,16 @@
         }
 
         grid.innerHTML = filtered.map((a, i) => {
-            // Ищем ссылки на фото и видео
-            const photoRaw = a["Фото"] || a["Ваше фото"] || a["Загрузите фото"] || "";
-            const videoUrl = a["Видео"] || a["Ваше видео"] || a["Загрузите видео"] || "";
+            // Умный поиск колонок по ключевым словам
+            let photoRaw = "";
+            let videoUrl = "";
+            
+            for (let key in a) {
+                const k = key.toLowerCase();
+                if (k.includes("фото")) photoRaw = a[key];
+                if (k.includes("видео") || k.includes("ролик")) videoUrl = a[key];
+            }
+
             const photoUrl = getDirectLink(photoRaw);
 
             return `
