@@ -674,6 +674,11 @@
         const height = a[keys[6]] || "—";
         const weight = a[keys[7]] || "—";
         const phone = a[keys[8]] || "—";
+        const type = a[keys[14]] || "—";
+        const nat = a[keys[15]] || "—";
+        const features = a[keys[17]] || "—";
+        const exp = a[keys[18]] || "—";
+        
         const photoUrl = getDirectLink(a[keys[10]] || ""); 
         const videoUrl = a[keys[11]] || "#";
 
@@ -683,8 +688,11 @@
                   `📊 <b>Статус:</b> ${status}\n\n` +
                   `🚻 <b>Параметры:</b> ${gender}, ${age}л, ${height}см / ${weight}кг\n` +
                   `📍 <b>Город:</b> ${city}\n` +
+                  `🌍 <b>Этнос/Тип:</b> ${nat} / ${type}\n` +
+                  `✨ <b>Приметы:</b> ${features}\n` +
+                  `🎬 <b>Опыт:</b> ${exp}\n\n` +
                   `📱 <b>Тел:</b> ${phone}\n\n` +
-                  `<a href="${videoUrl}">🎬 СМОТРЕТЬ ВИДЕО</a>`;
+                  `<a href="${videoUrl}">📹 СМОТРЕТЬ ВИДЕО</a>`;
         
         if (cap.length > 1000) cap = cap.substring(0, 950) + "...";
 
