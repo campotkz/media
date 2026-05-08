@@ -83,13 +83,16 @@
             let n = "", p = "", g = "";
             for (let k in a) {
                 const key = k.toLowerCase().trim();
-                const v = (a[k] || "").toString().trim().toLowerCase();
-                if (key === "пол") g = v;
-                if (key.includes("фио") || key.includes("имя")) n = v;
-                if (key.includes("проект")) p = v;
+                const v = (a[k] || "").toString().trim();
+                if (key === "пол") g = v; // Берем пол как есть
+                if (key.includes("фио") || key.includes("имя")) n = v.toLowerCase();
+                if (key.includes("проект")) pr = v.toLowerCase();
             }
-            const mG = !genderFilter || g.startsWith(genderFilter.substring(0,3));
-            return n.includes(search) && p.includes(project) && mG;
+
+            // Прямое сравнение: если в фильтре что-то выбрано, оно должно ТОЧНО совпадать с полом в таблице
+            const matchGender = !genderFilter || g === genderFilter;
+            
+            return n.includes(search) && pr.includes(project) && matchGender;
         });
 
         if (filtered.length === 0) { grid.innerHTML = "<div class='status-msg'>Пусто</div>"; return; }
