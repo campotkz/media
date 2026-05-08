@@ -122,16 +122,11 @@
         }
 
         grid.innerHTML = filtered.map((a, i) => {
-            // Умный поиск колонок по ключевым словам
-            let photoRaw = "";
-            let videoUrl = "";
+            // Берем данные по индексам колонок (K=10, L=11)
+            const rowValues = Object.values(a);
+            const photoRaw = rowValues[10] || ""; // Столбец K
+            const videoUrl = rowValues[11] || ""; // Столбец L
             
-            for (let key in a) {
-                const k = key.toLowerCase();
-                if (k.includes("фото")) photoRaw = a[key];
-                if (k.includes("видео") || k.includes("ролик")) videoUrl = a[key];
-            }
-
             const photoUrl = getDirectLink(photoRaw);
 
             return `
