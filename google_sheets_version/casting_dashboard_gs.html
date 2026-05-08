@@ -63,10 +63,13 @@
         btn.innerText = "⏳ ЗАГРУЗКА...";
         
         try {
-            // 1. Сначала ВСЕГДА берем свежие звезды из облака
-            const resp = await fetch(RATINGS_API + "?action=get&t=" + Date.now());
-            cloudData = await resp.json();
-            console.log("Cloud Data Loaded:", cloudData);
+            // 1. Сначала ВСЕГДА берем свежие звезды из облака с обходом кэша
+            const cloudResp = await fetch(RATINGS_API + "?action=get&nocache=" + Date.now());
+            const newData = await cloudResp.json();
+            if (newData && Object.keys(newData).length > 0) {
+                cloudData = newData;
+                console.log("Cloud Data Updated:", cloudData);
+            }
             
             // 2. Потом берем анкеты
             Papa.parse(CSV_URL + "&cb=" + Date.now(), {
