@@ -679,7 +679,10 @@
         const features = a[keys[17]] || "—";
         const exp = a[keys[18]] || "—";
         
-        const photoUrl = getDirectLink(a[keys[10]] || ""); 
+        // ЧИСТИМ ССЫЛКИ: Берем только ПЕРВУЮ, если их много через запятую
+        const rawPhotos = a[keys[10]] || "";
+        const firstPhoto = rawPhotos.split(',')[0].trim().replace(/%20/g, '').replace(/%2C/g, '');
+        const photoUrl = getDirectLink(firstPhoto); 
         const videoUrl = a[keys[11]] || "#";
 
         let cap = `<b>🎭 GULYWOOD CASTING</b>\n` +
