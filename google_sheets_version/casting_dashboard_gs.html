@@ -3,32 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GULYWOOD CASTING • DASHBOARD</title>
+    <title>GULYWOOD CASTING • DASHBOARD (GOOGLE FORMS)</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #050608; --card: #111218; --accent: #ff5722; --text: #eee; --muted: #888; --border: rgba(255,255,255,0.1); }
         body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
         .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; background: #0f1016; padding: 20px; border-radius: 16px; border: 1px solid var(--border); }
-        input, select { background: #1a1b23; border: 1px solid var(--border); padding: 12px; color: white; border-radius: 8px; font-size: 14px; }
+        input, select { background: #1a1b23; border: 1px solid var(--border); padding: 12px; color: white; border-radius: 8px; font-size: 14px; width: 100%; box-sizing: border-box; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         .card { background: var(--card); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); transition: 0.3s; position: relative; }
         .card:hover { transform: translateY(-5px); border-color: var(--accent); }
-        .photo { width: 100%; height: 350px; background: #222; object-fit: cover; }
+        .photo-container { width: 100%; height: 400px; background: #222; overflow: hidden; position: relative; }
+        .photo { width: 100%; height: 100%; object-fit: cover; }
         .info { padding: 20px; }
-        .name { font-size: 20px; font-weight: 700; margin-bottom: 5px; }
-        .meta { font-size: 14px; color: var(--muted); margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .name { font-size: 20px; font-weight: 700; margin-bottom: 5px; color: var(--accent); }
+        .meta { font-size: 14px; color: var(--muted); margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap; }
         .tag { background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 6px; font-size: 12px; }
-        .btn-tg { width: 100%; padding: 12px; background: #24A1DE; border: none; border-radius: 10px; color: white; font-weight: 600; cursor: pointer; margin-top: 10px; }
-        .btn-tg:hover { background: #2ea9e4; }
-        .status-msg { text-align: center; padding: 40px; color: var(--muted); }
+        .details { font-size: 13px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--border); pt: 15px; margin-top: 15px; }
+        .btn-action { display: block; width: 100%; padding: 12px; border: none; border-radius: 10px; color: white; font-weight: 600; cursor: pointer; margin-top: 10px; text-decoration: none; text-align: center; font-size: 14px; }
+        .btn-tg { background: #24A1DE; }
+        .btn-video { background: #ff0000; }
+        .status-msg { text-align: center; padding: 60px; color: var(--muted); grid-column: 1 / -1; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="margin:0; font-size: 24px;">Дашборд Кастинга <span style="color:var(--accent)">GULYWOOD</span></h1>
-    <button onclick="fetchData()" style="padding:10px 20px; background:var(--accent); border:none; border-radius:8px; color:white; cursor:pointer; font-weight:600;">ОБНОВИТЬ</button>
+    <div>
+        <h1 style="margin:0; font-size: 26px;">Кастинг-база <span style="color:var(--accent)">GULYWOOD</span></h1>
+        <div style="font-size:12px; color:var(--muted); margin-top:5px;">Источник: Google Форма (Ответы)</div>
+    </div>
+    <button onclick="fetchData()" style="padding:12px 25px; background:var(--accent); border:none; border-radius:10px; color:white; cursor:pointer; font-weight:700; transition:0.2s;">ОБНОВИТЬ ДАННЫЕ</button>
 </div>
 
 <div class="controls">
@@ -44,33 +50,44 @@
 <div id="actorGrid" class="grid"></div>
 
 <script>
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOZprF0d6DAsO50Vng0OOnuPw-ZS79sVIOe3ZqlX9r7RKm4eWX5u6AA5gHQ8xb30vT28kQr2F8WRxm/pub?gid=756356467&single=true&output=csv";
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOZprF0d6DAsO50Vng0OOnuPw-ZS79sVIOe3ZqlX9r7RKm4eWX5u6AA5gHQ8xb30vT28kQr2F8WRxm/pub?gid=1424975507&single=true&output=csv";
     const BOT_TOKEN = "8534227633:AAEqULwA8rypkF-BW87G_9ACmKWNEoGZFI4";
     const CHAT_ID = "-1003738942785";
 
     let actors = [];
 
+    // Преобразование ссылки Google Drive для прямого показа фото
+    function getDirectLink(url) {
+        if (!url || !url.includes('id=')) return url;
+        const id = url.split('id=')[1].split('&')[0];
+        return `https://docs.google.com/uc?export=view&id=${id}`;
+    }
+
     async function fetchData() {
         const grid = document.getElementById('actorGrid');
-        grid.innerHTML = "<div class='status-msg'>⏳ Загрузка свежих анкет...</div>";
+        grid.innerHTML = "<div class='status-msg'>⏳ Синхронизация с базой Google...</div>";
         try {
-            const res = await fetch(CSV_URL + "&t=" + Math.random());
+            const res = await fetch(CSV_URL + "&cache=" + Math.random());
             const text = await res.text();
             actors = parseCSV(text);
             render();
         } catch (err) {
-            grid.innerHTML = "<div class='status-msg' style='color:#ff3b30'>❌ Ошибка загрузки данных</div>";
+            grid.innerHTML = `<div class='status-msg' style='color:#ff3b30'>❌ Ошибка подключения к таблице</div>`;
         }
     }
 
     function parseCSV(csv) {
         const lines = csv.split("\n");
-        const headers = lines[0].split(",");
+        if (lines.length < 2) return [];
+        const headers = lines[0].split(",").map(h => h.trim().replace(/"/g, ''));
+        
         return lines.slice(1).map(line => {
-            const values = line.split(",");
+            // Умный сплит по запятым, игнорируя запятые внутри кавычек (для ссылок)
+            const values = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
             let obj = {};
             headers.forEach((h, i) => {
-                obj[h.trim()] = values[i] ? values[i].trim() : "";
+                let val = values[i] ? values[i].trim().replace(/"/g, '') : "";
+                obj[h] = val;
             });
             return obj;
         });
@@ -82,36 +99,48 @@
         const project = document.getElementById('filterProject').value.toLowerCase();
         const gender = document.getElementById('filterGender').value;
 
+        // Определяем названия колонок (они могут меняться в зависимости от формы)
+        // В Google формах обычно: Отметка времени, ФИО, Проект...
         const filtered = actors.filter(a => {
-            return (a["ФИО"] || "").toLowerCase().includes(search) &&
-                   (a["Проект"] || "").toLowerCase().includes(project) &&
-                   (!gender || a["Пол"] === gender);
+            const name = (a["ФИО"] || a["Ваше ФИО"] || "").toLowerCase();
+            const prj = (a["Проект"] || a["Название проекта"] || "").toLowerCase();
+            const gen = a["Пол"] || "";
+            return name.includes(search) && prj.includes(project) && (!gender || gen === gender);
         });
 
         if (filtered.length === 0) {
-            grid.innerHTML = "<div class='status-msg'>Ничего не найдено</div>";
+            grid.innerHTML = "<div class='status-msg'>Анкет не найдено</div>";
             return;
         }
 
-        grid.innerHTML = filtered.map((a, i) => `
+        grid.innerHTML = filtered.map((a, i) => {
+            // Ищем ссылки на фото и видео
+            const photoRaw = a["Фото"] || a["Ваше фото"] || a["Загрузите фото"] || "";
+            const videoUrl = a["Видео"] || a["Ваше видео"] || a["Загрузите видео"] || "";
+            const photoUrl = getDirectLink(photoRaw);
+
+            return `
             <div class="card">
-                <img class="photo" src="${a["Фото Ссылка"] || 'https://via.placeholder.com/400x500?text=НЕТ+ФОТО'}" onerror="this.src='https://via.placeholder.com/400x500?text=ОШИБКА+ФОТО'">
+                <div class="photo-container">
+                    <img class="photo" src="${photoUrl}" onerror="this.src='https://via.placeholder.com/400x500?text=ОЖИДАНИЕ+ФОТО'">
+                </div>
                 <div class="info">
-                    <div class="name">${a["ФИО"] || 'Без имени'}</div>
+                    <div class="name">${a["ФИО"] || a["Ваше ФИО"] || 'Актер'}</div>
                     <div class="meta">
-                        <span class="tag">${a["Пол"]}</span>
-                        <span class="tag">${a["Возраст"]} лет</span>
-                        <span class="tag">${a["Город"]}</span>
+                        <span class="tag">${a["Пол"] || '—'}</span>
+                        <span class="tag">${a["Возраст"] || '—'} лет</span>
+                        <span class="tag">${a["Город"] || '—'}</span>
                     </div>
-                    <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">
-                        <b>Проект:</b> ${a["Проект"]}<br>
-                        <b>Рост/Вес:</b> ${a["Рост"]}/${a["Вес"]}<br>
-                        <b>Тел:</b> ${a["Телефон"]}
+                    <div class="details">
+                        <b>Проект:</b> ${a["Проект"] || a["Название проекта"] || '—'}<br>
+                        <b>Параметры:</b> ${a["Рост"] || '—'} см / ${a["Вес"] || '—'} кг<br>
+                        <b>Тел:</b> ${a["Телефон"] || '—'}
                     </div>
-                    <button class="btn-tg" onclick="sendToTelegram(${i})">ОТПРАВИТЬ В ЧАТ</button>
+                    ${videoUrl ? `<a href="${videoUrl}" target="_blank" class="btn-action btn-video">📺 СМОТРЕТЬ ВИДЕО</a>` : ''}
+                    <button class="btn-action btn-tg" onclick="sendToTelegram(${i})">ОТПРАВИТЬ В ЧАТ</button>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     }
 
     async function sendToTelegram(index) {
@@ -120,30 +149,24 @@
         btn.disabled = true;
         btn.innerText = "⏳ Отправка...";
 
-        const text = `🌟 *НОВАЯ АНКЕТА*\n\n` +
-                     `👤 *ФИО:* ${a["ФИО"]}\n` +
-                     `🎬 *Проект:* ${a["Проект"]}\n` +
-                     `📍 *Город:* ${a["Город"]}\n` +
-                     `🎭 *Пол/Возраст:* ${a["Пол"]}, ${a["Возраст"]}\n` +
-                     `📏 *Параметры:* ${a["Рост"]}см / ${a["Вес"]}кг\n` +
-                     `📞 *Телефон:* ${a["Телефон"]}\n\n` +
-                     `📝 *Опыт:* ${a["Опыт"]}\n\n` +
-                     `📸 [Фотография](${a["Фото Ссылка"]})`;
+        const msg = `🎭 *НОВЫЙ КАНДИДАТ*\n\n` +
+                    `👤 *Имя:* ${a["ФИО"] || a["Ваше ФИО"]}\n` +
+                    `🎬 *Проект:* ${a["Проект"] || a["Название проекта"]}\n` +
+                    `📍 *Город:* ${a["Город"]}\n` +
+                    `📞 *Тел:* ${a["Телефон"]}\n` +
+                    `📝 *Опыт:* ${a["Опыт"] || a["Опыт работы"] || '—'}\n\n` +
+                    `📸 [Открыть фото](${a["Фото"] || a["Ваше фото"]})`;
 
         try {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: text,
-                    parse_mode: 'Markdown'
-                })
+                body: JSON.stringify({ chat_id: CHAT_ID, text: msg, parse_mode: 'Markdown' })
             });
-            btn.innerText = "✅ ОТПРАВЛЕНО";
+            btn.innerText = "✅ В ЧАТЕ";
             btn.style.background = "#4cd964";
         } catch (err) {
-            alert("Ошибка отправки в Телеграм");
+            alert("Ошибка Telegram");
             btn.disabled = false;
             btn.innerText = "ОТПРАВИТЬ В ЧАТ";
         }
