@@ -313,10 +313,10 @@
         const citySel = document.getElementById('fCity');
         const ethSel = document.getElementById('fEth');
 
-        const prjs = [...new Set(actors.map(a => a["Проект"]).filter(Boolean))].sort();
-        const roles = [...new Set(actors.map(a => a["Роль"]).filter(Boolean))].sort();
-        const cities = [...new Set(actors.map(a => a["Город проживания"]).filter(Boolean))].sort();
-        const types = [...new Set(actors.map(a => a["Национальность / Типаж"]).filter(Boolean))].sort();
+        const prjs = [...new Set(actors.map(a => a["Проект"]).filter(v => v && v.length > 0))].sort();
+        const roles = [...new Set(actors.map(a => a["Роль"]).filter(v => v && v.length > 0))].sort();
+        const cities = [...new Set(actors.map(a => a["Город проживания"]).filter(v => v && v.length > 0))].sort();
+        const types = [...new Set(actors.map(a => a["Национальность / Типаж"]).filter(v => v && v.length > 0))].sort();
 
         prjSel.innerHTML = '<option value="">Все проекты</option>' + prjs.map(p => `<option value="${p}">${p}</option>`).join('');
         roleSel.innerHTML = '<option value="">Все роли</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
@@ -332,7 +332,9 @@
 
     function render() {
         const grid = document.getElementById('actorGrid');
-        const q = document.getElementById('sQuery').value.toLowerCase();
+        if (!grid) return;
+        
+        const q = (document.getElementById('sQuery').value || "").toLowerCase();
         const fPrj = document.getElementById('fPrj').value;
         const fRole = document.getElementById('fRole').value;
         const fGen = document.getElementById('fGen').value;
@@ -346,12 +348,17 @@
         const fWMax = parseInt(document.getElementById('fWMax').value) || 300;
 
         let filtered = actors.filter(a => {
+            if (!a || !a._row) return false;
             const id = a._row;
+            const name = (a["ФИО (Полностью)"] || a["ФИО"] || "").toLowerCase();
+            if (name.length < 1 && !(a["Фото"] || a["Фото (Портрет)"])) return false; // Пропуск пустых строк
+
             if (fPrj && a["Проект"] !== fPrj) return false;
             if (fRole && a["Роль"] !== fRole) return false;
             if (fGen && a["Пол"] !== fGen) return false;
             if (fCity && a["Город проживания"] !== fCity) return false;
             if (fEth && a["Национальность / Типаж"] !== fEth) return false;
+            
             const val = cloudData[id] || "0";
             const score = parseInt(val) || 0;
             const status = val.includes(":") ? val.split(":")[1].replace("_SENT", "") : "Новая";
@@ -371,7 +378,6 @@
             } else if (currentTab === "trash") {
                 if (status !== "Trash") return false;
             } else if (currentTab === "all") {
-                // В общей базе НЕ показываем Трэш ни при каких условиях
                 if (status === "Trash") return false;
             }
 
