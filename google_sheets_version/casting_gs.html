@@ -26,7 +26,7 @@
     <div class="container">
         <div class="card">
             <h2>АНКЕТА КАСТИНГА</h2>
-            <div class="subtitle">GULYWOOD CASTING • СТАБИЛЬНАЯ ВЕРСИЯ</div>
+            <div class="subtitle">GULYWOOD CASTING • ВЕРСИЯ С ФОТО</div>
             
             <form id="castingForm">
                 <div class="form-group"><label>ФИО</label><input type="text" name="full_name" required></div>
@@ -39,9 +39,9 @@
                 <div class="form-group"><label>Опыт</label><textarea name="experience" rows="2"></textarea></div>
 
                 <div class="form-group">
-                    <label>Фотография</label>
+                    <label>Фотография (портрет)</label>
                     <label class="file-box">
-                        <span id="photoLabel">Выбрать фото</span>
+                        <span id="photoLabel">Выбрать файл</span>
                         <input type="file" id="photoFile" accept="image/*">
                     </label>
                 </div>
@@ -69,43 +69,54 @@
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
 
-            const photo = document.getElementById('photoFile').files[0];
-            if (photo) {
-                status.innerHTML = "📸 Чтение фото...";
-                const reader = new FileReader();
-                reader.readAsDataURL(photo);
-                reader.onload = async () => {
-                    data.photoBase64 = reader.result;
-                    data.photoName = photo.name;
-                    send(data);
-                };
-            } else {
-                send(data);
+            const photoFile = document.getElementById('photoFile').files[0];
+            if (photoFile) {
+                status.innerHTML = "📸 Оптимизация фото...";
+                data.photoBase64 = await compressImage(photoFile);
+                data.photoName = photoFile.name;
             }
 
-            async function send(payload) {
-                status.innerHTML = "🚀 Отправка в таблицу...";
-                try {
-                    // Используем URLSearchParams для совместимости с e.parameter
-                    const params = new URLSearchParams();
-                    for (const key in payload) params.append(key, payload[key]);
-
-                    await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        body: params.toString(),
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-                    });
-
-                    status.innerHTML = "<b style='color:#4cd964'>✅ ОТПРАВЛЕНО!</b><br>Проверьте таблицу через 5 секунд.";
-                    e.target.reset();
-                    document.getElementById('photoLabel').innerText = "Выбрать фото";
-                } catch (err) {
-                    status.innerHTML = "<b style='color:#ff3b30'>❌ ОШИБКА</b>";
-                }
-                btn.disabled = false;
+            status.innerHTML = "🚀 Отправка данных...";
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(data)
+                });
+                status.innerHTML = "<b style='color:#4cd964'>✅ УСПЕШНО ОТПРАВЛЕНО!</b><br>Зайдите в Дашборд и нажмите Обновить.";
+                e.target.reset();
+                document.getElementById('photoLabel').innerText = "Выбрать файл";
+            } catch (err) {
+                status.innerHTML = "<b style='color:#ff3b30'>❌ ОШИБКА СЕТИ</b>";
             }
+            btn.disabled = false;
         };
+
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_SIZE = 800;
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > height) {
+                            if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                        } else {
+                            if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                        }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                };
+            });
+        }
     </script>
 </body>
 </html>
