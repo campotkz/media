@@ -58,18 +58,32 @@
         const btn = document.getElementById('syncBtn');
         btn.innerText = "⏳ ЗАГРУЗКА...";
         try {
-            const r = await fetch(RATINGS_API + "?action=get&t=" + Date.now());
-            cloudData = await r.json();
+            // Кэш-бастинг (nocache) и заголовок чтобы гугл не врал
+            const r = await fetch(RATINGS_API + "?action=get&nocache=" + Date.now(), {
+                cache: "no-store",
+                headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+            });
+            const text = await r.text();
+            try { 
+                cloudData = JSON.parse(text); 
+                console.log("Stars loaded:", cloudData);
+            } catch(e) { 
+                cloudData = {}; 
+                console.error("JSON parse error, check GAS output");
+            }
+            
             Papa.parse(CSV_URL + "&cb=" + Date.now(), {
                 download: true, header: true,
                 complete: function(res) {
-                    // Добавляем индекс каждой строке для 100% точности
                     actors = res.data.filter(a => Object.values(a).some(v => v)).map((a, i) => ({...a, _row: i + 2}));
                     render();
                     btn.innerText = "ОБНОВИТЬ ВСЁ";
                 }
             });
-        } catch(e) { btn.innerText = "ОШИБКА"; }
+        } catch(e) { 
+            console.error("Sync error:", e);
+            btn.innerText = "ОШИБКА"; 
+        }
     }
 
     function setCloudValue(id, val) {
