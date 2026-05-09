@@ -15,14 +15,12 @@ from api.index import optimize_url
 class TestOptimizeUrl(unittest.TestCase):
     def test_optimize_url_valid_supabase_url(self):
         url = "https://example.supabase.co/storage/v1/object/public/images/test.jpg"
-        expected = "https://example.supabase.co/storage/v1/object/public/images/test.jpg?width=800&quality=80&format=origin"
+        expected = "https://example.supabase.co/storage/v1/object/public/images/test.jpg?width=1280&quality=80&format=origin"
         self.assertEqual(optimize_url(url), expected)
 
     def test_optimize_url_valid_supabase_url_with_existing_query(self):
         url = "https://example.supabase.co/storage/v1/object/public/images/test.jpg?foo=bar"
-        # Current behavior: returns original url since extension check fails
-        # ('jpg?foo=bar' is not in the extension list)
-        expected = url
+        expected = "https://example.supabase.co/storage/v1/object/public/images/test.jpg?foo=bar&width=1280&quality=80&format=origin"
         self.assertEqual(optimize_url(url), expected)
 
     def test_optimize_url_non_supabase_url(self):
