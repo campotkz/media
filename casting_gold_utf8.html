@@ -1,0 +1,627 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>╨Р╨Э╨Ъ╨Х╨в╨Р ╨г╨з╨Р╨б╨в╨Э╨Ш╨Ъ╨Р ╨Ъ╨Р╨б╨в╨Ш╨Э╨У╨Р | GULYWOOD</title>
+    <!-- Version: 2.3.0 (Gold Standard Sync) -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0e12;
+            --card-bg: #15161c;
+            --input-bg: #0d0e12;
+            --accent: #ff3b30;
+            --accent-glow: rgba(255, 59, 48, 0.2);
+            --text: #ffffff;
+            --muted: #8e8e93;
+            --stroke: rgba(255, 255, 255, 0.08);
+            --radius: 16px;
+            --font: 'Space Grotesk', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid var(--stroke);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .welcome-screen {
+            text-align: center;
+        }
+
+        .welcome-logo {
+            font-size: 40px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin: 0 0 12px;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .welcome-text {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .announcement {
+            background: rgba(255, 59, 48, 0.05);
+            border: 1px solid var(--accent);
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 13px;
+            color: var(--text);
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .option-btn {
+            width: 100%;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--stroke);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .option-btn:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .option-btn i { font-size: 20px; opacity: 0.8; }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 32px 0 20px;
+        }
+
+        .section-header h2 {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        .section-header .line {
+            height: 1px;
+            background: var(--stroke);
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        label .req { color: var(--accent); margin-left: 2px; }
+
+        .form-group { margin-bottom: 24px; }
+
+        input, select, textarea {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--stroke);
+            border-radius: 16px;
+            padding: 16px 20px;
+            color: white;
+            font-family: var(--font);
+            font-size: 16px;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .option-grid { display: grid; gap: 12px; margin-bottom: 24px; }
+
+        .option-item {
+            position: relative;
+            background: var(--input-bg);
+            border: 1px solid var(--stroke);
+            border-radius: 16px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .option-item:hover { border-color: rgba(255, 255, 255, 0.2); }
+        .option-item.selected { border-color: var(--accent); background: rgba(255, 59, 48, 0.05); }
+        .option-item input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+        .radio-circle {
+            width: 20px; height: 20px;
+            border: 2px solid var(--stroke);
+            border-radius: 50%;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .option-item.selected .radio-circle { border-color: var(--accent); }
+        .option-item.selected .radio-circle::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px; height: 10px;
+            background: var(--accent); border-radius: 50%;
+        }
+
+        .option-label { font-weight: 700; font-size: 16px; text-transform: uppercase; }
+
+        .photo-upload-zone {
+            border: 2px dashed var(--stroke);
+            border-radius: 20px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--input-bg);
+        }
+
+        .photo-upload-zone:hover { border-color: var(--accent); background: rgba(255, 59, 48, 0.02); }
+
+        .photo-previews {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 12px; margin-top: 16px;
+        }
+
+        .photo-thumb {
+            width: 100%; aspect-ratio: 1; object-fit: cover;
+            border-radius: 12px; border: 1px solid var(--stroke);
+        }
+
+        .submit-btn {
+            width: 100%; background: var(--accent); color: white;
+            border: none; border-radius: 16px; padding: 20px;
+            font-size: 18px; font-weight: 800; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 10px 30px rgba(255, 59, 48, 0.3);
+            text-transform: uppercase; letter-spacing: 1px; margin-top: 20px;
+        }
+
+        .submit-btn:active { transform: scale(0.98); }
+
+        #loadingOverlay {
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px);
+            display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+
+        .loader {
+            width: 50px; height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #successScreen, #formContainer, #reentryScreen { display: none; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- WELCOME SCREEN -->
+        <div id="welcomeScreen" class="welcome-screen">
+            <div class="card">
+                <span class="welcome-logo">ЁЯОм</span>
+                <h1 class="welcome-title">╨Ъ╨░╤Б╤В╨╕╨╜╨│-╨┐╨╗╨░╤В╤Д╨╛╤А╨╝╨░ GULYWOOD</h1>
+                <p class="welcome-text">╨Ф╨╛╨▒╤А╨╛ ╨┐╨╛╨╢╨░╨╗╨╛╨▓╨░╤В╤М! ╨Я╨╛╨╢╨░╨╗╤Г╨╣╤Б╤В╨░, ╨▓╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡ ╨┤╨╗╤П ╨┐╤А╨╛╨┤╨╛╨╗╨╢╨╡╨╜╨╕╤П.</p>
+                
+                <div class="announcement">
+                    <strong>ЁЯУв ╨Ю╨С╨к╨п╨Т╨Ы╨Х╨Э╨Ш╨Х:</strong><br>
+                    ╨Ь╤Л ╨╕╤Й╨╡╨╝ ╨╜╨╛╨▓╤Л╨╡ ╨╗╨╕╤Ж╨░ ╨┤╨╗╤П ╨║╤А╤Г╨┐╨╜╨╛╨│╨╛ ╨┐╤А╨╛╨╡╨║╤В╨░. ╨Х╤Б╨╗╨╕ ╨▓╤Л ╤Г╨╢╨╡ ╨╖╨░╨┐╨╛╨╗╨╜╤П╨╗╨╕ ╨░╨╜╨║╨╡╤В╤Г ╤А╨░╨╜╨╡╨╡, ╨┐╤А╨╛╤Б╤В╨╛ ╨╛╨▒╨╜╨╛╨▓╨╕╤В╨╡ ╤Б╨▓╨╛╨╕ ╨┤╨░╨╜╨╜╤Л╨╡.
+                </div>
+
+                <button class="option-btn" onclick="showForm('new')">
+                    <span>ЁЯЖХ</span>
+                    <div class="label">╨п ╨╖╨░╨┐╨╛╨╗╨╜╤П╤О ╨┐╨╡╤А╨▓╤Л╨╣ ╤А╨░╨╖</div>
+                </button>
+
+                <button class="option-btn" onclick="showReentry()">
+                    <span>ЁЯФД</span>
+                    <div class="label">╨п ╤Г╨╢╨╡ ╨╖╨░╨┐╨╛╨╗╨╜╤П╨╗ (╨╛╨▒╨╜╨╛╨▓╨╕╤В╤М)</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- RE-ENTRY SCREEN -->
+        <div id="reentryScreen">
+            <div class="card">
+                <h2 class="welcome-title">╨б ╨▓╨╛╨╖╨▓╤А╨░╤Й╨╡╨╜╨╕╨╡╨╝!</h2>
+                <p class="welcome-text">╨Т╨▓╨╡╨┤╨╕╤В╨╡ ╨╜╨╛╨╝╨╡╤А ╤В╨╡╨╗╨╡╤Д╨╛╨╜╨░, ╨║╨╛╤В╨╛╤А╤Л╨╣ ╨▓╤Л ╤Г╨║╨░╨╖╤Л╨▓╨░╨╗╨╕ ╨┐╤А╨╕ ╤А╨╡╨│╨╕╤Б╤В╤А╨░╤Ж╨╕╨╕.</p>
+                
+                <div class="form-group">
+                    <label>╨Э╨╛╨╝╨╡╤А ╤В╨╡╨╗╨╡╤Д╨╛╨╜╨░</label>
+                    <input type="tel" id="checkPhone" placeholder="+7 (___) ___-__-__">
+                </div>
+
+                <button class="submit-btn" onclick="checkUser()">╨Э╨░╨╣╤В╨╕ ╨░╨╜╨║╨╡╤В╤Г</button>
+                <button class="option-btn" style="margin-top: 15px; border: none; background: transparent; justify-content: center;" onclick="showWelcome()">
+                    ╨Т╨╡╤А╨╜╤Г╤В╤М╤Б╤П ╨╜╨░╨╖╨░╨┤
+                </button>
+            </div>
+        </div>
+
+        <!-- FORM CONTAINER -->
+        <div id="formContainer">
+            <form id="castingForm">
+                <input type="hidden" id="is_update" value="false">
+                
+                <div class="card">
+                    <label>╨Я╤А╨╛╨╡╨║╤В<span class="req">*</span></label>
+                    <div class="option-grid" id="projectOptions">
+                        <div class="option-item" onclick="selectOption(this, 'project_name', '╨Я╨а╨Ю╨С╨Р')">
+                            <div class="radio-circle"></div>
+                            <span class="option-label">╨Я╨а╨Ю╨С╨Р</span>
+                            <input type="radio" name="project_name" value="╨Я╨а╨Ю╨С╨Р" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>╨Я╨╡╤А╤Б╨╛╨╜╨░╨╢ / ╨а╨╛╨╗╤М<span class="req">*</span></label>
+                        <input type="text" id="character_name" placeholder="╨╜╨░╨┐╤А╨╕╨╝╨╡╤А: ┬л╨У╨╗╨░╨▓╨╜╤Л╨╣ ╨│╨╡╤А╨╛╨╣┬╗" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>╨Я╨╛╨╗╨╜╨╛╨╡ ╨╕╨╝╤П<span class="req">*</span></label>
+                        <input type="text" id="full_name" placeholder="╨Ш╨╝╤П ╨д╨░╨╝╨╕╨╗╨╕╤П" required>
+                    </div>
+
+                    <label>╨У╨╡╨╜╨┤╨╡╤А<span class="req">*</span></label>
+                    <div class="option-grid">
+                        <div class="option-item" onclick="selectOption(this, 'gender', '╨Ь╨г╨Ц╨з╨Ш╨Э╨Р')">
+                            <div class="radio-circle"></div>
+                            <span class="option-label">╨Ь╨г╨Ц╨з╨Ш╨Э╨Р</span>
+                            <input type="radio" name="gender" value="╨Ь╨г╨Ц╨з╨Ш╨Э╨Р" required>
+                        </div>
+                        <div class="option-item" onclick="selectOption(this, 'gender', '╨Ц╨Х╨Э╨й╨Ш╨Э╨Р')">
+                            <div class="radio-circle"></div>
+                            <span class="option-label">╨Ц╨Х╨Э╨й╨Ш╨Э╨Р</span>
+                            <input type="radio" name="gender" value="╨Ц╨Х╨Э╨й╨Ш╨Э╨Р" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2>╨Ъ╨╛╨╜╤В╨░╨║╤В╤Л</h2>
+                        <div class="line"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>╨У╨╛╤А╨╛╨┤<span class="req">*</span></label>
+                        <select id="city" required>
+                            <option value="" disabled selected>╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨│╨╛╤А╨╛╨┤</option>
+                            <option value="╨Р╨╗╨╝╨░╤В╤Л">╨Р╨╗╨╝╨░╤В╤Л</option>
+                            <option value="╨Р╤Б╤В╨░╨╜╨░">╨Р╤Б╤В╨░╨╜╨░</option>
+                            <option value="╨и╤Л╨╝╨║╨╡╨╜╤В">╨и╤Л╨╝╨║╨╡╨╜╤В</option>
+                            <option value="╨Ф╤А╤Г╨│╨╛╨╣">╨Ф╤А╤Г╨│╨╛╨╣</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>╨в╨╡╨╗╨╡╤Д╨╛╨╜<span class="req">*</span></label>
+                        <input type="tel" id="phone" placeholder="+7" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Instagram / TG<span class="req">*</span></label>
+                        <input type="text" id="contact_method" placeholder="@username" required>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2>╨Я╨░╤А╨░╨╝╨╡╤В╤А╤Л</h2>
+                        <div class="line"></div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>╨Т╨╛╨╖╤А╨░╤Б╤В<span class="req">*</span></label>
+                            <input type="number" id="age" required>
+                        </div>
+                        <div class="form-group">
+                            <label>╨а╨╛╤Б╤В (╤Б╨╝)<span class="req">*</span></label>
+                            <input type="number" id="height" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>╨Т╨╡╤Б (╨║╨│)<span class="req">*</span></label>
+                            <input type="number" id="weight" required>
+                        </div>
+                        <div class="form-group">
+                            <label>╨в╨╕╨┐ ╨▓╨╜╨╡╤И╨╜╨╛╤Б╤В╨╕<span class="req">*</span></label>
+                            <select id="appearance" required>
+                                <option value="" disabled selected>╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡</option>
+                                <option value="╨Р╨╖╨╕╨░╤В╤Б╨║╨╕╨╣">╨Р╨╖╨╕╨░╤В╤Б╨║╨╕╨╣</option>
+                                <option value="╨Х╨▓╤А╨╛╨┐╨╡╨╣╤Б╨║╨╕╨╣">╨Х╨▓╤А╨╛╨┐╨╡╨╣╤Б╨║╨╕╨╣</option>
+                                <option value="╨б╨╗╨░╨▓╤П╨╜╤Б╨║╨╕╨╣">╨б╨╗╨░╨▓╤П╨╜╤Б╨║╨╕╨╣</option>
+                                <option value="╨Ъ╨░╨▓╨║╨░╨╖╤Б╨║╨╕╨╣">╨Ъ╨░╨▓╨║╨░╨╖╤Б╨║╨╕╨╣</option>
+                                <option value="╨Р╤Д╤А╨╕╨║╨░╨╜╤Б╨║╨╕╨╣">╨Р╤Д╤А╨╕╨║╨░╨╜╤Б╨║╨╕╨╣</option>
+                                <option value="╨б╨╝╨╡╤И╨░╨╜╨╜╤Л╨╣">╨б╨╝╨╡╤И╨░╨╜╨╜╤Л╨╣</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>╨ж╨▓╨╡╤В ╨▓╨╛╨╗╨╛╤Б<span class="req">*</span></label>
+                            <select id="hair_color" required>
+                                <option value="" disabled selected>╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡</option>
+                                <option value="╨С╤А╤О╨╜╨╡╤В">╨С╤А╤О╨╜╨╡╤В</option>
+                                <option value="╨и╨░╤В╨╡╨╜">╨и╨░╤В╨╡╨╜</option>
+                                <option value="╨а╤Г╤Б╤Л╨╣">╨а╤Г╤Б╤Л╨╣</option>
+                                <option value="╨С╨╗╨╛╨╜╨┤╨╕╨╜">╨С╨╗╨╛╨╜╨┤╨╕╨╜</option>
+                                <option value="╨а╤Л╨╢╨╕╨╣">╨а╤Л╨╢╨╕╨╣</option>
+                                <option value="╨б╨╡╨┤╨╛╨╣">╨б╨╡╨┤╨╛╨╣</option>
+                                <option value="╨Ы╤Л╤Б╤Л╨╣">╨Ы╤Л╤Б╤Л╨╣</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <!-- empty spacer for grid -->
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>╨а╨░╨╖╨╝╨╡╤А ╨╛╨┤╨╡╨╢╨┤╤Л<span class="req">*</span></label>
+                            <input type="text" id="clothing_size" placeholder="S / 44" required>
+                        </div>
+                        <div class="form-group">
+                            <label>╨а╨░╨╖╨╝╨╡╤А ╨╛╨▒╤Г╨▓╨╕<span class="req">*</span></label>
+                            <input type="number" id="shoe_size" placeholder="42" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h2>╨Ь╨╡╨┤╨╕╨░</h2>
+                        <div class="line"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>╨Ю╨┐╤Л╤В ╤А╨░╨▒╨╛╤В╤Л / ╨Ю ╤Б╨╡╨▒╨╡</label>
+                        <textarea id="experience_summary" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>╨д╨╛╤В╨╛╨│╤А╨░╤Д╨╕╨╕ (╨┤╨╛ 5)<span class="req">*</span></label>
+                        <div class="photo-upload-zone" onclick="document.getElementById('photoInput').click()">
+                            <span>ЁЯУ╕ ╨Э╨░╨╢╨╝╨╕╤В╨╡ ╨┤╨╗╤П ╨▓╤Л╨▒╨╛╤А╨░</span>
+                        </div>
+                        <input type="file" id="photoInput" multiple accept="image/*" style="display:none" onchange="handlePhotos(event)">
+                        <div class="photo-previews" id="photoPreview"></div>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submitBtn">╨Ю╤В╨┐╤А╨░╨▓╨╕╤В╤М ╨Р╨╜╨║╨╡╤В╤Г</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- SUCCESS SCREEN -->
+        <div id="successScreen" class="welcome-screen">
+            <div class="card">
+                <span style="font-size: 64px; display: block; margin-bottom: 24px;">тЬЕ</span>
+                <h1 class="welcome-title">╨У╨╛╤В╨╛╨▓╨╛!</h1>
+                <p class="welcome-text">╨Т╨░╤И╨░ ╨░╨╜╨║╨╡╤В╨░ ╤Г╤Б╨┐╨╡╤И╨╜╨╛ ╨╛╤В╨┐╤А╨░╨▓╨╗╨╡╨╜╨░ ╨▓ ╤Б╨╕╤Б╤В╨╡╨╝╤Г GULYWOOD. ╨Ь╤Л ╤Б╨▓╤П╨╢╨╡╨╝╤Б╤П ╤Б ╨▓╨░╨╝╨╕, ╨╡╤Б╨╗╨╕ ╨▓╤Л ╨┐╤А╨╛╨╣╨┤╨╡╤В╨╡ ╨╛╤В╨▒╨╛╤А.</p>
+                <button class="submit-btn" onclick="location.reload()">╨Т╨╡╤А╨╜╤Г╤В╤М╤Б╤П ╨▓ ╨╜╨░╤З╨░╨╗╨╛</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay">
+        <div class="loader"></div>
+        <p style="color: white; margin-top: 20px; font-weight: 700;" id="loadingText">╨Ю╨▒╤А╨░╨▒╨╛╤В╨║╨░...</p>
+    </div>
+
+    <script>
+        const API_BASE = "https://media.sijic13.workers.dev";
+        let uploadedPhotos = [];
+
+        function showWelcome() {
+            document.getElementById('welcomeScreen').style.display = 'block';
+            document.getElementById('reentryScreen').style.display = 'none';
+            document.getElementById('formContainer').style.display = 'none';
+        }
+
+        function showReentry() {
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('reentryScreen').style.display = 'block';
+        }
+
+        function showForm(mode) {
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('reentryScreen').style.display = 'none';
+            document.getElementById('formContainer').style.display = 'block';
+            document.getElementById('is_update').value = (mode === 'update');
+            if (mode === 'update') {
+                document.getElementById('submitBtn').textContent = "╨Ю╨▒╨╜╨╛╨▓╨╕╤В╤М ╨░╨╜╨║╨╡╤В╤Г";
+            }
+        }
+
+        async function checkUser() {
+            const phone = document.getElementById('checkPhone').value;
+            if (!phone) return alert("╨Т╨▓╨╡╨┤╨╕╤В╨╡ ╨╜╨╛╨╝╨╡╤А");
+            
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            try {
+                const res = await fetch(`${API_BASE}/api/check-phone?phone=${encodeURIComponent(phone)}`);
+                const data = await res.json();
+                
+                if (data.status === 'blocked') {
+                    alert("╨Т╨░╤И ╨╜╨╛╨╝╨╡╤А ╨╖╨░╨▒╨╗╨╛╨║╨╕╤А╨╛╨▓╨░╨╜.");
+                } else if (data.status === 'new') {
+                    alert("╨Р╨╜╨║╨╡╤В╨░ ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜╨░. ╨Ч╨░╨┐╨╛╨╗╨╜╨╕╤В╨╡ ╨║╨░╨║ ╨╜╨╛╨▓╤Л╨╣ ╤Г╤З╨░╤Б╤В╨╜╨╕╨║.");
+                    showForm('new');
+                } else {
+                    alert("╨Р╨╜╨║╨╡╤В╨░ ╨╜╨░╨╣╨┤╨╡╨╜╨░! ╨в╨╡╨┐╨╡╤А╤М ╨╛╨▒╨╜╨╛╨▓╨╕╤В╨╡ ╨┤╨░╨╜╨╜╤Л╨╡.");
+                    document.getElementById('phone').value = phone;
+                    showForm('update');
+                }
+            } catch (e) { alert("╨Ю╤И╨╕╨▒╨║╨░ ╤Б╨▓╤П╨╖╨╕"); }
+            finally { document.getElementById('loadingOverlay').style.display = 'none'; }
+        }
+
+        function selectOption(el, name, value) {
+            const grid = el.parentElement;
+            grid.querySelectorAll('.option-item').forEach(item => item.classList.remove('selected'));
+            el.classList.add('selected');
+            el.querySelector('input').checked = true;
+        }
+
+        async function loadProjects() {
+            try {
+                const res = await fetch(`${API_BASE}/api/projects`);
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    const container = document.getElementById('projectOptions');
+                    container.innerHTML = '';
+                    data.forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'option-item';
+                        div.onclick = () => selectOption(div, 'project_name', p);
+                        div.innerHTML = `<div class="radio-circle"></div><span class="option-label">${p}</span><input type="radio" name="project_name" value="${p}" required>`;
+                        container.appendChild(div);
+                    });
+                }
+            } catch (e) {}
+        }
+        loadProjects();
+
+        function handlePhotos(event) {
+            const files = Array.from(event.target.files);
+            const preview = document.getElementById('photoPreview');
+            files.forEach(file => {
+                if (uploadedPhotos.length >= 5) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result; img.className = 'photo-thumb';
+                    preview.appendChild(img);
+                    uploadedPhotos.push(file);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        document.getElementById('castingForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = 'flex';
+            
+            const formData = new FormData();
+            const proj = document.querySelector('input[name="project_name"]:checked')?.value;
+            const gender = document.querySelector('input[name="gender"]:checked')?.value;
+            
+            formData.append('casting_target', proj);
+            formData.append('character_name', document.getElementById('character_name').value);
+            formData.append('full_name', document.getElementById('full_name').value);
+            formData.append('gender', gender);
+            formData.append('city', document.getElementById('city').value);
+            formData.append('phone', document.getElementById('phone').value);
+            formData.append('contact_method', document.getElementById('contact_method').value);
+            formData.append('age', document.getElementById('age').value);
+            formData.append('height', document.getElementById('height').value);
+            formData.append('weight', document.getElementById('weight').value);
+            formData.append('appearance', document.getElementById('appearance').value);
+            formData.append('hair_color', document.getElementById('hair_color').value || 'тАФ');
+            formData.append('clothing_size', document.getElementById('clothing_size').value);
+            formData.append('shoe_size', document.getElementById('shoe_size').value);
+            formData.append('experience_summary', document.getElementById('experience_summary').value);
+            formData.append('update', document.getElementById('is_update').value);
+
+            uploadedPhotos.forEach(file => formData.append('photos', file));
+
+            try {
+                const res = await fetch(API_BASE, { method: 'POST', body: formData });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    document.getElementById('formContainer').style.display = 'none';
+                    document.getElementById('successScreen').style.display = 'block';
+                } else {
+                    alert("╨Ю╤И╨╕╨▒╨║╨░: " + (result.message || "╨Э╨╡╨╕╨╖╨▓╨╡╤Б╤В╨╜╨░╤П ╨╛╤И╨╕╨▒╨║╨░"));
+                }
+            } catch (err) { alert("╨Ю╤И╨╕╨▒╨║╨░ ╤Б╨╡╤В╨╕: " + err.message); }
+            finally { overlay.style.display = 'none'; }
+        };
+
+        // Initialize view
+        showWelcome();
+    </script>
+</body>
+
+</html>

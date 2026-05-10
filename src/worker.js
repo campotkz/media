@@ -248,31 +248,9 @@ export default {
         const fromId = update.message?.from?.id || update.callback_query?.from?.id;
         const msgText = update.message?.text || "";
 
-        const allowedEnv = (env.ALLOWED_CHATS || "-8534227633,-195051697,542053490,-1003738942785").split(",").map(id => id.trim());
-        async function checkAccess() {
-          if (allowedEnv.includes(String(chatId))) return true;
-          try {
-            const res = await fetch(`${supabaseUrl}/rest/v1/allowed_chats?chat_id=eq.${chatId}`, {
-              headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
-            });
-            const data = await res.json();
-            return data && data.length > 0;
-          } catch (e) { return false; }
-        }
-
-        const hasAccess = (fromId === 542053490) || await checkAccess();
+        const hasAccess = true; // Защита отключена - доступ для всех
         if (!hasAccess) {
-          if (msgText.startsWith("/")) {
-            await fetch(`https://${tD}/bot${botToken}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: chatId,
-                text: `🚫 <b>Доступ запрещен.</b>\nЭтот бот настроен только для работы в закрытых группах GULYWOOD.\n\nID этого чата: <code>${chatId}</code>\n<i>Передайте этот ID администратору для добавления в белый список.</i>`,
-                parse_mode: "HTML"
-              })
-            });
-          }
+          // Этот блок больше не сработает
           return new Response("OK", { status: 200 });
         }
 
