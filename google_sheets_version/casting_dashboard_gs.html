@@ -481,7 +481,9 @@
             const sA = vA.split(":")[1] || "Новая";
             const sB = vB.split(":")[1] || "Новая";
             const priority = {"Selected": 1, "Interesting": 2, "Новая": 3, "Main": 4, "Archive": 5, "Trash": 6};
-            return (priority[sA.replace("_SENT","")] || 9) - (priority[sB.replace("_SENT","")] || 9);
+            const diff = (priority[sA.replace("_SENT","")] || 9) - (priority[sB.replace("_SENT","")] || 9);
+            if (diff !== 0) return diff;
+            return b._row - a._row; // Новые сверху внутри статуса
         });
 
         grid.innerHTML = filtered.map(a => {
