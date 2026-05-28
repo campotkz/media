@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test</title></head>
+<body>
+<script>
+function parseDateSafe(dateStr) {
+    if (!dateStr) return new Date();
+    if (typeof dateStr === 'string') {
+        return new Date(dateStr.replace(' ', 'T'));
+    }
+    return new Date(dateStr);
+}
+
+const badStr = "2024-05-28 12:00:00";
+const d1 = new Date(badStr);
+const d2 = parseDateSafe(badStr);
+
+document.write("Original: " + d1.toString() + "<br>");
+document.write("Fixed: " + d2.toString() + "<br>");
+</script>
+</body>
+</html>
