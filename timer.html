@@ -1006,6 +1006,19 @@
     <!-- /VIEWPORT -->
 
     <script>
+        function parseDateSafe(dateStr) {
+            if (!dateStr) return new Date();
+            if (dateStr instanceof Date) return dateStr;
+            let d = new Date(dateStr);
+            if (isNaN(d.getTime()) && typeof dateStr === 'string') {
+                d = new Date(dateStr.replace(' ', 'T'));
+                if (isNaN(d.getTime())) {
+                    d = new Date(dateStr.replace(/-/g, '/').replace('T', ' '));
+                }
+            }
+            return d;
+        }
+
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.enableClosingConfirmation();
@@ -1588,13 +1601,13 @@
 
         setInterval(() => {
             if (state.startTime) {
-                const diff = Math.max(0, new Date() - new Date(state.startTime));
+                const diff = Math.max(0, new Date() - parseDateSafe(state.startTime));
                 if (!isNaN(diff)) {
                     ui.shiftTimer.textContent = formatTime(diff);
                 }
             }
             if (state.phaseStartTime) {
-                const diff = Math.max(0, new Date() - new Date(state.phaseStartTime));
+                const diff = Math.max(0, new Date() - parseDateSafe(state.phaseStartTime));
                 if (!isNaN(diff)) {
                     ui.phaseTimer.textContent = formatTimeShort(diff);
                 }
@@ -1606,7 +1619,7 @@
                     const timerEl = el.querySelector('.btn-timer');
                     if (!timerEl) continue; // Safety check
 
-                    const start = new Date(state.activeTimers[id]);
+                    const start = parseDateSafe(state.activeTimers[id]);
                     const diff = new Date() - start;
                     if (isNaN(diff)) continue;
 
@@ -1644,7 +1657,7 @@
 
         function toggleBtn(id, label, phaseLabel) {
             if (state.activeTimers[id]) {
-                const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                const dur = Math.round((new Date() - parseDateSafe(state.activeTimers[id])) / 60000);
                 delete state.activeTimers[id];
                 logEvent(id + '_stop', { label, duration: dur });
                 document.getElementById('btn_' + id).classList.remove('active');
@@ -1677,7 +1690,7 @@
             if (state.activeTimers[id]) {
                 const res = prompt("Как решили проблему?", "Устранено");
                 if (res !== null) {
-                    const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                    const dur = Math.round((new Date() - parseDateSafe(state.activeTimers[id])) / 60000);
                     logEvent(id + '_end', { resolution: res, duration_m: dur });
 
                     // Mark task as done in plan
@@ -1717,7 +1730,7 @@
             el.onclick = () => {
                 const id = el.getAttribute('data-prep');
                 if (state.activeTimers[id]) {
-                    const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                    const dur = Math.round((new Date() - parseDateSafe(state.activeTimers[id])) / 60000);
                     const promised = parseInt(pGet('promised_' + id) || 0);
                     const delay = Math.max(0, dur - promised);
                     logEvent(id + '_end', { duration_m: dur, promised: promised, delay_m: delay });
@@ -1980,7 +1993,7 @@
 
             // 2. Stop all active timers
             for (let id in state.activeTimers) {
-                const dur = Math.round((new Date() - new Date(state.activeTimers[id])) / 60000);
+                const dur = Math.round((new Date() - parseDateSafe(state.activeTimers[id])) / 60000);
                 logEvent(id + '_end', { duration_m: dur });
                 const el = document.getElementById('btn_' + id) || document.getElementById('btn_delay_' + id);
                 if (el) el.classList.remove('active');
@@ -2264,7 +2277,7 @@
             viewer.classList.remove('hidden');
             
             let logText = logs.map(l => {
-                const time = new Date(l.created_at).toLocaleTimeString();
+                const time = parseDateSafe(l.created_at).toLocaleTimeString();
                 let extra = '';
                 if (l.event_type === 'motor_start') extra = ` | Сц:${l.data.scene_no} Кадр:${l.data.shot_no} Д:${l.data.take_no}`;
                 return `[${time}] ${l.event_type.toUpperCase()}${extra}`;
