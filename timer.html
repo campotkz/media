@@ -1496,6 +1496,14 @@
                 // Client Mapping Fix: Set to empty for manual shift
                 state.pool_client = [];
 
+                // Update UI Labels
+                ui.locationLabel.textContent = `ЛОКАЦИЯ: ${state.location}`;
+                ui.sceneLabel.textContent = state.scene;
+                ui.shotLabel.textContent = state.shot;
+                ui.takeLabel.textContent = state.take;
+
+                saveState();
+
                 // Show the Red Ring
                 document.getElementById('shootSelector').classList.add('hidden');
                 document.getElementById('startOverlayDesc').textContent = "Ручной запуск. Нажмите на кольцо!";
@@ -1601,7 +1609,7 @@
             }
             // Button Timers
             for (let id in state.activeTimers) {
-                const el = document.getElementById('btn_' + id);
+                const el = document.getElementById('btn_' + id) || document.getElementById('btn_delay_' + id);
                 if (el) {
                     const timerEl = el.querySelector('.btn-timer');
                     if (!timerEl) continue; // Safety check
