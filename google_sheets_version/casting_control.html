@@ -281,6 +281,8 @@
 <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSOZprF0d6DAsO50Vng0OOnuPw-ZS79sVIOe3ZqlX9r7RKm4eWX5u6AA5gHQ8xb30vT28kQr2F8WRxm/pub?gid=1424975507&single=true&output=csv";
     const RATINGS_API = "https://script.google.com/macros/s/AKfycbxA3xs799pc5MHjgbVAxXc1uPqLyF9k_XLLUoCfEiLx30OOvqA4xv7SrnQP3OEVF-k/exec";
+    const WEB_FORM_API = "https://script.google.com/macros/s/AKfycbz8G_EgPlaQdnoh1DEgUuLNIYYJrFE6njL5fw6HceD1hE-TKJmitnlNmd3EtQU8pH8/exec";
+    const FALLBACK_CHAT_ID = "-1003738942785";
     const BOT_TOKEN = "8534227633:AAEqULwA8rypkF-BW87G_9ACmKWNEoGZFI4";
     const CHAT_ID = "-1003842243687";
     const THREAD_ID = 2;
@@ -323,10 +325,68 @@
             const text = await r.text();
             try { cloudData = JSON.parse(text); } catch(e) { cloudData = {}; }
 
+            let webRows = [];
+            try {
+                const wr = await fetch(WEB_FORM_API + "?cb=" + Date.now());
+                const wj = await wr.json();
+                if (Array.isArray(wj)) webRows = wj;
+            } catch(e) { console.warn("Web sheet fetch warning:", e); }
+
             Papa.parse(CSV_URL + "&cb=" + Date.now(), {
                 download: true, header: true, skipEmptyLines: true,
                 complete: function(res) {
-                    actors = res.data.filter(a => Object.values(a).some(v => v)).map((a, i) => ({...a, _row: i + 2}));
+                    const baseActors = res.data.filter(a => Object.values(a).some(v => v)).map((a, i) => ({...a, _row: i + 2}));
+                    const templateKeys = baseActors.length > 0 ? Object.keys(baseActors[0]).filter(k => k !== "_row") : [
+                        "Отметка времени", "ФИО (Полностью)", "Название проекта (кастинга, из объявления)", "Пол",
+                        "Возраст (полных лет)", "Город проживания", "Рост (в сантиметрах)", "Вес (в килограммах)",
+                        "Контактный телефон", "Опыт/Ссылки (ссылки на портфолио/профили)", "Фото", "Видео",
+                        "На какую роль подаете анкету (укажите из объявления)", "Дата рождения (не обязательно)",
+                        "Типаж (выберите из списка)", "Этнос / Национальность (по желанию) ",
+                        "Telegram/Инстаграм (никнейм) или Email ", " Особые приметы и важные детали  ",
+                        " Ваши особенности и детали внешности  ", "  В каких форматах съемок вы готовы участвовать?  ",
+                        "Адрес электронной почты", "Согласие на обработку данных  ", "Статус"
+                    ];
+                    const convertedWeb = [];
+                    webRows.forEach((w, idx) => {
+                        const fio = String(w["ФИО"] || "").trim();
+                        if (!fio || fio === "ввмввпвп" || fio.startsWith("QA_TEST_")) return;
+                        let meta = {};
+                        const rawJson = w["Роль"] || "";
+                        if (typeof rawJson === "string" && rawJson.trim().startsWith("{")) {
+                            try { meta = JSON.parse(rawJson); } catch(e) {}
+                        }
+                        const photos = [w["Город"], w["Пол"], w["Возраст"], meta.photos].filter(x => typeof x === "string" && (x.startsWith("data:image") || x.startsWith("http"))).join("|||");
+                        const obj = {};
+                        const vals = [
+                            meta.ts || w["Дата"] || "",
+                            fio,
+                            w["Проект"] || meta.project || "Лишние",
+                            meta.gender || (typeof w["Пол"] === "string" && !w["Пол"].startsWith("data:") ? w["Пол"] : ""),
+                            meta.age || "",
+                            meta.city || (typeof w["Роль"] === "string" && !w["Роль"].startsWith("{") ? w["Роль"] : ""),
+                            meta.height || "",
+                            meta.weight || "",
+                            meta.phone || String(w["Вес"] || ""),
+                            meta.experience || String(w["Телефон"] || ""),
+                            photos || w["Фото Ссылка"] || "",
+                            meta.video || w["Видео Ссылка"] || "",
+                            meta.role || "",
+                            meta.dob || "",
+                            meta.type || "",
+                            meta.nat || "",
+                            meta.contact || "",
+                            meta.features || "",
+                            meta.appearance_details || "",
+                            meta.formats || "",
+                            meta.email || "",
+                            "Да",
+                            ""
+                        ];
+                        templateKeys.forEach((k, kIdx) => { obj[k] = vals[kIdx] !== undefined ? vals[kIdx] : ""; });
+                        obj._row = 10000 + idx;
+                        convertedWeb.push(obj);
+                    });
+                    actors = [...baseActors, ...convertedWeb];
                     updateDynamicFilters();
                     render();
                     btn.innerText = "🔄";
@@ -372,6 +432,7 @@
 
     function getDirectLink(url) {
         if (!url || typeof url !== 'string') return "";
+        if (url.startsWith('data:image')) return url;
         let id = (url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/) || url.match(/open\?id=([^&]+)/) || [])[1];
         // Если это прямая ссылка или ID найден
         if (id) return `https://lh3.googleusercontent.com/d/${id}`;
@@ -387,7 +448,7 @@
     }
 
     function copyFormLink() {
-        const link = "https://docs.google.com/forms/d/e/1FAIpQLSe6KZFvQ555zu1TFVYVH53LXRZ2jskKfPXDPLjWEWYq9vyDlg/viewform";
+        const link = "https://casting.sijicbond.site/";
         navigator.clipboard.writeText(link).then(() => {
             alert("Ссылка на форму скопирована!");
         }).catch(err => {
@@ -527,7 +588,7 @@
             const name = a[keys[1]] || "Без имени"; // B
             
             let photosRaw = a[keys[10]] || ""; // K: Фото
-            const photoList = photosRaw.split(',').map(p => p.trim()).filter(p => p.length > 5);
+            const photoList = (photosRaw.includes('data:image') ? photosRaw.split('|||') : photosRaw.split(',')).map(p => p.trim()).filter(p => p.length > 5);
             const photo = getDirectLink(photoList[0]);
             const otherPhotos = photoList.slice(1);
 
@@ -684,7 +745,7 @@
         
         // ЧИСТИМ ССЫЛКИ: Берем только ПЕРВУЮ, если их много через запятую
         const rawPhotos = a[keys[10]] || "";
-        const firstPhoto = rawPhotos.split(',')[0].trim().replace(/%20/g, '').replace(/%2C/g, '');
+        const firstPhoto = (rawPhotos.includes('data:image') ? rawPhotos.split('|||')[0].trim() : rawPhotos.split(',')[0].trim().replace(/%20/g, '').replace(/%2C/g, ''));
         const photoUrl = getDirectLink(firstPhoto); 
         const videoUrl = a[keys[11]] || "#";
 
@@ -703,11 +764,46 @@
         if (cap.length > 1000) cap = cap.substring(0, 950) + "...";
 
         async function post(method, body) {
-            return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+            if (method === 'sendPhoto' && body.photo && body.photo.startsWith('data:image')) {
+                const byteString = atob(body.photo.split(',')[1]);
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+                const blob = new Blob([ab], { type: 'image/jpeg' });
+                const fd = new FormData();
+                fd.append('chat_id', body.chat_id);
+                if (body.message_thread_id) fd.append('message_thread_id', body.message_thread_id);
+                fd.append('photo', blob, 'actor.jpg');
+                if (body.caption) fd.append('caption', body.caption);
+                if (body.parse_mode) fd.append('parse_mode', body.parse_mode);
+                let r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
+                let j = await r.clone().json();
+                if (!j.ok && typeof FALLBACK_CHAT_ID !== 'undefined') {
+                    const fd2 = new FormData();
+                    fd2.append('chat_id', FALLBACK_CHAT_ID);
+                    fd2.append('photo', blob, 'actor.jpg');
+                    if (body.caption) fd2.append('caption', body.caption);
+                    if (body.parse_mode) fd2.append('parse_mode', body.parse_mode);
+                    return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: fd2 });
+                }
+                return r;
+            }
+            let r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
+            let j = await r.clone().json();
+            if (!j.ok && (j.description || '').includes('chat not found') && typeof FALLBACK_CHAT_ID !== 'undefined') {
+                const b2 = { ...body, chat_id: FALLBACK_CHAT_ID };
+                delete b2.message_thread_id;
+                return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(b2)
+                });
+            }
+            return r;
         }
 
         try {
